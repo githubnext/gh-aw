@@ -374,3 +374,409 @@ func TestBuildMCPFailuresSummaryDeduplication(t *testing.T) {
 		}
 	}
 }
+
+// TestAggregateSummaryItems tests the generic aggregation helper function
+func TestAggregateSummaryItems(t *testing.T) {
+	// Test with MissingToolReport data using the generic helper
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-a",
+			},
+			MissingTools: []MissingToolReport{
+				{
+					Tool:         "docker",
+					Reason:       "Container operations needed",
+					WorkflowName: "workflow-a",
+					RunID:        1001,
+				},
+			},
+		},
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-b",
+			},
+			MissingTools: []MissingToolReport{
+				{
+					Tool:         "docker",
+					Reason:       "Container build needed",
+					WorkflowName: "workflow-b",
+					RunID:        1002,
+				},
+			},
+		},
+	}
+
+	// Use the generic aggregation helper directly
+	result := aggregateSummaryItems(
+		processedRuns,
+		func(pr ProcessedRun) []MissingToolReport {
+			return pr.MissingTools
+		},
+		func(tool MissingToolReport) string {
+			return tool.Tool
+		},
+		func(tool MissingToolReport) *MissingToolSummary {
+			return &MissingToolSummary{
+				Tool:        tool.Tool,
+				Count:       1,
+				Workflows:   []string{tool.WorkflowName},
+				FirstReason: tool.Reason,
+				RunIDs:      []int64{tool.RunID},
+			}
+		},
+		func(summary *MissingToolSummary, tool MissingToolReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		},
+		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = "test-display"
+		},
+	)
+
+	// Verify aggregation worked correctly
+	if len(result) != 1 {
+		t.Errorf("Expected 1 aggregated summary, got %d", len(result))
+		return
+	}
+
+	summary := result[0]
+
+	// Verify count aggregation
+	if summary.Count != 2 {
+		t.Errorf("Expected count = 2, got %d", summary.Count)
+	}
+
+	// Verify workflow deduplication
+	if len(summary.Workflows) != 2 {
+		t.Errorf("Expected 2 unique workflows, got %d", len(summary.Workflows))
+	}
+
+	// Verify run IDs collected
+	if len(summary.RunIDs) != 2 {
+		t.Errorf("Expected 2 run IDs, got %d", len(summary.RunIDs))
+	}
+
+	// Verify first reason preserved
+	if summary.FirstReason != "Container operations needed" {
+		t.Errorf("Expected FirstReason = 'Container operations needed', got '%s'", summary.FirstReason)
+	}
+
+	// Verify finalize was called
+	if summary.WorkflowsDisplay != "test-display" {
+		t.Errorf("Expected WorkflowsDisplay = 'test-display', got '%s'", summary.WorkflowsDisplay)
+	}
+}
+
+// TestAggregateDomainStats tests the shared domain aggregation helper
+func TestAggregateDomainStats(t *testing.T) {
+	t.Run("aggregates domains correctly", func(t *testing.T) {
+		processedRuns := []ProcessedRun{
+			{
+				AccessAnalysis: &DomainAnalysis{
+					AllowedDomains: []string{"example.com", "api.github.com"},
+					DeniedDomains:  []string{"blocked.com"},
+					TotalRequests:  10,
+					AllowedCount:   8,
+					DeniedCount:    2,
+				},
+			},
+			{
+				AccessAnalysis: &DomainAnalysis{
+					AllowedDomains: []string{"api.github.com", "docs.github.com"},
+					DeniedDomains:  []string{"spam.com"},
+					TotalRequests:  5,
+					AllowedCount:   4,
+					DeniedCount:    1,
+				},
+			},
+		}
+
+		agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+			if pr.AccessAnalysis == nil {
+				return nil, nil, 0, 0, 0, false
+			}
+			return pr.AccessAnalysis.AllowedDomains,
+				pr.AccessAnalysis.DeniedDomains,
+				pr.AccessAnalysis.TotalRequests,
+				pr.AccessAnalysis.AllowedCount,
+				pr.AccessAnalysis.DeniedCount,
+				true
+		})
+
+		if agg.totalRequests != 15 {
+			t.Errorf("Expected totalRequests = 15, got %d", agg.totalRequests)
+		}
+		if agg.allowedCount != 12 {
+			t.Errorf("Expected allowedCount = 12, got %d", agg.allowedCount)
+		}
+		if agg.deniedCount != 3 {
+			t.Errorf("Expected deniedCount = 3, got %d", agg.deniedCount)
+		}
+
+		// Check unique domains
+		if len(agg.allAllowedDomains) != 3 {
+			t.Errorf("Expected 3 unique allowed domains, got %d", len(agg.allAllowedDomains))
+		}
+		if len(agg.allDeniedDomains) != 2 {
+			t.Errorf("Expected 2 unique denied domains, got %d", len(agg.allDeniedDomains))
+		}
+
+		// Verify specific domains
+		if !agg.allAllowedDomains["example.com"] {
+			t.Error("Expected example.com in allowed domains")
+		}
+		if !agg.allAllowedDomains["api.github.com"] {
+			t.Error("Expected api.github.com in allowed domains")
+		}
+		if !agg.allDeniedDomains["blocked.com"] {
+			t.Error("Expected blocked.com in denied domains")
+		}
+	})
+
+	t.Run("handles nil analysis", func(t *testing.T) {
+		processedRuns := []ProcessedRun{
+			{
+				AccessAnalysis: nil,
+			},
+			{
+				AccessAnalysis: &DomainAnalysis{
+					AllowedDomains: []string{"example.com"},
+					TotalRequests:  5,
+					AllowedCount:   5,
+					DeniedCount:    0,
+				},
+			},
+		}
+
+		agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+			if pr.AccessAnalysis == nil {
+				return nil, nil, 0, 0, 0, false
+			}
+			return pr.AccessAnalysis.AllowedDomains,
+				pr.AccessAnalysis.DeniedDomains,
+				pr.AccessAnalysis.TotalRequests,
+				pr.AccessAnalysis.AllowedCount,
+				pr.AccessAnalysis.DeniedCount,
+				true
+		})
+
+		if agg.totalRequests != 5 {
+			t.Errorf("Expected totalRequests = 5, got %d", agg.totalRequests)
+		}
+		if len(agg.allAllowedDomains) != 1 {
+			t.Errorf("Expected 1 allowed domain, got %d", len(agg.allAllowedDomains))
+		}
+	})
+
+	t.Run("handles empty runs", func(t *testing.T) {
+		processedRuns := []ProcessedRun{}
+
+		agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+			return nil, nil, 0, 0, 0, false
+		})
+
+		if agg.totalRequests != 0 {
+			t.Errorf("Expected totalRequests = 0, got %d", agg.totalRequests)
+		}
+		if len(agg.allAllowedDomains) != 0 {
+			t.Errorf("Expected 0 allowed domains, got %d", len(agg.allAllowedDomains))
+		}
+	})
+}
+
+// TestConvertDomainsToSortedSlices tests the domain conversion helper
+func TestConvertDomainsToSortedSlices(t *testing.T) {
+	t.Run("converts and sorts domains", func(t *testing.T) {
+		allowedMap := map[string]bool{
+			"z.com": true,
+			"a.com": true,
+			"m.com": true,
+		}
+		deniedMap := map[string]bool{
+			"y.com": true,
+			"b.com": true,
+		}
+
+		allowed, denied := convertDomainsToSortedSlices(allowedMap, deniedMap)
+
+		// Check sorted order
+		expectedAllowed := []string{"a.com", "m.com", "z.com"}
+		if len(allowed) != len(expectedAllowed) {
+			t.Errorf("Expected %d allowed domains, got %d", len(expectedAllowed), len(allowed))
+		}
+		for i, domain := range expectedAllowed {
+			if allowed[i] != domain {
+				t.Errorf("Expected allowed[%d] = %s, got %s", i, domain, allowed[i])
+			}
+		}
+
+		expectedDenied := []string{"b.com", "y.com"}
+		if len(denied) != len(expectedDenied) {
+			t.Errorf("Expected %d denied domains, got %d", len(expectedDenied), len(denied))
+		}
+		for i, domain := range expectedDenied {
+			if denied[i] != domain {
+				t.Errorf("Expected denied[%d] = %s, got %s", i, domain, denied[i])
+			}
+		}
+	})
+
+	t.Run("handles empty maps", func(t *testing.T) {
+		allowedMap := map[string]bool{}
+		deniedMap := map[string]bool{}
+
+		allowed, denied := convertDomainsToSortedSlices(allowedMap, deniedMap)
+
+		if len(allowed) != 0 {
+			t.Errorf("Expected 0 allowed domains, got %d", len(allowed))
+		}
+		if len(denied) != 0 {
+			t.Errorf("Expected 0 denied domains, got %d", len(denied))
+		}
+	})
+}
+
+// TestBuildAccessLogSummaryWithSharedHelper tests access log summary with shared helper
+func TestBuildAccessLogSummaryWithSharedHelper(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-a",
+			},
+			AccessAnalysis: &DomainAnalysis{
+				AllowedDomains: []string{"example.com", "api.github.com"},
+				DeniedDomains:  []string{"blocked.com"},
+				TotalRequests:  10,
+				AllowedCount:   8,
+				DeniedCount:    2,
+			},
+		},
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-b",
+			},
+			AccessAnalysis: &DomainAnalysis{
+				AllowedDomains: []string{"docs.github.com"},
+				DeniedDomains:  []string{},
+				TotalRequests:  5,
+				AllowedCount:   5,
+				DeniedCount:    0,
+			},
+		},
+	}
+
+	summary := buildAccessLogSummary(processedRuns)
+
+	if summary == nil {
+		t.Fatal("Expected non-nil summary")
+	}
+
+	if summary.TotalRequests != 15 {
+		t.Errorf("Expected TotalRequests = 15, got %d", summary.TotalRequests)
+	}
+	if summary.AllowedCount != 13 {
+		t.Errorf("Expected AllowedCount = 13, got %d", summary.AllowedCount)
+	}
+	if summary.DeniedCount != 2 {
+		t.Errorf("Expected DeniedCount = 2, got %d", summary.DeniedCount)
+	}
+
+	// Check sorted domains
+	expectedAllowed := []string{"api.github.com", "docs.github.com", "example.com"}
+	if len(summary.AllowedDomains) != len(expectedAllowed) {
+		t.Errorf("Expected %d allowed domains, got %d", len(expectedAllowed), len(summary.AllowedDomains))
+	}
+	for i, domain := range expectedAllowed {
+		if summary.AllowedDomains[i] != domain {
+			t.Errorf("Expected AllowedDomains[%d] = %s, got %s", i, domain, summary.AllowedDomains[i])
+		}
+	}
+
+	if len(summary.DeniedDomains) != 1 || summary.DeniedDomains[0] != "blocked.com" {
+		t.Errorf("Expected DeniedDomains = [blocked.com], got %v", summary.DeniedDomains)
+	}
+
+	// Check by workflow
+	if len(summary.ByWorkflow) != 2 {
+		t.Errorf("Expected 2 workflows, got %d", len(summary.ByWorkflow))
+	}
+}
+
+// TestBuildFirewallLogSummaryWithSharedHelper tests firewall log summary with shared helper
+func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-a",
+			},
+			FirewallAnalysis: &FirewallAnalysis{
+				AllowedDomains:  []string{"example.com"},
+				DeniedDomains:   []string{"blocked.com"},
+				TotalRequests:   10,
+				AllowedRequests: 8,
+				DeniedRequests:  2,
+				RequestsByDomain: map[string]DomainRequestStats{
+					"example.com": {Allowed: 8, Denied: 0},
+					"blocked.com": {Allowed: 0, Denied: 2},
+				},
+			},
+		},
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-b",
+			},
+			FirewallAnalysis: &FirewallAnalysis{
+				AllowedDomains:  []string{"example.com", "api.github.com"},
+				DeniedDomains:   []string{},
+				TotalRequests:   5,
+				AllowedRequests: 5,
+				DeniedRequests:  0,
+				RequestsByDomain: map[string]DomainRequestStats{
+					"example.com":    {Allowed: 3, Denied: 0},
+					"api.github.com": {Allowed: 2, Denied: 0},
+				},
+			},
+		},
+	}
+
+	summary := buildFirewallLogSummary(processedRuns)
+
+	if summary == nil {
+		t.Fatal("Expected non-nil summary")
+	}
+
+	if summary.TotalRequests != 15 {
+		t.Errorf("Expected TotalRequests = 15, got %d", summary.TotalRequests)
+	}
+	if summary.AllowedRequests != 13 {
+		t.Errorf("Expected AllowedRequests = 13, got %d", summary.AllowedRequests)
+	}
+	if summary.DeniedRequests != 2 {
+		t.Errorf("Expected DeniedRequests = 2, got %d", summary.DeniedRequests)
+	}
+
+	// Check RequestsByDomain aggregation (firewall-specific)
+	if stats, ok := summary.RequestsByDomain["example.com"]; !ok {
+		t.Error("Expected example.com in RequestsByDomain")
+	} else {
+		if stats.Allowed != 11 {
+			t.Errorf("Expected example.com Allowed = 11, got %d", stats.Allowed)
+		}
+		if stats.Denied != 0 {
+			t.Errorf("Expected example.com Denied = 0, got %d", stats.Denied)
+		}
+	}
+
+	if stats, ok := summary.RequestsByDomain["blocked.com"]; !ok {
+		t.Error("Expected blocked.com in RequestsByDomain")
+	} else {
+		if stats.Allowed != 0 {
+			t.Errorf("Expected blocked.com Allowed = 0, got %d", stats.Allowed)
+		}
+		if stats.Denied != 2 {
+			t.Errorf("Expected blocked.com Denied = 2, got %d", stats.Denied)
+		}
+	}
+}

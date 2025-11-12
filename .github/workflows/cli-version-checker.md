@@ -69,9 +69,10 @@ For each update, analyze intermediate versions:
 - **Codex**: Fetch release notes from https://github.com/openai/codex/releases/tag/rust-v{VERSION}
   - Parse the "Highlights" section for key changes
   - Parse the "PRs merged" or "Merged PRs" section for detailed changes
-  - Extract links to pull requests and issues for context
+  - **CRITICAL**: Convert PR/issue references (e.g., `#6211`) to full URLs since they refer to external repositories (e.g., `https://github.com/openai/codex/pull/6211`)
 - **GitHub MCP Server**: Fetch release notes from https://github.com/github/github-mcp-server/releases/tag/v{VERSION}
   - Parse release body for changelog entries
+  - **CRITICAL**: Convert PR/issue references (e.g., `#1105`) to full URLs since they refer to external repositories (e.g., `https://github.com/github/github-mcp-server/pull/1105`)
 - **Copilot CLI**: Repository may be private, skip release notes if inaccessible
 - **Claude Code**: No public repository, rely on NPM metadata and CLI help output
 
@@ -123,6 +124,12 @@ Include for each updated CLI:
 - **CORRECT**: https://www.npmjs.com/package/@github/copilot
 - **INCORRECT**: `https://www.npmjs.com/package/@github/copilot` (has backticks)
 - **INCORRECT**: https://www.npmjs.com/package/`@github/copilot` (package name wrapped in backticks)
+
+**Pull Request Link Formatting**:
+- **CRITICAL**: Always use full URLs for pull requests that refer to external repositories
+- **CORRECT**: https://github.com/openai/codex/pull/6211
+- **INCORRECT**: #6211 (relative reference only works for same repository)
+- When copying PR references from release notes, convert `#1234` to full URLs like `https://github.com/owner/repo/pull/1234`
 
 Template structure:
 ```

@@ -382,6 +382,86 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 	}
 }
 
+// TestBuildWorkflowMetadataEnvVars verifies the helper function for workflow metadata env vars
+func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
+	tests := []struct {
+		name           string
+		workflowName   string
+		workflowSource string
+		expected       []string
+	}{
+		{
+			name:         "workflow name only",
+			workflowName: "Test Workflow",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"Test Workflow\"\n",
+			},
+		},
+		{
+			name:           "workflow name and source",
+			workflowName:   "Issue Triage",
+			workflowSource: "owner/repo/workflows/triage.md@main",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"Issue Triage\"\n",
+				"          GH_AW_WORKFLOW_SOURCE: \"owner/repo/workflows/triage.md@main\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/tree/main/workflows/triage.md\"\n",
+			},
+		},
+		{
+			name:           "workflow name and source without ref",
+			workflowName:   "CI Helper",
+			workflowSource: "org/project/ci/helper.md",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"CI Helper\"\n",
+				"          GH_AW_WORKFLOW_SOURCE: \"org/project/ci/helper.md\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/org/project/tree/main/ci/helper.md\"\n",
+			},
+		},
+		{
+			name:           "empty workflow name",
+			workflowName:   "",
+			workflowSource: "owner/repo/workflow.md",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"\"\n",
+				"          GH_AW_WORKFLOW_SOURCE: \"owner/repo/workflow.md\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/tree/main/workflow.md\"\n",
+			},
+		},
+		{
+			name:           "source with invalid format does not produce URL",
+			workflowName:   "Test",
+			workflowSource: "invalid-source",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"Test\"\n",
+				"          GH_AW_WORKFLOW_SOURCE: \"invalid-source\"\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildWorkflowMetadataEnvVars(tt.workflowName, tt.workflowSource)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(result))
+				t.Logf("Expected: %v", tt.expected)
+				t.Logf("Got: %v", result)
+				return
+			}
+
+			for i, expectedVar := range tt.expected {
+				if i >= len(result) {
+					t.Errorf("Missing expected env var %d: %q", i, expectedVar)
+					continue
+				}
+				if result[i] != expectedVar {
+					t.Errorf("Env var %d: expected %q, got %q", i, expectedVar, result[i])
+				}
+			}
+		})
+	}
+}
+
 // TestBuildSafeOutputJobEnvVars verifies the helper function for safe-output job env vars
 func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 	tests := []struct {
@@ -534,7 +614,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	expectedComponents := []string{
 		"- name: Download agent output artifact",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0",
+		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: agent_output.json",
 		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",

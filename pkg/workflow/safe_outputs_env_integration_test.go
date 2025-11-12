@@ -24,7 +24,7 @@ func parseWorkflowFromContent(t *testing.T, content string, filename string) *Wo
 
 	workflowData := &WorkflowData{
 		Name:            filename,
-		FrontmatterName: extractStringValue(result.Frontmatter, "name"),
+		FrontmatterName: extractStringFromMap(result.Frontmatter, "name", nil),
 		SafeOutputs:     safeOutputs,
 		Tools:           topTools,
 	}

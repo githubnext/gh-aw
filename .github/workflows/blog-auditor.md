@@ -7,6 +7,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+fingerprint: blog-auditor-weekly
 engine: claude
 network:
   allowed:

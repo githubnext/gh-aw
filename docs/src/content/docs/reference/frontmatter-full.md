@@ -31,6 +31,14 @@ description: "Description of the workflow"
 # (optional)
 source: "example-value"
 
+# Optional fingerprint identifier to tag all created assets (issues, discussions,
+# comments, pull requests). Must be at least 8 characters and contain only
+# alphanumeric characters, hyphens, and underscores. This identifier will be
+# inserted in the body/description of all created assets to enable searching and
+# retrieving assets associated with this workflow.
+# (optional)
+fingerprint: "example-value"
+
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
 # githubnext/agentics/workflows/shared/common.md@v1.0.0). Any markdown files under
@@ -1157,10 +1165,6 @@ tools:
     # Optional description for the cache that will be shown in the agent prompt
     # (optional)
     description: "Description of the workflow"
-
-    # Docker image to use for the memory MCP server (default: mcp/memory)
-    # (optional)
-    docker-image: "example-value"
 
     # Number of days to retain uploaded artifacts (1-90 days, default: repository
     # setting)

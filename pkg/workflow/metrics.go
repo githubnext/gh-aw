@@ -7,7 +7,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var metricsLog = logger.New("workflow:metrics")
 
 // Pre-compiled regexes for performance (avoid recompiling in hot paths)
 var (
@@ -93,6 +97,8 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 		return metrics
 	}
 
+	metricsLog.Printf("Extracting metrics from JSON line: line_length=%d", len(trimmed))
+
 	// If the line isn't a clean JSON object, try to extract a JSON object substring
 	jsonStr := trimmed
 	if !(strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) {
@@ -135,7 +141,11 @@ func ExtractJSONTokenUsage(data map[string]any) int {
 	inputTop := ConvertToInt(data["input_tokens"])
 	outputTop := ConvertToInt(data["output_tokens"])
 	if inputTop > 0 || outputTop > 0 {
-		return inputTop + outputTop
+		totalTokens := inputTop + outputTop
+		if metricsLog.Enabled() {
+			metricsLog.Printf("Token usage extracted: input=%d, output=%d, total=%d", inputTop, outputTop, totalTokens)
+		}
+		return totalTokens
 	}
 
 	// Check top-level token fields that represent a single total value
@@ -199,6 +209,9 @@ func ExtractJSONCost(data map[string]any) float64 {
 	// Prefer explicit total_cost_usd at top-level
 	if val, exists := data["total_cost_usd"]; exists {
 		if cost := ConvertToFloat(val); cost > 0 {
+			if metricsLog.Enabled() {
+				metricsLog.Printf("Cost extracted: value=%.6f", cost)
+			}
 			return cost
 		}
 	}

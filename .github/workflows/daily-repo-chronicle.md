@@ -8,11 +8,16 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+fingerprint: daily-repo-chronicle
 engine: copilot
 
 timeout-minutes: 45
 
 network:
+  allowed:
+    - defaults
+    - python
+    - node
   firewall: true
 tools:
   edit:

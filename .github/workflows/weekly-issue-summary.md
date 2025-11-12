@@ -5,8 +5,13 @@ on:
   workflow_dispatch:
 permissions:
   issues: read
+fingerprint: weekly-issue-summary
 engine: copilot
 network:
+  allowed:
+    - defaults
+    - python
+    - node
   firewall: true
 tools:
   edit:

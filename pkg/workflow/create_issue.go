@@ -70,15 +70,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Build custom environment variables specific to create-issue
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the workflow source URL for installation instructions
-	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
-		sourceURL := buildSourceURL(data.Source)
-		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
-		}
-	}
+
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
 	}
@@ -87,19 +79,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_LABELS: %q\n", labelsStr))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreateIssues.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateIssues != nil {
-		token = data.SafeOutputs.CreateIssues.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)
 
 	// Build post-steps for assignees if configured
 	var postSteps []string
@@ -113,7 +94,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       data.SafeOutputs.CreateIssues.Assignees,
 			ParticipantType:    "assignee",
-			CustomToken:        token,
+			CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
 			SafeOutputsToken:   safeOutputsToken,
 			WorkflowToken:      data.GitHubToken,
 			ConditionStepID:    "create_issue",
@@ -138,7 +119,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		PostSteps:      postSteps,
-		Token:          token,
+		Token:          data.SafeOutputs.CreateIssues.GitHubToken,
 		TargetRepoSlug: data.SafeOutputs.CreateIssues.TargetRepoSlug,
 	})
 }

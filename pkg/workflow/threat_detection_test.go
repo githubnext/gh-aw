@@ -731,7 +731,7 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	expectedComponents := []string{
 		"name: Download prompt artifact",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0",
+		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: prompt.txt",
 		"path: /tmp/gh-aw/threat-detection/",
 	}
@@ -844,5 +844,65 @@ func TestThreatDetectionEngineFalse(t *testing.T) {
 
 	if len(config.ThreatDetection.Steps) != 1 {
 		t.Fatalf("Expected 1 custom step, got %d", len(config.ThreatDetection.Steps))
+	}
+}
+
+// TestDetectionJobSkipCondition verifies that the detection job has the correct
+// conditional logic to skip when there are no safe outputs and no patches
+func TestDetectionJobSkipCondition(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	frontmatter := map[string]any{
+		"on": "issues",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{},
+		},
+	}
+
+	// Extract safe outputs configuration
+	config := compiler.extractSafeOutputsConfig(frontmatter)
+	if config == nil {
+		t.Fatal("Expected safe outputs config to be created")
+	}
+
+	// Create workflow data with threat detection enabled
+	data := &WorkflowData{
+		SafeOutputs: config,
+	}
+
+	// Build the threat detection job
+	job, err := compiler.buildThreatDetectionJob(data, constants.AgentJobName)
+	if err != nil {
+		t.Fatalf("Failed to build detection job: %v", err)
+	}
+
+	// Verify the job has a conditional
+	if job.If == "" {
+		t.Error("Expected detection job to have an 'if' condition")
+	}
+
+	// Verify the condition checks for output_types
+	if !strings.Contains(job.If, "needs.agent.outputs.output_types") {
+		t.Error("Expected detection job condition to check output_types")
+	}
+
+	// Verify the condition checks for has_patch
+	if !strings.Contains(job.If, "needs.agent.outputs.has_patch") {
+		t.Error("Expected detection job condition to check has_patch")
+	}
+
+	// Verify the condition uses OR logic (||)
+	if !strings.Contains(job.If, "||") {
+		t.Error("Expected detection job condition to use OR logic (||)")
+	}
+
+	// Verify the condition checks output_types is not empty
+	if !strings.Contains(job.If, "!= ''") {
+		t.Error("Expected detection job condition to check output_types is not empty")
+	}
+
+	// Verify the condition checks has_patch equals 'true'
+	if !strings.Contains(job.If, "== 'true'") {
+		t.Error("Expected detection job condition to check has_patch equals 'true'")
 	}
 }

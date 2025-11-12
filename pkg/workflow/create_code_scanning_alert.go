@@ -34,11 +34,8 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Pass the workflow filename for rule ID prefix
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
-	}
+	// Add workflow metadata (name, source, and fingerprint) for consistency
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	// Build the GitHub Script step using the common helper
 	var steps []string
@@ -48,7 +45,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getCreateCodeScanningAlertScript(),
-		Token:         token,
+		Token:         data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken,
 	})
 
 	// Add step to upload SARIF artifact

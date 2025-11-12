@@ -11,36 +11,7 @@ import (
 
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
 
-// extractStringValue extracts a string value from the frontmatter map
-func extractStringValue(frontmatter map[string]any, key string) string {
-	value, exists := frontmatter[key]
-	if !exists {
-		return ""
-	}
-
-	if strValue, ok := value.(string); ok {
-		return strValue
-	}
-
-	return ""
-}
-
-// parseIntValue safely parses various numeric types to int
-// This is a common utility used across multiple parsing functions
-func parseIntValue(value any) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		return v, true
-	case int64:
-		return int(v), true
-	case uint64:
-		return int(v), true
-	case float64:
-		return int(v), true
-	default:
-		return 0, false
-	}
-}
+// Note: extractStringValue, parseIntValue, and filterMapKeys have been moved to frontmatter_helpers.go
 
 // addCustomSafeOutputEnvVars adds custom environment variables to safe output job steps
 func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
@@ -84,22 +55,6 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	// Get effective token using double precedence: config > safe-outputs, then > top-level > Copilot default
 	effectiveToken := getEffectiveCopilotGitHubToken(configToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
-// filterMapKeys creates a new map excluding the specified keys
-func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
-	excludeSet := make(map[string]bool)
-	for _, key := range excludeKeys {
-		excludeSet[key] = true
-	}
-
-	result := make(map[string]any)
-	for key, value := range original {
-		if !excludeSet[key] {
-			result[key] = value
-		}
-	}
-	return result
 }
 
 // extractYAMLValue extracts a scalar value from the frontmatter map
@@ -443,6 +398,37 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractFingerprint extracts and validates the fingerprint field from frontmatter
+func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error) {
+	value, exists := frontmatter["fingerprint"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert the value to string
+	strValue, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("fingerprint must be a string")
+	}
+
+	fingerprint := strings.TrimSpace(strValue)
+
+	// Validate minimum length
+	if len(fingerprint) < 8 {
+		return "", fmt.Errorf("fingerprint must be at least 8 characters long (got %d)", len(fingerprint))
+	}
+
+	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
+	for i, char := range fingerprint {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return "", fmt.Errorf("fingerprint contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
+		}
+	}
+
+	return fingerprint, nil
 }
 
 // buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL

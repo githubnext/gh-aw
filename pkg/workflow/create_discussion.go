@@ -62,7 +62,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 
 	// Build custom environment variables specific to create-discussion
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
 	}
@@ -70,19 +70,8 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateDiscussions != nil {
-		token = data.SafeOutputs.CreateDiscussions.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateDiscussions.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -100,7 +89,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		Script:         getCreateDiscussionScript(),
 		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
 		Outputs:        outputs,
-		Token:          token,
+		Token:          data.SafeOutputs.CreateDiscussions.GitHubToken,
 		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
 	})
 }

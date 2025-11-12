@@ -292,36 +292,74 @@ func addUniqueWorkflow(workflows []string, workflow string) []string {
 	return append(workflows, workflow)
 }
 
-// buildMissingToolsSummary aggregates missing tools across all runs
-func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
-	toolSummary := make(map[string]*MissingToolSummary)
+// aggregateSummaryItems is a generic helper that aggregates items from processed runs into summaries
+// It handles the common pattern of grouping by key, counting occurrences, tracking unique workflows, and collecting run IDs
+func aggregateSummaryItems[TItem any, TSummary any](
+	processedRuns []ProcessedRun,
+	getItems func(ProcessedRun) []TItem,
+	getKey func(TItem) string,
+	createSummary func(TItem) *TSummary,
+	updateSummary func(*TSummary, TItem),
+	finalizeSummary func(*TSummary),
+) []TSummary {
+	summaryMap := make(map[string]*TSummary)
 
+	// Aggregate items from all runs
 	for _, pr := range processedRuns {
-		for _, tool := range pr.MissingTools {
-			if summary, exists := toolSummary[tool.Tool]; exists {
-				summary.Count++
-				summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
-				summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		for _, item := range getItems(pr) {
+			key := getKey(item)
+			if summary, exists := summaryMap[key]; exists {
+				updateSummary(summary, item)
 			} else {
-				toolSummary[tool.Tool] = &MissingToolSummary{
-					Tool:        tool.Tool,
-					Count:       1,
-					Workflows:   []string{tool.WorkflowName},
-					FirstReason: tool.Reason,
-					RunIDs:      []int64{tool.RunID},
-				}
+				summaryMap[key] = createSummary(item)
 			}
 		}
 	}
 
-	var result []MissingToolSummary
-	for _, summary := range toolSummary {
-		// Populate WorkflowsDisplay and FirstReasonDisplay fields for console rendering (truncation handled by maxlen tag)
-		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
-		summary.FirstReasonDisplay = summary.FirstReason
-
+	// Convert map to slice and finalize each summary
+	var result []TSummary
+	for _, summary := range summaryMap {
+		finalizeSummary(summary)
 		result = append(result, *summary)
 	}
+
+	return result
+}
+
+// buildMissingToolsSummary aggregates missing tools across all runs
+func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract missing tools from each run
+		func(pr ProcessedRun) []MissingToolReport {
+			return pr.MissingTools
+		},
+		// getKey: use tool name as the aggregation key
+		func(tool MissingToolReport) string {
+			return tool.Tool
+		},
+		// createSummary: create new summary for first occurrence
+		func(tool MissingToolReport) *MissingToolSummary {
+			return &MissingToolSummary{
+				Tool:        tool.Tool,
+				Count:       1,
+				Workflows:   []string{tool.WorkflowName},
+				FirstReason: tool.Reason,
+				RunIDs:      []int64{tool.RunID},
+			}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MissingToolSummary, tool MissingToolReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+			summary.FirstReasonDisplay = summary.FirstReason
+		},
+	)
 
 	// Sort by count descending
 	sort.Slice(result, func(i, j int) bool {
@@ -333,32 +371,36 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 // buildMCPFailuresSummary aggregates MCP failures across all runs
 func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
-	failureSummary := make(map[string]*MCPFailureSummary)
-
-	for _, pr := range processedRuns {
-		for _, failure := range pr.MCPFailures {
-			if summary, exists := failureSummary[failure.ServerName]; exists {
-				summary.Count++
-				summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
-				summary.RunIDs = append(summary.RunIDs, failure.RunID)
-			} else {
-				failureSummary[failure.ServerName] = &MCPFailureSummary{
-					ServerName: failure.ServerName,
-					Count:      1,
-					Workflows:  []string{failure.WorkflowName},
-					RunIDs:     []int64{failure.RunID},
-				}
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract MCP failures from each run
+		func(pr ProcessedRun) []MCPFailureReport {
+			return pr.MCPFailures
+		},
+		// getKey: use server name as the aggregation key
+		func(failure MCPFailureReport) string {
+			return failure.ServerName
+		},
+		// createSummary: create new summary for first occurrence
+		func(failure MCPFailureReport) *MCPFailureSummary {
+			return &MCPFailureSummary{
+				ServerName: failure.ServerName,
+				Count:      1,
+				Workflows:  []string{failure.WorkflowName},
+				RunIDs:     []int64{failure.RunID},
 			}
-		}
-	}
-
-	var result []MCPFailureSummary
-	for _, summary := range failureSummary {
-		// Populate WorkflowsDisplay field for console rendering (truncation handled by maxlen tag)
-		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
-
-		result = append(result, *summary)
-	}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MCPFailureSummary, failure MCPFailureReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, failure.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MCPFailureSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+		},
+	)
 
 	// Sort by count descending
 	sort.Slice(result, func(i, j int) bool {
@@ -368,52 +410,87 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 	return result
 }
 
-// buildAccessLogSummary aggregates access log data across all runs
-func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
-	byWorkflow := make(map[string]*DomainAnalysis)
-	totalRequests := 0
-	allowedCount := 0
-	deniedCount := 0
+// domainAggregation holds the result of aggregating domain statistics
+type domainAggregation struct {
+	allAllowedDomains map[string]bool
+	allDeniedDomains  map[string]bool
+	totalRequests     int
+	allowedCount      int
+	deniedCount       int
+}
+
+// aggregateDomainStats aggregates domain statistics across runs
+// This is a shared helper for both access log and firewall log summaries
+func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*ProcessedRun) (allowedDomains, deniedDomains []string, totalRequests, allowedCount, deniedCount int, exists bool)) *domainAggregation {
+	agg := &domainAggregation{
+		allAllowedDomains: make(map[string]bool),
+		allDeniedDomains:  make(map[string]bool),
+	}
 
 	for _, pr := range processedRuns {
-		if pr.AccessAnalysis != nil {
-			totalRequests += pr.AccessAnalysis.TotalRequests
-			allowedCount += pr.AccessAnalysis.AllowedCount
-			deniedCount += pr.AccessAnalysis.DeniedCount
-			byWorkflow[pr.Run.WorkflowName] = pr.AccessAnalysis
+		allowedDomains, deniedDomains, totalRequests, allowedCount, deniedCount, exists := getAnalysis(&pr)
+		if !exists {
+			continue
+		}
 
-			for _, domain := range pr.AccessAnalysis.AllowedDomains {
-				allAllowedDomains[domain] = true
-			}
-			for _, domain := range pr.AccessAnalysis.DeniedDomains {
-				allDeniedDomains[domain] = true
-			}
+		agg.totalRequests += totalRequests
+		agg.allowedCount += allowedCount
+		agg.deniedCount += deniedCount
+
+		for _, domain := range allowedDomains {
+			agg.allAllowedDomains[domain] = true
+		}
+		for _, domain := range deniedDomains {
+			agg.allDeniedDomains[domain] = true
 		}
 	}
 
-	if totalRequests == 0 {
+	return agg
+}
+
+// convertDomainsToSortedSlices converts domain maps to sorted slices
+func convertDomainsToSortedSlices(allowedMap, deniedMap map[string]bool) (allowed, denied []string) {
+	for domain := range allowedMap {
+		allowed = append(allowed, domain)
+	}
+	sort.Strings(allowed)
+
+	for domain := range deniedMap {
+		denied = append(denied, domain)
+	}
+	sort.Strings(denied)
+
+	return allowed, denied
+}
+
+// buildAccessLogSummary aggregates access log data across all runs
+func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
+	byWorkflow := make(map[string]*DomainAnalysis)
+
+	// Use shared aggregation helper
+	agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+		if pr.AccessAnalysis == nil {
+			return nil, nil, 0, 0, 0, false
+		}
+		byWorkflow[pr.Run.WorkflowName] = pr.AccessAnalysis
+		return pr.AccessAnalysis.AllowedDomains,
+			pr.AccessAnalysis.DeniedDomains,
+			pr.AccessAnalysis.TotalRequests,
+			pr.AccessAnalysis.AllowedCount,
+			pr.AccessAnalysis.DeniedCount,
+			true
+	})
+
+	if agg.totalRequests == 0 {
 		return nil
 	}
 
-	// Convert maps to slices
-	var allowedDomains []string
-	for domain := range allAllowedDomains {
-		allowedDomains = append(allowedDomains, domain)
-	}
-	sort.Strings(allowedDomains)
-
-	var deniedDomains []string
-	for domain := range allDeniedDomains {
-		deniedDomains = append(deniedDomains, domain)
-	}
-	sort.Strings(deniedDomains)
+	allowedDomains, deniedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allDeniedDomains)
 
 	return &AccessLogSummary{
-		TotalRequests:  totalRequests,
-		AllowedCount:   allowedCount,
-		DeniedCount:    deniedCount,
+		TotalRequests:  agg.totalRequests,
+		AllowedCount:   agg.allowedCount,
+		DeniedCount:    agg.deniedCount,
 		AllowedDomains: allowedDomains,
 		DeniedDomains:  deniedDomains,
 		ByWorkflow:     byWorkflow,
@@ -422,59 +499,42 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 
 // buildFirewallLogSummary aggregates firewall log data across all runs
 func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
 	allRequestsByDomain := make(map[string]DomainRequestStats)
 	byWorkflow := make(map[string]*FirewallAnalysis)
-	totalRequests := 0
-	allowedRequests := 0
-	deniedRequests := 0
 
-	for _, pr := range processedRuns {
-		if pr.FirewallAnalysis != nil {
-			totalRequests += pr.FirewallAnalysis.TotalRequests
-			allowedRequests += pr.FirewallAnalysis.AllowedRequests
-			deniedRequests += pr.FirewallAnalysis.DeniedRequests
-			byWorkflow[pr.Run.WorkflowName] = pr.FirewallAnalysis
-
-			for _, domain := range pr.FirewallAnalysis.AllowedDomains {
-				allAllowedDomains[domain] = true
-			}
-			for _, domain := range pr.FirewallAnalysis.DeniedDomains {
-				allDeniedDomains[domain] = true
-			}
-
-			// Aggregate request stats by domain
-			for domain, stats := range pr.FirewallAnalysis.RequestsByDomain {
-				existing := allRequestsByDomain[domain]
-				existing.Allowed += stats.Allowed
-				existing.Denied += stats.Denied
-				allRequestsByDomain[domain] = existing
-			}
+	// Use shared aggregation helper
+	agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+		if pr.FirewallAnalysis == nil {
+			return nil, nil, 0, 0, 0, false
 		}
-	}
+		byWorkflow[pr.Run.WorkflowName] = pr.FirewallAnalysis
 
-	if totalRequests == 0 {
+		// Aggregate request stats by domain (firewall-specific)
+		for domain, stats := range pr.FirewallAnalysis.RequestsByDomain {
+			existing := allRequestsByDomain[domain]
+			existing.Allowed += stats.Allowed
+			existing.Denied += stats.Denied
+			allRequestsByDomain[domain] = existing
+		}
+
+		return pr.FirewallAnalysis.AllowedDomains,
+			pr.FirewallAnalysis.DeniedDomains,
+			pr.FirewallAnalysis.TotalRequests,
+			pr.FirewallAnalysis.AllowedRequests,
+			pr.FirewallAnalysis.DeniedRequests,
+			true
+	})
+
+	if agg.totalRequests == 0 {
 		return nil
 	}
 
-	// Convert maps to slices
-	var allowedDomains []string
-	for domain := range allAllowedDomains {
-		allowedDomains = append(allowedDomains, domain)
-	}
-	sort.Strings(allowedDomains)
-
-	var deniedDomains []string
-	for domain := range allDeniedDomains {
-		deniedDomains = append(deniedDomains, domain)
-	}
-	sort.Strings(deniedDomains)
+	allowedDomains, deniedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allDeniedDomains)
 
 	return &FirewallLogSummary{
-		TotalRequests:    totalRequests,
-		AllowedRequests:  allowedRequests,
-		DeniedRequests:   deniedRequests,
+		TotalRequests:    agg.totalRequests,
+		AllowedRequests:  agg.allowedCount,
+		DeniedRequests:   agg.deniedCount,
 		AllowedDomains:   allowedDomains,
 		DeniedDomains:    deniedDomains,
 		RequestsByDomain: allRequestsByDomain,
@@ -482,78 +542,21 @@ func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
 	}
 }
 
-// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
-func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
-	// Track all errors and warnings in a single map
-	combinedMap := make(map[string]*ErrorSummary)
-
-	for _, pr := range processedRuns {
-		// Extract metrics from run's logs
-		metrics := ExtractLogMetricsFromRun(pr)
-
-		// Get engine information for this run
-		engineID := ""
-		awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			engineID = info.EngineID
-		}
-
-		// Process each error/warning
-		for _, logErr := range metrics.Errors {
-			// Create a combined key using type and message
-			key := logErr.Type + ":" + logErr.Message
-
-			if existing, exists := combinedMap[key]; exists {
-				// Increment count for existing error/warning
-				existing.Count++
-			} else {
-				// Create new entry
-				// Capitalize the type for display
-				displayType := logErr.Type
-				if displayType == "error" {
-					displayType = "Error"
-				} else if displayType == "warning" {
-					displayType = "Warning"
-				}
-
-				combinedMap[key] = &ErrorSummary{
-					Type:         displayType,
-					Message:      logErr.Message,
-					Count:        1,
-					PatternID:    logErr.PatternID,
-					Engine:       engineID,
-					RunID:        pr.Run.DatabaseID,
-					RunURL:       pr.Run.URL,
-					WorkflowName: pr.Run.WorkflowName,
-				}
-			}
-		}
-	}
-
-	// Convert map to slice and sort by count (descending), then by type (errors first)
-	var combined []ErrorSummary
-	for _, summary := range combinedMap {
-		combined = append(combined, *summary)
-	}
-	sort.Slice(combined, func(i, j int) bool {
-		// First sort by type (Error before Warning)
-		if combined[i].Type != combined[j].Type {
-			return combined[i].Type == "Error"
-		}
-		// Then by count (descending)
-		return combined[i].Count > combined[j].Count
-	})
-
-	return combined
+// logErrorAggregator defines how to aggregate log errors
+type logErrorAggregator struct {
+	// generateKey creates a unique key for deduplication
+	generateKey func(logErr workflow.LogError) string
+	// selectMap chooses which map to store the error in (for separate error/warning maps)
+	selectMap func(logErr workflow.LogError) map[string]*ErrorSummary
+	// sortResults sorts the final aggregated results
+	sortResults func(results []ErrorSummary)
 }
 
-// buildErrorsSummary aggregates errors and warnings across all runs
-// Returns two slices: errorsSummary and warningsSummary
-// DEPRECATED: Use buildCombinedErrorsSummary instead
-func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
-	// Track errors and warnings separately
-	errorMap := make(map[string]*ErrorSummary)
-	warningMap := make(map[string]*ErrorSummary)
+// aggregateLogErrors extracts common error aggregation logic
+// It iterates through processedRuns, extracts metrics, resolves engine info,
+// and aggregates errors using the provided aggregator strategy
+func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []ErrorSummary {
+	aggregatedMap := make(map[string]*ErrorSummary)
 
 	for _, pr := range processedRuns {
 		// Extract metrics from run's logs
@@ -568,14 +571,13 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 
 		// Process each error/warning
 		for _, logErr := range metrics.Errors {
-			// Use message as the key for aggregation
-			key := logErr.Message
+			// Generate key for this error
+			key := agg.generateKey(logErr)
 
-			var targetMap map[string]*ErrorSummary
-			if logErr.Type == "error" {
-				targetMap = errorMap
-			} else {
-				targetMap = warningMap
+			// Determine target map (if using multiple maps)
+			targetMap := aggregatedMap
+			if agg.selectMap != nil {
+				targetMap = agg.selectMap(logErr)
 			}
 
 			if existing, exists := targetMap[key]; exists {
@@ -605,19 +607,66 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 		}
 	}
 
-	// Convert maps to slices and sort by count (descending)
-	var errorsSummary []ErrorSummary
-	for _, summary := range errorMap {
-		errorsSummary = append(errorsSummary, *summary)
+	// Convert map to slice
+	var results []ErrorSummary
+	for _, summary := range aggregatedMap {
+		results = append(results, *summary)
 	}
+
+	// Sort results using provided strategy
+	if agg.sortResults != nil {
+		agg.sortResults(results)
+	}
+
+	return results
+}
+
+// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
+func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
+	agg := logErrorAggregator{
+		generateKey: func(logErr workflow.LogError) string {
+			// Create a combined key using type and message
+			return logErr.Type + ":" + logErr.Message
+		},
+		selectMap: nil, // Use single map
+		sortResults: func(results []ErrorSummary) {
+			sort.Slice(results, func(i, j int) bool {
+				// First sort by type (Error before Warning)
+				if results[i].Type != results[j].Type {
+					return results[i].Type == "Error"
+				}
+				// Then by count (descending)
+				return results[i].Count > results[j].Count
+			})
+		},
+	}
+
+	return aggregateLogErrors(processedRuns, agg)
+}
+
+// buildErrorsSummary aggregates errors and warnings across all runs
+// Returns two slices: errorsSummary and warningsSummary
+// DEPRECATED: Use buildCombinedErrorsSummary instead
+func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
+	// Get combined summary
+	combined := buildCombinedErrorsSummary(processedRuns)
+
+	// Separate into errors and warnings
+	var errorsSummary []ErrorSummary
+	var warningsSummary []ErrorSummary
+
+	for _, summary := range combined {
+		if summary.Type == "Error" {
+			errorsSummary = append(errorsSummary, summary)
+		} else {
+			warningsSummary = append(warningsSummary, summary)
+		}
+	}
+
+	// Sort each by count (descending)
 	sort.Slice(errorsSummary, func(i, j int) bool {
 		return errorsSummary[i].Count > errorsSummary[j].Count
 	})
-
-	var warningsSummary []ErrorSummary
-	for _, summary := range warningMap {
-		warningsSummary = append(warningsSummary, *summary)
-	}
 	sort.Slice(warningsSummary, func(i, j int) bool {
 		return warningsSummary[i].Count > warningsSummary[j].Count
 	})

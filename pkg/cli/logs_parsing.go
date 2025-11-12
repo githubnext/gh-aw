@@ -1,0 +1,517 @@
+// Package cli provides command-line interface functionality for gh-aw.
+// This file (logs_parsing.go) contains functions for parsing and analyzing
+// workflow logs from various AI engines.
+//
+// Key responsibilities:
+//   - Parsing engine-specific log formats (Claude, Copilot, Codex, Custom)
+//   - Extracting engine configuration from aw_info.json
+//   - Locating agent log files and output artifacts
+//   - Parsing firewall logs and generating summaries
+//   - Running JavaScript parsers to generate markdown reports
+package cli
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/workflow"
+)
+
+// parseAwInfo reads and parses aw_info.json file, returning the parsed data
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
+	var data []byte
+	var err error
+
+	// Check if the path exists and determine if it's a file or directory
+	stat, statErr := os.Stat(infoFilePath)
+	if statErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
+		}
+		return nil, statErr
+	}
+
+	if stat.IsDir() {
+		// It's a directory - look for nested aw_info.json
+		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file: %s", nestedPath)))
+		}
+		data, err = os.ReadFile(nestedPath)
+	} else {
+		// It's a regular file
+		data, err = os.ReadFile(infoFilePath)
+	}
+
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
+		}
+		return nil, err
+	}
+
+	var info AwInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
+		}
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+	info, err := parseAwInfo(infoFilePath, verbose)
+	if err != nil {
+		return nil
+	}
+
+	if info.EngineID == "" {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
+		}
+		return nil
+	}
+
+	registry := workflow.GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(info.EngineID)
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", info.EngineID)))
+		}
+		return nil
+	}
+
+	return engine
+}
+
+// parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
+func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, verbose bool) (LogMetrics, error) {
+	// Read the entire log file at once to avoid JSON parsing issues from chunked reading
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
+	}
+
+	logContent := string(content)
+
+	// If we have a detected engine from aw_info.json, use it directly
+	if detectedEngine != nil {
+		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
+	}
+
+	// No aw_info.json metadata available - return empty metrics
+	if verbose {
+		fmt.Println(console.FormatWarningMessage("No aw_info.json found, unable to parse engine-specific metrics"))
+	}
+	return LogMetrics{}, nil
+}
+
+// findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
+// Returns the first path found (depth-first) and a boolean indicating success.
+func findAgentOutputFile(logDir string) (string, bool) {
+	var foundPath string
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		if !info.IsDir() && strings.EqualFold(info.Name(), constants.AgentOutputArtifactName) {
+			foundPath = path
+			return errors.New("stop") // sentinel to stop walking early
+		}
+		return nil
+	})
+	if foundPath == "" {
+		return "", false
+	}
+	return foundPath, true
+}
+
+// findAgentLogFile searches for agent logs within the logDir.
+// It uses engine.GetLogFileForParsing() to determine which log file to use:
+//   - If GetLogFileForParsing() returns a non-empty value that doesn't point to agent-stdio.log,
+//     look for files in the "agent_output" artifact directory
+//   - Otherwise, look for the "agent-stdio.log" artifact file
+//
+// Returns the first path found and a boolean indicating success.
+func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string, bool) {
+	// Use GetLogFileForParsing to determine which log file to use
+	logFileForParsing := engine.GetLogFileForParsing()
+
+	// If the engine specifies a log file that isn't the default agent-stdio.log,
+	// look in the agent_output artifact directory
+	if logFileForParsing != "" && logFileForParsing != defaultAgentStdioLogPath {
+		// Check for agent_output directory (artifact)
+		agentOutputDir := filepath.Join(logDir, "agent_output")
+		if fileutil.DirExists(agentOutputDir) {
+			// Find the first file in this directory
+			var foundFile string
+			_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil || info == nil {
+					return nil
+				}
+				if !info.IsDir() && foundFile == "" {
+					foundFile = path
+					return errors.New("stop") // sentinel to stop walking early
+				}
+				return nil
+			})
+			if foundFile != "" {
+				return foundFile, true
+			}
+		}
+	}
+
+	// Default to agent-stdio.log
+	agentStdioLog := filepath.Join(logDir, "agent-stdio.log")
+	if fileutil.FileExists(agentStdioLog) {
+		return agentStdioLog, true
+	}
+
+	// Also check for nested agent-stdio.log in case it's in a subdirectory
+	var foundPath string
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == "agent-stdio.log" {
+			foundPath = path
+			return errors.New("stop") // sentinel to stop walking early
+		}
+		return nil
+	})
+	if foundPath != "" {
+		return foundPath, true
+	}
+
+	return "", false
+}
+
+// parseAgentLog parses agent logs and generates a markdown summary
+func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
+	// Determine which parser script to use based on the engine
+	if engine == nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
+		return nil
+	}
+
+	// Find the agent log file - use engine.GetLogFileForParsing() to determine location
+	agentLogPath, found := findAgentLogFile(runDir, engine)
+	if !found {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
+		return nil
+	}
+
+	parserScriptName := engine.GetLogParserScriptId()
+	if parserScriptName == "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s in %s, skipping", engine.GetID(), filepath.Base(runDir))))
+		return nil
+	}
+
+	jsScript := workflow.GetLogParserScript(parserScriptName)
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get log parser script %s", parserScriptName)))
+		}
+		return nil
+	}
+
+	// Read the log content
+	logContent, err := os.ReadFile(agentLogPath)
+	if err != nil {
+		return fmt.Errorf("failed to read agent log file: %w", err)
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Write the log content to a temporary file
+	logFile := filepath.Join(tempDir, "agent.log")
+	if err := os.WriteFile(logFile, logContent, 0644); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
+	}
+
+	// Write the bootstrap helper to the temp directory
+	bootstrapScript := workflow.GetLogParserBootstrap()
+	if bootstrapScript != "" {
+		bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
+		if err := os.WriteFile(bootstrapFile, []byte(bootstrapScript), 0644); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
+	// Create a Node.js script that mimics the GitHub Actions environment
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+
+// Mock @actions/core for the parser
+const core = {
+	summary: {
+		addRaw: function(content) {
+			this._content = content;
+			return this;
+		},
+		write: function() {
+			console.log(this._content);
+		},
+		_content: ''
+	},
+	setFailed: function(message) {
+		console.error('FAILED:', message);
+		process.exit(1);
+	},
+	info: function(message) {
+		// Silent in CLI mode
+	}
+};
+
+// Set global core for the parser scripts
+global.core = core;
+
+// Set up environment
+process.env.GH_AW_AGENT_OUTPUT = '%s';
+
+// Execute the parser script
+%s
+`, logFile, jsScript)
+
+	// Write the Node.js script
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write node script: %w", err)
+	}
+
+	// Execute the Node.js script
+	cmd := exec.Command("node", "parser.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute parser script: %w\nOutput: %s", err, string(output))
+	}
+
+	// Write the output to log.md in the run directory
+	logMdPath := filepath.Join(runDir, "log.md")
+	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+		return fmt.Errorf("failed to write log.md: %w", err)
+	}
+
+	return nil
+}
+
+// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
+func parseFirewallLogs(runDir string, verbose bool) error {
+	// Get the firewall log parser script
+	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
+		}
+		return nil
+	}
+
+	// Check if squid logs directory exists in the run directory
+	// The logs could be in workflow-logs subdirectory or directly in the run directory
+	squidLogsDir := filepath.Join(runDir, "squid-logs")
+
+	// Also check for squid logs in workflow-logs directory
+	workflowLogsSquidDir := filepath.Join(runDir, "workflow-logs", "squid-logs")
+
+	// Determine which directory to use
+	var logsDir string
+	if fileutil.DirExists(squidLogsDir) {
+		logsDir = squidLogsDir
+	} else if fileutil.DirExists(workflowLogsSquidDir) {
+		logsDir = workflowLogsSquidDir
+	} else {
+		// No firewall logs found - this is not an error, just skip parsing
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
+		}
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs in %s", logsDir)))
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a Node.js script that mimics the GitHub Actions environment
+	// The firewall parser expects logs in /tmp/gh-aw/squid-logs-{workflow}/
+	// We'll set GITHUB_WORKFLOW to a value that makes the parser look in our temp directory
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+const path = require('path');
+
+// Mock @actions/core for the parser
+const core = {
+	summary: {
+		addRaw: function(content) {
+			this._content = content;
+			return this;
+		},
+		write: function() {
+			console.log(this._content);
+		},
+		_content: ''
+	},
+	setFailed: function(message) {
+		console.error('FAILED:', message);
+		process.exit(1);
+	},
+	info: function(message) {
+		// Silent in CLI mode
+	}
+};
+
+// Set up environment
+// We'll use a custom workflow name that points to our temp directory
+process.env.GITHUB_WORKFLOW = 'temp-workflow';
+
+// Override require to provide our mock
+const originalRequire = require;
+require = function(name) {
+	if (name === '@actions/core') {
+		return core;
+	}
+	return originalRequire.apply(this, arguments);
+};
+
+// Monkey-patch the main function to use our logs directory
+const originalMain = function() {
+  const fs = require("fs");
+  const path = require("path");
+
+  try {
+    // Use our custom logs directory instead of /tmp/gh-aw/squid-logs-*
+    const squidLogsDir = '%s';
+
+    if (!fs.existsSync(squidLogsDir)) {
+      core.info('No firewall logs directory found at: ' + squidLogsDir);
+      return;
+    }
+
+    // Find all .log files
+    const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+    if (files.length === 0) {
+      core.info('No firewall log files found in: ' + squidLogsDir);
+      return;
+    }
+
+    core.info('Found ' + files.length + ' firewall log file(s)');
+
+    // Parse all log files and aggregate results
+    let totalRequests = 0;
+    let allowedRequests = 0;
+    let deniedRequests = 0;
+    const allowedDomains = new Set();
+    const deniedDomains = new Set();
+    const requestsByDomain = new Map();
+
+    for (const file of files) {
+      const filePath = path.join(squidLogsDir, file);
+      core.info('Parsing firewall log: ' + file);
+
+      const content = fs.readFileSync(filePath, "utf8");
+      const lines = content.split("\n").filter(line => line.trim());
+
+      for (const line of lines) {
+        const entry = parseFirewallLogLine(line);
+        if (!entry) {
+          continue;
+        }
+
+        totalRequests++;
+
+        // Determine if request was allowed or denied
+        const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+        if (isAllowed) {
+          allowedRequests++;
+          allowedDomains.add(entry.domain);
+        } else {
+          deniedRequests++;
+          deniedDomains.add(entry.domain);
+        }
+
+        // Track request count per domain
+        if (!requestsByDomain.has(entry.domain)) {
+          requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+        }
+        const domainStats = requestsByDomain.get(entry.domain);
+        if (isAllowed) {
+          domainStats.allowed++;
+        } else {
+          domainStats.denied++;
+        }
+      }
+    }
+
+    // Generate step summary
+    const summary = generateFirewallSummary({
+      totalRequests,
+      allowedRequests,
+      deniedRequests,
+      allowedDomains: Array.from(allowedDomains).sort(),
+      deniedDomains: Array.from(deniedDomains).sort(),
+      requestsByDomain,
+    });
+
+    core.summary.addRaw(summary).write();
+    core.info("Firewall log summary generated successfully");
+  } catch (error) {
+    core.setFailed(error instanceof Error ? error : String(error));
+  }
+};
+
+// Execute the parser script to get helper functions
+%s
+
+// Replace main() call with our custom version
+originalMain();
+`, logsDir, jsScript)
+
+	// Write the Node.js script
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write node script: %w", err)
+	}
+
+	// Execute the Node.js script
+	cmd := exec.Command("node", "parser.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute firewall parser script: %w\nOutput: %s", err, string(output))
+	}
+
+	// Write the output to firewall.md in the run directory
+	firewallMdPath := filepath.Join(runDir, "firewall.md")
+	if err := os.WriteFile(firewallMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+		return fmt.Errorf("failed to write firewall.md: %w", err)
+	}
+
+	return nil
+}

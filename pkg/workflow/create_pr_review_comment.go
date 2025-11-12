@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createPRReviewCommentLog = logger.New("workflow:create_pr_review_comment")
 
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
@@ -14,21 +18,20 @@ type CreatePullRequestReviewCommentsConfig struct {
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
 func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	createPRReviewCommentLog.Printf("Building PR review comment job: main_job=%s", mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {
 		return nil, fmt.Errorf("safe-outputs.create-pull-request-review-comment configuration is required")
 	}
 
+	// Log configuration details
+	side := data.SafeOutputs.CreatePullRequestReviewComments.Side
+	target := data.SafeOutputs.CreatePullRequestReviewComments.Target
+	createPRReviewCommentLog.Printf("Configuration: side=%s, target=%s", side, target)
+
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the workflow source URL for installation instructions
-	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
-		sourceURL := buildSourceURL(data.Source)
-		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
-		}
-	}
+
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
@@ -38,19 +41,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug)...)
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
@@ -59,7 +51,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getCreatePRReviewCommentScript(),
-		Token:         token,
+		Token:         data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken,
 	})
 
 	// Create outputs for the job
@@ -98,8 +90,11 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 // parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
 func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
 	if _, exists := outputMap["create-pull-request-review-comment"]; !exists {
+		createPRReviewCommentLog.Printf("Configuration not found")
 		return nil
 	}
+
+	createPRReviewCommentLog.Printf("Parsing PR review comment configuration")
 
 	configData := outputMap["create-pull-request-review-comment"]
 	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Side: "RIGHT"} // Default side is RIGHT

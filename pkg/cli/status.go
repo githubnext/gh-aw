@@ -12,7 +12,7 @@ import (
 func NewStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [pattern]",
-		Short: "Show status of natural language action files and workflows",
+		Short: "Show status of agentic workflows",
 		Run: func(cmd *cobra.Command, args []string) {
 			var pattern string
 			if len(args) > 0 {

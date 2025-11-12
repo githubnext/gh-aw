@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
 
-A natural language GitHub Action is a markdown file checked into the .github/workflows directory of a repository.
+A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
 The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
 The workflow file is then executed by GitHub Actions in response to events in the repository.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -42,8 +42,8 @@ The workflow file is then executed by GitHub Actions in response to events in th
 
 var newCmd = &cobra.Command{
 	Use:   "new <workflow-base-name>",
-	Short: "Create a new workflow markdown file with example configuration",
-	Long: `Create a new workflow markdown file with commented examples and explanations of all available options.
+	Short: "Create a new workflow Markdown file with example configuration",
+	Long: `Create a new workflow Markdown file with commented examples and explanations of all available options.
 
 The created file will include comprehensive examples of:
 - All trigger types (on: events)
@@ -85,7 +85,7 @@ var removeCmd = &cobra.Command{
 
 var enableCmd = &cobra.Command{
 	Use:   "enable [workflow-name]...",
-	Short: "Enable natural language action workflows",
+	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by name, or all workflows if no names are provided.
 
 Examples:
@@ -102,7 +102,7 @@ Examples:
 
 var disableCmd = &cobra.Command{
 	Use:   "disable [workflow-name]...",
-	Short: "Disable natural language action workflows and cancel any in-progress runs",
+	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by name, or all workflows if no names are provided.
 
 Examples:
@@ -119,10 +119,10 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [markdown-file]...",
-	Short: "Compile markdown to YAML workflows",
-	Long: `Compile one or more markdown workflow files to YAML workflows.
+	Short: "Compile Markdown to YAML workflows",
+	Long: `Compile one or more Markdown workflow files to YAML workflows.
 
-If no files are specified, all markdown files in .github/workflows will be compiled.
+If no files are specified, all Markdown files in .github/workflows will be compiled.
 
 The --dependabot flag generates dependency manifests when dependencies are detected:
   - For npm: Creates package.json and package-lock.json (requires npm in PATH)
@@ -134,7 +134,7 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - Only processes workflows in the default .github/workflows directory
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
+  ` + constants.CLIExtensionPrefix + ` compile                    # Compile all Markdown files
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
@@ -332,7 +332,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
-	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation and container image validation")
+	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
