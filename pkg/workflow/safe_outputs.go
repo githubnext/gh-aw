@@ -905,13 +905,13 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 	return customEnvVars
 }
 
-// buildWorkflowMetadataEnvVarsWithFingerprint builds workflow metadata env vars including fingerprint
-func buildWorkflowMetadataEnvVarsWithFingerprint(workflowName string, workflowSource string, fingerprint string) []string {
+// buildWorkflowMetadataEnvVarsWithCampaign builds workflow metadata env vars including campaign
+func buildWorkflowMetadataEnvVarsWithCampaign(workflowName string, workflowSource string, campaign string) []string {
 	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
 
-	// Add fingerprint if present
-	if fingerprint != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", fingerprint))
+	// Add campaign if present
+	if campaign != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CAMPAIGN: %q\n", campaign))
 	}
 
 	return customEnvVars
@@ -943,8 +943,8 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
 	var customEnvVars []string
 
-	// Add workflow metadata (name, source, and fingerprint)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
+	// Add workflow metadata (name, source, and campaign)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithCampaign(data.Name, data.Source, data.Campaign)...)
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(

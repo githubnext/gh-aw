@@ -5,7 +5,7 @@ permissions:
   contents: read
   actions: read
   issues: write
-fingerprint: example-fingerprint-2024
+campaign: example-fingerprint-2024
 safe-outputs:
   create-issue:
     title-prefix: "[Example] "
@@ -14,24 +14,24 @@ safe-outputs:
 
 # Example Fingerprint Workflow
 
-This is an example workflow that demonstrates the fingerprint feature.
+This is an example workflow that demonstrates the campaign feature.
 
 When this workflow creates an issue, it will include a hidden HTML comment:
 
 ```html
-<!-- fingerprint: example-fingerprint-2024 -->
+<!-- campaign: example-fingerprint-2024 -->
 ```
 
-This fingerprint can be used to:
+This campaign can be used to:
 - Search for all assets created by this workflow
 - Track and manage related assets across the repository
-- Filter issues, discussions, PRs, and comments by fingerprint
+- Filter issues, discussions, PRs, and comments by campaign
 
-The fingerprint must be:
+The campaign must be:
 - At least 8 characters long
 - Contain only alphanumeric characters, hyphens, and underscores
 - Unique across your workflows for effective tracking
 
 ## Example Output
 
-Create an issue with the title "Test Issue with Fingerprint" and body content explaining how the fingerprint feature works.
+Create an issue with the title "Test Issue with Fingerprint" and body content explaining how the campaign feature works.

@@ -31,13 +31,13 @@ description: "Description of the workflow"
 # (optional)
 source: "example-value"
 
-# Optional fingerprint identifier to tag all created assets (issues, discussions,
+# Optional campaign identifier to tag all created assets (issues, discussions,
 # comments, pull requests). Must be at least 8 characters and contain only
 # alphanumeric characters, hyphens, and underscores. This identifier will be
 # inserted in the body/description of all created assets to enable searching and
 # retrieving assets associated with this workflow.
 # (optional)
-fingerprint: "example-value"
+campaign: "example-value"
 
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,

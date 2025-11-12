@@ -3686,7 +3686,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[audit] "
           GH_AW_DISCUSSION_CATEGORY: "Audits"
           GH_AW_WORKFLOW_NAME: "Blog Auditor"
-          GH_AW_FINGERPRINT: "blog-auditor-weekly"
+          GH_AW_CAMPAIGN: "blog-auditor-weekly"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -3724,11 +3724,11 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function getFingerprint(format) {
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
               }
               return "";
             }
@@ -3865,7 +3865,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const fingerprintComment = getFingerprint("markdown");
+                const fingerprintComment = getCampaign("markdown");
                 if (fingerprintComment) {
                   bodyLines.push(fingerprintComment);
                 }
@@ -4200,7 +4200,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Blog Auditor"
-          GH_AW_FINGERPRINT: "blog-auditor-weekly"
+          GH_AW_CAMPAIGN: "blog-auditor-weekly"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

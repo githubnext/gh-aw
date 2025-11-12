@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createAgentTaskLog = logger.New("workflow:create_agent_task")
 
 // CreateAgentTaskConfig holds configuration for creating GitHub Copilot agent tasks from agent output
 type CreateAgentTaskConfig struct {
@@ -14,6 +18,7 @@ type CreateAgentTaskConfig struct {
 // parseAgentTaskConfig handles create-agent-task configuration
 func (c *Compiler) parseAgentTaskConfig(outputMap map[string]any) *CreateAgentTaskConfig {
 	if configData, exists := outputMap["create-agent-task"]; exists {
+		createAgentTaskLog.Print("Parsing create-agent-task configuration")
 		agentTaskConfig := &CreateAgentTaskConfig{}
 		agentTaskConfig.Max = 1 // Default max is 1
 
@@ -48,6 +53,9 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateAgentTasks == nil {
 		return nil, fmt.Errorf("safe-outputs.create-agent-task configuration is required")
 	}
+
+	createAgentTaskLog.Printf("Building create-agent-task job: workflow=%s, main_job=%s, base=%s",
+		data.Name, mainJobName, data.SafeOutputs.CreateAgentTasks.Base)
 
 	var steps []string
 

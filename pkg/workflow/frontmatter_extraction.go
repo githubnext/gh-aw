@@ -400,9 +400,9 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	return ""
 }
 
-// extractFingerprint extracts and validates the fingerprint field from frontmatter
-func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error) {
-	value, exists := frontmatter["fingerprint"]
+// extractCampaign extracts and validates the campaign field from frontmatter
+func (c *Compiler) extractCampaign(frontmatter map[string]any) (string, error) {
+	value, exists := frontmatter["campaign"]
 	if !exists {
 		return "", nil
 	}
@@ -410,25 +410,25 @@ func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error
 	// Convert the value to string
 	strValue, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("fingerprint must be a string")
+		return "", fmt.Errorf("campaign must be a string")
 	}
 
-	fingerprint := strings.TrimSpace(strValue)
+	campaign := strings.TrimSpace(strValue)
 
 	// Validate minimum length
-	if len(fingerprint) < 8 {
-		return "", fmt.Errorf("fingerprint must be at least 8 characters long (got %d)", len(fingerprint))
+	if len(campaign) < 8 {
+		return "", fmt.Errorf("campaign must be at least 8 characters long (got %d)", len(campaign))
 	}
 
 	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
-	for i, char := range fingerprint {
+	for i, char := range campaign {
 		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
 			(char >= '0' && char <= '9') || char == '-' || char == '_') {
-			return "", fmt.Errorf("fingerprint contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
+			return "", fmt.Errorf("campaign contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
 		}
 	}
 
-	return fingerprint, nil
+	return campaign, nil
 }
 
 // buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL

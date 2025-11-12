@@ -173,7 +173,7 @@ type WorkflowData struct {
 	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
 	Description         string   // optional description rendered as comment in lock file
 	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	Fingerprint         string   // optional fingerprint identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
+	Campaign            string   // optional campaign identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
 	On                  string
@@ -951,10 +951,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Check if the markdown content uses the text output
 	needsTextOutput := c.detectTextOutputUsage(markdownContent)
 
-	// Extract and validate fingerprint
-	fingerprint, err := c.extractFingerprint(result.Frontmatter)
+	// Extract and validate campaign
+	campaign, err := c.extractCampaign(result.Frontmatter)
 	if err != nil {
-		return nil, fmt.Errorf("invalid fingerprint: %w", err)
+		return nil, fmt.Errorf("invalid campaign: %w", err)
 	}
 
 	// Build workflow data
@@ -963,7 +963,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		FrontmatterName:     frontmatterName,
 		Description:         c.extractDescription(result.Frontmatter),
 		Source:              c.extractSource(result.Frontmatter),
-		Fingerprint:         fingerprint,
+		Campaign:            campaign,
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		Tools:               tools,

@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createPRLog = logger.New("workflow:create_pull_request")
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
@@ -22,6 +25,15 @@ type CreatePullRequestsConfig struct {
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {
 		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
+	}
+
+	if createPRLog.Enabled() {
+		draftValue := true // Default
+		if data.SafeOutputs.CreatePullRequests.Draft != nil {
+			draftValue = *data.SafeOutputs.CreatePullRequests.Draft
+		}
+		createPRLog.Printf("Building create-pull-request job: workflow=%s, main_job=%s, draft=%v, reviewers=%d",
+			data.Name, mainJobName, draftValue, len(data.SafeOutputs.CreatePullRequests.Reviewers))
 	}
 
 	// Build pre-steps for patch download, checkout, and git config
@@ -133,9 +145,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
 	// Check for singular form only
 	if _, exists := outputMap["create-pull-request"]; !exists {
+		createPRLog.Print("No create-pull-request configuration found")
 		return nil
 	}
 
+	createPRLog.Print("Parsing create-pull-request configuration")
 	configData := outputMap["create-pull-request"]
 	pullRequestsConfig := &CreatePullRequestsConfig{}
 	pullRequestsConfig.Max = 1 // Always max 1 for pull requests

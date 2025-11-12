@@ -624,11 +624,11 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getFingerprint(format) {
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
               }
               return "";
             }
@@ -873,7 +873,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getFingerprint("markdown");
+                body += getCampaign("markdown");
                 body += generateFooter(
                   workflowName,
                   runUrl,
@@ -4566,11 +4566,11 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getFingerprint(format) {
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
               }
               return "";
             }
@@ -4666,7 +4666,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const fingerprintComment = getFingerprint("markdown");
+                const fingerprintComment = getCampaign("markdown");
                 if (fingerprintComment) {
                   bodyLines.push(fingerprintComment);
                 }
