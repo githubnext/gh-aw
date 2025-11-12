@@ -119,7 +119,7 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [markdown-file]...",
-	Short: "Compile markdown to YAML workflows",
+	Short: "Compile Markdown to YAML workflows",
 	Long: `Compile one or more markdown workflow files to YAML workflows.
 
 If no files are specified, all markdown files in .github/workflows will be compiled.
