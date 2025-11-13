@@ -34,7 +34,10 @@ var rootCmd = &cobra.Command{
 
 A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
 The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
-The workflow file is then executed by GitHub Actions in response to events in the repository.`,
+The workflow file is then executed by GitHub Actions in response to events in the repository.
+
+Note: A workflow name is the basename of the markdown file without the .md extension.
+For example, for 'weekly-research.md', the workflow name is 'weekly-research'.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -192,11 +195,11 @@ Examples:
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow-id-or-name>...",
+	Use:   "run <workflow-name>...",
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-This command accepts one or more workflow IDs or agentic workflow names.
+This command accepts one or more workflow names.
 The workflows must have been added as actions and compiled.
 
 This command only works with workflows that have workflow_dispatch triggers.

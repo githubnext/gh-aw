@@ -298,7 +298,7 @@ const (
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
-		Use:   "logs [agentic-workflow-id]",
+		Use:   "logs [workflow-name]",
 		Short: "Download and analyze agentic workflow logs with aggregated metrics",
 		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
 
@@ -314,12 +314,12 @@ Downloaded artifacts include:
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
-The agentic-workflow-id is the basename of the markdown file without the .md extension.
-For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
+The workflow name is the basename of the markdown file without the .md extension.
+For example, for 'weekly-research.md', use 'weekly-research' as the workflow name.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific agentic workflow
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific workflow
   ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
   ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
   ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date
@@ -345,8 +345,8 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
-				// Convert agentic workflow ID to GitHub Actions workflow name
-				// First try to resolve as an agentic workflow ID
+				// Convert workflow name to GitHub Actions workflow name
+				// First try to resolve as a workflow name
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
 				if err != nil {
 					// If that fails, check if it's already a GitHub Actions workflow name
@@ -356,10 +356,10 @@ Examples:
 						// It's already a valid GitHub Actions workflow name
 						workflowName = args[0]
 					} else {
-						// Neither agentic workflow ID nor valid GitHub Actions workflow name
+						// Neither workflow name nor valid GitHub Actions workflow name
 						fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 							Type:    "error",
-							Message: fmt.Sprintf("workflow '%s' not found. Expected either an agentic workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
+							Message: fmt.Sprintf("workflow '%s' not found. Expected either a workflow name (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
 						}))
 						os.Exit(1)
 					}
