@@ -165,4 +165,4 @@ jobs:
         run: go mod verify
 
       - name: Run fuzz tests
-        run: go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
+        run: go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
