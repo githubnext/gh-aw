@@ -29,6 +29,9 @@ const DefaultGitHubMCPServerVersion = "v0.20.2"
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion = "v0.1.1"
 
+// DefaultBunVersion is the default version of Bun for runtime setup
+const DefaultBunVersion = "1.1"
+
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
 
