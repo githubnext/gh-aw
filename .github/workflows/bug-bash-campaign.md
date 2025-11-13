@@ -1,12 +1,12 @@
 ---
-name: Bug Bash Campaign
+name: Weekly Bug Bash Campaign
 on:
   schedule:
-    - cron: "0 10 * * 1"  # Every Monday at 10am - kick off the weekly bug bash
+    - cron: "0 10 * * 1"
   workflow_dispatch:
     inputs:
       project_url:
-        description: "GitHub project URL (org or user). Examples: https://github.com/orgs/ACME/projects/42 | https://github.com/users/alice/projects/19"
+        description: "GitHub project URL (org or user)"
         required: true
         type: string
 
@@ -15,58 +15,130 @@ engine: copilot
 permissions:
   contents: read
   issues: write
-  repository-projects: write
   pull-requests: read
 
 safe-outputs:
   update-project:
-    github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+    github-token: ${{ secrets.PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     max: 15
 
 tools:
+  bash: ["*"]
   github:
-    mode: remote
-    toolsets: [default]
+    mode: local
+    toolsets: [issues, projects]
 
 timeout-minutes: 10
 ---
 
-# Bug Bash Campaign - Weekly Sprint
+# Weekly Bug Bash Campaign
 
 You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
 
+**Important**: Use the GitHub MCP server tools (available via `issues` and `projects` toolsets) to access GitHub data. Do NOT use `gh` CLI commands - all GitHub API access must go through the MCP server.
+
 ## Steps
 
-1. Ensure the board exists (create if missing) using `project_url`.
-2. Find recent open issues (last 30 days) with labels: `bug`, `defect`, or `regression` that are not already on the board and not closed.
-3. For each selected issue emit an `update-project` safe output with fields:
+1. **Determine the project to use:**
+   - If `${{ inputs.project_url }}` is provided, use that exact URL in all `update-project` safe outputs
+   - Otherwise, calculate the project name using the format "Bug Bash YYYY - WNN" where YYYY is the current year and WNN is the ISO week number with leading zero (e.g., "Bug Bash 2025 - W46" for week 46)
+   - **CRITICAL**: The format must have spaces around the dash: "Bug Bash 2025 - W46" (not "Bug Bash 2025-W46")
+   - The project must already exist - do not attempt to create it. Only add items to existing projects.
+2. Use the GitHub MCP server tools (issues toolset) to fetch recent open issues (last 30 days) that have at least one of these labels: `bug`, `defect`, or `regression`. Filter out:
+   - Issues already on the board
+   - Closed issues
+   - Issues with `in-progress`, `wip`, or `blocked-by-external` labels
+   - Issues with `enhancement` label unless they also have a defect label
+   - Issues with `security-review-pending` label
+4. Extract per-issue metadata: number, title, created_at, labels, comment_count, reactions_count (sum of all reaction types), body_length (full body length for accurate classification).
+5. Classify each issue using these rules (EXACT ORDER):
+
+   **Priority**:
+   - "Critical" if label contains `P0`, `P1`, or `severity:critical`
+   - "High" if (comments + reactions) >= 5 OR label contains `severity:high`
+   - "Medium" (default for all other cases)
+
+   **Complexity**:
+   - "Complex" if label contains `architecture` OR `security`
+   - "Quick Win" if body length < 600 characters (and not Complex)
+   - "Standard" (all other cases)
+
+   **Impact**:
+   - "Blocker" if label contains `blocker`
+   - "Major" if count of component/area labels (prefixes: `area:`, `component:`, `module:`) >= 2
+   - "Minor" (all other cases)
+
+   **Classification**: concatenated string `Priority|Impact|Complexity` (e.g., `High|Minor|Quick Win`)
+
+6. For each selected issue emit an `update-project` safe output using the project from step 1 (either the provided URL or the calculated name with spaces around the dash). Use the projects toolset from the GitHub MCP server to interact with the project board. Safe output fields:
    - Status: "To Do"
-   - Priority: "Critical" if P0/P1 label, else "High" if multiple comments/reactions (>=3), else "Medium".
-   - Complexity: "Quick Win" if short/simple (<600 chars body) else "Standard" otherwise; use "Complex" only if label `architecture` or `security` present.
-   - Impact: "Blocker" if blocking major feature (label `blocker`), else "Major" if multiple area/component labels, else "Minor".
-4. Limit additions to `max` (15) in safe-outputs.
-5. Create one summary issue with:
-   - Count scanned vs added
-   - Top 3 critical items (number + title)
-   - Any quick wins (list numbers)
+   - Priority: (from classification above)
+   - Complexity: (from classification above)
+   - Impact: (from classification above)
+   - Classification: (concatenated string from above)
+7. Limit additions to `max` (15) in safe-outputs.
+8. Log a summary to the workflow step summary with:
+   - Project name used
+   - Count scanned vs added vs skipped
+   - Priority distribution (Critical / High / Medium)
+   - Top 10 candidates (markdown table) sorted by Priority then Impact
+   - Quick Wins count (Complexity="Quick Win")
+   - Any permission or configuration issues encountered
 
 ## Guardrails
-- Skip items with `enhancement` label unless they also have a bug label.
-- Do not modify items in progress.
+- **Required label**: Issue MUST have at least one of: `bug`, `defect`, or `regression`
+- Skip items with `enhancement` label unless they also have a defect label.
+- Skip items with workflow/status labels: `in-progress`, `wip`, `blocked-by-external`.
+- Skip issues with label `security-review-pending`.
+- Do not modify items already on the board or closed.
 - Use `${{ needs.activation.outputs.text }}` for any manual context (if dispatched from an issue).
+- Abort additions (but still produce summary) if `PROJECT_GITHUB_TOKEN` missing or lacks `repository-projects: write`.
+- When classifying, use EXACT body length (not truncated) for Complexity determination.
+- Count ALL reaction types when calculating engagement for Priority.
 
-## Example
+## Example (Project Update)
 ```json
 {
   "type": "update-project",
-  "project": "Bug Bash 2025",
+  "project": "Bug Bash 2025 - W46",
   "content_type": "issue",
   "content_number": 123,
   "fields": {
     "Status": "To Do",
     "Priority": "High",
     "Complexity": "Standard",
-    "Impact": "Major"
+    "Impact": "Major",
+    "Classification": "High|Major|Standard"
   }
 }
 ```
+
+**Important:** The `project` field can be either a **project name** (e.g., "Bug Bash 2025 - W46") or a **project URL** (e.g., "https://github.com/users/mnkiefer/projects/19"). When a URL is provided as input, use it directly.
+
+Note: The `Classification` field is the concatenated string `Priority|Impact|Complexity` for easy sorting and filtering.
+
+## Summary Template (Log to Step Summary)
+````markdown
+# Bug Bash Weekly Campaign Summary
+
+**Project**: <CALCULATED_PROJECT_NAME> (e.g., Bug Bash 2025-W46)
+**Scanned**: <SCANNED_COUNT> | **Added**: <ADDED_COUNT> | **Skipped**: <SKIPPED_COUNT>
+
+## Priority Distribution
+- Critical: <COUNT>
+- High: <COUNT>
+- Medium: <COUNT>
+
+## Top Candidates
+| # | Title | Priority | Impact | Complexity | Comments | Reactions | Labels |
+|---|-------|----------|--------|------------|----------|-----------|--------|
+<Rows limited to 10>
+
+## Quick Wins (<N>)
+<Comma separated issue numbers or 'None'>
+
+## Configuration
+- Project URL: ${{ inputs.project_url }} (or calculated from date)
+- Lookback days: 30
+- Token scope issues: <YES/NO if encountered>
+````

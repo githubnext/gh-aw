@@ -123,9 +123,6 @@ async function updateProject(output) {
       : ownerProjectsResult.organization.projectsV2.nodes;
     
     core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
-    ownerProjects.forEach(p => {
-      core.info(`  - "${p.title}" (#${p.number})`);
-    });
     
     existingProject = ownerProjects.find(
       p => p.title === output.project || p.number.toString() === output.project.toString()
@@ -233,14 +230,17 @@ async function updateProject(output) {
     }
 
     // Step 3: If issue or PR specified, add/update it on the board
-    if (output.issue || output.pull_request) {
-      const contentType = output.issue ? "Issue" : "PullRequest";
-      const contentNumber = output.issue || output.pull_request;
+    // Support both old format (issue/pull_request) and new format (content_type/content_number)
+    const contentNumber = output.content_number || output.issue || output.pull_request;
+    if (contentNumber) {
+      const contentType = output.content_type === "pull_request" ? "PullRequest" : 
+                          output.content_type === "issue" ? "Issue" :
+                          output.issue ? "Issue" : "PullRequest";
 
       core.info(`Adding/updating ${contentType} #${contentNumber} on project board`);
 
       // Get content ID
-      const contentQuery = output.issue
+      const contentQuery = contentType === "Issue"
         ? `query($owner: String!, $repo: String!, $number: Int!) {
             repository(owner: $owner, name: $repo) {
               issue(number: $number) {
@@ -262,13 +262,13 @@ async function updateProject(output) {
         number: contentNumber,
       });
 
-      const contentId = output.issue
+      const contentId = contentType === "Issue"
         ? contentResult.repository.issue.id
         : contentResult.repository.pullRequest.id;
 
       // Check if item already exists on board
       const existingItemsResult = await githubClient.graphql(
-        `query($projectId: ID!, $contentId: ID!) {
+        `query($projectId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
               items(first: 100) {
@@ -287,7 +287,7 @@ async function updateProject(output) {
             }
           }
         }`,
-        { projectId, contentId }
+        { projectId }
       );
 
       const existingItem = existingItemsResult.node.items.nodes.find(
@@ -454,7 +454,19 @@ async function updateProject(output) {
     return;
   }
 
-  // Process the first update_project item
-  const output = updateProjectItems[0];
-  await updateProject(output);
+  core.info(`Processing ${updateProjectItems.length} update_project items`);
+
+  // Process all update_project items
+  for (let i = 0; i < updateProjectItems.length; i++) {
+    const output = updateProjectItems[i];
+    core.info(`\n[${i + 1}/${updateProjectItems.length}] Processing item: ${output.content_type || 'project'} #${output.content_number || output.issue || output.pull_request || 'N/A'}`);
+    try {
+      await updateProject(output);
+    } catch (error) {
+      core.error(`Failed to process item ${i + 1}: ${error.message}`);
+      // Continue processing remaining items even if one fails
+    }
+  }
+
+  core.info(`\n✓ Completed processing ${updateProjectItems.length} items`);
 })();
