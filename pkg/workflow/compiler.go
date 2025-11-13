@@ -958,7 +958,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build workflow data
 	parsedTools := NewTools(tools)
-	
+
 	// Check for deprecated "edit" tool and emit warning
 	if parsedTools.Edit != nil {
 		warningMsg := fmt.Sprintf("The 'edit' tool is deprecated. Please use 'edit-all' instead in workflow: %s", markdownPath)

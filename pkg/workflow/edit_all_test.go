@@ -68,9 +68,9 @@ func TestEditAllTool(t *testing.T) {
 
 	t.Run("edit-all not confused with custom tools", func(t *testing.T) {
 		toolsMap := map[string]any{
-			"edit-all":   nil,
-			"my-custom":  map[string]any{"command": "node"},
-			"another":    map[string]any{"type": "http"},
+			"edit-all":  nil,
+			"my-custom": map[string]any{"command": "node"},
+			"another":   map[string]any{"type": "http"},
 		}
 
 		tools := NewTools(toolsMap)

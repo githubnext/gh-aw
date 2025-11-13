@@ -76,7 +76,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	// Check for both "edit" (deprecated) and "edit-all" (preferred)
 	editTool, hasEdit := tools["edit"]
 	editAllTool, hasEditAll := tools["edit-all"]
-	
+
 	if hasEdit || hasEditAll {
 		// edit/edit-all -> Edit, MultiEdit, NotebookEdit, Write
 		claudeAllowed["Edit"] = nil
