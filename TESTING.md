@@ -10,6 +10,46 @@ The testing framework implements **Phase 6 (Quality Assurance)** of the Go reimp
 
 ### 1. Unit Tests (`pkg/*/`)
 
+### 2. Benchmarks (`pkg/*/_benchmark_test.go`)
+
+Performance benchmarks measure the speed of critical operations. Run benchmarks to:
+- Detect performance regressions
+- Identify optimization opportunities
+- Track performance trends over time
+
+**Running Benchmarks:**
+```bash
+# Run all benchmarks
+go test -bench=. -run=^$ ./pkg/...
+
+# Run benchmarks for specific package
+go test -bench=. -run=^$ ./pkg/workflow/
+
+# Run specific benchmark
+go test -bench=BenchmarkCompileWorkflow -run=^$ ./pkg/workflow/
+
+# Run with custom iterations
+go test -bench=. -benchtime=100x -run=^$ ./pkg/workflow/
+
+# Save benchmark results for comparison
+go test -bench=. -run=^$ ./pkg/... > bench_baseline.txt
+```
+
+**Benchmark Coverage:**
+- **Workflow Compilation**: Basic, with MCP, with imports, with validation, complex workflows
+- **Frontmatter Parsing**: Simple, complex, minimal, with arrays, schema validation
+- **Expression Validation**: Single expressions, complex expressions, full markdown validation, parsing
+- **Log Processing**: Claude, Copilot, Codex log parsing, aggregation, JSON metrics extraction
+- **MCP Configuration**: Playwright config, Docker args, expression extraction
+- **Tool Processing**: Simple and complex tool configurations, safe outputs, network permissions
+
+**Performance Baselines** (approximate, machine-dependent):
+- Workflow compilation: ~100μs - 2ms depending on complexity
+- Frontmatter parsing: ~10μs - 250μs depending on complexity
+- Expression validation: ~700ns - 10μs per expression
+- Log parsing: ~50μs - 1ms depending on log size
+- Schema validation: ~35μs - 130μs depending on complexity
+
 ### 3. Test Validation Framework (`test_validation.go`)
 
 Comprehensive validation system that ensures:
@@ -73,6 +113,7 @@ As the Go implementation develops:
 - CLI interface structure and stability
 - Basic workflow compilation interface
 - Error handling for malformed inputs
+- **Performance benchmarks** for critical operations (62+ benchmarks)
 
 ### 🔄 Interface Testing (Ready for Implementation)
 - CLI command execution (stubs tested)
@@ -81,7 +122,7 @@ As the Go implementation develops:
 
 ### 📋 Ready for Enhancement
 - Bash-Go output comparison (when compiler is complete)
-- Performance benchmarking
+- **Performance regression tracking** (baseline established)
 - Cross-platform compatibility testing
 - Real workflow execution testing
 
