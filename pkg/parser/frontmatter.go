@@ -143,6 +143,11 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		return nil, fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
 
+	// Ensure frontmatter is never nil (yaml.Unmarshal sets it to nil for empty YAML)
+	if frontmatter == nil {
+		frontmatter = make(map[string]any)
+	}
+
 	// Extract markdown content (everything after the closing ---)
 	var markdownLines []string
 	if endIndex+1 < len(lines) {
