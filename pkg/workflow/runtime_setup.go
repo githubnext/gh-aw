@@ -29,6 +29,15 @@ type RuntimeRequirement struct {
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
 var knownRuntimes = []*Runtime{
 	{
+		ID:             "bun",
+		Name:           "Bun",
+		ActionRepo:     "oven-sh/setup-bun",
+		ActionVersion:  "v2",
+		VersionField:   "bun-version",
+		DefaultVersion: constants.DefaultBunVersion,
+		Commands:       []string{"bun", "bunx"},
+	},
+	{
 		ID:             "dotnet",
 		Name:           ".NET",
 		ActionRepo:     "actions/setup-dotnet",
