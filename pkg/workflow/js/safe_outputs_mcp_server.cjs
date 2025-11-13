@@ -478,6 +478,7 @@ function getBaseBranch() {
 /**
  * Handler for create_pull_request tool
  * Resolves the current branch if branch is not provided or is the base branch
+ * Validates that aw.patch exists and is not empty
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
@@ -496,6 +497,23 @@ const createPullRequestHandler = args => {
 
     entry.branch = detectedBranch;
   }
+
+  // Validate that patch file exists and is not empty
+  const patchPath = "/tmp/gh-aw/aw.patch";
+  if (!fs.existsSync(patchPath)) {
+    const errorMessage = `No patch file found at ${patchPath}. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.`;
+    debug(`Patch validation failed: ${errorMessage}`);
+    throw new Error(errorMessage);
+  }
+
+  const patchContent = fs.readFileSync(patchPath, "utf8");
+  if (!patchContent || !patchContent.trim()) {
+    const errorMessage = `Patch file at ${patchPath} is empty. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.`;
+    debug(`Patch validation failed: ${errorMessage}`);
+    throw new Error(errorMessage);
+  }
+
+  debug(`Patch validation passed: ${patchPath} exists with ${patchContent.length} characters`);
 
   appendSafeOutput(entry);
   return {
