@@ -718,7 +718,7 @@ With triggering context:
 
 ```markdown
 >
-> To add this workflow in your repository, run `gh aw add owner/repo/path@ref`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).
+> To add this workflow in your repository, run `gh aw add owner/repo/path@ref`. See [usage guide](https://githubnext.github.io/gh-aw/setup/cli/).
 ```
 
 #### Staged Mode Preview
