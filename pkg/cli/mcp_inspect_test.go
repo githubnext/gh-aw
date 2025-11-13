@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -101,35 +100,14 @@ func TestValidateServerSecrets(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Store original environment variables to restore later
-			originalEnvVars := make(map[string]string)
-			var unsetVars []string
-
 			// Set up environment variables
 			for key, value := range tt.envVars {
-				if originalValue, exists := os.LookupEnv(key); exists {
-					originalEnvVars[key] = originalValue
-				} else {
-					unsetVars = append(unsetVars, key)
-				}
-
 				if value == "" {
-					os.Unsetenv(key)
-				} else {
-					os.Setenv(key, value)
+					// Skip setting empty values
+					continue
 				}
+				t.Setenv(key, value)
 			}
-
-			defer func() {
-				// Restore original environment variables
-				for key, originalValue := range originalEnvVars {
-					os.Setenv(key, originalValue)
-				}
-				// Unset variables that were not originally set
-				for _, key := range unsetVars {
-					os.Unsetenv(key)
-				}
-			}()
 
 			err := validateServerSecrets(tt.config, false, false)
 

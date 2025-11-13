@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"testing"
 )
 
@@ -67,26 +66,13 @@ func TestIsRunningInCI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all CI-related env vars first
 			ciVars := []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS"}
-			originalVars := make(map[string]string)
 			for _, v := range ciVars {
-				originalVars[v] = os.Getenv(v)
-				os.Unsetenv(v)
+				t.Setenv(v, "")
 			}
-
-			// Restore original env vars at the end
-			defer func() {
-				for k, v := range originalVars {
-					if v != "" {
-						os.Setenv(k, v)
-					} else {
-						os.Unsetenv(k)
-					}
-				}
-			}()
 
 			// Set test env vars
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			// Run test

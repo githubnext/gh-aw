@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -46,21 +45,9 @@ func TestIsRunningInCodespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save original value
-			originalValue := os.Getenv("CODESPACES")
-			defer func() {
-				if originalValue != "" {
-					os.Setenv("CODESPACES", originalValue)
-				} else {
-					os.Unsetenv("CODESPACES")
-				}
-			}()
-
 			// Set test value
 			if tt.envValue != "" {
-				os.Setenv("CODESPACES", tt.envValue)
-			} else {
-				os.Unsetenv("CODESPACES")
+				t.Setenv("CODESPACES", tt.envValue)
 			}
 
 			got := isRunningInCodespace()

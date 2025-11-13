@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"os"
 	"testing"
 )
 
@@ -65,8 +64,7 @@ func TestIsFeatureEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variable
-			os.Setenv("GH_AW_FEATURES", tt.envValue)
-			defer os.Unsetenv("GH_AW_FEATURES")
+			t.Setenv("GH_AW_FEATURES", tt.envValue)
 
 			result := isFeatureEnabled(tt.flag, nil)
 			if result != tt.expected {
@@ -78,9 +76,6 @@ func TestIsFeatureEnabled(t *testing.T) {
 }
 
 func TestIsFeatureEnabledNoEnv(t *testing.T) {
-	// Ensure environment variable is not set
-	os.Unsetenv("GH_AW_FEATURES")
-
 	result := isFeatureEnabled("firewall", nil)
 	if result != false {
 		t.Errorf("isFeatureEnabled(\"firewall\", nil) with no env = %v, want false", result)
@@ -158,10 +153,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variable
 			if tt.envValue != "" {
-				os.Setenv("GH_AW_FEATURES", tt.envValue)
-				defer os.Unsetenv("GH_AW_FEATURES")
-			} else {
-				os.Unsetenv("GH_AW_FEATURES")
+				t.Setenv("GH_AW_FEATURES", tt.envValue)
 			}
 
 			// Create WorkflowData with features
@@ -182,9 +174,8 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 }
 
 func TestIsFeatureEnabledWithDataNilWorkflow(t *testing.T) {
-	// Ensure environment variable is set
-	os.Setenv("GH_AW_FEATURES", "firewall")
-	defer os.Unsetenv("GH_AW_FEATURES")
+	// Set environment variable
+	t.Setenv("GH_AW_FEATURES", "firewall")
 
 	// When workflowData is nil, should fall back to env
 	result := isFeatureEnabled("firewall", nil)
