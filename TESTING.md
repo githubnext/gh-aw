@@ -19,33 +19,35 @@ Performance benchmarks measure the speed of critical operations. Run benchmarks 
 
 **Running Benchmarks:**
 ```bash
-# Run all benchmarks with make
+# Run all benchmarks with make (optimized for CI, runs in ~6 seconds)
 make bench
 
 # Run all benchmarks manually
-go test -bench=. -run=^$ ./pkg/...
+go test -bench=. -benchtime=3x -run=^$ ./pkg/...
 
-# Run benchmarks and save results for comparison
+# Run benchmarks with more iterations for comparison
 make bench-compare
 
 # Run benchmarks for specific package
-go test -bench=. -run=^$ ./pkg/workflow/
+go test -bench=. -benchtime=3x -run=^$ ./pkg/workflow/
 
 # Run specific benchmark
-go test -bench=BenchmarkCompileWorkflow -run=^$ ./pkg/workflow/
+go test -bench=BenchmarkCompileWorkflow -benchtime=3x -run=^$ ./pkg/workflow/
 
-# Run with custom iterations
+# Run with custom iterations (default is 1 second per benchmark)
 go test -bench=. -benchtime=100x -run=^$ ./pkg/workflow/
 
 # Run with memory profiling
-go test -bench=. -benchmem -run=^$ ./pkg/...
+go test -bench=. -benchmem -benchtime=3x -run=^$ ./pkg/...
 
 # Compare benchmark results over time
-go test -bench=. -run=^$ ./pkg/... > bench_baseline.txt
+go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_baseline.txt
 # ... make changes ...
-go test -bench=. -run=^$ ./pkg/... > bench_new.txt
+go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_new.txt
 benchstat bench_baseline.txt bench_new.txt
 ```
+
+**Note**: Benchmarks use `-benchtime=3x` (3 iterations) for fast CI execution. For more accurate measurements, use `-benchtime=100x` or longer durations.
 
 **Benchmark Coverage:**
 - **Workflow Compilation**: Basic, with MCP, with imports, with validation, complex workflows

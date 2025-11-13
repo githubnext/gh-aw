@@ -301,4 +301,3 @@ Role processing test.
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
-
