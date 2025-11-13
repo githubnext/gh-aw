@@ -475,8 +475,8 @@ func FormatAuthenticationError(command string, requiredScopes []string) string {
 	if len(requiredScopes) > 0 {
 		output.WriteString(fmt.Sprintf("     Required scopes: %s\n", strings.Join(requiredScopes, ", ")))
 	}
-	output.WriteString("  2. Set as repository secret: GITHUB_TOKEN or COPILOT_GITHUB_TOKEN\n")
-	output.WriteString("  3. Or set in environment: export GITHUB_TOKEN=ghp_your_token_here\n\n")
+	output.WriteString("  2. Set as repository secret: COPILOT_GITHUB_TOKEN\n")
+	output.WriteString("  3. Or set in environment: export COPILOT_GITHUB_TOKEN=ghp_your_token_here\n\n")
 
 	// Documentation link (redacted as per requirements)
 	output.WriteString("Documentation: (redacted)\n\n")
