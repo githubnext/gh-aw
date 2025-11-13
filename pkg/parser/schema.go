@@ -541,32 +541,14 @@ const (
 )
 
 // generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type
+// Returns a single string suitable for appending to error messages (backward compatibility)
 func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) string {
-	// Parse the schema to extract information for suggestions
-	var schemaDoc any
-	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
-		return "" // Can't parse schema, no suggestions
+	suggestions := generateSchemaBasedSuggestionsSlice(schemaJSON, errorMessage, jsonPath)
+	if len(suggestions) == 0 {
+		return ""
 	}
-
-	// Check if this is an additional properties error
-	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
-		invalidProps := extractAdditionalPropertyNames(errorMessage)
-		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
-
-		if len(acceptedFields) > 0 {
-			return generateFieldSuggestions(invalidProps, acceptedFields)
-		}
-	}
-
-	// Check if this is a type error
-	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
-		example := generateExampleJSONForPath(schemaDoc, jsonPath)
-		if example != "" {
-			return fmt.Sprintf("Expected format: %s", example)
-		}
-	}
-
-	return ""
+	// Join multiple suggestions with ". " for backward compatibility with existing tests and usage
+	return strings.Join(suggestions, ". ")
 }
 
 // generateSchemaBasedSuggestionsSlice generates helpful suggestions as a slice for use in CompilerError
@@ -688,47 +670,14 @@ func resolveSchemaWithOneOf(schema map[string]any) map[string]any {
 }
 
 // generateFieldSuggestions creates a helpful suggestion message for invalid field names
+// Returns a single string suitable for appending to error messages (backward compatibility)
 func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
-	if len(acceptedFields) == 0 || len(invalidProps) == 0 {
+	suggestions := generateFieldSuggestionsSlice(invalidProps, acceptedFields)
+	if len(suggestions) == 0 {
 		return ""
 	}
-
-	var suggestion strings.Builder
-
-	if len(invalidProps) == 1 {
-		suggestion.WriteString("Did you mean one of: ")
-	} else {
-		suggestion.WriteString("Valid fields are: ")
-	}
-
-	// Find closest matches using simple string distance
-	var suggestions []string
-	for _, invalidProp := range invalidProps {
-		closest := findClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
-		suggestions = append(suggestions, closest...)
-	}
-
-	// If we have specific suggestions, show them first
-	if len(suggestions) > 0 {
-		// Remove duplicates
-		uniqueSuggestions := removeDuplicates(suggestions)
-		if len(uniqueSuggestions) <= maxSuggestions {
-			suggestion.WriteString(strings.Join(uniqueSuggestions, ", "))
-		} else {
-			suggestion.WriteString(strings.Join(uniqueSuggestions[:maxSuggestions], ", "))
-			suggestion.WriteString(", ...")
-		}
-	} else {
-		// Show all accepted fields if no close matches
-		if len(acceptedFields) <= maxAcceptedFields {
-			suggestion.WriteString(strings.Join(acceptedFields, ", "))
-		} else {
-			suggestion.WriteString(strings.Join(acceptedFields[:maxAcceptedFields], ", "))
-			suggestion.WriteString(", ...")
-		}
-	}
-
-	return suggestion.String()
+	// Join multiple suggestions with ". " for backward compatibility with existing tests and usage
+	return strings.Join(suggestions, ". ")
 }
 
 // generateFieldSuggestionsSlice creates suggestions as a slice for invalid field names

@@ -36,15 +36,15 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 	}{
 		{
 			name:         "additional property error at root level",
-			errorMessage: "additional property 'invalid_prop' not allowed",
+			errorMessage: "additional property 'nam' not allowed", // typo of 'name'
 			jsonPath:     "",
-			wantContains: []string{"Did you mean one of:", "name", "age", "email"},
+			wantContains: []string{"Did you mean:", "Valid fields:", "name"},
 		},
 		{
 			name:         "additional property error in nested object",
-			errorMessage: "additional property 'unknown_permission' not allowed",
+			errorMessage: "additional property 'content' not allowed", // close to 'contents'
 			jsonPath:     "/permissions",
-			wantContains: []string{"Did you mean one of:", "contents", "issues", "pull-requests"},
+			wantContains: []string{"Did you mean:", "Valid fields:", "contents"},
 		},
 		{
 			name:         "type error with integer expected",
@@ -54,9 +54,9 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 		},
 		{
 			name:         "multiple additional properties",
-			errorMessage: "additional properties 'prop1', 'prop2' not allowed",
+			errorMessage: "additional properties 'nme', 'ag' not allowed", // typos of 'name' and 'age'
 			jsonPath:     "",
-			wantContains: []string{"Valid fields are:", "name", "age"},
+			wantContains: []string{"Did you mean one of:", "Valid fields:", "name", "age"},
 		},
 		{
 			name:         "non-validation error",
@@ -158,13 +158,13 @@ func TestGenerateFieldSuggestions(t *testing.T) {
 			name:           "single invalid property with close match",
 			invalidProps:   []string{"contnt"},
 			acceptedFields: []string{"content", "contents", "name"},
-			wantContains:   []string{"Did you mean one of:", "content"},
+			wantContains:   []string{"Did you mean:", "Valid fields:", "content"},
 		},
 		{
 			name:           "multiple invalid properties",
 			invalidProps:   []string{"prop1", "prop2"},
 			acceptedFields: []string{"name", "age", "email"},
-			wantContains:   []string{"Valid fields are:", "name", "age", "email"},
+			wantContains:   []string{"Valid fields:", "name", "age", "email"},
 		},
 		{
 			name:           "no accepted fields",
