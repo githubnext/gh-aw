@@ -439,14 +439,14 @@ func FormatErrorMessage(message string) string {
 func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	var output strings.Builder
 	output.WriteString(FormatErrorMessage(message))
-	
+
 	if len(suggestions) > 0 {
 		output.WriteString("\n\nSuggestions:\n")
 		for _, suggestion := range suggestions {
 			output.WriteString("  • " + suggestion + "\n")
 		}
 	}
-	
+
 	return output.String()
 }
 
