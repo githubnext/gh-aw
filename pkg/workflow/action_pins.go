@@ -70,11 +70,12 @@ func getActionPins() []ActionPin {
 // GetActionPin returns the pinned action reference for a given action repository
 // It uses the golden/default version defined in actionPins
 // If no pin is found, it returns an empty string
+// The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
 	for _, pin := range actionPins {
 		if pin.Repo == actionRepo {
-			return actionRepo + "@" + pin.SHA
+			return actionRepo + "@" + pin.SHA + " # " + pin.Version
 		}
 	}
 	// If no pin exists, return empty string to signal that this action is not pinned
@@ -84,6 +85,7 @@ func GetActionPin(actionRepo string) string {
 // GetActionPinWithData returns the pinned action reference for a given action@version
 // It tries dynamic resolution first, then falls back to hardcoded pins
 // If strictMode is true and resolution fails, it returns an error
+// The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
 	// First try dynamic resolution if resolver is available
 	if data.ActionResolver != nil {
@@ -93,7 +95,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			if data.ActionCache != nil {
 				_ = data.ActionCache.Save()
 			}
-			return actionRepo + "@" + sha, nil
+			return actionRepo + "@" + sha + " # " + version, nil
 		}
 	}
 
@@ -103,14 +105,14 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if pin.Repo == actionRepo {
 			// Check if the version matches the hardcoded version
 			if pin.Version == version {
-				return actionRepo + "@" + pin.SHA, nil
+				return actionRepo + "@" + pin.SHA + " # " + version, nil
 			}
 			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
 			if !data.StrictMode {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 					actionRepo, version, actionRepo, pin.Version)
 				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-				return actionRepo + "@" + pin.SHA, nil
+				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 			break
 		}

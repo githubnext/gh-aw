@@ -410,6 +410,10 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Convert to string and adjust base indentation to match GitHub Actions format
 	yamlStr := string(yamlBytes)
 
+	// Post-process to move version comments outside of quoted uses values
+	// This handles cases like: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
+	yamlStr = unquoteUsesWithComments(yamlStr)
+
 	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
 	var result strings.Builder
@@ -423,6 +427,56 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	}
 
 	return result.String(), nil
+}
+
+// unquoteUsesWithComments removes quotes from uses values that contain version comments
+// Transforms: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
+// This is needed because the YAML marshaller quotes strings containing #, but GitHub Actions
+// expects unquoted uses values with inline comments
+func unquoteUsesWithComments(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	for i, line := range lines {
+		// Look for uses: followed by a quoted string containing a # comment
+		// This handles various indentation levels and formats
+		trimmed := strings.TrimSpace(line)
+
+		// Check if line contains uses: with a quoted value
+		if !strings.Contains(trimmed, "uses: \"") {
+			continue
+		}
+
+		// Check if the quoted value contains a version comment
+		if !strings.Contains(trimmed, " # ") {
+			continue
+		}
+
+		// Find the position of uses: " in the original line
+		usesIdx := strings.Index(line, "uses: \"")
+		if usesIdx == -1 {
+			continue
+		}
+
+		// Extract the part before uses: (indentation)
+		prefix := line[:usesIdx]
+
+		// Find the opening and closing quotes
+		quoteStart := usesIdx + 7 // len("uses: \"")
+		quoteEnd := strings.Index(line[quoteStart:], "\"")
+		if quoteEnd == -1 {
+			continue
+		}
+		quoteEnd += quoteStart
+
+		// Extract the quoted content
+		quotedContent := line[quoteStart:quoteEnd]
+
+		// Extract any content after the closing quote
+		suffix := line[quoteEnd+1:]
+
+		// Reconstruct the line without quotes
+		lines[i] = prefix + "uses: " + quotedContent + suffix
+	}
+	return strings.Join(lines, "\n")
 }
 
 // GetCommonErrorPatterns returns error patterns that are common across all engines.
