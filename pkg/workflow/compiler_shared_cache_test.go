@@ -11,19 +11,7 @@ func TestCompilerSharedActionCache(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to the temp directory so the cache path is consistent
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Errorf("Failed to restore directory: %v", err)
-		}
-	}()
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	// Create a compiler instance
 	compiler := NewCompiler(false, "", "test")
@@ -66,23 +54,12 @@ func TestCompilerSharedCacheAcrossWorkflows(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Change to the temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Errorf("Failed to restore directory: %v", err)
-		}
-	}()
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	t.Chdir(tmpDir)
 
 	// Create test workflow files
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+	err := os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 

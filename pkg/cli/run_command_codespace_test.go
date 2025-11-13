@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
@@ -10,16 +9,6 @@ import (
 // TestRunCommand403ErrorInCodespace tests that a 403 error in a codespace
 // shows a helpful error message
 func TestRunCommand403ErrorInCodespace(t *testing.T) {
-	// Save original environment
-	originalCodespaces := os.Getenv("CODESPACES")
-	defer func() {
-		if originalCodespaces != "" {
-			os.Setenv("CODESPACES", originalCodespaces)
-		} else {
-			os.Unsetenv("CODESPACES")
-		}
-	}()
-
 	tests := []struct {
 		name               string
 		inCodespace        bool
@@ -75,9 +64,7 @@ func TestRunCommand403ErrorInCodespace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up codespace environment
 			if tt.inCodespace {
-				os.Setenv("CODESPACES", "true")
-			} else {
-				os.Unsetenv("CODESPACES")
+				t.Setenv("CODESPACES", "true")
 			}
 
 			// Test the helper functions directly
@@ -107,18 +94,8 @@ func TestRunCommand403ErrorInCodespace(t *testing.T) {
 // TestCodespaceErrorMessageIntegration tests the integration of codespace error detection
 // in a more realistic scenario
 func TestCodespaceErrorMessageIntegration(t *testing.T) {
-	// Save original environment
-	originalCodespaces := os.Getenv("CODESPACES")
-	defer func() {
-		if originalCodespaces != "" {
-			os.Setenv("CODESPACES", originalCodespaces)
-		} else {
-			os.Unsetenv("CODESPACES")
-		}
-	}()
-
 	// Simulate being in a codespace
-	os.Setenv("CODESPACES", "true")
+	t.Setenv("CODESPACES", "true")
 
 	// Create a mock stderr buffer with 403 error
 	var stderr bytes.Buffer
