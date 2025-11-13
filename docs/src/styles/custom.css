@@ -964,7 +964,7 @@ html {
 }
 
 /* Mobile Navigation - Ensure header elements are visible on mobile */
-@media (max-width: 72rem) {
+@media (max-width: 769px) {
   /* Keep custom header links visible on mobile but make them more compact */
   .custom-header-links {
     display: flex !important;
