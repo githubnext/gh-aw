@@ -12,21 +12,21 @@ import (
 // TestCompileConfig tests the CompileConfig structure
 func TestCompileConfig(t *testing.T) {
 	config := CompileConfig{
-		MarkdownFiles:    []string{"test.md"},
-		Verbose:          true,
-		EngineOverride:   "copilot",
-		Validate:         true,
-		Watch:            false,
-		WorkflowDir:      ".github/workflows",
-		NoEmit:           false,
-		Purge:            false,
-		TrialMode:        false,
-		Strict:           false,
-		Dependabot:       false,
-		ForceOverwrite:   false,
-		Zizmor:           false,
-		Poutine:          false,
-		Actionlint:       false,
+		MarkdownFiles:  []string{"test.md"},
+		Verbose:        true,
+		EngineOverride: "copilot",
+		Validate:       true,
+		Watch:          false,
+		WorkflowDir:    ".github/workflows",
+		NoEmit:         false,
+		Purge:          false,
+		TrialMode:      false,
+		Strict:         false,
+		Dependabot:     false,
+		ForceOverwrite: false,
+		Zizmor:         false,
+		Poutine:        false,
+		Actionlint:     false,
 	}
 
 	// Verify all fields are accessible
@@ -118,17 +118,17 @@ func TestPrintCompilationSummary(t *testing.T) {
 // TestCompileWorkflowWithValidation_InvalidFile tests error handling
 func TestCompileWorkflowWithValidation_InvalidFile(t *testing.T) {
 	compiler := workflow.NewCompiler(false, "", "test")
-	
+
 	// Try to compile a non-existent file
 	err := CompileWorkflowWithValidation(
 		compiler,
 		"/nonexistent/file.md",
-		false,  // verbose
-		false,  // zizmor
-		false,  // poutine
-		false,  // actionlint
-		false,  // strict
-		false,  // validateActionSHAs
+		false, // verbose
+		false, // zizmor
+		false, // poutine
+		false, // actionlint
+		false, // strict
+		false, // validateActionSHAs
 	)
 
 	if err == nil {
@@ -435,7 +435,7 @@ func TestCompileWorkflows_EmptyMarkdownFiles(t *testing.T) {
 
 	// This will try to compile all files in .github/workflows
 	// It may fail if the directory doesn't exist, which is expected
-	_, err = CompileWorkflows(config)
+	CompileWorkflows(config)
 
 	// We don't check for specific error here as it depends on the repository state
 	// The test just ensures the function handles empty MarkdownFiles correctly

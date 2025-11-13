@@ -8,9 +8,9 @@ import (
 // TestGetScriptFunctions tests that all script getter functions return non-empty scripts
 func TestGetScriptFunctions(t *testing.T) {
 	tests := []struct {
-		name     string
-		getFunc  func() string
-		minSize  int // Minimum expected size in bytes
+		name    string
+		getFunc func() string
+		minSize int // Minimum expected size in bytes
 	}{
 		{
 			name:    "getCollectJSONLOutputScript",
