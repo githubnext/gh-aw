@@ -173,6 +173,32 @@ type CompilationStats struct {
 	FailedWorkflows []string // Names of workflows that failed compilation
 }
 
+// validateCompileConfig validates the configuration flags before compilation
+// This is extracted for faster testing without full compilation
+func validateCompileConfig(config CompileConfig) error {
+	// Validate dependabot flag usage
+	if config.Dependabot {
+		if len(config.MarkdownFiles) > 0 {
+			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
+		}
+		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
+			return fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
+		}
+	}
+
+	// Validate purge flag usage
+	if config.Purge && len(config.MarkdownFiles) > 0 {
+		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+	}
+
+	// Validate workflow directory path
+	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
+		return fmt.Errorf("workflows-dir must be a relative path, got: %s", config.WorkflowDir)
+	}
+
+	return nil
+}
+
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	markdownFiles := config.MarkdownFiles
 	verbose := config.Verbose
@@ -196,19 +222,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Track compilation statistics
 	stats := &CompilationStats{}
 
-	// Validate dependabot flag usage
-	if dependabot {
-		if len(markdownFiles) > 0 {
-			return nil, fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
-		}
-		if workflowDir != "" && workflowDir != ".github/workflows" {
-			return nil, fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
-		}
-	}
-
-	// Validate purge flag usage
-	if purge && len(markdownFiles) > 0 {
-		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+	// Validate configuration
+	if err := validateCompileConfig(config); err != nil {
+		return nil, err
 	}
 
 	// Validate and set default for workflow directory
@@ -216,10 +232,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		workflowDir = ".github/workflows"
 		compileLog.Printf("Using default workflow directory: %s", workflowDir)
 	} else {
-		// Ensure the path is relative
-		if filepath.IsAbs(workflowDir) {
-			return nil, fmt.Errorf("workflows-dir must be a relative path, got: %s", workflowDir)
-		}
 		// Clean the path to avoid issues with ".." or other problematic elements
 		workflowDir = filepath.Clean(workflowDir)
 		compileLog.Printf("Using custom workflow directory: %s", workflowDir)

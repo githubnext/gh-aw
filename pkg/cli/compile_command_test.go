@@ -137,6 +137,7 @@ func TestCompileWorkflowWithValidation_InvalidFile(t *testing.T) {
 }
 
 // TestCompileWorkflows_DependabotValidation tests dependabot flag validation
+// Uses the fast validateCompileConfig function instead of full compilation
 func TestCompileWorkflows_DependabotValidation(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -174,7 +175,8 @@ func TestCompileWorkflows_DependabotValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := CompileWorkflows(tt.config)
+			// Use fast validation function instead of full compilation
+			err := validateCompileConfig(tt.config)
 
 			if tt.expectError {
 				if err == nil {
@@ -182,19 +184,23 @@ func TestCompileWorkflows_DependabotValidation(t *testing.T) {
 				} else if !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing %q, got %q", tt.errorMsg, err.Error())
 				}
+			} else if err != nil {
+				t.Errorf("Expected no error but got: %v", err)
 			}
 		})
 	}
 }
 
 // TestCompileWorkflows_PurgeValidation tests purge flag validation
+// Uses the fast validateCompileConfig function instead of full compilation
 func TestCompileWorkflows_PurgeValidation(t *testing.T) {
 	config := CompileConfig{
 		Purge:         true,
 		MarkdownFiles: []string{"test.md"},
 	}
 
-	_, err := CompileWorkflows(config)
+	// Use fast validation function instead of full compilation
+	err := validateCompileConfig(config)
 
 	if err == nil {
 		t.Error("Expected error when using purge with specific files, got nil")
@@ -206,6 +212,7 @@ func TestCompileWorkflows_PurgeValidation(t *testing.T) {
 }
 
 // TestCompileWorkflows_WorkflowDirValidation tests workflow directory validation
+// Uses the fast validateCompileConfig function instead of full compilation
 func TestCompileWorkflows_WorkflowDirValidation(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -237,7 +244,8 @@ func TestCompileWorkflows_WorkflowDirValidation(t *testing.T) {
 				WorkflowDir: tt.workflowDir,
 			}
 
-			_, err := CompileWorkflows(config)
+			// Use fast validation function instead of full compilation
+			err := validateCompileConfig(config)
 
 			if tt.expectError {
 				if err == nil {
@@ -245,6 +253,8 @@ func TestCompileWorkflows_WorkflowDirValidation(t *testing.T) {
 				} else if !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing %q, got %q", tt.errorMsg, err.Error())
 				}
+			} else if err != nil {
+				t.Errorf("Expected no error but got: %v", err)
 			}
 		})
 	}
