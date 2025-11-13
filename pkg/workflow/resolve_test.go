@@ -185,7 +185,7 @@ func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when lock file is missing, but got none")
 	}
-	if err != nil && !contains(err.Error(), "Run 'gh aw compile' first") {
+	if err != nil && !contains(err.Error(), "Run 'gh aw compile'") {
 		t.Errorf("Expected error to mention compilation, got: %v", err)
 	}
 }
