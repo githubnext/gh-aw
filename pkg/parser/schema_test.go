@@ -465,68 +465,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with complex tools configuration (new format)",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"github": map[string]any{
-						"allowed": []string{"create_issue", "update_issue"},
-					},
-					"claude": map[string]any{
-						"allowed": map[string]any{
-							"WebFetch": nil,
-							"Bash":     []string{"echo:*", "ls"},
-						},
-					},
-					"customTool": map[string]any{
-						"type":    "stdio",
-						"command": "my-tool",
-						"allowed": []string{"function1", "function2"},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid new format: stdio without command or container",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"invalidTool": map[string]any{
-						"type":    "stdio",
-						"allowed": []string{"some_function"},
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "anyOf",
-		},
-		{
-			name: "invalid new format: http without url",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"invalidHttp": map[string]any{
-						"type":    "http",
-						"allowed": []string{"some_function"},
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "missing property 'url'",
-		},
-		{
-			name: "invalid new format: unknown type",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"unknownType": map[string]any{
-						"type":    "unknown",
-						"command": "test",
-						"allowed": []string{"some_function"},
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "oneOf",
-		},
-		{
 			name: "valid frontmatter with detailed permissions",
 			frontmatter: map[string]any{
 				"on": "push",
@@ -669,21 +607,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"tools": map[string]any{
 					"github": map[string]any{
 						"allowed":      []string{"create_issue"},
-						"invalid_prop": "value",
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "additional properties 'invalid_prop' not allowed",
-		},
-		{
-			name: "invalid custom tool with additional properties",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"customTool": map[string]any{
-						"type":         "stdio",
-						"command":      "my-tool",
-						"allowed":      []string{"function1"},
 						"invalid_prop": "value",
 					},
 				},
@@ -988,16 +911,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Skip tests for new MCP format during MCP revamp
-			if strings.Contains(tt.name, "complex tools configuration (new format)") ||
-				strings.Contains(tt.name, "stdio without command") ||
-				strings.Contains(tt.name, "http without url") ||
-				strings.Contains(tt.name, "unknown type") ||
-				strings.Contains(tt.name, "custom tool with additional properties") {
-				t.Skip("Skipping test for MCP format changes - MCP revamp in progress")
-				return
-			}
-
 			err := ValidateMainWorkflowFrontmatterWithSchema(tt.frontmatter)
 
 			if tt.wantErr && err == nil {
