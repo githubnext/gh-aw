@@ -44,7 +44,6 @@ name: "Weekly Bug Bash Campaign"
 
 permissions:
   contents: read
-  issues: write
   pull-requests: read
 
 concurrency:
@@ -386,7 +385,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
@@ -4381,6 +4379,10 @@ jobs:
                 const ownerProjects = ownerType === "User" 
                   ? ownerProjectsResult.user.projectsV2.nodes
                   : ownerProjectsResult.organization.projectsV2.nodes;
+                core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
+                ownerProjects.forEach(p => {
+                  core.info(`  - "${p.title}" (#${p.number})`);
+                });
                 existingProject = ownerProjects.find(
                   p => p.title === output.project || p.number.toString() === output.project.toString()
                 );
@@ -4471,13 +4473,11 @@ jobs:
                   core.setOutput("project-url", newProject.url);
                   core.setOutput("campaign-id", campaignId);
                 }
-                const contentNumber = output.content_number || output.issue || output.pull_request;
-                if (contentNumber) {
-                  const contentType = output.content_type === "pull_request" ? "PullRequest" : 
-                                      output.content_type === "issue" ? "Issue" :
-                                      output.issue ? "Issue" : "PullRequest";
+                if (output.issue || output.pull_request) {
+                  const contentType = output.issue ? "Issue" : "PullRequest";
+                  const contentNumber = output.issue || output.pull_request;
                   core.info(`Adding/updating ${contentType} #${contentNumber} on project board`);
-                  const contentQuery = contentType === "Issue"
+                  const contentQuery = output.issue
                     ? `query($owner: String!, $repo: String!, $number: Int!) {
                         repository(owner: $owner, name: $repo) {
                           issue(number: $number) {
@@ -4497,11 +4497,11 @@ jobs:
                     repo,
                     number: contentNumber,
                   });
-                  const contentId = contentType === "Issue"
+                  const contentId = output.issue
                     ? contentResult.repository.issue.id
                     : contentResult.repository.pullRequest.id;
                   const existingItemsResult = await githubClient.graphql(
-                    `query($projectId: ID!) {
+                    `query($projectId: ID!, $contentId: ID!) {
                       node(id: $projectId) {
                         ... on ProjectV2 {
                           items(first: 100) {
@@ -4520,7 +4520,7 @@ jobs:
                         }
                       }
                     }`,
-                    { projectId }
+                    { projectId, contentId }
                   );
                   const existingItem = existingItemsResult.node.items.nodes.find(
                     item => item.content && item.content.id === contentId
@@ -4609,7 +4609,7 @@ jobs:
                           updateProjectV2ItemFieldValue(input: {
                             projectId: $projectId,
                             itemId: $itemId,
-                            fieldId: $fieldId,
+                            fieldId: $field.id,
                             value: $value
                           }) {
                             projectV2Item {
@@ -4663,16 +4663,7 @@ jobs:
                 core.info("No update-project items found in agent output");
                 return;
               }
-              core.info(`Processing ${updateProjectItems.length} update_project items`);
-              for (let i = 0; i < updateProjectItems.length; i++) {
-                const output = updateProjectItems[i];
-                core.info(`\n[${i + 1}/${updateProjectItems.length}] Processing item: ${output.content_type || 'project'} #${output.content_number || output.issue || output.pull_request || 'N/A'}`);
-                try {
-                  await updateProject(output);
-                } catch (error) {
-                  core.error(`Failed to process item ${i + 1}: ${error.message}`);
-                }
-              }
-              core.info(`\n✓ Completed processing ${updateProjectItems.length} items`);
+              const output = updateProjectItems[0];
+              await updateProject(output);
             })();
 

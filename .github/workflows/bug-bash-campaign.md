@@ -14,7 +14,6 @@ engine: copilot
 
 permissions:
   contents: read
-  issues: write
   pull-requests: read
 
 safe-outputs:
