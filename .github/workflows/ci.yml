@@ -5,7 +5,33 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
 jobs:
+  # Detect which files changed to conditionally run jobs
+  # This job uses dorny/paths-filter to identify changes in specific file patterns
+  # Outputs are used by bench and fuzz jobs to determine if they should run
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      go-files: ${{ steps.filter.outputs.go-files }}
+      workflow-files: ${{ steps.filter.outputs.workflow-files }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go-files:
+              - '**/*.go'
+            workflow-files:
+              - 'pkg/workflow/**'
+
   test:
     runs-on: ubuntu-latest
     permissions:
@@ -86,6 +112,15 @@ jobs:
         run: cd pkg/workflow/js && npm test
   bench:
     runs-on: ubuntu-latest
+    needs: changes
+    # Conditional execution: Run benchmarks when:
+    # - Manually triggered via workflow_dispatch, OR
+    # - Pushed to main branch, OR  
+    # - Any Go files changed in the PR
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      needs.changes.outputs.go-files == 'true'
     permissions:
       contents: read
     concurrency:
@@ -146,6 +181,15 @@ jobs:
 
   fuzz:
     runs-on: ubuntu-latest
+    needs: changes
+    # Conditional execution: Run fuzz tests when:
+    # - Manually triggered via workflow_dispatch, OR
+    # - Pushed to main branch, OR
+    # - Any files in pkg/workflow/ changed in the PR
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      needs.changes.outputs.workflow-files == 'true'
     permissions:
       contents: read
     concurrency:
