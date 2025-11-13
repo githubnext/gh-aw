@@ -18,10 +18,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Verify dependencies
         run: go mod verify
@@ -29,11 +38,13 @@ jobs:
       - name: Run tests with coverage
         run: make test-coverage
 
+      # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.html
+          retention-days: 7
 
   build:
     runs-on: ubuntu-latest
@@ -46,16 +57,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
       - name: Set up Node.js
+        id: setup-node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
       - name: npm ci
         run: npm ci
         working-directory: ./pkg/workflow/js
@@ -75,11 +102,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
       - name: Set up Node.js
+        id: setup-node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
       - name: Install npm dependencies
         run: cd pkg/workflow/js && npm ci
       - name: Run tests
@@ -96,10 +131,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Verify dependencies
         run: go mod verify
@@ -107,12 +151,14 @@ jobs:
       - name: Run benchmarks
         run: make bench
 
+      # Benchmark results for performance trend analysis - 14 days allows comparison across multiple runs
       - name: Save benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: bench_results.txt
           if-no-files-found: ignore
+          retention-days: 14
 
   lint:
     runs-on: ubuntu-latest
@@ -126,10 +172,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Install minimal dependencies
         run: |
@@ -156,10 +211,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Verify dependencies
         run: go mod verify
