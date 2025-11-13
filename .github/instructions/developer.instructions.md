@@ -9,6 +9,7 @@ This document consolidates technical specifications and development guidelines f
 
 ## Table of Contents
 
+- [Capitalization Guidelines](#capitalization-guidelines)
 - [Code Organization](#code-organization)
 - [Validation Architecture](#validation-architecture)
 - [Security Best Practices](#security-best-practices)
@@ -18,6 +19,26 @@ This document consolidates technical specifications and development guidelines f
 - [MCP Logs Guardrail](#mcp-logs-guardrail)
 - [Release Management](#release-management)
 - [Firewall Log Parsing](#firewall-log-parsing)
+
+---
+
+## Capitalization Guidelines
+
+The gh-aw CLI follows context-based capitalization to distinguish between the product name and generic workflow references.
+
+### Capitalization Rules
+
+| Context | Format | Example |
+|---------|--------|---------|
+| Product name | **Capitalized** | "GitHub Agentic Workflows CLI from GitHub Next" |
+| Generic workflows | **Lowercase** | "Enable agentic workflows" |
+| Technical terms | **Capitalized** | "Compile Markdown to YAML workflows" |
+
+This convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions".
+
+### Implementation
+
+The capitalization rules are enforced through automated tests in `cmd/gh-aw/capitalization_test.go` that run as part of the standard test suite.
 
 ---
 
