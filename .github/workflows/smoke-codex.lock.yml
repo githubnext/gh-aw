@@ -239,7 +239,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.55.0
+        run: npm install -g @openai/codex@0.57.0
       - name: Downloading container images
         run: |
           set -e
@@ -1084,7 +1084,7 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          Review the last 2 merged pull requests in this repository and post summary in an issue.
+          Review the last 2 merged pull requests in the ${GH_AW_EXPR_D892F163} repository and post summary in an issue.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1195,6 +1195,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -1285,7 +1286,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.55.0",
+              agent_version: "0.57.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -3434,7 +3435,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.55.0
+        run: npm install -g @openai/codex@0.57.0
       - name: Run Codex
         run: |
           set -o pipefail
