@@ -9,7 +9,7 @@ permissions:
 engine: copilot
 tools:
   agentic-workflows:
-  edit:
+  edit-all:
 imports:
   - shared/charts-with-trending.md
 safe-outputs:

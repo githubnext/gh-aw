@@ -24,7 +24,7 @@ safe-outputs:
 tools:
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
     - "find pkg -type f -name '*.go' ! -name '*_test.go'"

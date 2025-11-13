@@ -27,7 +27,7 @@ tools:
     key: changeset-processed-prs-${{ github.workflow }}
   bash:
     - "*"
-  edit:
+  edit-all:
   github:
     toolsets: [default]
 imports:

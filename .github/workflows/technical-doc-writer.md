@@ -57,7 +57,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
 
 timeout-minutes: 10

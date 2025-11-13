@@ -12,7 +12,7 @@ engine: copilot
 network:
   allowed: [defaults, node, "api.github.com"]
 tools:
-  edit:
+  edit-all:
   web-fetch:
   bash:
     - "*"

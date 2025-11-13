@@ -19,7 +19,7 @@ network:
     - "fonts.googleapis.com"    # Google Fonts API
     - "fonts.gstatic.com"       # Google Fonts static content
 tools:
-  edit:
+  edit-all:
   bash:
   cache-memory: true
 safe-outputs:

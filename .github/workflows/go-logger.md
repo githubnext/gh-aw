@@ -38,7 +38,7 @@ steps:
 tools:
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "find pkg -name '*.go' -type f ! -name '*_test.go'"
     - "grep -r 'var log = logger.New' pkg --include='*.go'"

@@ -29,7 +29,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
     - "ls -la docs"

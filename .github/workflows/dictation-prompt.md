@@ -18,7 +18,7 @@ imports:
   - shared/reporting.md
 
 tools:
-  edit:
+  edit-all:
   bash:
     - "*"
   github:

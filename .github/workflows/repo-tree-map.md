@@ -12,7 +12,7 @@ permissions:
 engine: copilot
 
 tools:
-  edit:
+  edit-all:
   bash:
     - "*"
 

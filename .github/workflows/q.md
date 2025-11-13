@@ -20,7 +20,7 @@ tools:
     toolsets:
       - default
       - actions
-  edit:
+  edit-all:
   bash:
   cache-memory: true
 safe-outputs:

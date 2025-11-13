@@ -32,7 +32,7 @@ safe-outputs:
 
 tools:
   cache-memory:
-  edit:
+  edit-all:
   bash:
     - "*"
   web-fetch:

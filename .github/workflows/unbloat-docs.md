@@ -39,7 +39,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   playwright:
     args: ["--viewport-size", "1920x1080"]
   bash:

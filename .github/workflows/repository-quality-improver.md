@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  edit:
+  edit-all:
   bash: ["*"]
   cache-memory:
     - id: focus-areas

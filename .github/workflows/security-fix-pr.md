@@ -10,7 +10,7 @@ engine: claude
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
-  edit:
+  edit-all:
   bash:
   cache-memory:
 safe-outputs:

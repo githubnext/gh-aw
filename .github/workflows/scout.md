@@ -24,7 +24,7 @@ imports:
   - shared/mcp/markitdown.md
   - shared/jqschema.md
 tools:
-  edit:
+  edit-all:
   cache-memory: true
 safe-outputs:
   add-comment:

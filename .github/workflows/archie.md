@@ -18,7 +18,7 @@ tools:
   github:
     toolsets:
       - default
-  edit:
+  edit-all:
   bash:
 safe-outputs:
   add-comment:

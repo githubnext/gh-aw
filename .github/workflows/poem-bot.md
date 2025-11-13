@@ -37,7 +37,7 @@ network: {}
 tools:
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "echo"
     - "date"

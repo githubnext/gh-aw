@@ -20,7 +20,7 @@ network:
     - node
   firewall: true
 tools:
-  edit:
+  edit-all:
   bash:
     - "*"
   github:

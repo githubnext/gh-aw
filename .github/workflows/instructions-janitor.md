@@ -28,7 +28,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "cat .github/instructions/github-agentic-workflows.instructions.md"
     - "wc -l .github/instructions/github-agentic-workflows.instructions.md"

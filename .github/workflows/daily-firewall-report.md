@@ -27,7 +27,7 @@ tools:
       - actions
   bash:
     - "*"
-  edit:
+  edit-all:
   cache-memory:
 imports:
   - shared/reporting.md

@@ -34,7 +34,7 @@ imports:
 
 tools:
   cache-memory: true
-  edit:
+  edit-all:
   github:
     toolsets: [default]
   bash: ["*"]

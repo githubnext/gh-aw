@@ -30,7 +30,7 @@ network: {}
 tools:
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash: ["make:*", "git restore:*", "git status"]
 
 safe-outputs:

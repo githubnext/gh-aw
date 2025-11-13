@@ -32,7 +32,7 @@ tools:
     - "echo"
     - "ls"
     - "grep"
-  edit:
+  edit-all:
   github:
     toolsets: [pull_requests, repos]
 safe-outputs:

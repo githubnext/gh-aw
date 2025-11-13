@@ -73,7 +73,7 @@ steps:
       path: /tmp/gh-aw/
 tools:
   cache-memory: true
-  edit:
+  edit-all:
   bash:
     - "*"
 ---

@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
 engine: claude
 tools:
-  edit:
+  edit-all:
   bash: ["*"]
   github:
     mode: remote

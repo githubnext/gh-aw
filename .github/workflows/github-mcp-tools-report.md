@@ -17,7 +17,7 @@ tools:
     mode: "remote"
     toolsets: [all]
   cache-memory: true
-  edit:
+  edit-all:
 safe-outputs:
   create-discussion:
     category: "audits"

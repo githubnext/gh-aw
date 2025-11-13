@@ -33,7 +33,7 @@ tools:
     key: developer-docs-cache
   github:
     toolsets: [default]
-  edit:
+  edit-all:
   bash:
     - "find specs -name '*.md'"
     - "cat specs/*.md"

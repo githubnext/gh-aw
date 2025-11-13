@@ -9,7 +9,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  edit:
+  edit-all:
   bash:
     - "*"
   github:

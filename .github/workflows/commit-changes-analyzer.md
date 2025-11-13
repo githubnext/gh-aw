@@ -19,7 +19,7 @@ tools:
     toolsets: [default]
   bash:
     - "*"
-  edit:
+  edit-all:
 safe-outputs:
   create-discussion:
     category: "dev"

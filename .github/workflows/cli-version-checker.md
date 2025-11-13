@@ -17,7 +17,7 @@ tools:
   cache-memory: true
   bash:
     - "*"
-  edit:
+  edit-all:
 safe-outputs:
   create-issue:
     title-prefix: "[ca] "
