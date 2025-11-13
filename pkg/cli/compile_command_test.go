@@ -484,3 +484,45 @@ This is a test workflow.
 	// but it should not panic and should handle trial mode settings
 	_ = err // We're just testing that the config is processed
 }
+
+// TestValidationResult tests the ValidationResult structure
+func TestValidationResult(t *testing.T) {
+	result := ValidationResult{
+		Workflow: "test-workflow.md",
+		Valid:    false,
+		Errors: []ValidationError{
+			{
+				Type:    "schema_validation",
+				Message: "Unknown property: toolz",
+				Line:    5,
+			},
+		},
+		Warnings:     []ValidationError{},
+		CompiledFile: ".github/workflows/test-workflow.lock.yml",
+	}
+
+	if result.Workflow != "test-workflow.md" {
+		t.Errorf("Expected workflow 'test-workflow.md', got %q", result.Workflow)
+	}
+	if result.Valid {
+		t.Error("Expected Valid to be false")
+	}
+	if len(result.Errors) != 1 {
+		t.Errorf("Expected 1 error, got %d", len(result.Errors))
+	}
+	if result.Errors[0].Type != "schema_validation" {
+		t.Errorf("Expected error type 'schema_validation', got %q", result.Errors[0].Type)
+	}
+}
+
+// TestCompileConfig_JSONOutput tests the JSONOutput field
+func TestCompileConfig_JSONOutput(t *testing.T) {
+	config := CompileConfig{
+		MarkdownFiles: []string{"test.md"},
+		JSONOutput:    true,
+	}
+
+	if !config.JSONOutput {
+		t.Error("Expected JSONOutput to be true")
+	}
+}

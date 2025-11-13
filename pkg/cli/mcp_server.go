@@ -161,14 +161,24 @@ Note: Output can be filtered using the jq parameter.`,
 		Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 		Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 		Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
+		JqFilter   string   `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "compile",
-		Description: "Compile markdown workflow files to YAML workflows with optional static analysis tools (zizmor, poutine, actionlint)",
+		Name: "compile",
+		Description: `Compile markdown workflow files to YAML workflows with optional static analysis tools.
+
+Returns JSON array with validation results for each workflow:
+- workflow: Name of the workflow file
+- valid: Boolean indicating if compilation was successful
+- errors: Array of error objects with type, message, and optional line number
+- warnings: Array of warning objects
+- compiled_file: Path to the generated .lock.yml file
+
+Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		// Always validate workflows during compilation
-		cmdArgs := []string{"compile", "--validate"}
+		// Always validate workflows during compilation and use JSON output for MCP
+		cmdArgs := []string{"compile", "--validate", "--json"}
 
 		// Add static analysis flags if requested
 		if args.Zizmor {
@@ -195,9 +205,23 @@ Note: Output can be filtered using the jq parameter.`,
 			}, nil, nil
 		}
 
+		// Apply jq filter if provided
+		outputStr := string(output)
+		if args.JqFilter != "" {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
+					},
+				}, nil, nil
+			}
+			outputStr = filteredOutput
+		}
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
+				&mcp.TextContent{Text: outputStr},
 			},
 		}, nil, nil
 	})

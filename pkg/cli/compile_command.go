@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -163,6 +164,7 @@ type CompileConfig struct {
 	Zizmor               bool     // Run zizmor security scanner on generated .lock.yml files
 	Poutine              bool     // Run poutine security scanner on generated .lock.yml files
 	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
+	JSONOutput           bool     // Output validation results as JSON
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -171,6 +173,22 @@ type CompilationStats struct {
 	Errors          int
 	Warnings        int
 	FailedWorkflows []string // Names of workflows that failed compilation
+}
+
+// ValidationError represents a single validation error or warning
+type ValidationError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Line    int    `json:"line,omitempty"`
+}
+
+// ValidationResult represents the validation result for a single workflow
+type ValidationResult struct {
+	Workflow     string            `json:"workflow"`
+	Valid        bool              `json:"valid"`
+	Errors       []ValidationError `json:"errors"`
+	Warnings     []ValidationError `json:"warnings"`
+	CompiledFile string            `json:"compiled_file,omitempty"`
 }
 
 // validateCompileConfig validates the configuration flags before compilation
@@ -216,11 +234,15 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	zizmor := config.Zizmor
 	poutine := config.Poutine
 	actionlint := config.Actionlint
+	jsonOutput := config.JSONOutput
 
-	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v, poutine=%v, actionlint=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor, poutine, actionlint)
+	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v, poutine=%v, actionlint=%v, jsonOutput=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor, poutine, actionlint, jsonOutput)
 
 	// Track compilation statistics
 	stats := &CompilationStats{}
+
+	// Track validation results for JSON output
+	var validationResults []ValidationResult
 
 	// Validate configuration
 	if err := validateCompileConfig(config); err != nil {
@@ -286,45 +308,94 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		var errorMessages []string
 		for _, markdownFile := range markdownFiles {
 			stats.Total++
+			
+			// Initialize validation result for this workflow
+			result := ValidationResult{
+				Workflow: markdownFile,
+				Valid:    true,
+				Errors:   []ValidationError{},
+				Warnings: []ValidationError{},
+			}
+			
 			// Resolve workflow ID or file path to actual file path
 			compileLog.Printf("Resolving workflow file: %s", markdownFile)
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to resolve workflow '%s': %v", markdownFile, err)
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				if !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				}
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, markdownFile)
+				
+				// Add to validation results
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Type:    "resolution_error",
+					Message: err.Error(),
+				})
+				validationResults = append(validationResults, result)
 				continue
 			}
 			compileLog.Printf("Resolved to: %s", resolvedFile)
+			
+			// Update result with resolved file name
+			result.Workflow = filepath.Base(resolvedFile)
+			lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+			if !noEmit {
+				result.CompiledFile = lockFile
+			}
 
 			// Parse workflow file to get data
 			compileLog.Printf("Parsing workflow file: %s", resolvedFile)
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				if !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				}
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+				
+				// Add to validation results
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Type:    "parse_error",
+					Message: err.Error(),
+				})
+				validationResults = append(validationResults, result)
 				continue
 			}
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
-				fmt.Fprintln(os.Stderr, err.Error())
+				if !jsonOutput {
+					fmt.Fprintln(os.Stderr, err.Error())
+				}
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+				
+				// Add to validation results
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Type:    "compilation_error",
+					Message: err.Error(),
+				})
+				validationResults = append(validationResults, result)
 				continue
 			}
 			compiledCount++
+			
+			// Add successful validation result
+			validationResults = append(validationResults, result)
 		}
 
 		// Get warning count from compiler
@@ -371,8 +442,17 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Note: Instructions are only written by the init command
 		// The compile command should not write instruction files
 
-		// Print summary
-		printCompilationSummary(stats)
+		// Output JSON if requested
+		if jsonOutput {
+			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+			if err != nil {
+				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(jsonBytes))
+		} else {
+			// Print summary for text output
+			printCompilationSummary(stats)
+		}
 
 		// Return error if any compilations failed
 		if errorCount > 0 {
@@ -445,26 +525,63 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	var successCount int
 	for _, file := range mdFiles {
 		stats.Total++
+		
+		// Initialize validation result for this workflow
+		result := ValidationResult{
+			Workflow: filepath.Base(file),
+			Valid:    true,
+			Errors:   []ValidationError{},
+			Warnings: []ValidationError{},
+		}
+		
+		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		if !noEmit {
+			result.CompiledFile = lockFile
+		}
+		
 		// Parse workflow file to get data
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to parse workflow file %s: %v", file, err)))
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to parse workflow file %s: %v", file, err)))
+			}
 			errorCount++
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			
+			// Add to validation results
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Type:    "parse_error",
+				Message: err.Error(),
+			})
+			validationResults = append(validationResults, result)
 			continue
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
-			fmt.Fprintln(os.Stderr, err.Error())
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, err.Error())
+			}
 			errorCount++
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			
+			// Add to validation results
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Type:    "compilation_error",
+				Message: err.Error(),
+			})
+			validationResults = append(validationResults, result)
 			continue
 		}
 		successCount++
+		
+		// Add successful validation result
+		validationResults = append(validationResults, result)
 	}
 
 	// Get warning count from compiler
@@ -535,8 +652,17 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Note: Instructions are only written by the init command
 	// The compile command should not write instruction files
 
-	// Print summary
-	printCompilationSummary(stats)
+	// Output JSON if requested
+	if jsonOutput {
+		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+		if err != nil {
+			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+	} else {
+		// Print summary for text output
+		printCompilationSummary(stats)
+	}
 
 	// Return error if any compilations failed
 	if errorCount > 0 {
