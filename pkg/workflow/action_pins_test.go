@@ -80,15 +80,26 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 		t.Run(tt.repo, func(t *testing.T) {
 			result := GetActionPin(tt.repo)
 
-			// Check that the result contains a SHA (40-char hex after @)
+			// Check that the result contains a SHA (40-char hex after @ and before #)
+			// Format is: repo@sha # version
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha", tt.repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", tt.repo, result)
 				return
 			}
 
+			// Extract SHA (before the comment marker " # ")
+			shaAndComment := parts[1]
+			commentIdx := strings.Index(shaAndComment, " # ")
+			if commentIdx == -1 {
+				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", tt.repo, result)
+				return
+			}
+
+			sha := shaAndComment[:commentIdx]
+
 			if tt.wantSHA {
-				if !isValidSHA(parts[1]) {
+				if !isValidSHA(sha) {
 					t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", tt.repo, result)
 				}
 			}
@@ -284,7 +295,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -296,7 +307,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+			expectedUses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -323,7 +334,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
 		},
 	}
 

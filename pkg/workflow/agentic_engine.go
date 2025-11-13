@@ -410,6 +410,10 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Convert to string and adjust base indentation to match GitHub Actions format
 	yamlStr := string(yamlBytes)
 
+	// Post-process to move version comments outside of quoted uses values
+	// This handles cases like: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
+	yamlStr = unquoteUsesWithComments(yamlStr)
+
 	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
 	var result strings.Builder
@@ -423,6 +427,33 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	}
 
 	return result.String(), nil
+}
+
+// unquoteUsesWithComments removes quotes from uses values that contain version comments
+// Transforms: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
+// This is needed because the YAML marshaller quotes strings containing #, but GitHub Actions
+// expects unquoted uses values with inline comments
+func unquoteUsesWithComments(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	for i, line := range lines {
+		// Look for lines like:   uses: "slug@sha # version"  OR  - uses: "slug@sha # version"
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "uses: \"") || strings.HasPrefix(trimmed, "- uses: \"") {
+			// Extract the quoted part
+			if idx := strings.Index(trimmed, " # "); idx != -1 {
+				// Has a comment - unquote it
+				// Pattern: uses: "slug@sha # version"  OR  - uses: "slug@sha # version"
+				parts := strings.SplitN(line, "\"", 3)
+				if len(parts) >= 3 {
+					// parts[0] = "  uses: " OR "  - uses: "
+					// parts[1] = "slug@sha # version"
+					// parts[2] = "" or something else
+					lines[i] = parts[0] + parts[1] + strings.TrimPrefix(parts[2], "\"")
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // GetCommonErrorPatterns returns error patterns that are common across all engines.
