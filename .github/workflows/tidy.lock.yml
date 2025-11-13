@@ -23,6 +23,7 @@
 #   agent --> missing_tool
 #   detection --> missing_tool
 #   agent --> push_to_pull_request_branch
+#   activation --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
 #   agent --> update_reaction
 #   activation --> update_reaction
@@ -4258,13 +4259,22 @@ jobs:
             const fs = require("fs");
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, pullRequestUrl, pullRequestNumber) {
+              const message = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message);
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message) {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               if (!commentId) {
                 core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
                 return;
               }
-              core.info(`Updating activation comment ${commentId} with PR link`);
+              core.info(`Updating activation comment ${commentId}`);
               let repoOwner = context.repo.owner;
               let repoName = context.repo.repo;
               if (commentRepo) {
@@ -4277,7 +4287,6 @@ jobs:
                 }
               }
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const prLinkMessage = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
                 if (isDiscussionComment) {
@@ -4297,7 +4306,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + prLinkMessage;
+                  const updatedBody = currentBody + message;
                   const result = await github.graphql(
                     `
                     mutation($commentId: ID!, $body: String!) {
@@ -4311,7 +4320,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment with PR link`);
+                  core.info(`Successfully updated discussion comment`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                 } else {
@@ -4328,7 +4337,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + prLinkMessage;
+                  const updatedBody = currentBody + message;
                   const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
                     owner: repoOwner,
                     repo: repoName,
@@ -4338,7 +4347,7 @@ jobs:
                       Accept: "application/vnd.github+json",
                     },
                   });
-                  core.info(`Successfully updated comment with PR link`);
+                  core.info(`Successfully updated comment`);
                   core.info(`Comment ID: ${response.data.id}`);
                   core.info(`Comment URL: ${response.data.html_url}`);
                 }
@@ -5312,6 +5321,7 @@ jobs:
   push_to_pull_request_branch:
     needs:
       - agent
+      - activation
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
@@ -5368,6 +5378,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Tidy"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -5388,6 +5400,103 @@ jobs:
                 core.info(`📝 ${title} preview written to step summary`);
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function updateActivationComment(github, context, core, pullRequestUrl, pullRequestNumber) {
+              const message = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message);
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message) {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              if (!commentId) {
+                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+                return;
+              }
+              core.info(`Updating activation comment ${commentId}`);
+              let repoOwner = context.repo.owner;
+              let repoName = context.repo.repo;
+              if (commentRepo) {
+                const parts = commentRepo.split("/");
+                if (parts.length === 2) {
+                  repoOwner = parts[0];
+                  repoName = parts[1];
+                } else {
+                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
+                }
+              }
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const currentComment = await github.graphql(
+                    `
+                    query($commentId: ID!) {
+                      node(id: $commentId) {
+                        ... on DiscussionComment {
+                          body
+                        }
+                      }
+                    }`,
+                    { commentId: commentId }
+                  );
+                  if (!currentComment?.node?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
+                    return;
+                  }
+                  const currentBody = currentComment.node.body;
+                  const updatedBody = currentBody + message;
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: updatedBody }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  if (!currentComment?.data?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted");
+                    return;
+                  }
+                  const currentBody = currentComment.data.body;
+                  const updatedBody = currentBody + message;
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: updatedBody,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             async function main() {
@@ -5676,12 +5785,17 @@ jobs:
               if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
               const commitSha = commitShaRes.stdout.trim();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const pushUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/tree/${branchName}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              const repoUrl = context.payload.repository
+                ? context.payload.repository.html_url
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+              const pushUrl = `${repoUrl}/tree/${branchName}`;
+              const commitUrl = `${repoUrl}/commit/${commitSha}`;
               core.setOutput("branch_name", branchName);
               core.setOutput("commit_sha", commitSha);
               core.setOutput("push_url", pushUrl);
+              if (hasChanges) {
+                await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
+              }
               const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
               const summaryContent = hasChanges
                 ? `

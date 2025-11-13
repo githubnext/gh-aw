@@ -789,3 +789,67 @@ since it's not supported by actions/github-script.
 		}
 	}
 }
+
+func TestPushToPullRequestBranchActivationCommentEnvVars(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with push-to-pull-request-branch configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+safe-outputs:
+  push-to-pull-request-branch:
+---
+
+# Test Push to PR Branch Activation Comment
+
+Test that the push-to-pull-request-branch job receives activation comment environment variables.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-activation-comment.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	}
+
+	// Verify that the job depends on activation (needs can be formatted as array or inline)
+	hasActivationDep := strings.Contains(lockContentStr, "needs: [agent, activation]") || 
+	                    strings.Contains(lockContentStr, "needs:\n    - agent\n    - activation") ||
+	                    strings.Contains(lockContentStr, "needs:\n      - agent\n      - activation") ||
+	                    (strings.Contains(lockContentStr, "- agent") && strings.Contains(lockContentStr, "- activation"))
+	if !hasActivationDep {
+		t.Errorf("Generated workflow should have dependency on activation job")
+	}
+
+	// Verify that activation comment environment variables are passed
+	if !strings.Contains(lockContentStr, "GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}") {
+		t.Errorf("Generated workflow should contain GH_AW_COMMENT_ID environment variable")
+	}
+
+	if !strings.Contains(lockContentStr, "GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}") {
+		t.Errorf("Generated workflow should contain GH_AW_COMMENT_REPO environment variable")
+	}
+}

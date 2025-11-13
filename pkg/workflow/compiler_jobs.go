@@ -289,7 +289,8 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err != nil {
 			return fmt.Errorf("failed to build push_to_pull_request_branch job: %w", err)
 		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		// Safe-output jobs should depend on agent job (always), activation job (for comment linking), AND detection job (if enabled)
+		pushToBranchJob.Needs = append(pushToBranchJob.Needs, constants.ActivationJobName)
 		if threatDetectionEnabled {
 			pushToBranchJob.Needs = append(pushToBranchJob.Needs, constants.DetectionJobName)
 		}
