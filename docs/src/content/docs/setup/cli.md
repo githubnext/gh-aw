@@ -125,6 +125,7 @@ gh aw compile                              # Compile all workflows
 gh aw compile my-workflow                  # Compile specific workflow
 gh aw compile --watch                      # Auto-recompile on changes
 gh aw compile --validate --strict          # Schema + strict mode validation
+gh aw compile --validate --json            # Validation with JSON output
 gh aw compile --zizmor                     # Security scan (warnings)
 gh aw compile --strict --zizmor            # Security scan (fails on findings)
 gh aw compile --dependabot                 # Generate dependency manifests
@@ -139,6 +140,7 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 | `--strict` | Requires timeouts, explicit network config, blocks write permissions |
 | `--zizmor` | Security scanning with [zizmor](https://github.com/woodruffw/zizmor) |
 | `--dependabot` | Generate npm/pip/Go manifests and update dependabot.yml |
+| `--json` | Output validation results in machine-readable JSON format |
 | `--watch` | Auto-recompile on file changes |
 | `--purge` | Remove orphaned `.lock.yml` files |
 
@@ -160,7 +162,7 @@ gh aw trial ./issue-workflow.md --trigger-context "#123" # With issue context
 
 | Option | Description |
 |--------|-------------|
-| `--engine` | Override AI engine for testing |
+| `-e, --engine` | Override AI engine for testing |
 | `--auto-merge-prs` | Automatically merge created PRs |
 | `--repeat N` | Repeat execution N times |
 | `--delete-host-repo-after` | Delete trial repository after execution |
