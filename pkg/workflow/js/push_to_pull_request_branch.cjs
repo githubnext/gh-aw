@@ -4,6 +4,7 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { updateActivationCommentWithCommit } = require("./update_activation_comment.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -396,16 +397,23 @@ async function main() {
   if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
   const commitSha = commitShaRes.stdout.trim();
 
-  // Get commit SHA and push URL
+  // Get repository base URL and construct URLs
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const pushUrl = context.payload.repository
-    ? `${context.payload.repository.html_url}/tree/${branchName}`
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+  const repoUrl = context.payload.repository
+    ? context.payload.repository.html_url
+    : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+  const pushUrl = `${repoUrl}/tree/${branchName}`;
+  const commitUrl = `${repoUrl}/commit/${commitSha}`;
 
   // Set outputs
   core.setOutput("branch_name", branchName);
   core.setOutput("commit_sha", commitSha);
   core.setOutput("push_url", pushUrl);
+
+  // Update the activation comment with commit link (if a comment was created and changes were pushed)
+  if (hasChanges) {
+    await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
+  }
 
   // Write summary to GitHub Actions summary
   const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
