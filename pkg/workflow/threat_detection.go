@@ -150,7 +150,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	}
 
 	// Step 5: Parse threat detection results (after custom steps)
-	steps = append(steps, c.buildParsingStep()...)
+	steps = append(steps, c.buildParsingStep(mainJobName)...)
 
 	// Step 6: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
@@ -398,11 +398,14 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 }
 
 // buildParsingStep creates the results parsing step
-func (c *Compiler) buildParsingStep() []string {
+func (c *Compiler) buildParsingStep(mainJobName string) []string {
 	steps := []string{
 		"      - name: Parse threat detection results\n",
 		"        id: parse_results\n",
+		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
+		"        env:\n",
+		fmt.Sprintf("          AGENT_JOB_RESULT: ${{ needs.%s.result }}\n", mainJobName),
 		"        with:\n",
 		"          script: |\n",
 	}
@@ -467,8 +470,22 @@ try {
 
 core.info('Threat detection verdict: ' + JSON.stringify(verdict));
 
-// Fail if threats detected
-if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) {
+// Check if agent job succeeded
+const agentJobResult = process.env.AGENT_JOB_RESULT || '';
+const agentJobSucceeded = agentJobResult === 'success';
+
+core.info('Agent job result: ' + agentJobResult);
+
+// Set success to true only if:
+// 1. No threats detected, AND
+// 2. Agent job succeeded
+const overallSuccess = !verdict.prompt_injection && !verdict.secret_leak && !verdict.malicious_patch && agentJobSucceeded;
+
+if (!agentJobSucceeded) {
+  core.warning('⚠️  Agent job did not succeed (result: ' + agentJobResult + ')');
+  core.setOutput('success', 'false');
+  core.setFailed('Agent job failed or was cancelled');
+} else if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) {
   const threats = [];
   if (verdict.prompt_injection) threats.push('prompt injection');
   if (verdict.secret_leak) threats.push('secret leak');
@@ -482,8 +499,8 @@ if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) 
   core.setOutput('success', 'false');
   core.setFailed('❌ Security threats detected: ' + threats.join(', ') + reasonsText);
 } else {
-  core.info('✅ No security threats detected. Safe outputs may proceed.');
-  // Set success output to true when no threats detected
+  core.info('✅ No security threats detected and agent job succeeded. Safe outputs may proceed.');
+  // Set success output to true when no threats detected AND agent job succeeded
   core.setOutput('success', 'true');
 }`
 }
