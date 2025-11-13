@@ -5,8 +5,6 @@ sidebar:
   order: 1
 ---
 
-Get your first agentic workflow running in minutes. Install the extension, add a sample workflow, configure your AI engine, and trigger your first run. You'll have a working example demonstrating AI-powered automation in your repository.
-
 > [!WARNING]
 > **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
 > Using agentic workflows requires careful attention to security considerations and human supervision.
@@ -14,11 +12,7 @@ Get your first agentic workflow running in minutes. Install the extension, add a
 
 ## Prerequisites
 
-**Prerequisites**
-
-- A repository you are a maintainer of, can push to (or a fork), with Actions, Discussions and Issues enabled, and you have permission to add Actions secrets.
-
-- A Personal Access Token (PAT) for GitHub Copilot CLI, or an Anthropic Claude or OpenAI API key. 
+You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a Personal Access Token (PAT) for GitHub Copilot CLI, or an Anthropic Claude or OpenAI API key. 
 
 ### Step 1 — Install the extension
 
@@ -107,20 +101,8 @@ Create a weekly research report summarizing recent developments in our field:
 Keep the report concise but informative.
 ```
 
-This workflow:
-- **Triggers** every Monday at 9 AM via cron schedule
-- **Has permissions** to read repository content and write issues
-- **Uses tools** to create GitHub issues
-- **Runs AI instructions** in natural language to create research reports
+This workflow triggers every Monday at 9 AM via cron schedule, has permissions to read repository content and create GitHub issues, and runs AI instructions in natural language to generate research reports.
 
 ## What's next?
 
-Now that you have your first workflow running:
-
-- **Customize the workflow** — Edit the `.md` file to fit your needs, then recompile with `gh aw compile`
-- **Write workflows with an agent** — Use [Authoring Agentic Workflows](/gh-aw/setup/agentic-authoring/) to create workflows with AI assistance in your editor
-- **Explore more samples** — Check out the [agentics](https://github.com/githubnext/agentics) repository
-- **Learn about adding and updating workflows** — Read [Packaging & Distribution](/gh-aw/guides/packaging-imports/) to understand workflow management
-- **Understand the concepts** — Read [How It Works](/gh-aw/introduction/how-it-works/) to understand how agentic workflows work
-
-You're ready to start automating with agentic workflows!
+Customize your workflow by editing the `.md` file and recompiling with `gh aw compile`. Use [Authoring Agentic Workflows](/gh-aw/setup/agentic-authoring/) to create workflows with AI assistance, explore more samples in the [agentics](https://github.com/githubnext/agentics) repository, and learn about workflow management in [Packaging & Distribution](/gh-aw/guides/packaging-imports/). To understand how agentic workflows work, read [How It Works](/gh-aw/introduction/how-it-works/).
