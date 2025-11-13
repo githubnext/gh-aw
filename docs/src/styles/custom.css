@@ -1013,8 +1013,7 @@ html {
   }
   
   /* Make theme toggle easier to tap on mobile */
-  starlight-theme-select .icon-wrapper,
-  .icon-wrapper {
+  starlight-theme-select .icon-wrapper {
     width: 2.5rem !important;
     height: 2.5rem !important;
     min-width: 2.5rem !important;
