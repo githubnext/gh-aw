@@ -126,7 +126,7 @@ jobs:
   bench:
     runs-on: ubuntu-latest
     # Run on main branch, workflow_dispatch, or PRs (path filter handles PR filtering at workflow level)
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     permissions:
       contents: read
     concurrency:
@@ -208,7 +208,7 @@ jobs:
   fuzz:
     runs-on: ubuntu-latest
     # Run on main branch, workflow_dispatch, or PRs (path filter handles PR filtering at workflow level)
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     permissions:
       contents: read
     concurrency:
