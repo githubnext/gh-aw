@@ -1106,7 +1106,7 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          Review the last 2 merged pull requests in this repository and post summary in an issue.
+          Review the last 2 merged pull requests in the ${GH_AW_EXPR_D892F163} repository and post summary in an issue.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1237,6 +1237,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
