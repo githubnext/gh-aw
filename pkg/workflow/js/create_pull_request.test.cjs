@@ -82,6 +82,7 @@ describe("create_pull_request.cjs", () => {
           // Otherwise return the patch content
           return "diff --git a/file.txt b/file.txt\n+new content";
         }),
+        writeFileSync: vi.fn(),
       },
       crypto: {
         randomBytes: vi.fn().mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
