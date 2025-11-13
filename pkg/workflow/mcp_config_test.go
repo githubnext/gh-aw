@@ -227,6 +227,18 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 	}
 }
 
+// TestCustomDockerMCPConfiguration tests custom Docker-based MCP server configuration.
+// TODO: Re-enable when MCP schema supports custom tools as objects (currently blocked)
+//
+// This test is currently skipped because the MCP schema requires custom tools to be
+// defined as strings, but this test validates the behavior when tools are defined as
+// objects with type/command/args fields. Once the MCP format revamp is complete and
+// the schema allows custom tool objects, this test should be enabled.
+//
+// Related work:
+// - MCP format standardization
+// - Schema validation for custom tool definitions
+// - Docker-based MCP server configuration
 func TestCustomDockerMCPConfiguration(t *testing.T) {
 	t.Skip("Skipping test for new MCP format - implementation in progress (schema requires custom tools to be strings, not objects)")
 

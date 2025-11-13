@@ -592,6 +592,11 @@ func TestExtractMCPConfigurations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// TODO: Re-enable MCP format tests when schema revamp is complete
+			// These tests are blocked on the MCP format standardization work which
+			// is updating how custom MCP servers, HTTP servers, and tool configurations
+			// are defined in the schema. Once the new format is finalized, these tests
+			// should be enabled to validate the new configuration patterns.
 			// Skip tests for new MCP format during MCP revamp
 			if strings.Contains(tt.name, "New format") ||
 				strings.Contains(tt.name, "Custom MCP server") ||
@@ -1025,6 +1030,9 @@ func TestParseMCPConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// TODO: Re-enable when MCP format validation rules are finalized
+			// This test validates that stdio-type MCP servers cannot have headers,
+			// which is blocked on the MCP format revamp work.
 			// Skip test for invalid stdio with headers during MCP revamp
 			if strings.Contains(tt.name, "Stdio with headers") {
 				t.Skip("Skipping test for MCP format validation - MCP revamp in progress")

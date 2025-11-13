@@ -988,6 +988,9 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// TODO: Re-enable MCP format tests when schema revamp is complete
+			// These tests validate new MCP configuration formats that are currently
+			// being redesigned as part of the MCP format standardization effort.
 			// Skip tests for new MCP format during MCP revamp
 			if strings.Contains(tt.name, "complex tools configuration (new format)") ||
 				strings.Contains(tt.name, "stdio without command") ||

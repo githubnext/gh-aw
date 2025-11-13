@@ -379,6 +379,9 @@ tools:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// TODO: Re-enable custom MCP tests when schema supports tool objects
+			// Currently blocked because MCP schema requires tools to be strings,
+			// but these tests validate behavior with tool objects (type/command/args).
 			// Skip test for custom MCP tools until new format is implemented
 			if strings.Contains(tt.name, "custom MCP") {
 				t.Skip("Skipping test for custom MCP tools - schema requires custom tools to be strings, not objects")

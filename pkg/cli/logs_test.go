@@ -14,7 +14,9 @@ import (
 )
 
 func TestDownloadWorkflowLogs(t *testing.T) {
-	t.Skip("Skipping slow network-dependent test")
+	if testing.Short() {
+		t.Skip("Skipping slow network-dependent test in short mode")
+	}
 
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
@@ -870,7 +872,9 @@ input_tokens: 2000`
 }
 
 func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
-	t.Skip("Skipping slow network-dependent test")
+	if testing.Short() {
+		t.Skip("Skipping slow network-dependent test in short mode")
+	}
 
 	// Test that the engine filter parameter is properly validated and passed through
 	tests := []struct {

@@ -7,7 +7,9 @@ import (
 // TestListWorkflowRunsWithPagination_ReturnsTotalFetchedCount verifies that
 // the function returns both the filtered runs and the total count fetched from API
 func TestListWorkflowRunsWithPagination_ReturnsTotalFetchedCount(t *testing.T) {
-	t.Skip("Skipping network-dependent test - this verifies the fix for filtering issue")
+	if testing.Short() {
+		t.Skip("Skipping network-dependent test in short mode")
+	}
 
 	// This test would require actual GitHub CLI access to work properly
 	// The key insight is that the function should return:
@@ -27,7 +29,9 @@ func TestListWorkflowRunsWithPagination_ReturnsTotalFetchedCount(t *testing.T) {
 
 // TestDownloadWorkflowLogs_IteratesUntilEnoughRuns demonstrates the fixed behavior
 func TestDownloadWorkflowLogs_IteratesUntilEnoughRuns(t *testing.T) {
-	t.Skip("Skipping network-dependent test - this would verify end-to-end behavior")
+	if testing.Short() {
+		t.Skip("Skipping network-dependent test in short mode")
+	}
 
 	// This test would verify that when calling:
 	// ./gh-aw logs -c 10 (no workflow name)
