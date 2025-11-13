@@ -6,10 +6,15 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeLogsLog = logger.New("workflow:claude_logs")
 
 // ParseLogMetrics implements engine-specific log parsing for Claude
 func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	claudeLogsLog.Printf("Parsing Claude log metrics: %d bytes", len(logContent))
 	var metrics LogMetrics
 	var maxTokenUsage int
 
@@ -89,6 +94,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		metrics.TokenUsage = maxTokenUsage
 	}
 
+	claudeLogsLog.Printf("Parsed log metrics: tokens=%d, cost=$%.4f, turns=%d, errors=%d", metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
 	return metrics
 }
 
@@ -160,12 +166,14 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 // parseClaudeJSONLog parses Claude logs as a JSON array or mixed format (debug logs + JSONL)
 func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMetrics {
+	claudeLogsLog.Print("Attempting to parse Claude JSON log")
 	var metrics LogMetrics
 
 	// Try to parse the entire log as a JSON array first (old format)
 	var logEntries []map[string]any
 	if err := json.Unmarshal([]byte(logContent), &logEntries); err != nil {
 		// If that fails, try to parse as mixed format (debug logs + JSONL)
+		claudeLogsLog.Print("JSON array parse failed, trying JSONL format")
 		if verbose {
 			fmt.Printf("Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
 		}

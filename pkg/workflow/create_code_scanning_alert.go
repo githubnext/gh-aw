@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createCodeScanningAlertLog = logger.New("workflow:create_code_scanning_alert")
 
 // CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
 type CreateCodeScanningAlertsConfig struct {
@@ -30,6 +34,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 			driverName = data.Name // fallback to H1 header name
 		}
 	}
+	createCodeScanningAlertLog.Printf("Building create_code_scanning_alert job: driver=%s, max=%d", driverName, data.SafeOutputs.CreateCodeScanningAlerts.Max)
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
 	// Pass the workflow filename for rule ID prefix
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
@@ -93,6 +98,7 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		return nil
 	}
 
+	createCodeScanningAlertLog.Print("Parsing create-code-scanning-alert configuration")
 	configData := outputMap["create-code-scanning-alert"]
 	securityReportsConfig := &CreateCodeScanningAlertsConfig{}
 	securityReportsConfig.Max = 0 // Default max is 0 (unlimited)
