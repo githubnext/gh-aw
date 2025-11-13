@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 tools:
-  edit:
+  edit-all:
 safe-outputs:
   threat-detection:
     engine: false
