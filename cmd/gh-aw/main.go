@@ -375,7 +375,6 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
 
-	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
