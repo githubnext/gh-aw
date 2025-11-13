@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -40,7 +43,15 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 
 	// No matches found
 	resolverLog.Printf("Workflow file not found: %s", workflowPath)
-	return "", fmt.Errorf("workflow file not found: %s", workflowPath)
+	suggestions := []string{
+		fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+		"Check for typos in the workflow name",
+		"Ensure the workflow file exists in .github/workflows/",
+	}
+	return "", errors.New(console.FormatErrorWithSuggestions(
+		fmt.Sprintf("workflow file not found: %s", workflowPath),
+		suggestions,
+	))
 }
 
 // NormalizeWorkflowFile normalizes a workflow file name by adding .md extension if missing

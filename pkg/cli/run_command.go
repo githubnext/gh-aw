@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -122,7 +123,14 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		// Check if the lock file exists in .github/workflows
 		lockFilePath = filepath.Join(".github/workflows", lockFileName)
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
-			return fmt.Errorf("workflow lock file '%s' not found in .github/workflows - run '"+constants.CLIExtensionPrefix+" compile' first", lockFileName)
+			suggestions := []string{
+				fmt.Sprintf("Run '%s compile' to compile all workflows", constants.CLIExtensionPrefix),
+				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", constants.CLIExtensionPrefix, filename),
+			}
+			return errors.New(console.FormatErrorWithSuggestions(
+				fmt.Sprintf("workflow lock file '%s' not found in .github/workflows", lockFileName),
+				suggestions,
+			))
 		}
 	}
 
@@ -667,5 +675,13 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 		}
 	}
 
-	return fmt.Errorf("workflow '%s' not found in repository '%s'", lockFileName, repoOverride)
+	suggestions := []string{
+		"Check if the workflow has been pushed to the remote repository",
+		"Verify the workflow file exists in the repository's .github/workflows directory",
+		fmt.Sprintf("Run '%s status' to see available workflows", constants.CLIExtensionPrefix),
+	}
+	return errors.New(console.FormatErrorWithSuggestions(
+		fmt.Sprintf("workflow '%s' not found in repository '%s'", lockFileName, repoOverride),
+		suggestions,
+	))
 }
