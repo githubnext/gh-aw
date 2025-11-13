@@ -34,7 +34,11 @@ var rootCmd = &cobra.Command{
 
 A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
 The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
-The workflow file is then executed by GitHub Actions in response to events in the repository.`,
+The workflow file is then executed by GitHub Actions in response to events in the repository.
+
+Note: A workflow-id is the basename of the markdown file without the .md extension.
+For example, for 'weekly-research.md', the workflow-id is 'weekly-research'.
+This is different from the optional 'name' field in the workflow frontmatter, which sets the display name in GitHub Actions UI.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -84,9 +88,9 @@ var removeCmd = &cobra.Command{
 }
 
 var enableCmd = &cobra.Command{
-	Use:   "enable [workflow-name]...",
+	Use:   "enable [workflow-id]...",
 	Short: "Enable agentic workflows",
-	Long: `Enable one or more workflows by name, or all workflows if no names are provided.
+	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
@@ -101,9 +105,9 @@ Examples:
 }
 
 var disableCmd = &cobra.Command{
-	Use:   "disable [workflow-name]...",
+	Use:   "disable [workflow-id]...",
 	Short: "Disable agentic workflows and cancel any in-progress runs",
-	Long: `Disable one or more workflows by name, or all workflows if no names are provided.
+	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
@@ -192,11 +196,11 @@ Examples:
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow-id-or-name>...",
+	Use:   "run <workflow-id>...",
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-This command accepts one or more workflow IDs or agentic workflow names.
+This command accepts one or more workflow IDs.
 The workflows must have been added as actions and compiled.
 
 This command only works with workflows that have workflow_dispatch triggers.
