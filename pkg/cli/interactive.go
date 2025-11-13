@@ -155,7 +155,7 @@ func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 func (b *InteractiveWorkflowBuilder) promptForTools() error {
 	toolOptions := []huh.Option[string]{
 		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
-		huh.NewOption("edit - File editing tools", "edit"),
+		huh.NewOption("edit-all - File editing tools", "edit-all"),
 		huh.NewOption("bash - Shell command tools", "bash"),
 		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
 		huh.NewOption("web-search - Web search tools", "web-search"),

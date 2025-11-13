@@ -10,7 +10,7 @@ func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
 		WorkflowName:  "test-workflow",
 		Trigger:       "workflow_dispatch",
 		Engine:        "claude",
-		Tools:         []string{"github", "edit"},
+		Tools:         []string{"github", "edit-all"},
 		SafeOutputs:   []string{"create-issue"},
 		Intent:        "This is a test workflow for validation",
 		NetworkAccess: "defaults",
