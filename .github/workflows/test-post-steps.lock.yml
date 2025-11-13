@@ -1795,7 +1795,7 @@ jobs:
           echo "This step runs after the AI agent completes"
       - if: always()
         name: Upload Test Results
-        uses: "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5"
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: ignore
           name: post-steps-test-results

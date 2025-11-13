@@ -436,22 +436,45 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 func unquoteUsesWithComments(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	for i, line := range lines {
-		// Look for lines like:   uses: "slug@sha # version"  OR  - uses: "slug@sha # version"
+		// Look for uses: followed by a quoted string containing a # comment
+		// This handles various indentation levels and formats
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "uses: \"") || strings.HasPrefix(trimmed, "- uses: \"") {
-			// Extract the quoted part
-			if idx := strings.Index(trimmed, " # "); idx != -1 {
-				// Has a comment - unquote it
-				// Pattern: uses: "slug@sha # version"  OR  - uses: "slug@sha # version"
-				parts := strings.SplitN(line, "\"", 3)
-				if len(parts) >= 3 {
-					// parts[0] = "  uses: " OR "  - uses: "
-					// parts[1] = "slug@sha # version"
-					// parts[2] = "" or something else
-					lines[i] = parts[0] + parts[1] + strings.TrimPrefix(parts[2], "\"")
-				}
-			}
+		
+		// Check if line contains uses: with a quoted value
+		if !strings.Contains(trimmed, "uses: \"") {
+			continue
 		}
+		
+		// Check if the quoted value contains a version comment
+		if !strings.Contains(trimmed, " # ") {
+			continue
+		}
+		
+		// Find the position of uses: " in the original line
+		usesIdx := strings.Index(line, "uses: \"")
+		if usesIdx == -1 {
+			continue
+		}
+		
+		// Extract the part before uses: (indentation)
+		prefix := line[:usesIdx]
+		
+		// Find the opening and closing quotes
+		quoteStart := usesIdx + 7 // len("uses: \"")
+		quoteEnd := strings.Index(line[quoteStart:], "\"")
+		if quoteEnd == -1 {
+			continue
+		}
+		quoteEnd += quoteStart
+		
+		// Extract the quoted content
+		quotedContent := line[quoteStart:quoteEnd]
+		
+		// Extract any content after the closing quote
+		suffix := line[quoteEnd+1:]
+		
+		// Reconstruct the line without quotes
+		lines[i] = prefix + "uses: " + quotedContent + suffix
 	}
 	return strings.Join(lines, "\n")
 }

@@ -1035,7 +1035,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 							stepsWrapper := map[string]any{"steps": allSteps}
 							stepsYAML, err := yaml.Marshal(stepsWrapper)
 							if err == nil {
-								workflowData.CustomSteps = string(stepsYAML)
+								// Remove quotes from uses values with version comments
+								workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
 							}
 						}
 					}
@@ -1045,7 +1046,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				stepsWrapper := map[string]any{"steps": importedSteps}
 				stepsYAML, err := yaml.Marshal(stepsWrapper)
 				if err == nil {
-					workflowData.CustomSteps = string(stepsYAML)
+					// Remove quotes from uses values with version comments
+					workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
 				}
 			}
 		}
@@ -1062,7 +1064,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 					stepsWrapper := map[string]any{"steps": mainSteps}
 					stepsYAML, err := yaml.Marshal(stepsWrapper)
 					if err == nil {
-						workflowData.CustomSteps = string(stepsYAML)
+						// Remove quotes from uses values with version comments
+						workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
 					}
 				}
 			}
@@ -1084,7 +1087,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 					stepsWrapper := map[string]any{"post-steps": postSteps}
 					stepsYAML, err := yaml.Marshal(stepsWrapper)
 					if err == nil {
-						workflowData.PostSteps = string(stepsYAML)
+						// Remove quotes from uses values with version comments
+						workflowData.PostSteps = unquoteUsesWithComments(string(stepsYAML))
 					}
 				}
 			}

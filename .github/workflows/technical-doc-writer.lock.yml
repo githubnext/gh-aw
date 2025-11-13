@@ -591,7 +591,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Node.js
-        uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           cache: npm
           cache-dependency-path: docs/package-lock.json
@@ -5809,7 +5809,7 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
