@@ -946,3 +946,22 @@ func NormalizeExpressionForComparison(expression string) string {
 	// Trim leading and trailing spaces
 	return strings.TrimSpace(normalized)
 }
+
+// AddDetectionSuccessCheck adds a check for detection job success to an existing condition
+// This ensures safe output jobs only run when threat detection passes
+func AddDetectionSuccessCheck(existingCondition string) string {
+	// Build the detection success check
+	detectionSuccess := BuildComparison(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		"==",
+		BuildStringLiteral("true"),
+	)
+
+	// If there's an existing condition, AND it with the detection check
+	if existingCondition != "" {
+		return fmt.Sprintf("(%s) && (%s)", existingCondition, detectionSuccess.Render())
+	}
+
+	// If no existing condition, just return the detection check
+	return detectionSuccess.Render()
+}
