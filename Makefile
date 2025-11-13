@@ -58,6 +58,19 @@ test-perf:
 	rm -f /tmp/gh-aw/test-output.log; \
 	exit $$EXIT_CODE
 
+# Run benchmarks for performance testing
+.PHONY: bench
+bench:
+	@echo "Running benchmarks..."
+	go test -bench=. -benchmem -run=^$$ ./pkg/...
+
+# Run benchmarks with comparison output
+.PHONY: bench-compare
+bench-compare:
+	@echo "Running benchmarks and saving results..."
+	go test -bench=. -benchmem -run=^$$ ./pkg/... | tee bench_results.txt
+	@echo "Benchmark results saved to bench_results.txt"
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js

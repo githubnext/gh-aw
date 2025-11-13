@@ -19,8 +19,14 @@ Performance benchmarks measure the speed of critical operations. Run benchmarks 
 
 **Running Benchmarks:**
 ```bash
-# Run all benchmarks
+# Run all benchmarks with make
+make bench
+
+# Run all benchmarks manually
 go test -bench=. -run=^$ ./pkg/...
+
+# Run benchmarks and save results for comparison
+make bench-compare
 
 # Run benchmarks for specific package
 go test -bench=. -run=^$ ./pkg/workflow/
@@ -31,8 +37,14 @@ go test -bench=BenchmarkCompileWorkflow -run=^$ ./pkg/workflow/
 # Run with custom iterations
 go test -bench=. -benchtime=100x -run=^$ ./pkg/workflow/
 
-# Save benchmark results for comparison
+# Run with memory profiling
+go test -bench=. -benchmem -run=^$ ./pkg/...
+
+# Compare benchmark results over time
 go test -bench=. -run=^$ ./pkg/... > bench_baseline.txt
+# ... make changes ...
+go test -bench=. -run=^$ ./pkg/... > bench_new.txt
+benchstat bench_baseline.txt bench_new.txt
 ```
 
 **Benchmark Coverage:**
