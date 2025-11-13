@@ -38,11 +38,13 @@ jobs:
       - name: Run tests with coverage
         run: make test-coverage
 
+      # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.html
+          retention-days: 7
 
   build:
     runs-on: ubuntu-latest
@@ -149,12 +151,14 @@ jobs:
       - name: Run benchmarks
         run: make bench
 
+      # Benchmark results for performance trend analysis - 14 days allows comparison across multiple runs
       - name: Save benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: bench_results.txt
           if-no-files-found: ignore
+          retention-days: 14
 
   lint:
     runs-on: ubuntu-latest
