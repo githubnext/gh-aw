@@ -357,10 +357,15 @@ Examples:
 						workflowName = args[0]
 					} else {
 						// Neither workflow ID nor valid GitHub Actions workflow name
-						fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-							Type:    "error",
-							Message: fmt.Sprintf("workflow '%s' not found. Expected either a workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
-						}))
+						suggestions := []string{
+							fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+							"Check for typos in the workflow name",
+							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
+						}
+						fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+							fmt.Sprintf("workflow '%s' not found", args[0]),
+							suggestions,
+						))
 						os.Exit(1)
 					}
 				} else {

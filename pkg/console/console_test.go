@@ -88,6 +88,72 @@ func TestFormatError(t *testing.T) {
 	}
 }
 
+func TestFormatErrorWithSuggestions(t *testing.T) {
+	tests := []struct {
+		name        string
+		message     string
+		suggestions []string
+		expected    []string
+	}{
+		{
+			name:    "error with suggestions",
+			message: "workflow 'test' not found",
+			suggestions: []string{
+				"Run 'gh aw status' to see all available workflows",
+				"Create a new workflow with 'gh aw new test'",
+				"Check for typos in the workflow name",
+			},
+			expected: []string{
+				"✗",
+				"workflow 'test' not found",
+				"Suggestions:",
+				"• Run 'gh aw status' to see all available workflows",
+				"• Create a new workflow with 'gh aw new test'",
+				"• Check for typos in the workflow name",
+			},
+		},
+		{
+			name:        "error without suggestions",
+			message:     "workflow 'test' not found",
+			suggestions: []string{},
+			expected: []string{
+				"✗",
+				"workflow 'test' not found",
+			},
+		},
+		{
+			name:    "error with single suggestion",
+			message: "file not found",
+			suggestions: []string{
+				"Check the file path",
+			},
+			expected: []string{
+				"✗",
+				"file not found",
+				"Suggestions:",
+				"• Check the file path",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := FormatErrorWithSuggestions(tt.message, tt.suggestions)
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+
+			// Verify no suggestions section when empty
+			if len(tt.suggestions) == 0 && strings.Contains(output, "Suggestions:") {
+				t.Errorf("Expected no suggestions section for empty suggestions, got:\n%s", output)
+			}
+		})
+	}
+}
+
 func TestFormatSuccessMessage(t *testing.T) {
 	output := FormatSuccessMessage("compilation completed")
 	if !strings.Contains(output, "compilation completed") {
