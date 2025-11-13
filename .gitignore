@@ -67,6 +67,9 @@ pkg/cli/workflows/*.yml
 .github/workflows/test-timestamp-js.md
 .github/workflows/test-timestamp-js.lock.yml
 
+# Ignore all compiled workflow lock files
+*.lock.yml
+
 # Large test data files
 pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/

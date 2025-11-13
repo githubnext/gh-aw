@@ -27,6 +27,7 @@ timeout-minutes: 30
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
+  - shared/python-dataviz.md
   - shared/reporting.md
   - shared/trends.md
 ---

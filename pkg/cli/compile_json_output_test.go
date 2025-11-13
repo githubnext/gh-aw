@@ -174,7 +174,7 @@ This workflow has an invalid field.
 func TestCompileJSONOutputMultipleWorkflows(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
-	
+
 	validFile := filepath.Join(tmpDir, "valid.md")
 	validContent := `---
 on: workflow_dispatch
@@ -185,7 +185,7 @@ engine: copilot
 # Valid
 Test workflow
 `
-	
+
 	invalidFile := filepath.Join(tmpDir, "invalid.md")
 	invalidContent := `---
 on: workflow_dispatch

@@ -308,7 +308,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		var errorMessages []string
 		for _, markdownFile := range markdownFiles {
 			stats.Total++
-			
+
 			// Initialize validation result for this workflow
 			result := ValidationResult{
 				Workflow: markdownFile,
@@ -316,7 +316,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				Errors:   []ValidationError{},
 				Warnings: []ValidationError{},
 			}
-			
+
 			// Resolve workflow ID or file path to actual file path
 			compileLog.Printf("Resolving workflow file: %s", markdownFile)
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
@@ -329,7 +329,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, markdownFile)
-				
+
 				// Add to validation results
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
@@ -340,7 +340,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				continue
 			}
 			compileLog.Printf("Resolved to: %s", resolvedFile)
-			
+
 			// Update result with resolved file name
 			result.Workflow = filepath.Base(resolvedFile)
 			lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
@@ -360,7 +360,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
-				
+
 				// Add to validation results
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
@@ -382,7 +382,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
-				
+
 				// Add to validation results
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
@@ -393,7 +393,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				continue
 			}
 			compiledCount++
-			
+
 			// Add successful validation result
 			validationResults = append(validationResults, result)
 		}
@@ -525,7 +525,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	var successCount int
 	for _, file := range mdFiles {
 		stats.Total++
-		
+
 		// Initialize validation result for this workflow
 		result := ValidationResult{
 			Workflow: filepath.Base(file),
@@ -533,12 +533,12 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			Errors:   []ValidationError{},
 			Warnings: []ValidationError{},
 		}
-		
+
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
 		if !noEmit {
 			result.CompiledFile = lockFile
 		}
-		
+
 		// Parse workflow file to get data
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
@@ -548,7 +548,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			errorCount++
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-			
+
 			// Add to validation results
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
@@ -568,7 +568,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			errorCount++
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-			
+
 			// Add to validation results
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
@@ -579,7 +579,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			continue
 		}
 		successCount++
-		
+
 		// Add successful validation result
 		validationResults = append(validationResults, result)
 	}
