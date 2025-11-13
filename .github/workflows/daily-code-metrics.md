@@ -60,7 +60,7 @@ find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" ! -path "./ve
 find . -type f \( -name "*.js" -o -name "*.cjs" \) ! -name "*.test.js" ! -name "*.test.cjs" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # YAML files
-find . -type f \( -name "*.yml" -o -name "*.yaml" \) ! -path "./.git/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
+find . -type f \( -name "*.yml" -o -name "*.yaml" \) ! -path "./.git/*" ! -path "./.github/workflows/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # Markdown files
 find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
