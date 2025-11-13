@@ -14,52 +14,20 @@ The testing framework implements **Phase 6 (Quality Assurance)** of the Go reimp
 
 Golden file testing validates compiler output against expected YAML files, ensuring that workflow compilation produces consistent results and catches unintended changes.
 
-#### Structure
-```
-pkg/workflow/testdata/
-├── workflows/          # Source workflow markdown files
-│   ├── issue_trigger.md
-│   ├── pr_trigger.md
-│   ├── scheduled.md
-│   └── ...
-└── golden/            # Expected compiled YAML output
-    ├── issue_trigger.lock.yml
-    ├── pr_trigger.lock.yml
-    ├── scheduled.lock.yml
-    └── ...
-```
+For complete documentation on golden file testing implementation, architecture, and usage, see [specs/golden-file-testing.md](specs/golden-file-testing.md).
 
-#### Running Golden File Tests
+#### Quick Reference
+
 ```bash
 # Run tests and compare with golden files
 go test ./pkg/workflow -run TestCompilerGoldenFiles
 
 # Update golden files when intentional changes occur
-go test ./pkg/workflow -run TestCompilerGoldenFiles -update-golden
+make update-golden
 
 # Run all workflow tests including golden file tests
 make test-unit
 ```
-
-#### Representative Workflow Examples
-The golden file tests cover these workflow patterns:
-1. **Issue trigger workflow** - Basic issue event handling
-2. **Pull request trigger workflow** - PR event processing
-3. **Scheduled workflow** - Cron-based execution with safe outputs
-4. **Command trigger workflow** - /mention-based activation
-5. **Multi-job workflow** - Workflows with custom jobs
-6. **Workflow with MCP servers** - Custom MCP server integration
-7. **Workflow with safe outputs** - Safe issue/comment creation
-8. **Workflow with network permissions** - Custom network access control
-9. **Workflow with imports** - Shared configuration imports
-10. **Custom engine workflow** - Custom execution engine configuration
-
-#### Adding New Golden File Tests
-1. Create a new workflow file in `pkg/workflow/testdata/workflows/`
-2. Add a test case to `TestCompilerGoldenFiles` in `compiler_golden_test.go`
-3. Run `go test -update-golden` to generate the golden file
-4. Verify the golden file contains expected output
-5. Run tests normally to ensure comparison works
 
 ### 3. Test Validation Framework (`test_validation.go`)
 

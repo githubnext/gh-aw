@@ -15,6 +15,7 @@ This directory contains design specifications and implementation documentation f
 |----------|--------|----------------|
 | [Safe Output Messages Design System](./safe-output-messages.md) | ✅ Implemented | `pkg/workflow/safe_outputs.go` |
 | [MCP Logs Guardrail](./MCP_LOGS_GUARDRAIL.md) | ✅ Implemented | `pkg/cli/mcp_logs_guardrail.go` |
+| [Golden File Testing](./golden-file-testing.md) | ✅ Implemented | `pkg/workflow/compiler_golden_test.go`, `pkg/workflow/testing_helpers.go` |
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
 | [GitHub Actions Security Best Practices](./github-actions-security-best-practices.md) | ✅ Documented | Workflow security guidelines and patterns |
@@ -41,4 +42,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-13

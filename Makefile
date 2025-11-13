@@ -85,6 +85,14 @@ test-coverage:
 	go test -v -count=1 -timeout=3m -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
+# Update golden files for compiler tests
+.PHONY: update-golden
+update-golden:
+	@echo "Updating golden files..."
+	@go test ./pkg/workflow -run TestCompilerGoldenFiles -update-golden
+	@echo "✓ Golden files updated"
+	@echo "Review the changes with: git diff pkg/workflow/testdata/golden/"
+
 # Clean build artifacts
 .PHONY: clean
 clean:
