@@ -267,7 +267,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should provide helpful error message when patch is missing", () => {
-      const errorMessage = "No patch file found at /tmp/gh-aw/aw.patch. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.";
+      const errorMessage =
+        "No patch file found at /tmp/gh-aw/aw.patch. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.";
 
       expect(errorMessage).toContain("No patch file found");
       expect(errorMessage).toContain("another branch");
@@ -275,7 +276,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should provide helpful error message when patch is empty", () => {
-      const errorMessage = "Patch file at /tmp/gh-aw/aw.patch is empty. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.";
+      const errorMessage =
+        "Patch file at /tmp/gh-aw/aw.patch is empty. Cannot create pull request without changes. Have you made changes to files in the repository? If your changes are in another branch, please switch to that branch first or specify the branch name in the 'branch' parameter.";
 
       expect(errorMessage).toContain("is empty");
       expect(errorMessage).toContain("another branch");
@@ -287,9 +289,9 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // 1. Validate patch exists and has content
       // 2. Append to safe outputs
       // 3. Return success
-      
+
       const operationOrder = ["validate_patch", "append_output", "return_success"];
-      
+
       expect(operationOrder[0]).toBe("validate_patch");
       expect(operationOrder[1]).toBe("append_output");
       expect(operationOrder[2]).toBe("return_success");
