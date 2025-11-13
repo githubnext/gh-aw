@@ -298,7 +298,7 @@ const (
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
-		Use:   "logs [workflow-name]",
+		Use:   "logs [workflow-id]",
 		Short: "Download and analyze agentic workflow logs with aggregated metrics",
 		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
 
@@ -314,8 +314,8 @@ Downloaded artifacts include:
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
-The workflow name is the basename of the markdown file without the .md extension.
-For example, for 'weekly-research.md', use 'weekly-research' as the workflow name.
+The workflow-id is the basename of the markdown file without the .md extension.
+For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
@@ -345,8 +345,8 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
-				// Convert workflow name to GitHub Actions workflow name
-				// First try to resolve as a workflow name
+				// Convert workflow ID to GitHub Actions workflow name
+				// First try to resolve as a workflow ID
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
 				if err != nil {
 					// If that fails, check if it's already a GitHub Actions workflow name
@@ -356,10 +356,10 @@ Examples:
 						// It's already a valid GitHub Actions workflow name
 						workflowName = args[0]
 					} else {
-						// Neither workflow name nor valid GitHub Actions workflow name
+						// Neither workflow ID nor valid GitHub Actions workflow name
 						fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 							Type:    "error",
-							Message: fmt.Sprintf("workflow '%s' not found. Expected either a workflow name (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
+							Message: fmt.Sprintf("workflow '%s' not found. Expected either a workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
 						}))
 						os.Exit(1)
 					}
