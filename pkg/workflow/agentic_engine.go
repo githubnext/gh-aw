@@ -439,26 +439,26 @@ func unquoteUsesWithComments(yamlStr string) string {
 		// Look for uses: followed by a quoted string containing a # comment
 		// This handles various indentation levels and formats
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Check if line contains uses: with a quoted value
 		if !strings.Contains(trimmed, "uses: \"") {
 			continue
 		}
-		
+
 		// Check if the quoted value contains a version comment
 		if !strings.Contains(trimmed, " # ") {
 			continue
 		}
-		
+
 		// Find the position of uses: " in the original line
 		usesIdx := strings.Index(line, "uses: \"")
 		if usesIdx == -1 {
 			continue
 		}
-		
+
 		// Extract the part before uses: (indentation)
 		prefix := line[:usesIdx]
-		
+
 		// Find the opening and closing quotes
 		quoteStart := usesIdx + 7 // len("uses: \"")
 		quoteEnd := strings.Index(line[quoteStart:], "\"")
@@ -466,13 +466,13 @@ func unquoteUsesWithComments(yamlStr string) string {
 			continue
 		}
 		quoteEnd += quoteStart
-		
+
 		// Extract the quoted content
 		quotedContent := line[quoteStart:quoteEnd]
-		
+
 		// Extract any content after the closing quote
 		suffix := line[quoteEnd+1:]
-		
+
 		// Reconstruct the line without quotes
 		lines[i] = prefix + "uses: " + quotedContent + suffix
 	}
