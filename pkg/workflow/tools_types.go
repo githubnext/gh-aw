@@ -8,6 +8,7 @@ type Tools struct {
 	WebFetch         *WebFetchToolConfig         `yaml:"web-fetch,omitempty"`
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
+	EditAll          *EditToolConfig             `yaml:"edit-all,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
@@ -110,6 +111,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["edit"]; exists {
 		tools.Edit = parseEditTool(val)
 	}
+	if val, exists := toolsMap["edit-all"]; exists {
+		tools.EditAll = parseEditAllTool(val)
+	}
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
 	}
@@ -136,6 +140,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"web-fetch":         true,
 		"web-search":        true,
 		"edit":              true,
+		"edit-all":          true,
 		"playwright":        true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
@@ -308,6 +313,12 @@ func parseEditTool(val any) *EditToolConfig {
 	return &EditToolConfig{}
 }
 
+// parseEditAllTool converts raw edit-all tool configuration
+func parseEditAllTool(val any) *EditToolConfig {
+	// edit-all is either nil or an empty object
+	return &EditToolConfig{}
+}
+
 // parseAgenticWorkflowsTool converts raw agentic-workflows tool configuration
 func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 	config := &AgenticWorkflowsToolConfig{}
@@ -378,6 +389,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.WebSearch != nil
 	case "edit":
 		return t.Edit != nil
+	case "edit-all":
+		return t.EditAll != nil
 	case "playwright":
 		return t.Playwright != nil
 	case "agentic-workflows":
@@ -418,6 +431,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.Edit != nil {
 		names = append(names, "edit")
+	}
+	if t.EditAll != nil {
+		names = append(names, "edit-all")
 	}
 	if t.Playwright != nil {
 		names = append(names, "playwright")

@@ -1952,7 +1952,7 @@
           ]
         },
         "edit": {
-          "description": "File editing tool for reading, creating, and modifying files in the repository",
+          "description": "File editing tool for reading, creating, and modifying files in the repository (deprecated: use edit-all instead)",
           "oneOf": [
             {
               "type": "null",
@@ -1961,6 +1961,20 @@
             {
               "type": "object",
               "description": "Edit tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "edit-all": {
+          "description": "File editing tool for reading, creating, and modifying files in the repository",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable edit-all tool"
+            },
+            {
+              "type": "object",
+              "description": "Edit-all tool configuration object",
               "additionalProperties": false
             }
           ]

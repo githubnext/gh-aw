@@ -20,7 +20,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	// Copy existing tools that are not neutral tools
 	for key, value := range tools {
 		switch key {
-		case "bash", "web-fetch", "web-search", "edit", "playwright":
+		case "bash", "web-fetch", "web-search", "edit", "edit-all", "playwright":
 			// These are neutral tools that need conversion - skip copying, will be converted below
 			continue
 		default:
@@ -73,8 +73,12 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		claudeAllowed["WebSearch"] = nil
 	}
 
-	if editTool, hasEdit := tools["edit"]; hasEdit {
-		// edit -> Edit, MultiEdit, NotebookEdit, Write
+	// Check for both "edit" (deprecated) and "edit-all" (preferred)
+	editTool, hasEdit := tools["edit"]
+	editAllTool, hasEditAll := tools["edit-all"]
+	
+	if hasEdit || hasEditAll {
+		// edit/edit-all -> Edit, MultiEdit, NotebookEdit, Write
 		claudeAllowed["Edit"] = nil
 		claudeAllowed["MultiEdit"] = nil
 		claudeAllowed["NotebookEdit"] = nil
@@ -83,6 +87,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		// If edit tool has specific configuration, we could handle it here
 		// For now, treating it as enabling all edit capabilities
 		_ = editTool
+		_ = editAllTool
 	}
 
 	// Handle playwright tool by converting it to an MCP tool configuration

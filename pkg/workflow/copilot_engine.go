@@ -146,9 +146,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 	}
 
-	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
+	// Add --allow-all-paths when edit or edit-all tool is enabled to allow write on all paths
 	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Edit != nil {
+	if workflowData.ParsedTools != nil && (workflowData.ParsedTools.Edit != nil || workflowData.ParsedTools.EditAll != nil) {
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
@@ -643,9 +643,11 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 	}
 
-	// Handle edit tools requirement for file write access
+	// Handle edit/edit-all tools requirement for file write access
 	// Note: safe-outputs do not need write permission as they use MCP
-	if _, hasEdit := tools["edit"]; hasEdit {
+	_, hasEdit := tools["edit"]
+	_, hasEditAll := tools["edit-all"]
+	if hasEdit || hasEditAll {
 		args = append(args, "--allow-tool", "write")
 	}
 
@@ -661,6 +663,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
+		"edit-all":   true,
 		"web-search": true,
 		"playwright": true,
 	}

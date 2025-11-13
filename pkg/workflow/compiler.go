@@ -957,6 +957,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Build workflow data
+	parsedTools := NewTools(tools)
+	
+	// Check for deprecated "edit" tool and emit warning
+	if parsedTools.Edit != nil {
+		warningMsg := fmt.Sprintf("The 'edit' tool is deprecated. Please use 'edit-all' instead in workflow: %s", markdownPath)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+		c.IncrementWarningCount()
+	}
+
 	workflowData := &WorkflowData{
 		Name:                workflowName,
 		FrontmatterName:     frontmatterName,
@@ -966,7 +975,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		Tools:               tools,
-		ParsedTools:         NewTools(tools),
+		ParsedTools:         parsedTools,
 		Runtimes:            runtimes,
 		MarkdownContent:     markdownContent,
 		AI:                  engineSetting,
@@ -1446,9 +1455,11 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
 
-		// Add edit tool with null value
-		if _, exists := tools["edit"]; !exists {
-			tools["edit"] = nil
+		// Add edit-all tool with null value (prefer edit-all over deprecated edit)
+		if _, existsEditAll := tools["edit-all"]; !existsEditAll {
+			if _, existsEdit := tools["edit"]; !existsEdit {
+				tools["edit-all"] = nil
+			}
 		}
 		gitCommands := []any{
 			"git checkout:*",
