@@ -97,20 +97,7 @@ func TestResolveWorkflowName(t *testing.T) {
 	}
 
 	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(tempDir)
 
 	tests := []struct {
 		name                 string
@@ -191,20 +178,7 @@ func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 	}
 
 	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(tempDir)
 
 	// Test that it returns an error when lock file is missing
 	_, err = ResolveWorkflowName("incomplete-workflow")
@@ -241,20 +215,7 @@ func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 	}
 
 	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(tempDir)
 
 	// Test that it returns an error when YAML is invalid
 	_, err = ResolveWorkflowName("invalid-yaml")
@@ -291,20 +252,7 @@ func TestResolveWorkflowName_MissingNameField(t *testing.T) {
 	}
 
 	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(oldWd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(tempDir)
 
 	// Test that it returns an error when name field is missing
 	_, err = ResolveWorkflowName("no-name")
@@ -454,19 +402,9 @@ func TestShouldSkipFirewallWorkflow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set the environment variable
-			oldValue := os.Getenv("GH_AW_FEATURES")
 			if tt.featureValue != "" {
-				os.Setenv("GH_AW_FEATURES", tt.featureValue)
-			} else {
-				os.Unsetenv("GH_AW_FEATURES")
+				t.Setenv("GH_AW_FEATURES", tt.featureValue)
 			}
-			defer func() {
-				if oldValue != "" {
-					os.Setenv("GH_AW_FEATURES", oldValue)
-				} else {
-					os.Unsetenv("GH_AW_FEATURES")
-				}
-			}()
 
 			result := shouldSkipFirewallWorkflow(tt.workflowName)
 			if result != tt.shouldSkip {

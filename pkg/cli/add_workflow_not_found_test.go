@@ -14,9 +14,7 @@ func TestDisplayAvailableWorkflows(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create a mock package structure
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
@@ -89,9 +87,7 @@ func TestDisplayAvailableWorkflowsWithVersion(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create a mock package structure
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
@@ -143,9 +139,7 @@ func TestDisplayAvailableWorkflowsNoWorkflows(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create an empty package structure
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
@@ -184,9 +178,7 @@ func TestDisplayAvailableWorkflowsPackageNotFound(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create packages directory but don't create the specific package
 	packagesDir := filepath.Join(tempDir, ".aw", "packages")

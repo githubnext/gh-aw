@@ -104,9 +104,7 @@ func TestDiscoverWorkflowsInPackage(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create a mock package structure (use .aw/packages, not .gh-aw/packages)
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
@@ -179,9 +177,7 @@ func TestDiscoverWorkflowsInPackage_NotFound(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Try to discover workflows in a non-existent package
 	_, err := discoverWorkflowsInPackage("nonexistent/repo", "", false)
@@ -200,9 +196,7 @@ func TestDiscoverWorkflowsInPackage_EmptyPackage(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create an empty package directory (use .aw/packages, not .gh-aw/packages)
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "empty-owner", "empty-repo")
@@ -227,9 +221,7 @@ func TestExpandWildcardWorkflows(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Create a mock package with workflows
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-org", "test-repo")
@@ -371,9 +363,7 @@ func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override packages directory for testing
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	tests := []struct {
 		name          string
@@ -425,16 +415,10 @@ func TestAddWorkflowWithTracking_WildcardDuplicateHandling(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Override HOME for package discovery
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", oldHome)
+	t.Setenv("HOME", tempDir)
 
 	// Change to the temp directory
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	t.Chdir(tempDir)
 
 	// Initialize a git repository
 	if err := os.MkdirAll(filepath.Join(tempDir, ".git"), 0755); err != nil {

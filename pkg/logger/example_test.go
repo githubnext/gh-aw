@@ -7,6 +7,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
+// Note: Example functions cannot use t.Setenv() as they don't have access to *testing.T
+// These need to remain using os.Setenv/Unsetenv
+
 func ExampleNew() {
 	// Set DEBUG environment variable to enable loggers
 	os.Setenv("DEBUG", "app:*")

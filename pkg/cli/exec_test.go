@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -48,19 +47,8 @@ func TestGhExecOrFallback(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set or unset GH_TOKEN based on test case
-			originalToken := os.Getenv("GH_TOKEN")
-			defer func() {
-				if originalToken != "" {
-					os.Setenv("GH_TOKEN", originalToken)
-				} else {
-					os.Unsetenv("GH_TOKEN")
-				}
-			}()
-
 			if tt.ghToken != "" {
-				os.Setenv("GH_TOKEN", tt.ghToken)
-			} else {
-				os.Unsetenv("GH_TOKEN")
+				t.Setenv("GH_TOKEN", tt.ghToken)
 			}
 
 			stdout, _, err := ghExecOrFallback(tt.fallbackCmd, tt.fallbackArgs, tt.fallbackEnv)
@@ -96,17 +84,8 @@ func TestGhExecOrFallbackWithGHToken(t *testing.T) {
 	// Note: We can't easily test actual gh.Exec without a real token,
 	// so we test that the function attempts to use gh CLI
 
-	originalToken := os.Getenv("GH_TOKEN")
-	defer func() {
-		if originalToken != "" {
-			os.Setenv("GH_TOKEN", originalToken)
-		} else {
-			os.Unsetenv("GH_TOKEN")
-		}
-	}()
-
 	// Set a dummy token
-	os.Setenv("GH_TOKEN", "dummy_token_for_test")
+	t.Setenv("GH_TOKEN", "dummy_token_for_test")
 
 	// This will likely fail since we don't have a valid token,
 	// but we're testing that it attempts gh.Exec path
@@ -126,16 +105,7 @@ func TestGhExecOrFallbackWithGHToken(t *testing.T) {
 
 func TestGhExecOrFallbackIntegration(t *testing.T) {
 	// Integration test: verify the function works end-to-end without GH_TOKEN
-	originalToken := os.Getenv("GH_TOKEN")
-	defer func() {
-		if originalToken != "" {
-			os.Setenv("GH_TOKEN", originalToken)
-		} else {
-			os.Unsetenv("GH_TOKEN")
-		}
-	}()
-
-	os.Unsetenv("GH_TOKEN")
+	// (GH_TOKEN is not set by default in this test)
 
 	// Use a simple command that we know will work
 	stdout, _, err := ghExecOrFallback(
@@ -188,20 +158,9 @@ func TestExtractRepoSlug(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore env
-			originalHost := os.Getenv("GITHUB_SERVER_URL")
-			defer func() {
-				if originalHost != "" {
-					os.Setenv("GITHUB_SERVER_URL", originalHost)
-				} else {
-					os.Unsetenv("GITHUB_SERVER_URL")
-				}
-			}()
-
+			// Set environment
 			if tt.githubHost != "" {
-				os.Setenv("GITHUB_SERVER_URL", tt.githubHost)
-			} else {
-				os.Unsetenv("GITHUB_SERVER_URL")
+				t.Setenv("GITHUB_SERVER_URL", tt.githubHost)
 			}
 
 			slug := extractRepoSlug(tt.repoURL)
