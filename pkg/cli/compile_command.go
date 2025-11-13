@@ -265,9 +265,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!validate)
+	compileLog.Printf("Validation enabled: %v", validate)
 
 	// Set noEmit flag to validate without generating lock files
 	compiler.SetNoEmit(noEmit)
+	if noEmit {
+		compileLog.Print("No-emit mode enabled: validating without generating lock files")
+	}
 
 	// Set strict mode if specified
 	compiler.SetStrictMode(strict)
@@ -302,6 +306,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	var workflowDataList []*workflow.WorkflowData
 
 	if len(markdownFiles) > 0 {
+		compileLog.Printf("Compiling %d specific workflow files", len(markdownFiles))
 		// Compile specific workflow files
 		var compiledCount int
 		var errorCount int
@@ -855,6 +860,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
 func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
+	compileLog.Printf("Compiling all workflow files in directory: %s", workflowsDir)
 	// Reset warning count before compilation
 	compiler.ResetWarningCount()
 
@@ -868,11 +874,14 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	}
 
 	if len(mdFiles) == 0 {
+		compileLog.Printf("No markdown files found in %s", workflowsDir)
 		if verbose {
 			fmt.Printf("No markdown files found in %s\n", workflowsDir)
 		}
 		return stats, nil
 	}
+
+	compileLog.Printf("Found %d markdown files to compile", len(mdFiles))
 
 	// Compile each file
 	for _, file := range mdFiles {

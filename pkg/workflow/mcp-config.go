@@ -253,6 +253,7 @@ func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 // renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
 // This is a shared function used by both Claude and Custom engines
 func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	mcpLog.Printf("Rendering custom MCP config wrapper for tool: %s", toolName)
 	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
 
 	// Use the shared MCP config renderer with JSON format
@@ -708,6 +709,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Infer type from fields if not explicitly provided
 	if typeStr, hasType := config.GetString("type"); hasType {
+		mcpLog.Printf("MCP type explicitly set to: %s", typeStr)
 		// Normalize "local" to "stdio"
 		if typeStr == "local" {
 			result.Type = "stdio"
@@ -715,13 +717,17 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Type = typeStr
 		}
 	} else {
+		mcpLog.Print("No explicit MCP type, inferring from fields")
 		// Infer type from presence of fields
 		if _, hasURL := config.GetString("url"); hasURL {
 			result.Type = "http"
+			mcpLog.Printf("Inferred MCP type as http (has url field)")
 		} else if _, hasCommand := config.GetString("command"); hasCommand {
 			result.Type = "stdio"
+			mcpLog.Printf("Inferred MCP type as stdio (has command field)")
 		} else if _, hasContainer := config.GetString("container"); hasContainer {
 			result.Type = "stdio"
+			mcpLog.Printf("Inferred MCP type as stdio (has container field)")
 		} else {
 			return nil, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 		}
@@ -733,6 +739,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	}
 
 	// Extract fields based on type
+	mcpLog.Printf("Extracting fields for MCP type: %s", result.Type)
 	switch result.Type {
 	case "stdio":
 		if command, hasCommand := config.GetString("command"); hasCommand {
