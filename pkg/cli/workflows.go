@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -134,7 +136,15 @@ func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose boo
 		return workflow, nil
 	}
 
-	return nil, fmt.Errorf("workflow '%s' not found on GitHub", workflowIdOrName)
+	suggestions := []string{
+		fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+		"Check if the workflow has been compiled and pushed to GitHub",
+		"Verify the workflow name matches the compiled .lock.yml file",
+	}
+	return nil, errors.New(console.FormatErrorWithSuggestions(
+		fmt.Sprintf("workflow '%s' not found on GitHub", workflowIdOrName),
+		suggestions,
+	))
 }
 
 // restoreWorkflowState restores a workflow to disabled state if it was previously disabled

@@ -326,9 +326,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compileLog.Printf("Resolving workflow file: %s", markdownFile)
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
-				errMsg := fmt.Sprintf("failed to resolve workflow '%s': %v", markdownFile, err)
 				if !jsonOutput {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+					// Print the error directly - it already contains suggestions and formatting
+					fmt.Fprintln(os.Stderr, err.Error())
 				}
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
