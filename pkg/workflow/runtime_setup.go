@@ -38,6 +38,15 @@ var knownRuntimes = []*Runtime{
 		Commands:       []string{"bun", "bunx"},
 	},
 	{
+		ID:             "deno",
+		Name:           "Deno",
+		ActionRepo:     "denoland/setup-deno",
+		ActionVersion:  "v2",
+		VersionField:   "deno-version",
+		DefaultVersion: constants.DefaultDenoVersion,
+		Commands:       []string{"deno"},
+	},
+	{
 		ID:             "dotnet",
 		Name:           ".NET",
 		ActionRepo:     "actions/setup-dotnet",

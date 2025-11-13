@@ -53,6 +53,9 @@ const DefaultElixirVersion = "1.17"
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion = "9.10"
 
+// DefaultDenoVersion is the default version of Deno for runtime setup
+const DefaultDenoVersion = "2.x"
+
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
 const DefaultAgenticWorkflowTimeoutMinutes = 20
 

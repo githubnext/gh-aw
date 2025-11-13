@@ -62,6 +62,11 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			expected: []string{"ruby"},
 		},
 		{
+			name:     "deno command",
+			command:  "deno run main.ts",
+			expected: []string{"deno"},
+		},
+		{
 			name:     "dotnet command",
 			command:  "dotnet build",
 			expected: []string{"dotnet"},
