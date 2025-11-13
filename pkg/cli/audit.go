@@ -153,14 +153,14 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("GitHub API access denied, but found locally cached artifacts. Processing cached data..."))
 				useLocalCache = true
 			} else {
-				// Provide helpful message about using GitHub MCP server
-				return fmt.Errorf("GitHub API access denied and no local cache found.\n\n"+
-					"To download artifacts, use the GitHub MCP server:\n\n"+
-					"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
+				// Provide enhanced authentication error message
+				authError := console.FormatAuthenticationError("gh aw audit", []string{"repo", "actions:read"})
+				fmt.Fprintln(os.Stderr, authError)
+				fmt.Fprintf(os.Stderr, "\nAlternatively, you can use the GitHub MCP server:\n")
+				return fmt.Errorf("1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
 					"   - run_id: %d\n"+
 					"   - output_directory: %s\n\n"+
-					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-					"Original error: %v", runInfo.RunID, runOutputDir, metadataErr)
+					"2. After downloading, run this audit command again to analyze the cached artifacts", runInfo.RunID, runOutputDir)
 			}
 		} else {
 			return fmt.Errorf("failed to fetch run metadata: %w", metadataErr)
@@ -187,13 +187,14 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Artifact download failed due to permissions, but found locally cached artifacts. Processing cached data..."))
 					useLocalCache = true
 				} else {
-					return fmt.Errorf("failed to download artifacts due to permissions and no local cache found.\n\n"+
-						"To download artifacts, use the GitHub MCP server:\n\n"+
-						"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
+					// Provide enhanced authentication error message
+					authError := console.FormatAuthenticationError("gh aw audit", []string{"repo", "actions:read"})
+					fmt.Fprintln(os.Stderr, authError)
+					fmt.Fprintf(os.Stderr, "\nAlternatively, you can use the GitHub MCP server:\n")
+					return fmt.Errorf("1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
 						"   - run_id: %d\n"+
 						"   - output_directory: %s\n\n"+
-						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-						"Original error: %v", runInfo.RunID, runOutputDir, err)
+						"2. After downloading, run this audit command again to analyze the cached artifacts", runInfo.RunID, runOutputDir)
 				}
 			} else {
 				return fmt.Errorf("failed to download artifacts: %w", err)

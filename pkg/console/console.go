@@ -435,6 +435,38 @@ func FormatErrorMessage(message string) string {
 	return applyStyle(errorStyle, "✗ ") + message
 }
 
+// FormatAuthenticationError formats authentication errors with setup guidance
+// command: the command that requires authentication (e.g., "gh aw logs")
+// requiredScopes: list of required GitHub token scopes (e.g., ["repo", "actions:read"])
+func FormatAuthenticationError(command string, requiredScopes []string) string {
+	var output strings.Builder
+
+	// Error header
+	output.WriteString(FormatErrorMessage("Authentication failed: GitHub token required"))
+	output.WriteString("\n\n")
+
+	// Command context
+	output.WriteString(fmt.Sprintf("The '%s' command requires a GitHub Personal Access Token (PAT).\n\n", command))
+
+	// Setup instructions
+	output.WriteString("Setup:\n")
+	output.WriteString("  1. Create a PAT at https://github.com/settings/tokens\n")
+	if len(requiredScopes) > 0 {
+		output.WriteString(fmt.Sprintf("     Required scopes: %s\n", strings.Join(requiredScopes, ", ")))
+	}
+	output.WriteString("  2. Set as repository secret: GITHUB_TOKEN or COPILOT_GITHUB_TOKEN\n")
+	output.WriteString("  3. Or set in environment: export GITHUB_TOKEN=ghp_your_token_here\n\n")
+
+	// Documentation link (redacted as per requirements)
+	output.WriteString("Documentation: (redacted)\n\n")
+
+	// Additional note about GitHub Actions token limitations
+	output.WriteString("Note: The default GITHUB_TOKEN in GitHub Actions has limited permissions.\n")
+	output.WriteString("      For workflow logs access, use a PAT stored in secrets.\n")
+
+	return output.String()
+}
+
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects
 func RenderTableAsJSON(config TableConfig) (string, error) {

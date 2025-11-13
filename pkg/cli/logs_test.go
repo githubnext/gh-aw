@@ -346,7 +346,9 @@ func TestListWorkflowRunsWithPagination(t *testing.T) {
 
 	if err != nil {
 		// If there's an error, it should be an authentication error or workflow not found
-		if !strings.Contains(err.Error(), "authentication required") && !strings.Contains(err.Error(), "failed to list workflow runs") {
+		if !strings.Contains(err.Error(), "Authentication failed: GitHub token required") &&
+			!strings.Contains(err.Error(), "authentication required") &&
+			!strings.Contains(err.Error(), "failed to list workflow runs") {
 			t.Errorf("Expected authentication error or workflow error, got: %v", err)
 		}
 	} else {

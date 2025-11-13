@@ -11,6 +11,7 @@ package cli
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -104,7 +105,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 	if err != nil {
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
-			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return errors.New(console.FormatAuthenticationError("gh aw logs", []string{"repo", "actions:read"}))
 		}
 		// If logs are not found or run has no logs, this is not a critical error
 		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
@@ -295,7 +296,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		}
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
-			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return errors.New(console.FormatAuthenticationError("gh aw logs", []string{"repo", "actions:read"}))
 		}
 		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
 	}

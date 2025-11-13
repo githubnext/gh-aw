@@ -1086,7 +1086,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 			strings.Contains(combinedMsg, "authentication required") ||
 			strings.Contains(outputMsg, "gh auth login") {
-			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return nil, 0, errors.New(console.FormatAuthenticationError("gh aw logs", []string{"repo", "actions:read"}))
 		}
 		if len(output) > 0 {
 			return nil, 0, fmt.Errorf("failed to list workflow runs: %s", string(output))

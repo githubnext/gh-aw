@@ -350,3 +350,77 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestFormatAuthenticationError(t *testing.T) {
+	tests := []struct {
+		name           string
+		command        string
+		requiredScopes []string
+		expected       []string // Substrings that should be present in output
+	}{
+		{
+			name:           "basic authentication error without scopes",
+			command:        "gh aw logs",
+			requiredScopes: nil,
+			expected: []string{
+				"✗",
+				"Authentication failed: GitHub token required",
+				"The 'gh aw logs' command requires a GitHub Personal Access Token (PAT)",
+				"Setup:",
+				"Create a PAT at https://github.com/settings/tokens",
+				"Set as repository secret: GITHUB_TOKEN or COPILOT_GITHUB_TOKEN",
+				"export GITHUB_TOKEN=ghp_your_token_here",
+				"Documentation: (redacted)",
+				"default GITHUB_TOKEN in GitHub Actions has limited permissions",
+			},
+		},
+		{
+			name:           "authentication error with required scopes",
+			command:        "gh aw audit",
+			requiredScopes: []string{"repo", "actions:read"},
+			expected: []string{
+				"✗",
+				"Authentication failed: GitHub token required",
+				"The 'gh aw audit' command requires a GitHub Personal Access Token (PAT)",
+				"Required scopes: repo, actions:read",
+				"Setup:",
+				"Create a PAT at https://github.com/settings/tokens",
+			},
+		},
+		{
+			name:           "authentication error with single scope",
+			command:        "gh aw run",
+			requiredScopes: []string{"workflow"},
+			expected: []string{
+				"✗",
+				"Authentication failed: GitHub token required",
+				"The 'gh aw run' command requires a GitHub Personal Access Token (PAT)",
+				"Required scopes: workflow",
+			},
+		},
+		{
+			name:           "authentication error with empty scopes",
+			command:        "gh aw test",
+			requiredScopes: []string{},
+			expected: []string{
+				"✗",
+				"Authentication failed: GitHub token required",
+				"The 'gh aw test' command requires a GitHub Personal Access Token (PAT)",
+				"Setup:",
+				"Create a PAT at https://github.com/settings/tokens",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := FormatAuthenticationError(tt.command, tt.requiredScopes)
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+		})
+	}
+}
