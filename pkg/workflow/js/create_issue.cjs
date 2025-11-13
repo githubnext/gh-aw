@@ -2,34 +2,20 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { processAgentOutputItems } = require("./process_agent_output_items.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getCampaign } = require("./get_campaign.cjs");
 
 async function main() {
-  // Initialize outputs to empty strings to ensure they're always set
-  core.setOutput("issue_number", "");
-  core.setOutput("issue_url", "");
-
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createIssueItems = result.items.filter(item => item.type === "create_issue");
-  if (createIssueItems.length === 0) {
-    core.info("No create-issue items found in agent output");
-    return;
-  }
-  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-  if (isStaged) {
-    await generateStagedPreview({
+  const result = await processAgentOutputItems({
+    itemType: "create_issue",
+    outputs: {
+      issue_number: "",
+      issue_url: "",
+    },
+    stagedPreview: {
       title: "Create Issues",
       description: "The following issues would be created if staged mode was disabled:",
-      items: createIssueItems,
       renderItem: (item, index) => {
         let content = `### Issue ${index + 1}\n`;
         content += `**Title:** ${item.title || "No title provided"}\n\n`;
@@ -41,9 +27,15 @@ async function main() {
         }
         return content;
       },
-    });
+    },
+  });
+
+  // Early return if not processed or in staged mode
+  if (!result.processed || result.staged || !result.items) {
     return;
   }
+
+  const createIssueItems = result.items;
   const parentIssueNumber = context.payload?.issue?.number;
 
   // Extract triggering context for footer generation
