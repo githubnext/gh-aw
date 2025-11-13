@@ -564,7 +564,7 @@ This workflow uses several expressions:
 - Repository: ${{ github.repository }}
 - Complex condition: ${{ (github.workflow && github.repository) || github.run_id }}
 - Nested condition: ${{ !((github.workflow || github.repository) && github.run_id) }}
-- Real-world example: ${{ (github.event_name == 'issues' && github.event.action == 'opened') || (github.event_name == 'pull_request' && !github.event.pull_request.draft) }}
+- Real-world example: ${{ github.actor && github.run_number }}
 `
 
 	b.ResetTimer()

@@ -8,7 +8,7 @@ import (
 func NewMCPCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mcp",
-		Short: "MCP helpers",
+		Short: "Manage MCP (Model Context Protocol) servers",
 		Long: `Model Context Protocol (MCP) server management and inspection.
 
 MCP enables AI workflows to connect to external tools and data sources through

@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
@@ -66,6 +68,13 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+
+	// Pass activation comment information if available (for updating the comment with commit link)
+	// These outputs are only available when reaction is configured in the workflow
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
+	}
 
 	// Add workflow metadata for consistency
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithCampaign(data.Name, data.Source, data.Campaign)...)

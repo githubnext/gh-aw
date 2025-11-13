@@ -47,9 +47,19 @@ Thumbs.db
 # credentials
 .credentials/
 
+# Environment variable files - may contain sensitive API keys, tokens, and passwords
+.env
+.env.*
+.env.*.local
+.env.backup
+.env.*.backup
+
 coverage.html
 coverage/
 logs/
+
+# Benchmark results
+bench_results.txt
 
 node_modules/
 gh-aw-test/

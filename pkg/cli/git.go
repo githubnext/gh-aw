@@ -188,3 +188,25 @@ func pushBranch(branchName string, verbose bool) error {
 
 	return nil
 }
+
+// checkCleanWorkingDirectory checks if there are uncommitted changes
+func checkCleanWorkingDirectory(verbose bool) error {
+	if verbose {
+		fmt.Printf("Checking for uncommitted changes...\n")
+	}
+
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	if len(strings.TrimSpace(string(output))) > 0 {
+		return fmt.Errorf("working directory has uncommitted changes, please commit or stash them first")
+	}
+
+	if verbose {
+		fmt.Printf("Working directory is clean\n")
+	}
+	return nil
+}

@@ -123,6 +123,9 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		TimeoutMinutes: 10,
 		Steps:          steps,
 		Needs:          []string{mainJobName},
+		Outputs: map[string]string{
+			"success": "${{ steps.parse_results.outputs.success }}",
+		},
 	}
 
 	return job, nil
@@ -398,6 +401,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 func (c *Compiler) buildParsingStep() []string {
 	steps := []string{
 		"      - name: Parse threat detection results\n",
+		"        id: parse_results\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        with:\n",
 		"          script: |\n",
@@ -474,9 +478,13 @@ if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) 
     ? '\\nReasons: ' + verdict.reasons.join('; ')
     : '';
   
+  // Set success output to false before failing
+  core.setOutput('success', 'false');
   core.setFailed('❌ Security threats detected: ' + threats.join(', ') + reasonsText);
 } else {
   core.info('✅ No security threats detected. Safe outputs may proceed.');
+  // Set success output to true when no threats detected
+  core.setOutput('success', 'true');
 }`
 }
 

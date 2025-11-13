@@ -38,6 +38,12 @@ Analyze the codebase daily to compute size, quality, and health metrics. Track t
 - **Cache Location**: `/tmp/gh-aw/cache-memory/metrics/`
 - **Historical Data**: Last 30+ days
 
+**⚠️ CRITICAL NOTE**: The repository is a **fresh clone** on each workflow run. This means:
+- No git history is available for metrics collection
+- All metrics must be computed from the current snapshot only
+- Historical trends are maintained in the cache memory (`/tmp/gh-aw/cache-memory/metrics/`)
+- Git log commands will only work if you explicitly fetch history with `git fetch --unshallow`
+
 ## Metrics Collection Framework
 
 ### 1. Codebase Size Metrics
@@ -48,16 +54,16 @@ Track lines of code and file counts across different dimensions:
 
 ```bash
 # Go files (excluding tests)
-find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" ! -path "./vendor/*" | xargs wc -l | tail -1
+find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" ! -path "./vendor/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # JavaScript/CJS files (excluding tests)
-find . -type f \( -name "*.js" -o -name "*.cjs" \) ! -name "*.test.js" ! -name "*.test.cjs" ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+find . -type f \( -name "*.js" -o -name "*.cjs" \) ! -name "*.test.js" ! -name "*.test.cjs" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # YAML files
-find . -type f -name "*.yml" -o -name "*.yaml" ! -path "./.git/*" | xargs wc -l | tail -1
+find . -type f \( -name "*.yml" -o -name "*.yaml" \) ! -path "./.git/*" ! -path "./.github/workflows/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # Markdown files
-find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 ```
 
 #### 1.2 Lines of Code by Directory
@@ -66,7 +72,7 @@ find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" | xarg
 # Core directories
 for dir in cmd pkg docs .github/workflows; do
   if [ -d "$dir" ]; then
-    echo "$dir: $(find "$dir" -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) ! -name "*_test.go" ! -name "*.test.*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')"
+    echo "$dir: $(find "$dir" -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) ! -name "*_test.go" ! -name "*.test.*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')"
   fi
 done
 ```
@@ -114,15 +120,19 @@ Track test infrastructure and coverage:
 
 ```bash
 # Test file counts
-find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" | wc -l
+find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" 2>/dev/null | wc -l
 
 # Test LOC
-find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # Test to source ratio (Go)
-TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-echo "scale=2; $TEST_LOC / $SRC_LOC" | bc
+TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')
+SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')
+if [ -n "$TEST_LOC" ] && [ -n "$SRC_LOC" ] && [ "$SRC_LOC" -gt 0 ]; then
+  echo "scale=2; $TEST_LOC / $SRC_LOC" | bc
+else
+  echo "0"
+fi
 ```
 
 ### 4. Code Churn Metrics (7-Day Window)
@@ -149,13 +159,13 @@ Track agentic workflow ecosystem:
 
 ```bash
 # Total agentic workflows
-find .github/workflows -type f -name "*.md" | wc -l
+find .github/workflows -maxdepth 1 -type f -name "*.md" 2>/dev/null | wc -l
 
 # Lock files
-find .github/workflows -type f -name "*.lock.yml" | wc -l
+find .github/workflows -maxdepth 1 -type f -name "*.lock.yml" 2>/dev/null | wc -l
 
 # Average workflow size
-find .github/workflows -type f -name "*.md" -exec wc -l {} \; | awk '{sum+=$1; count++} END {if(count>0) print sum/count}'
+find .github/workflows -maxdepth 1 -type f -name "*.md" -exec wc -l {} + 2>/dev/null | awk '{sum+=$1; count++} END {if(count>0) print sum/count; else print 0}'
 ```
 
 ### 6. Documentation Metrics
@@ -167,10 +177,10 @@ Measure documentation coverage:
 find docs -type f -name "*.md" 2>/dev/null | wc -l
 
 # Total documentation LOC
-find docs -type f -name "*.md" 2>/dev/null | xargs wc -l | tail -1
+find docs -type f -name "*.md" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
 
 # README and top-level docs
-find . -maxdepth 1 -type f -name "*.md" | wc -l
+find . -maxdepth 1 -type f -name "*.md" 2>/dev/null | wc -l
 ```
 
 ## Historical Data Management
@@ -238,7 +248,11 @@ For each metric, calculate:
 # Example trend calculation
 current=45000
 week_ago=44000
-percent_change=$(echo "scale=2; ($current - $week_ago) / $week_ago * 100" | bc)
+if [ "$week_ago" -gt 0 ]; then
+  percent_change=$(echo "scale=2; ($current - $week_ago) * 100 / $week_ago" | bc)
+else
+  percent_change="N/A"
+fi
 ```
 
 ### Data Persistence Workflow

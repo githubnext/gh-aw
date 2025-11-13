@@ -60,7 +60,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout workflows
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           sparse-checkout: |
             .github/workflows
@@ -68,7 +68,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Check workflow file timestamps
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_FILE: "daily-code-metrics.lock.yml"
         with:
@@ -158,7 +158,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
@@ -170,7 +170,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/cache-memory-metrics
       - name: Cache memory file share data (metrics)
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: code-metrics-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory-metrics
@@ -179,7 +179,7 @@ jobs:
             code-metrics-
             code-
       - name: Upload cache-memory data as artifact (metrics)
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: cache-memory-metrics
           path: /tmp/gh-aw/cache-memory-metrics
@@ -197,7 +197,7 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             async function main() {
@@ -249,7 +249,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
       - name: Install Claude Code CLI
@@ -1297,6 +1297,12 @@ jobs:
           - **Cache Location**: `/tmp/gh-aw/cache-memory/metrics/`
           - **Historical Data**: Last 30+ days
           
+          **⚠️ CRITICAL NOTE**: The repository is a **fresh clone** on each workflow run. This means:
+          - No git history is available for metrics collection
+          - All metrics must be computed from the current snapshot only
+          - Historical trends are maintained in the cache memory (`/tmp/gh-aw/cache-memory/metrics/`)
+          - Git log commands will only work if you explicitly fetch history with `git fetch --unshallow`
+          
           ## Metrics Collection Framework
           
           ### 1. Codebase Size Metrics
@@ -1307,16 +1313,16 @@ jobs:
           
           ```bash
           # Go files (excluding tests)
-          find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" ! -path "./vendor/*" | xargs wc -l | tail -1
+          find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" ! -path "./vendor/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           
           # JavaScript/CJS files (excluding tests)
-          find . -type f \( -name "*.js" -o -name "*.cjs" \) ! -name "*.test.js" ! -name "*.test.cjs" ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+          find . -type f \( -name "*.js" -o -name "*.cjs" \) ! -name "*.test.js" ! -name "*.test.cjs" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           
           # YAML files
-          find . -type f -name "*.yml" -o -name "*.yaml" ! -path "./.git/*" | xargs wc -l | tail -1
+          find . -type f \( -name "*.yml" -o -name "*.yaml" \) ! -path "./.git/*" ! -path "./.github/workflows/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           
           # Markdown files
-          find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+          find . -type f -name "*.md" ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           ```
           
           #### 1.2 Lines of Code by Directory
@@ -1325,7 +1331,7 @@ jobs:
           # Core directories
           for dir in cmd pkg docs .github/workflows; do
             if [ -d "$dir" ]; then
-              echo "$dir: $(find "$dir" -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) ! -name "*_test.go" ! -name "*.test.*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')"
+              echo "$dir: $(find "$dir" -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) ! -name "*_test.go" ! -name "*.test.*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')"
             fi
           done
           ```
@@ -1373,15 +1379,19 @@ jobs:
           
           ```bash
           # Test file counts
-          find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" | wc -l
+          find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" 2>/dev/null | wc -l
           
           # Test LOC
-          find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" | xargs wc -l | tail -1
+          find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" \) ! -path "./.git/*" ! -path "./node_modules/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           
           # Test to source ratio (Go)
-          TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-          SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-          echo "scale=2; $TEST_LOC / $SRC_LOC" | bc
+          TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')
+          SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')
+          if [ -n "$TEST_LOC" ] && [ -n "$SRC_LOC" ] && [ "$SRC_LOC" -gt 0 ]; then
+            echo "scale=2; $TEST_LOC / $SRC_LOC" | bc
+          else
+            echo "0"
+          fi
           ```
           
           ### 4. Code Churn Metrics (7-Day Window)
@@ -1408,13 +1418,13 @@ jobs:
           
           ```bash
           # Total agentic workflows
-          find .github/workflows -type f -name "*.md" | wc -l
+          find .github/workflows -maxdepth 1 -type f -name "*.md" 2>/dev/null | wc -l
           
           # Lock files
-          find .github/workflows -type f -name "*.lock.yml" | wc -l
+          find .github/workflows -maxdepth 1 -type f -name "*.lock.yml" 2>/dev/null | wc -l
           
           # Average workflow size
-          find .github/workflows -type f -name "*.md" -exec wc -l {} \; | awk '{sum+=$1; count++} END {if(count>0) print sum/count}'
+          find .github/workflows -maxdepth 1 -type f -name "*.md" -exec wc -l {} + 2>/dev/null | awk '{sum+=$1; count++} END {if(count>0) print sum/count; else print 0}'
           ```
           
           ### 6. Documentation Metrics
@@ -1426,10 +1436,10 @@ jobs:
           find docs -type f -name "*.md" 2>/dev/null | wc -l
           
           # Total documentation LOC
-          find docs -type f -name "*.md" 2>/dev/null | xargs wc -l | tail -1
+          find docs -type f -name "*.md" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}'
           
           # README and top-level docs
-          find . -maxdepth 1 -type f -name "*.md" | wc -l
+          find . -maxdepth 1 -type f -name "*.md" 2>/dev/null | wc -l
           ```
           
           ## Historical Data Management
@@ -1497,7 +1507,11 @@ jobs:
           # Example trend calculation
           current=45000
           week_ago=44000
-          percent_change=$(echo "scale=2; ($current - $week_ago) / $week_ago * 100" | bc)
+          if [ "$week_ago" -gt 0 ]; then
+            percent_change=$(echo "scale=2; ($current - $week_ago) * 100 / $week_ago" | bc)
+          else
+            percent_change="N/A"
+          fi
           ```
           
           ### Data Persistence Workflow
@@ -1721,6 +1735,13 @@ jobs:
           
           ---
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## 🔧 Methodology
           
           - **Analysis Date**: [TIMESTAMP]
@@ -1748,13 +1769,6 @@ jobs:
           ### Trend Analysis
           
           - **Calculate Accurately**: Use proper percentage change formulas
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           - **Detect Anomalies**: Flag changes >10% as noteworthy
           - **Provide Context**: Explain unusual trends
           - **Visual Indicators**: Use emojis for quick visual scanning
@@ -1937,7 +1951,7 @@ jobs:
           
           PROMPT_EOF
       - name: Interpolate variables and render templates
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_EXPR_D892F163: ${{ github.repository }}
@@ -2015,13 +2029,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
       - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
@@ -2058,7 +2072,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -2171,7 +2185,7 @@ jobs:
           rm -rf .claude || true
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require("fs");
@@ -2287,14 +2301,14 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
@@ -3166,21 +3180,21 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
@@ -3671,14 +3685,14 @@ jobs:
             main();
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
@@ -3917,7 +3931,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))) &&
+      (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -3929,7 +3944,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -3940,7 +3955,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "audits"
@@ -4191,22 +4206,24 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
+    outputs:
+      success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -4216,7 +4233,7 @@ jobs:
         run: |
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
@@ -4343,7 +4360,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
       - name: Install Claude Code CLI
@@ -4385,7 +4402,8 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
       - name: Parse threat detection results
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        id: parse_results
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
@@ -4416,13 +4434,15 @@ jobs:
               const reasonsText = verdict.reasons && verdict.reasons.length > 0 
                 ? '\\nReasons: ' + verdict.reasons.join('; ')
                 : '';
+              core.setOutput('success', 'false');
               core.setFailed('❌ Security threats detected: ' + threats.join(', ') + reasonsText);
             } else {
               core.info('✅ No security threats detected. Safe outputs may proceed.');
+              core.setOutput('success', 'true');
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -4432,7 +4452,9 @@ jobs:
     needs:
       - agent
       - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))) &&
+      (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4443,7 +4465,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -4454,7 +4476,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"

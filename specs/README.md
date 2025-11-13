@@ -13,6 +13,7 @@ This directory contains design specifications and implementation documentation f
 
 | Document | Status | Implementation |
 |----------|--------|----------------|
+| [Capitalization Guidelines](./capitalization.md) | ✅ Documented | `cmd/gh-aw/capitalization_test.go` |
 | [Safe Output Messages Design System](./safe-output-messages.md) | ✅ Implemented | `pkg/workflow/safe_outputs.go` |
 | [MCP Logs Guardrail](./MCP_LOGS_GUARDRAIL.md) | ✅ Implemented | `pkg/cli/mcp_logs_guardrail.go` |
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
@@ -41,4 +42,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-13

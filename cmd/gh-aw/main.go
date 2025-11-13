@@ -158,6 +158,7 @@ Examples:
 		zizmor, _ := cmd.Flags().GetBool("zizmor")
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -181,6 +182,7 @@ Examples:
 			Zizmor:               zizmor,
 			Poutine:              poutine,
 			Actionlint:           actionlint,
+			JSONOutput:           jsonOutput,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -331,7 +333,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
+	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
@@ -345,6 +347,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
+	compileCmd.Flags().Bool("json", false, "Output validation results as JSON")
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
@@ -353,7 +356,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
-	runCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
+	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	runCmd.Flags().StringP("repo", "r", "", "Repository to run the workflow in (owner/repo format)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")

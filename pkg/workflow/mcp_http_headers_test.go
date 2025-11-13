@@ -47,7 +47,7 @@ func TestExtractSecretsFromValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractSecretsFromValue(tt.value)
+			result := ExtractSecretsFromValue(tt.value)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d secrets, got %d", len(tt.expected), len(result))
@@ -72,7 +72,7 @@ func TestExtractSecretsFromHeaders(t *testing.T) {
 		"Static":             "no-secrets-here",
 	}
 
-	result := extractSecretsFromHeaders(headers)
+	result := ExtractSecretsFromMap(headers)
 
 	expected := map[string]string{
 		"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
@@ -134,7 +134,7 @@ func TestReplaceSecretsWithEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := replaceSecretsWithEnvVars(tt.value, tt.secrets)
+			result := ReplaceSecretsWithEnvVars(tt.value, tt.secrets)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}

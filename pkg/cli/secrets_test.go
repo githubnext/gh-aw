@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"os"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestExtractSecretName(t *testing.T) {
@@ -47,7 +47,7 @@ func TestExtractSecretName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractSecretName(tt.value)
+			result := workflow.ExtractSecretName(tt.value)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
@@ -213,13 +213,8 @@ func TestCheckSecretsAvailability(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up environment variables
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				t.Setenv(key, value)
 			}
-			defer func() {
-				for key := range tt.envVars {
-					os.Unsetenv(key)
-				}
-			}()
 
 			result := checkSecretsAvailability(tt.secrets, tt.useActions)
 

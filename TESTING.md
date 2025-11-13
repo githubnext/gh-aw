@@ -10,7 +10,96 @@ The testing framework implements **Phase 6 (Quality Assurance)** of the Go reimp
 
 ### 1. Unit Tests (`pkg/*/`)
 
-### 3. Test Validation Framework (`test_validation.go`)
+### 2. Fuzz Tests (`pkg/*/_fuzz_test.go`)
+
+Fuzz tests use Go's built-in fuzzing support to test functions with randomly generated inputs, helping discover edge cases and security vulnerabilities that traditional tests might miss.
+
+**Running Fuzz Tests:**
+```bash
+# Run expression parser fuzz test for 10 seconds
+go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+
+# Run for extended duration (1 minute)
+go test -fuzz=FuzzExpressionParser -fuzztime=1m ./pkg/workflow/
+
+# Run seed corpus only (no fuzzing)
+go test -run FuzzExpressionParser ./pkg/workflow/
+```
+
+**Available Fuzz Tests:**
+- **FuzzExpressionParser** (`pkg/workflow/expression_parser_fuzz_test.go`): Tests GitHub expression validation against injection attacks
+  - 59 seed cases covering allowed expressions, malicious injections, and edge cases
+  - Validates security controls against secret injection, script tags, command injection
+  - Ensures parser handles malformed input without panic
+
+**Fuzz Test Results:**
+- Seed corpus includes authorized and unauthorized expression patterns
+- Fuzzer generates thousands of variations per second
+- Typical coverage: 87+ test cases in baseline, discovers additional interesting cases during fuzzing
+- All inputs should be handled without panic, unauthorized expressions properly rejected
+
+**Continuous Integration:**
+Fuzz tests can be run in CI with time limits:
+```yaml
+- name: Fuzz test expression parser
+  run: go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
+```
+
+### 3. Benchmarks (`pkg/*/_benchmark_test.go`)
+
+Performance benchmarks measure the speed of critical operations. Run benchmarks to:
+- Detect performance regressions
+- Identify optimization opportunities
+- Track performance trends over time
+
+**Running Benchmarks:**
+```bash
+# Run all benchmarks with make (optimized for CI, runs in ~6 seconds)
+make bench
+
+# Run all benchmarks manually
+go test -bench=. -benchtime=3x -run=^$ ./pkg/...
+
+# Run benchmarks with more iterations for comparison
+make bench-compare
+
+# Run benchmarks for specific package
+go test -bench=. -benchtime=3x -run=^$ ./pkg/workflow/
+
+# Run specific benchmark
+go test -bench=BenchmarkCompileWorkflow -benchtime=3x -run=^$ ./pkg/workflow/
+
+# Run with custom iterations (default is 1 second per benchmark)
+go test -bench=. -benchtime=100x -run=^$ ./pkg/workflow/
+
+# Run with memory profiling
+go test -bench=. -benchmem -benchtime=3x -run=^$ ./pkg/...
+
+# Compare benchmark results over time
+go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_baseline.txt
+# ... make changes ...
+go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_new.txt
+benchstat bench_baseline.txt bench_new.txt
+```
+
+**Note**: Benchmarks use `-benchtime=3x` (3 iterations) for fast CI execution. For more accurate measurements, use `-benchtime=100x` or longer durations.
+
+**Benchmark Coverage:**
+- **Workflow Compilation**: Basic, with MCP, with imports, with validation, complex workflows
+- **Frontmatter Parsing**: Simple, complex, minimal, with arrays, schema validation
+- **Expression Validation**: Single expressions, complex expressions, full markdown validation, parsing
+- **Log Processing**: Claude, Copilot, Codex log parsing, aggregation, JSON metrics extraction
+- **MCP Configuration**: Playwright config, Docker args, expression extraction
+- **Tool Processing**: Simple and complex tool configurations, safe outputs, network permissions
+
+**Performance Baselines** (approximate, machine-dependent):
+- Workflow compilation: ~100μs - 2ms depending on complexity
+- Frontmatter parsing: ~10μs - 250μs depending on complexity
+- Expression validation: ~700ns - 10μs per expression
+- Log parsing: ~50μs - 1ms depending on log size
+- Schema validation: ~35μs - 130μs depending on complexity
+
+### 4. Test Validation Framework (`test_validation.go`)
 
 Comprehensive validation system that ensures:
 
@@ -73,6 +162,7 @@ As the Go implementation develops:
 - CLI interface structure and stability
 - Basic workflow compilation interface
 - Error handling for malformed inputs
+- **Performance benchmarks** for critical operations (62+ benchmarks)
 
 ### 🔄 Interface Testing (Ready for Implementation)
 - CLI command execution (stubs tested)
@@ -81,7 +171,7 @@ As the Go implementation develops:
 
 ### 📋 Ready for Enhancement
 - Bash-Go output comparison (when compiler is complete)
-- Performance benchmarking
+- **Performance regression tracking** (baseline established)
 - Cross-platform compatibility testing
 - Real workflow execution testing
 

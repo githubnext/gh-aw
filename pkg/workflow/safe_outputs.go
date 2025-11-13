@@ -61,6 +61,8 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		return
 	}
 
+	safeOutputsLog.Print("Generating safe outputs prompt section")
+
 	// Add output instructions for all engines (GH_AW_SAFE_OUTPUTS functionality)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ---\n")
@@ -630,10 +632,12 @@ type SafeOutputJobConfig struct {
 // 3. Invoke buildGitHubScriptStep
 // 4. Create Job with standard metadata
 func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
+	safeOutputsLog.Printf("Building safe output job: %s", config.JobName)
 	var steps []string
 
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)
 	if len(config.PreSteps) > 0 {
+		safeOutputsLog.Printf("Adding %d pre-steps to job", len(config.PreSteps))
 		steps = append(steps, config.PreSteps...)
 	}
 
@@ -657,6 +661,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	// Determine job condition
 	jobCondition := config.Condition
 	if jobCondition == nil {
+		safeOutputsLog.Printf("No custom condition provided, using default for job: %s", config.JobName)
 		jobCondition = BuildSafeOutputType(config.JobName)
 	}
 
@@ -665,6 +670,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	if len(needs) == 0 {
 		needs = []string{config.MainJobName}
 	}
+	safeOutputsLog.Printf("Job %s needs: %v", config.JobName, needs)
 
 	// Create the job with standard configuration
 	job := &Job{
@@ -686,6 +692,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	if data.SafeOutputs == nil {
 		return ""
 	}
+	safeOutputsLog.Print("Generating safe outputs configuration for workflow")
 	// Create a simplified config object for validation
 	safeOutputsConfig := make(map[string]any)
 
