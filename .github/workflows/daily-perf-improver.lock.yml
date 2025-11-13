@@ -4703,14 +4703,26 @@ jobs:
             const fs = require("fs");
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message, "commit");
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               if (!commentId) {
                 core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
                 return;
               }
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              core.info(`Updating activation comment ${commentId} with ${itemLabel} link`);
+              core.info(`Updating activation comment ${commentId}`);
               let repoOwner = context.repo.owner;
               let repoName = context.repo.repo;
               if (commentRepo) {
@@ -4723,10 +4735,6 @@ jobs:
                 }
               }
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
                 if (isDiscussionComment) {
@@ -4746,7 +4754,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + linkMessage;
+                  const updatedBody = currentBody + message;
                   const result = await github.graphql(
                     `
                     mutation($commentId: ID!, $body: String!) {
@@ -4760,7 +4768,8 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment with ${itemLabel} link`);
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
+                  core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                 } else {
@@ -4777,7 +4786,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + linkMessage;
+                  const updatedBody = currentBody + message;
                   const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
                     owner: repoOwner,
                     repo: repoName,
@@ -4787,7 +4796,8 @@ jobs:
                       Accept: "application/vnd.github+json",
                     },
                   });
-                  core.info(`Successfully updated comment with ${itemLabel} link`);
+                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                  core.info(successMessage);
                   core.info(`Comment ID: ${response.data.id}`);
                   core.info(`Comment URL: ${response.data.html_url}`);
                 }

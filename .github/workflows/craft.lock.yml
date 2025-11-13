@@ -5544,16 +5544,20 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            async function updateActivationComment(github, context, core, pullRequestUrl, pullRequestNumber) {
-              const message = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message);
+            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
               const shortSha = commitSha.substring(0, 7);
               const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message);
+              await updateActivationCommentWithMessage(github, context, core, message, "commit");
             }
-            async function updateActivationCommentWithMessage(github, context, core, message) {
+            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               if (!commentId) {
@@ -5606,7 +5610,8 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
+                  core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                 } else {
@@ -5633,7 +5638,8 @@ jobs:
                       Accept: "application/vnd.github+json",
                     },
                   });
-                  core.info(`Successfully updated comment`);
+                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                  core.info(successMessage);
                   core.info(`Comment ID: ${response.data.id}`);
                   core.info(`Comment URL: ${response.data.html_url}`);
                 }
