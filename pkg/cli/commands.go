@@ -87,12 +87,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 			"Check for typos in the workflow name",
 		}
 		return "", errors.New(console.FormatErrorWithSuggestions(
-			fmt.Sprintf("workflow '%s' not found in local .github/workflows or components", fileOrWorkflowName),
+			fmt.Sprintf("workflow '%s' not found in local .github/workflows", fileOrWorkflowName),
 			suggestions,
 		))
 	}
 
-	commandsLog.Print("Found workflow in local components")
+	commandsLog.Print("Found workflow in local .github/workflows")
 
 	// Return absolute path
 	absPath, err := filepath.Abs(path)

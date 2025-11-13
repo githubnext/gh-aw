@@ -113,7 +113,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 		_, _, err := readWorkflowFile(workflowIdOrName+".md", workflowsDir)
 		if err != nil {
-			return fmt.Errorf("failed to find workflow in local .github/workflows or components: %w", err)
+			return fmt.Errorf("failed to find workflow in local .github/workflows: %w", err)
 		}
 
 		// For local workflows, use the simple filename
