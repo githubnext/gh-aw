@@ -19,29 +19,7 @@ The CLI uses different capitalization based on context:
 
 ## Design Rationale
 
-This approach balances several considerations:
-
-### Clarity
-
-Using different capitalization distinguishes between referring to the product (GitHub Agentic Workflows) and the concept (agentic workflows). Users can immediately understand whether documentation discusses the tool itself or the workflows it manages.
-
-### Industry Standards
-
-The pattern follows established conventions where product names use title case while generic references use sentence case. This matches how other CLI tools handle similar distinctions (e.g., "GitHub Actions" as a product vs. "actions" as workflow components).
-
-### Consistency
-
-Applying the same rules across all commands creates a predictable user experience. The pattern extends to:
-
-- Command short descriptions
-- Command long descriptions  
-- Help text
-- Error messages
-- Documentation
-
-### Maintenance
-
-The approach simplifies decision-making for contributors. The rule is simple: capitalize when referring to the product by name, use lowercase for generic workflow references.
+This capitalization convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions". The consistent pattern across all commands, help text, and documentation simplifies both user comprehension and contributor decision-making.
 
 ## Examples
 
@@ -60,14 +38,9 @@ When describing actions performed on workflows:
 
 ```
 Enable agentic workflows
-Disable agentic workflows and cancel any in-progress runs
-Show status of agentic workflows
 Initialize repository for agentic workflows
-Download and analyze agentic workflow logs with aggregated metrics
+Download and analyze agentic workflow logs
 Add an MCP tool to an agentic workflow
-List MCP servers defined in agentic workflows
-Run one or more agentic workflows on GitHub Actions
-Trial one or more agentic workflows as if they were running in a repository
 ```
 
 ### Technical Terms (Capitalized)
@@ -89,6 +62,3 @@ The capitalization rules are enforced through automated tests in `cmd/gh-aw/capi
 
 The tests run as part of the standard test suite and prevent inconsistencies from being introduced.
 
-## Historical Context
-
-This pattern was established to resolve potential confusion between the product and the concept. Early analysis confirmed the codebase already followed this approach consistently, and the formalization through tests and documentation prevents future drift.
