@@ -188,8 +188,8 @@ describe("checkout_pr_branch.cjs", () => {
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_target");
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      // pull_request_target uses gh pr checkout, not git
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
     });
 
     it("should handle pull_request_review event", async () => {
@@ -198,7 +198,8 @@ describe("checkout_pr_branch.cjs", () => {
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_review");
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch"]);
+      // pull_request_review uses gh pr checkout, not git
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
     });
 
     it("should handle pull_request_review_comment event", async () => {
