@@ -799,6 +799,7 @@ func TestPushToPullRequestBranchActivationCommentEnvVars(t *testing.T) {
 on:
   pull_request:
     types: [opened]
+  reaction: rocket
 safe-outputs:
   push-to-pull-request-branch:
 ---
