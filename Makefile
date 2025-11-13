@@ -71,6 +71,13 @@ bench-compare:
 	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_results.txt
 	@echo "Benchmark results saved to bench_results.txt"
 
+# Run fuzz tests
+.PHONY: fuzz
+fuzz:
+	@echo "Running fuzz tests for 30 seconds..."
+	go test -fuzz=. -fuzztime=30s ./pkg/parser/...
+	go test -fuzz=. -fuzztime=30s ./pkg/workflow/...
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
@@ -278,6 +285,9 @@ help:
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
+	@echo "  bench            - Run benchmarks for performance testing"
+	@echo "  bench-compare    - Run benchmarks with comparison output"
+	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
