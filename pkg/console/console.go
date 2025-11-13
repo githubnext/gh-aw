@@ -436,8 +436,29 @@ func FormatErrorMessage(message string) string {
 }
 
 // FormatAuthenticationError formats authentication errors with setup guidance
-// command: the command that requires authentication (e.g., "gh aw logs")
-// requiredScopes: list of required GitHub token scopes (e.g., ["repo", "actions:read"])
+//
+// This function provides detailed instructions for setting up GitHub authentication
+// including token creation, scope requirements, and environment configuration.
+//
+// Parameters:
+//   - command: the command that requires authentication (e.g., "gh aw logs")
+//   - requiredScopes: list of required GitHub token scopes (e.g., ["repo", "actions:read"])
+//
+// Token Precedence (documented for reference):
+//  1. COPILOT_GITHUB_TOKEN (recommended for Copilot-specific operations)
+//  2. COPILOT_CLI_TOKEN (legacy Copilot token)
+//  3. GH_AW_COPILOT_TOKEN (legacy)
+//  4. GH_AW_GITHUB_TOKEN (legacy general override)
+//  5. GITHUB_TOKEN (default, but may have limited permissions in GitHub Actions)
+//
+// The error message includes:
+//   - Clear statement of authentication failure
+//   - Command-specific context
+//   - Step-by-step setup instructions
+//   - Required token scopes (if provided)
+//   - Environment variable configuration options
+//   - Documentation link (redacted per requirements)
+//   - Important note about GitHub Actions token limitations
 func FormatAuthenticationError(command string, requiredScopes []string) string {
 	var output strings.Builder
 
