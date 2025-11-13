@@ -1026,16 +1026,16 @@ html {
 }
 
 /* Hero Section */
-.hero .action.primary {
-  background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%);
-  border-color: #d896ff;
-  font: #ffffff;
+.sl-link-button.primary {
+  background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%) !important;
+  border-color: #d896ff !important;
+  color: #ffffff !important;
 }
 
-.hero .action.primary:hover {
-  background: linear-gradient(180deg, #e5c7ff 0%, #8250df 100%);
-  border-color: #e5c7ff;
-  font: #ffffff;
+.sl-link-button.primary:hover {
+  background: linear-gradient(180deg, #e5c7ff 0%, #8250df 100%) !important;
+  border-color: #e5c7ff !important;
+  color: #ffffff !important;
 }
 
 /* General Links */
