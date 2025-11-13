@@ -836,10 +836,10 @@ Test that the push-to-pull-request-branch job receives activation comment enviro
 	}
 
 	// Verify that the job depends on activation (needs can be formatted as array or inline)
-	hasActivationDep := strings.Contains(lockContentStr, "needs: [agent, activation]") || 
-	                    strings.Contains(lockContentStr, "needs:\n    - agent\n    - activation") ||
-	                    strings.Contains(lockContentStr, "needs:\n      - agent\n      - activation") ||
-	                    (strings.Contains(lockContentStr, "- agent") && strings.Contains(lockContentStr, "- activation"))
+	hasActivationDep := strings.Contains(lockContentStr, "needs: [agent, activation]") ||
+		strings.Contains(lockContentStr, "needs:\n    - agent\n    - activation") ||
+		strings.Contains(lockContentStr, "needs:\n      - agent\n      - activation") ||
+		(strings.Contains(lockContentStr, "- agent") && strings.Contains(lockContentStr, "- activation"))
 	if !hasActivationDep {
 		t.Errorf("Generated workflow should have dependency on activation job")
 	}

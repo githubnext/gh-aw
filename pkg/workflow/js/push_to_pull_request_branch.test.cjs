@@ -54,9 +54,15 @@ const mockContext = {
   repo: { owner: "testowner", repo: "testrepo" },
 };
 
+const mockGithub = {
+  graphql: vi.fn(),
+  request: vi.fn(),
+};
+
 // Set up global variables
 global.core = mockCore;
 global.context = mockContext;
+global.github = mockGithub;
 
 describe("push_to_pull_request_branch.cjs", () => {
   let pushToPrBranchScript;
@@ -90,6 +96,7 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Set globals just before execution
     global.core = mockCore;
     global.context = mockContext;
+    global.github = mockGithub;
     global.mockFs = mockFs;
     global.exec = mockExec;
 

@@ -128,7 +128,7 @@ describe("update_activation_comment.cjs", () => {
       })
     );
 
-    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with PR link");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment");
   });
 
   it("should update discussion comment with PR link using GraphQL", async () => {
@@ -186,7 +186,7 @@ describe("update_activation_comment.cjs", () => {
       })
     );
 
-    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with PR link");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment");
   });
 
   it("should not fail workflow if comment update fails", async () => {
