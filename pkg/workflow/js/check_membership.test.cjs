@@ -115,7 +115,9 @@ describe("check_membership.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.warning).toHaveBeenCalledWith("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
       expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", "Configuration error: Required permissions not specified");
@@ -126,7 +128,9 @@ describe("check_membership.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.warning).toHaveBeenCalledWith("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
     });

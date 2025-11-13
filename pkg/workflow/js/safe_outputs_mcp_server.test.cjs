@@ -3,17 +3,15 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 describe("safe_outputs_mcp_server.cjs", () => {
   describe("JSON-RPC message structure", () => {
     it("should validate request structure", () => {
-      const isValidRequest = (msg) => {
-        return msg.jsonrpc === "2.0" &&
-               msg.id !== undefined &&
-               typeof msg.method === "string";
+      const isValidRequest = msg => {
+        return msg.jsonrpc === "2.0" && msg.id !== undefined && typeof msg.method === "string";
       };
 
       const validRequest = {
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
-        params: {}
+        params: {},
       };
 
       const invalidRequest1 = { id: 1, method: "test" }; // missing jsonrpc
@@ -30,7 +28,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       const createResponse = (id, result) => ({
         jsonrpc: "2.0",
         id,
-        result
+        result,
       });
 
       const response = createResponse(1, { status: "ok" });
@@ -45,7 +43,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       const createErrorResponse = (id, code, message) => ({
         jsonrpc: "2.0",
         id,
-        error: { code, message }
+        error: { code, message },
       });
 
       const errorResponse = createErrorResponse(1, -32600, "Invalid Request");
@@ -60,11 +58,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   describe("tool definition structure", () => {
     it("should validate tool schema", () => {
-      const isValidTool = (tool) => {
-        return typeof tool.name === "string" &&
-               tool.description !== undefined &&
-               tool.inputSchema !== undefined &&
-               typeof tool.inputSchema === "object";
+      const isValidTool = tool => {
+        return (
+          typeof tool.name === "string" &&
+          tool.description !== undefined &&
+          tool.inputSchema !== undefined &&
+          typeof tool.inputSchema === "object"
+        );
       };
 
       const validTool = {
@@ -74,10 +74,10 @@ describe("safe_outputs_mcp_server.cjs", () => {
           type: "object",
           properties: {
             title: { type: "string" },
-            body: { type: "string" }
+            body: { type: "string" },
           },
-          required: ["title"]
-        }
+          required: ["title"],
+        },
       };
 
       const invalidTool1 = { description: "No name" };
@@ -95,10 +95,10 @@ describe("safe_outputs_mcp_server.cjs", () => {
           type: "object",
           properties: {
             title: { type: "string" },
-            body: { type: "string" }
+            body: { type: "string" },
           },
-          required: ["title", "body"]
-        }
+          required: ["title", "body"],
+        },
       };
 
       expect(tool.inputSchema.required).toContain("title");
@@ -118,7 +118,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should validate tool enablement", () => {
       const config = {
         "create-issue": { enabled: true },
-        "add-comment": { enabled: false }
+        "add-comment": { enabled: false },
       };
 
       const enabledTools = Object.entries(config)
@@ -132,7 +132,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should handle missing enabled property as true", () => {
       const config = {
         "create-issue": {},
-        "add-comment": { enabled: false }
+        "add-comment": { enabled: false },
       };
 
       const enabledTools = Object.entries(config)
@@ -152,7 +152,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should construct JSONL line", () => {
-      const createJsonlLine = (data) => JSON.stringify(data) + "\n";
+      const createJsonlLine = data => JSON.stringify(data) + "\n";
 
       const line = createJsonlLine({ type: "create_issue", title: "Test" });
 
@@ -169,7 +169,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
         INVALID_REQUEST: -32600,
         METHOD_NOT_FOUND: -32601,
         INVALID_PARAMS: -32602,
-        INTERNAL_ERROR: -32603
+        INTERNAL_ERROR: -32603,
       };
 
       expect(ERROR_CODES.PARSE_ERROR).toBe(-32700);
@@ -205,12 +205,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
       const initResponse = {
         protocolVersion: "2024-11-05",
         capabilities: {
-          tools: {}
+          tools: {},
         },
         serverInfo: {
           name: "gh-aw-safe-outputs",
-          version: "1.0.0"
-        }
+          version: "1.0.0",
+        },
       };
 
       expect(initResponse.protocolVersion).toBe("2024-11-05");
@@ -221,13 +221,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   describe("tool call result format", () => {
     it("should format successful tool call result", () => {
-      const createToolCallResult = (data) => ({
+      const createToolCallResult = data => ({
         content: [
           {
             type: "text",
-            text: JSON.stringify(data)
-          }
-        ]
+            text: JSON.stringify(data),
+          },
+        ],
       });
 
       const result = createToolCallResult({ status: "success", id: 123 });

@@ -47,7 +47,7 @@ describe("create_agent_task.cjs", () => {
     }
   });
 
-  const createAgentOutput = (items) => {
+  const createAgentOutput = items => {
     const output = { items };
     fs.writeFileSync(testOutputFile, JSON.stringify(output));
     process.env.GITHUB_AW_AGENT_OUTPUT = testOutputFile;
@@ -58,7 +58,7 @@ describe("create_agent_task.cjs", () => {
     const scriptPath = pathModule.join(import.meta.dirname, "create_agent_task.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     const wrappedScript = new AsyncFunction(
       "core",
       "exec",
@@ -69,7 +69,7 @@ describe("create_agent_task.cjs", () => {
       ${scriptContent.replace(/main\(\);$/s, "await main();")}
       `
     );
-    
+
     try {
       await wrappedScript(mockCore, mockExec, process);
     } catch (error) {
@@ -117,9 +117,7 @@ describe("create_agent_task.cjs", () => {
     });
 
     it("should handle no create_agent_task items", async () => {
-      createAgentOutput([
-        { type: "create_issue", title: "Test", body: "Content" }
-      ]);
+      createAgentOutput([{ type: "create_issue", title: "Test", body: "Content" }]);
 
       await runScript();
 
@@ -137,7 +135,7 @@ describe("create_agent_task.cjs", () => {
     it("should preview agent tasks in staged mode", async () => {
       createAgentOutput([
         { type: "create_agent_task", body: "Implement feature X" },
-        { type: "create_agent_task", body: "Fix bug Y" }
+        { type: "create_agent_task", body: "Fix bug Y" },
       ]);
 
       await runScript();
@@ -153,9 +151,7 @@ describe("create_agent_task.cjs", () => {
     });
 
     it("should handle task without body in staged mode", async () => {
-      createAgentOutput([
-        { type: "create_agent_task", body: "" }
-      ]);
+      createAgentOutput([{ type: "create_agent_task", body: "" }]);
 
       await runScript();
 
@@ -165,9 +161,7 @@ describe("create_agent_task.cjs", () => {
 
     it("should use target repo when specified", async () => {
       process.env.GITHUB_AW_TARGET_REPO = "org/target-repo";
-      createAgentOutput([
-        { type: "create_agent_task", body: "Test task" }
-      ]);
+      createAgentOutput([{ type: "create_agent_task", body: "Test task" }]);
 
       await runScript();
 
@@ -185,7 +179,7 @@ describe("create_agent_task.cjs", () => {
     it("should skip tasks with empty body", async () => {
       createAgentOutput([
         { type: "create_agent_task", body: "" },
-        { type: "create_agent_task", body: "  \n\t  " }
+        { type: "create_agent_task", body: "  \n\t  " },
       ]);
 
       await runScript();
@@ -195,9 +189,7 @@ describe("create_agent_task.cjs", () => {
 
     it("should log agent output content length", async () => {
       const body = "Test agent task description";
-      createAgentOutput([
-        { type: "create_agent_task", body }
-      ]);
+      createAgentOutput([{ type: "create_agent_task", body }]);
 
       await runScript();
 
@@ -241,10 +233,8 @@ describe("create_agent_task.cjs", () => {
       delete process.env.GITHUB_AW_AGENT_TASK_BASE;
       delete process.env.GITHUB_REF_NAME;
       process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      
-      createAgentOutput([
-        { type: "create_agent_task", body: "Test" }
-      ]);
+
+      createAgentOutput([{ type: "create_agent_task", body: "Test" }]);
 
       await runScript();
 
@@ -256,10 +246,8 @@ describe("create_agent_task.cjs", () => {
       delete process.env.GITHUB_AW_AGENT_TASK_BASE;
       process.env.GITHUB_REF_NAME = "feature-branch";
       process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      
-      createAgentOutput([
-        { type: "create_agent_task", body: "Test" }
-      ]);
+
+      createAgentOutput([{ type: "create_agent_task", body: "Test" }]);
 
       await runScript();
 

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 describe("safe_outputs_mcp_client.cjs", () => {
   describe("JSONL parsing", () => {
     it("should parse simple JSONL input", () => {
-      const parseJsonl = (input) => {
+      const parseJsonl = input => {
         if (!input) return [];
         return input
           .split(/\r?\n/)
@@ -21,7 +21,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should handle empty input", () => {
-      const parseJsonl = (input) => {
+      const parseJsonl = input => {
         if (!input) return [];
         return input
           .split(/\r?\n/)
@@ -36,7 +36,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should skip empty lines", () => {
-      const parseJsonl = (input) => {
+      const parseJsonl = input => {
         if (!input) return [];
         return input
           .split(/\r?\n/)
@@ -52,7 +52,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should handle Windows line endings", () => {
-      const parseJsonl = (input) => {
+      const parseJsonl = input => {
         if (!input) return [];
         return input
           .split(/\r?\n/)
@@ -68,7 +68,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should handle whitespace in lines", () => {
-      const parseJsonl = (input) => {
+      const parseJsonl = input => {
         if (!input) return [];
         return input
           .split(/\r?\n/)
@@ -91,7 +91,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
         jsonrpc: "2.0",
         id,
         method,
-        params
+        params,
       });
 
       const request = createRequest(1, "test_method", { arg: "value" });
@@ -103,7 +103,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should handle notification messages (no id)", () => {
-      const isNotification = (msg) => msg.method && !msg.id;
+      const isNotification = msg => msg.method && !msg.id;
 
       const notification = { method: "notify", params: {} };
       const request = { jsonrpc: "2.0", id: 1, method: "request", params: {} };
@@ -113,8 +113,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
     });
 
     it("should identify response messages", () => {
-      const isResponse = (msg) => 
-        msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined);
+      const isResponse = msg => msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined);
 
       const successResponse = { id: 1, result: { data: "test" } };
       const errorResponse = { id: 2, error: { message: "error" } };
@@ -128,7 +127,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
 
   describe("error handling", () => {
     it("should handle JSON parse errors gracefully", () => {
-      const parseLine = (line) => {
+      const parseLine = line => {
         try {
           return { success: true, data: JSON.parse(line) };
         } catch (e) {
@@ -137,7 +136,7 @@ describe("safe_outputs_mcp_client.cjs", () => {
       };
 
       const validLine = '{"key":"value"}';
-      const invalidLine = '{invalid json}';
+      const invalidLine = "{invalid json}";
 
       expect(parseLine(validLine).success).toBe(true);
       expect(parseLine(invalidLine).success).toBe(false);

@@ -49,19 +49,14 @@ describe("checkout_pr_branch.cjs", () => {
     const { execFileSync } = await import("child_process");
     const fs = await import("fs");
     const path = await import("path");
-    
+
     const scriptPath = path.join(import.meta.dirname, "checkout_pr_branch.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
     // Execute the script in a new context with our mocks
-    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-    const wrappedScript = new AsyncFunction(
-      "core",
-      "exec",
-      "context",
-      scriptContent.replace(/main\(\)\.catch.*$/s, "await main();")
-    );
-    
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    const wrappedScript = new AsyncFunction("core", "exec", "context", scriptContent.replace(/main\(\)\.catch.*$/s, "await main();"));
+
     try {
       await wrappedScript(mockCore, mockExec, mockContext);
     } catch (error) {
@@ -211,11 +206,7 @@ describe("checkout_pr_branch.cjs", () => {
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["pr", "checkout", "123"],
-        expect.any(Object)
-      );
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
     });
   });
 

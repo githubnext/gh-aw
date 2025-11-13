@@ -352,9 +352,9 @@ describe("sanitize_content.cjs", () => {
     it("should handle malicious XSS attempts", () => {
       const maliciousInputs = [
         '<img src=x onerror="alert(1)">',
-        'javascript:alert(document.cookie)',
+        "javascript:alert(document.cookie)",
         '<svg onload="alert(1)">',
-        'data:text/html,<script>alert(1)</script>',
+        "data:text/html,<script>alert(1)</script>",
       ];
 
       maliciousInputs.forEach(input => {
