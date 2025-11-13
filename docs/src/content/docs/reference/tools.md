@@ -36,45 +36,21 @@ tools:
   bash: [":*"]                       # All commands (use with caution)
 ```
 
-**Configuration:**
+**Configuration:** `bash:` provides default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`). Use `bash: []` to disable, `bash: ["cmd1", "cmd2"]` for specific commands, or `bash: [":*"]` for unrestricted access.
 
-- `bash:` or `bash: null` → Default safe commands: `echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`
-- `bash: []` → No bash access
-- `bash: ["cmd1", "cmd2"]` → Only specified commands
-- `bash: [":*"]` or `bash: ["*"]` → All commands (unrestricted)
+**Wildcards:** Use `:*` for all commands, or `command:*` for specific command families (e.g., `git:*` allows all git operations).
 
-**Wildcards:**
+## Web Tools
 
-```yaml wrap
-bash: [":*"]                      # All bash commands
-bash: ["git:*"]                   # All git commands
-bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
-```
-
-- `:*` or `*`: All commands (Copilot uses `--allow-all-tools`)
-- `command:*`: All invocations of a specific command (e.g., `git:*` allows `git add`, `git commit`, etc.)
-
-## Web Fetch Tool (`web-fetch:`)
-
-Enables web content fetching.
+Enable web content fetching and search capabilities:
 
 ```yaml wrap
 tools:
-  web-fetch:
+  web-fetch:   # Fetch web content
+  web-search:  # Search the web (engine-dependent)
 ```
 
-## Web Search Tool (`web-search:`)
-
-Enables web search (if supported by the AI engine).
-
-```yaml wrap
-tools:
-  web-search:
-```
-
-:::note
-Some engines (like Copilot) require third-party MCP servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
-:::
+**Note:** Some engines require third-party MCP servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
 
 ## GitHub Tools (`github:`)
 
@@ -83,25 +59,21 @@ Configure GitHub API operations.
 ```yaml wrap
 tools:
   github:                                      # Default read-only access
-
-  # OR with specific configuration:
   github:
-    allowed: [create_issue, update_issue]      # Specific permissions
+    toolsets: [repos, issues, pull_requests]   # Toolset groups (recommended)
+    allowed: [create_issue, update_issue]      # Or specific permissions
     mode: remote                               # "local" (Docker) or "remote" (hosted)
-    version: "latest"                          # MCP server version (local only)
-    args: ["--verbose", "--debug"]             # Additional arguments (local only)
     read-only: true                            # Read-only operations
     github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
-    toolsets: [repos, issues, pull_requests]   # Toolset groups
 ```
 
 ### GitHub Toolsets
 
 :::tip[Prefer Toolsets Over Individual Tools]
-Use `toolsets:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets provide better organization, reduce configuration verbosity, and ensure you get all related functionality.
+Use `toolsets:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets reduce configuration verbosity and ensure complete functionality.
 :::
 
-Enables or disables specific GitHub API groups to improve tool selection and reduce context size.
+Enable specific GitHub API groups to improve tool selection and reduce context size:
 
 ```yaml wrap
 tools:
@@ -109,95 +81,44 @@ tools:
     toolsets: [repos, issues, pull_requests, actions]
 ```
 
-**Available Toolsets**: `context` (recommended), `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `issues`, `labels`, `notifications`, `orgs`, `projects`, `pull_requests`, `repos`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
+**Available Toolsets**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
 
-**Default Toolsets** (when `toolsets:` is not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
+**Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
-**Recommended Combinations**:
-- **Read-only workflows**: `toolsets: [default]` or `toolsets: [context, repos]`
-- **Issue/PR/Discussion management**: `toolsets: [default, discussions]` 
-- **CI/CD workflows**: `toolsets: [default, actions]`
-- **Security workflows**: `toolsets: [default, code_security, secret_protection]`
-- **Full access**: `toolsets: [all]`
+**Common Combinations**:
+- Read-only: `[default]` or `[context, repos]`
+- Issue/PR management: `[default, discussions]`
+- CI/CD: `[default, actions]`
+- Security: `[default, code_security, secret_protection]`
+- Full access: `[all]`
 
-#### Tool-to-Toolset Mapping
+#### Toolset Contents
 
-When migrating from `allowed:` to `toolsets:`, use this mapping to identify the correct toolset for your tools:
+Common toolsets include:
+- **context**: User/team info (`get_me`, `get_teams`, `get_team_members`)
+- **repos**: Repository operations (`get_repository`, `get_file_contents`, `search_code`, `list_commits`, releases)
+- **issues**: Issue management (`list_issues`, `create_issue`, `update_issue`, `search_issues`, comments, reactions)
+- **pull_requests**: PR operations (`list_pull_requests`, `get_pull_request`, `create_pull_request`, `search_pull_requests`)
+- **actions**: Workflows and runs (`list_workflows`, `list_workflow_runs`, `get_workflow_run`, artifacts)
+- **code_security**: Security scanning alerts
+- **discussions**: GitHub Discussions
+- **labels**: Label management
 
-| Tool Name | Toolset | Description |
-|-----------|---------|-------------|
-| `get_me`, `get_teams`, `get_team_members` | `context` | User and environment context |
-| `get_repository`, `get_file_contents`, `search_code`, `list_commits`, `get_commit` | `repos` | Repository operations |
-| `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues`, `add_reaction` | `issues` | Issue management |
-| `pull_request_read`, `list_pull_requests`, `get_pull_request`, `create_pull_request`, `search_pull_requests` | `pull_requests` | Pull request operations |
-| `list_workflows`, `list_workflow_runs`, `get_workflow_run`, `download_workflow_run_artifact` | `actions` | GitHub Actions/CI/CD |
-| `list_code_scanning_alerts`, `get_code_scanning_alert`, `create_code_scanning_alert` | `code_security` | Code security scanning |
-| `list_discussions`, `create_discussion` | `discussions` | GitHub Discussions |
-| `get_label`, `list_labels`, `create_label` | `labels` | Label management |
-| `list_notifications`, `mark_notifications_read` | `notifications` | Notifications |
-| `get_user`, `list_users` | `users` | User profiles |
-| `get_organization`, `list_organizations` | `orgs` | Organization management |
-| `create_gist`, `list_gists` | `gists` | Gist operations |
-| `get_latest_release`, `list_releases` | `repos` | Release management (part of repos) |
-| `create_issue_comment` | `issues` | Issue comments (part of issues) |
+Combine `toolsets:` with `allowed:` to further restrict available tools within enabled toolsets. Toolsets work in both local (Docker) and remote (hosted) modes.
 
-**Example Migration**:
+### Modes and Restrictions
 
-Before (using `allowed:`):
-```yaml wrap
-tools:
-  github:
-    allowed:
-      - list_pull_requests
-      - get_pull_request
-      - pull_request_read
-      - list_commits
-      - get_commit
-      - get_file_contents
-```
-
-After (using `toolsets:`):
-```yaml wrap
-tools:
-  github:
-    toolsets: [default]  # Includes repos and pull_requests
-```
-
-Or for more specific control:
-```yaml wrap
-tools:
-  github:
-    toolsets: [repos, pull_requests]
-```
-
-:::note
-Both `toolsets:` and `allowed:` can be used together. When specified, `allowed:` further restricts which tools are available within the enabled toolsets.
-:::
-
-**Supported Modes**: Toolsets are supported in both local (Docker) and remote (hosted) modes.
-
-### GitHub Remote Mode
-
-Uses the hosted GitHub MCP server at `https://api.githubcopilot.com/mcp/` for faster startup without Docker.
+**Remote Mode**: Use the hosted GitHub MCP server for faster startup without Docker. Requires setting `GH_AW_GITHUB_TOKEN` secret (standard `GITHUB_TOKEN` not supported):
 
 ```yaml wrap
 tools:
   github:
-    mode: remote
-    allowed: [list_issues, create_issue]
+    mode: remote  # Default is "local" (Docker)
 ```
 
-**Setup**: Create a Personal Access Token and set the `GH_AW_GITHUB_TOKEN` secret:
+Setup: `gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-pat>"`
 
-```bash wrap
-gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
-```
-
-**Note**: Remote mode requires `GH_AW_GITHUB_TOKEN` (standard `GITHUB_TOKEN` is not supported).
-
-### GitHub Read-Only Mode
-
-Restricts GitHub API to read-only operations.
+**Read-Only Mode**: Restrict to read-only operations (default behavior unless write operations configured):
 
 ```yaml wrap
 tools:
@@ -205,133 +126,52 @@ tools:
     read-only: true
 ```
 
-Default: `github:` provides read-only access.
-
 ## Playwright Tool (`playwright:`)
 
-Enables browser automation using containerized Playwright.
+Enables browser automation using containerized Playwright with domain-based access control:
 
 ```yaml wrap
 tools:
   playwright:
-    version: "latest"                      # Playwright version
-    args: ["--browser", "chromium"]        # Additional arguments
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access
 ```
 
-**Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default: `["localhost", "127.0.0.1"]` for security.
-
-```yaml wrap
-playwright:
-  allowed_domains:
-    - "defaults"         # Basic infrastructure
-    - "github"          # GitHub domains
-    - "*.example.com"   # Custom wildcard
-```
+**Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Supports wildcards like `*.example.com`.
 
 ## Custom MCP Servers (`mcp-servers:`)
 
-Use `mcp-servers:` to integrate custom Model Context Protocol servers for third-party services, APIs, or specialized tools.
-
-### Basic Configuration
-
-**npx-based MCP server:**
-```yaml wrap
-mcp-servers:
-  custom-api:
-    command: "npx"
-    args: ["-y", "@company/custom-mcp-server"]
-    env:
-      API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
-```
-
-**Node.js script:**
-```yaml wrap
-mcp-servers:
-  analytics:
-    command: "node"
-    args: ["scripts/analytics-mcp-server.js"]
-    env:
-      ANALYTICS_TOKEN: "${{ secrets.ANALYTICS_TOKEN }}"
-```
-
-**Python MCP server:**
-```yaml wrap
-mcp-servers:
-  data-processor:
-    command: "python"
-    args: ["-m", "data_processor.mcp_server"]
-    env:
-      DATABASE_URL: "${{ secrets.DATABASE_URL }}"
-      API_TIMEOUT: "30"
-```
-
-**Docker container:**
-```yaml wrap
-mcp-servers:
-  notion:
-    container: "mcp/notion"
-    env:
-      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
-    allowed:
-      - "search_pages"
-      - "get_page"
-      - "query_database"
-```
-
-**HTTP MCP server:**
-```yaml wrap
-mcp-servers:
-  datadog:
-    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
-    headers:
-      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
-      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
-    allowed:
-      - "search_datadog_dashboards"
-      - "get_datadog_metric"
-```
-
-### Configuration Fields
-
-- **`command:`** - Executable command (e.g., `"node"`, `"python"`, `"npx"`)
-- **`args:`** - Command arguments as array of strings
-- **`env:`** - Environment variables for the MCP server process
-- **`container:`** - Docker container image (alternative to `command`)
-- **`url:`** - HTTP endpoint for remote MCP servers (alternative to `command`)
-- **`headers:`** - HTTP headers for authentication (used with `url`)
-- **`allowed:`** - List of allowed tool names from the MCP server
-
-### Complete Example
-
-Combining GitHub tools with custom MCP servers:
+Integrate custom Model Context Protocol servers for third-party services, APIs, or specialized tools:
 
 ```yaml wrap
-tools:
-  github:
-    allowed: [create_issue, update_issue]
-
 mcp-servers:
   slack:
-    command: "npx"
+    command: "npx"  # or "node", "python"
     args: ["-y", "@slack/mcp-server"]
     env:
       SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
-      SLACK_TEAM_ID: "${{ secrets.SLACK_TEAM_ID }}"
-    allowed:
-      - "send_message"
-      - "get_channel_history"
-  
+    allowed: ["send_message", "get_channel_history"]
+
   notion:
-    container: "mcp/notion"
+    container: "mcp/notion"  # Docker alternative
     env:
       NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
-    allowed:
-      - "search_pages"
-      - "get_page"
+    allowed: ["search_pages", "get_page"]
+
+  datadog:
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"  # HTTP alternative
+    headers:
+      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
+    allowed: ["search_datadog_dashboards"]
 ```
 
-MCP servers run alongside the AI engine in isolated environments with controlled network access. See [MCPs Guide](/gh-aw/guides/mcps/) for detailed setup instructions and examples.
+**Configuration Options**:
+- `command:` + `args:` - Process-based MCP server (Node.js, Python, etc.)
+- `container:` - Docker container image
+- `url:` + `headers:` - HTTP endpoint with authentication
+- `env:` - Environment variables for the MCP server
+- `allowed:` - Restrict to specific tool names
+
+MCP servers run in isolated environments with controlled network access. See [MCPs Guide](/gh-aw/guides/mcps/) for detailed setup instructions.
 
 ## Related Documentation
 
