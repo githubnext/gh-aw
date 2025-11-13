@@ -122,8 +122,6 @@ async function updateProject(output) {
       ? ownerProjectsResult.user.projectsV2.nodes
       : ownerProjectsResult.organization.projectsV2.nodes;
     
-    core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
-    
     existingProject = ownerProjects.find(
       p => p.title === output.project || p.number.toString() === output.project.toString()
     );
@@ -393,7 +391,7 @@ async function updateProject(output) {
               updateProjectV2ItemFieldValue(input: {
                 projectId: $projectId,
                 itemId: $itemId,
-                fieldId: $field.id,
+                fieldId: $fieldId,
                 value: $value
               }) {
                 projectV2Item {

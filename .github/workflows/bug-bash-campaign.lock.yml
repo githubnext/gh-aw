@@ -1424,7 +1424,7 @@ jobs:
           ````markdown
           # Bug Bash Weekly Campaign Summary
           
-          **Project**: <CALCULATED_PROJECT_NAME> (e.g., Bug Bash 2025-W46)
+          **Project**: <CALCULATED_PROJECT_NAME> (e.g., Bug Bash 2025 - W46)
           **Scanned**: <SCANNED_COUNT> | **Added**: <ADDED_COUNT> | **Skipped**: <SKIPPED_COUNT>
           
           ## Priority Distribution
@@ -4381,7 +4381,6 @@ jobs:
                 const ownerProjects = ownerType === "User" 
                   ? ownerProjectsResult.user.projectsV2.nodes
                   : ownerProjectsResult.organization.projectsV2.nodes;
-                core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
                 existingProject = ownerProjects.find(
                   p => p.title === output.project || p.number.toString() === output.project.toString()
                 );
@@ -4610,7 +4609,7 @@ jobs:
                           updateProjectV2ItemFieldValue(input: {
                             projectId: $projectId,
                             itemId: $itemId,
-                            fieldId: $field.id,
+                            fieldId: $fieldId,
                             value: $value
                           }) {
                             projectV2Item {
