@@ -84,6 +84,36 @@ jobs:
         run: cd pkg/workflow/js && npm ci
       - name: Run tests
         run: cd pkg/workflow/js && npm test
+  bench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-bench
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run benchmarks
+        run: make bench
+
+      - name: Save benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench_results.txt
+          if-no-files-found: ignore
+
   lint:
     runs-on: ubuntu-latest
     permissions:

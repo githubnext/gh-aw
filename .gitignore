@@ -51,6 +51,9 @@ coverage.html
 coverage/
 logs/
 
+# Benchmark results
+bench_results.txt
+
 node_modules/
 gh-aw-test/
 
