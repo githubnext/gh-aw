@@ -251,7 +251,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !quiet {
-		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, deleteHostRepo); err != nil {
+		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, deleteHostRepo, forceDeleteHostRepo, pushSecrets, autoMergePRs, repeatCount); err != nil {
 			return err
 		}
 	}
@@ -474,69 +474,146 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Trial Execution Plan ==="))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Trial Execution Plan"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Workflow information
 	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflow: %s (from %s)\n"), parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Workflow:  %s (from %s)\n"), parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflows:"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Workflows:"))
 		for _, spec := range parsedSpecs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  - %s (from %s)\n"), spec.WorkflowName, spec.RepoSlug)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("    • %s (from %s)\n"), spec.WorkflowName, spec.RepoSlug)
 		}
 	}
+	fmt.Fprintln(os.Stderr, "")
 
 	// Display target repository info based on mode
 	if cloneRepoSlug != "" {
 		// Clone-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Source Repository: %s (will be cloned)\n"), cloneRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Mode: Clone repository contents into host repository"))
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Source:    %s (will be cloned)\n"), cloneRepoSlug)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Clone repository contents into host repository"))
 	} else {
 		// Logical-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s (simulated)\n"), logicalRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Mode: Simulate execution against target repository"))
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (simulated)\n"), logicalRepoSlug)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Simulate execution against target repository"))
 	}
+	fmt.Fprintln(os.Stderr, "")
 
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Trial Repository: %s (%s)\n"), hostRepoSlug, hostRepoSlugURL)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Trial Repo: %s\n"), hostRepoSlug)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("              %s\n"), hostRepoSlugURL)
+	fmt.Fprintln(os.Stderr, "")
 
+	// Configuration settings
 	if deleteHostRepo {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Repository Cleanup: Host repository will be deleted after completion"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be deleted after completion"))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Repository Cleanup: Host repository will be preserved"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be preserved"))
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This will:"))
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("1. Create a private host repository at %s\n"), hostRepoSlugURL)
-
-	if cloneRepoSlug != "" {
-		// Clone-repo mode steps
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Clone contents from %s into the host repository\n"), cloneRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("3. Install and compile the specified workflows in the host repository"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("4. Execute each workflow and collect any safe outputs"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("5. Display the results from each workflow execution"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("6. Clean up API key secrets from the host repository"))
+	// Display secret usage information
+	if pushSecrets {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Local API keys will be pushed and cleaned up after execution"))
 	} else {
-		// Logical-repo mode steps
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Install and compile the specified workflows in trial mode against %s\n"), logicalRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("3. Execute each workflow and collect any safe outputs"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("4. Display the results from each workflow execution"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("5. Clean up API key secrets from the host repository"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Workflows must use pre-configured repository secrets"))
 	}
 
-	// Final step (delete/preserve repository)
-	stepNum := "6"
+	// Display repeat count if set
+	if repeatCount > 0 {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Repeat:    Will run %d times (total executions: %d)\n"), repeatCount, repeatCount+1)
+	}
+
+	// Display auto-merge setting if enabled
+	if autoMergePRs {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Auto-merge: Pull requests will be automatically merged"))
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Execution Steps"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Check if host repository already exists to update messaging
+	hostRepoExists := false
+	checkCmd := exec.Command("gh", "repo", "view", hostRepoSlug)
+	if err := checkCmd.Run(); err == nil {
+		hostRepoExists = true
+	}
+
+	// Step 1: Repository creation/reuse
+	stepNum := 1
+	if hostRepoExists && forceDeleteHostRepo {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete and recreate host repository\n"), stepNum)
+	} else if hostRepoExists {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Reuse existing host repository\n"), stepNum)
+	} else {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Create a private host repository\n"), stepNum)
+	}
+	stepNum++
+
+	// Step 2: Clone contents (only in clone-repo mode)
 	if cloneRepoSlug != "" {
-		stepNum = "7" // Clone mode has one extra step
+		if hostRepoExists && !forceDeleteHostRepo {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Force push contents from %s (overwriting existing content)\n"), stepNum, cloneRepoSlug)
+		} else {
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clone contents from %s\n"), stepNum, cloneRepoSlug)
+		}
+		stepNum++
 	}
 
+	// Step 3/2: Install and compile workflows
+	if cloneRepoSlug != "" {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile the specified workflows\n"), stepNum)
+	} else {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile the specified workflows in trial mode\n"), stepNum)
+	}
+	stepNum++
+
+	// Step 4/3: Push secrets (if enabled)
+	if pushSecrets {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Push required API key secrets (will be cleaned up later)\n"), stepNum)
+		stepNum++
+	}
+
+	// Step 5/4: Execute workflows and auto-merge (repeated if --repeat is used)
+	if repeatCount > 0 && autoMergePRs {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. For each of %d executions:\n"), stepNum, repeatCount+1)
+		fmt.Fprintf(os.Stderr, "     a. Execute each workflow and collect any safe outputs\n")
+		fmt.Fprintf(os.Stderr, "     b. Auto-merge any pull requests created during execution\n")
+	} else if repeatCount > 0 {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute each workflow %d times and collect any safe outputs\n"), stepNum, repeatCount+1)
+	} else if autoMergePRs {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute each workflow and collect any safe outputs\n"), stepNum)
+		stepNum++
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Auto-merge any pull requests created during execution\n"), stepNum)
+	} else {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute each workflow and collect any safe outputs\n"), stepNum)
+	}
+	stepNum++
+
+	// Step 6/5: Clean up secrets (if pushed)
+	if pushSecrets {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clean up API key secrets from the host repository\n"), stepNum)
+		stepNum++
+	}
+
+	// Final step: Delete/preserve repository
 	if deleteHostRepo {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("%s. Delete the host repository\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Delete the host repository\n"), stepNum)
 	} else {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("%s. Preserve the host repository for inspection\n"), stepNum)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Preserve the host repository for inspection\n"), stepNum)
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+	fmt.Fprintln(os.Stderr, "")
 
 	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Do you want to continue? [y/N]: "))
 
@@ -581,13 +658,15 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Force deleted existing host repository: %s", repoSlug)))
 
 			// Continue to create the repository below
-		} else if cloneRepoSlug != "" {
-			// Clone-repo mode: reusing existing repository is not allowed (unless force delete is used)
-			return fmt.Errorf("host repository %s already exists, but reusing existing repositories is not allowed in clone-repo mode. Please specify a different --host-repo, use --force-delete-host-repo-before, or delete the existing repository", repoSlug)
 		} else {
-			// Logical-repo mode: reusing is allowed
+			// Both clone-repo and logical-repo modes: reusing is allowed
+			// In clone-repo mode, the cloneRepoContentsIntoHost function will force push the new contents
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s", repoSlug)))
+				if cloneRepoSlug != "" {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s (contents will be force-pushed)", repoSlug)))
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s", repoSlug)))
+				}
 			}
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing host repository: https://github.com/%s", repoSlug)))
 			return nil
