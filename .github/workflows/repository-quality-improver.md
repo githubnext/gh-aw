@@ -42,7 +42,7 @@ Daily or on-demand, select a focus area for repository improvement, conduct anal
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/focus-areas/`
-- **Reuse Strategy**: ~20% of the time, reuse a previous strategy for consistency
+- **Strategy Distribution**: ~60% custom areas, ~30% standard categories, ~10% reuse for consistency
 
 ## Phase 0: Setup and Focus Area Selection
 
@@ -64,18 +64,47 @@ The history file should contain:
     {
       "date": "2024-01-15",
       "focus_area": "code-quality",
-      "reused": false
+      "custom": false,
+      "description": "Static analysis and code quality metrics"
     }
   ],
-  "last_5_areas": ["code-quality", "documentation", "testing", "security", "performance"]
+  "recent_areas": ["code-quality", "documentation", "testing", "security", "performance"],
+  "statistics": {
+    "total_runs": 5,
+    "custom_rate": 0.6,
+    "reuse_rate": 0.1,
+    "unique_areas_explored": 12
+  }
 }
 ```
 
 ### 0.2 Select Focus Area
 
-Choose a focus area based on the following strategy:
+Choose a focus area based on the following strategy to maximize diversity and repository-specific insights:
 
-**Available Focus Areas:**
+**Strategy Options:**
+
+1. **Create a Custom Focus Area (60% of the time)** - Invent a new, repository-specific focus area that addresses unique needs:
+   - Think creatively about this specific project's challenges
+   - Consider areas beyond traditional software quality categories
+   - Focus on workflow-specific, tool-specific, or user experience concerns (e.g., "Developer Onboarding", "Debugging Experience", "Contribution Friction")
+   - **Examples of creative custom areas:**
+     - "Workflow Compilation Performance"
+     - "Error Message Clarity and Actionability"
+     - "MCP Server Documentation Completeness"
+     - "GitHub Actions Best Practices Adoption"
+     - "Command-line Help Text Quality"
+     - "Integration Test Reliability"
+     - "Safe Output Mechanism Robustness"
+     - "Workflow Template Reusability"
+
+2. **Use a Standard Category (30% of the time)** - Select from established areas:
+   - Code Quality, Documentation, Testing, Security, Performance
+   - CI/CD, Dependencies, Code Organization, Accessibility, Usability
+
+3. **Reuse Previous Strategy (10% of the time)** - Revisit the most impactful area from recent runs for deeper analysis
+
+**Available Standard Focus Areas:**
 1. **Code Quality**: Static analysis, linting, code smells, complexity, maintainability
 2. **Documentation**: README quality, API docs, inline comments, user guides, examples
 3. **Testing**: Test coverage, test quality, edge cases, integration tests, performance tests
@@ -89,24 +118,30 @@ Choose a focus area based on the following strategy:
 
 **Selection Algorithm:**
 - Generate a random number between 0 and 100
-- If number <= 20 AND history exists: Reuse the most common focus area from last 10 runs
-- Otherwise: Randomly select a focus area that hasn't been used in the last 3 runs
-- Update the history file with the selected focus area and whether it was reused
+- **If number <= 60**: Invent a custom focus area specific to this repository's needs
+- **Else if number <= 90**: Select a standard category that hasn't been used in the last 3 runs
+- **Else**: Reuse the most common or impactful focus area from the last 10 runs
+- Update the history file with the selected focus area, whether it was custom, and a brief description
 
 ### 0.3 Initialize Tools
 
 Determine which tools are needed for the selected focus area:
 
-- **Code Quality, Code Organization, Performance**: May need Serena MCP for static analysis
-- **Security**: May need Serena MCP for vulnerability detection
+- **Code Quality, Code Organization, Performance, Custom code-related areas**: May need Serena MCP for static analysis
+- **Security, Custom security-related areas**: May need Serena MCP for vulnerability detection
 - **All areas**: Use reporting MCP for structured report generation
 - **Documentation, Accessibility, Usability**: Primarily analysis-based, no special tools needed
+- **Custom areas**: Determine tool needs based on the specific focus
 
 ## Phase 1: Conduct Analysis
 
-Based on the selected focus area, perform targeted analysis:
+Based on the selected focus area (whether standard or custom), perform targeted analysis:
 
-### Code Quality Analysis
+### For Standard Categories
+
+Use the appropriate analysis commands below based on the selected standard category.
+
+#### Code Quality Analysis
 
 ```bash
 # Code metrics
@@ -202,6 +237,51 @@ for dir in cmd pkg docs .github; do
 done
 ```
 
+### For Custom Focus Areas
+
+When you invent a custom focus area, **design appropriate analysis commands** tailored to that area. Consider:
+
+- What metrics would reveal the current state?
+- What files or patterns should be examined?
+- What tools (bash, grep, find, Serena) would provide insights?
+- What would success look like in this area?
+
+**Example: "Error Message Clarity"**
+```bash
+# Find error messages in code
+grep -r "error\|Error\|ERROR" --include="*.go" pkg/ cmd/ | wc -l
+
+# Check for user-facing error messages
+grep -r "fmt.Errorf\|errors.New" --include="*.go" pkg/ cmd/ | head -20
+
+# Look for error formatting patterns
+grep -r "console.FormatErrorMessage" --include="*.go" pkg/
+```
+
+**Example: "MCP Server Integration Quality"**
+```bash
+# Count MCP server implementations
+find . -path "**/mcp/**" -name "*.go" | wc -l
+
+# Check for MCP configuration files
+find .github/workflows -name "*.md" -exec grep -l "mcp-servers:" {} \;
+
+# Analyze MCP server test coverage
+find . -name "*mcp*test.go" | wc -l
+```
+
+**Example: "Workflow Compilation Performance"**
+```bash
+# Measure workflow compilation time
+time ./gh-aw compile --no-emit 2>&1 | grep "real"
+
+# Count workflow files
+find .github/workflows -name "*.md" | wc -l
+
+# Check for compilation caching
+grep -r "cache" pkg/workflow/ --include="*.go" | wc -l
+```
+
 ### Accessibility & Usability Analysis
 
 ```bash
@@ -223,7 +303,8 @@ Create a comprehensive report using the **reporting MCP** with the following str
 
 **Analysis Date**: [DATE]  
 **Focus Area**: [SELECTED AREA]  
-**Reused Strategy**: [Yes/No]
+**Strategy Type**: [Custom/Standard/Reused]
+**Custom Area**: [Yes/No - If yes, explain the rationale for this specific focus]
 
 ## Executive Summary
 
@@ -324,9 +405,9 @@ The following code regions and tasks should be processed by the Copilot agent. E
 <details>
 <summary><b>Previous Focus Areas</b></summary>
 
-| Date | Focus Area | Reused | Key Outcomes |
-|------|------------|--------|--------------|
-| [Date] | [Area] | [Y/N] | [Brief summary] |
+| Date | Focus Area | Type | Custom | Key Outcomes |
+|------|------------|------|--------|--------------|
+| [Date] | [Area] | [Custom/Standard/Reused] | [Y/N] | [Brief summary] |
 
 </details>
 
@@ -391,7 +472,8 @@ cat > /tmp/gh-aw/cache-memory/focus-areas/history.json << 'EOF'
   "runs": [...previous runs, {
     "date": "$(date +%Y-%m-%d)",
     "focus_area": "[selected area]",
-    "reused": [true/false],
+    "custom": [true/false],
+    "description": "[brief description of focus area]",
     "tasks_generated": [number],
     "priority_distribution": {
       "high": [count],
@@ -399,11 +481,12 @@ cat > /tmp/gh-aw/cache-memory/focus-areas/history.json << 'EOF'
       "low": [count]
     }
   }],
-  "last_5_areas": ["[most recent 5 areas]"],
+  "recent_areas": ["[most recent 5 areas]"],
   "statistics": {
     "total_runs": [count],
+    "custom_rate": [percentage],
     "reuse_rate": [percentage],
-    "most_common_area": "[area]"
+    "unique_areas_explored": [count]
   }
 }
 EOF
@@ -412,22 +495,37 @@ EOF
 ## Success Criteria
 
 A successful quality improvement run:
-- ✅ Selects a focus area using the diversity algorithm
-- ✅ Conducts thorough analysis of the selected area
+- ✅ Selects a focus area using the diversity algorithm (60% custom, 30% standard, 10% reuse)
+- ✅ Creates custom focus areas tailored to repository-specific needs when appropriate
+- ✅ Conducts thorough analysis of the selected area (using custom analysis for custom areas)
 - ✅ Uses Serena MCP only when static analysis is needed
 - ✅ Generates exactly one discussion with the report
 - ✅ Includes 3-5 actionable tasks for Copilot agent
 - ✅ Clearly marks code regions for planner agent to split
-- ✅ Updates cache memory with run history
-- ✅ Maintains ~20% reuse rate over time
+- ✅ Updates cache memory with run history including custom area tracking
+- ✅ Maintains high diversity rate (aim for 60%+ custom or varied strategies)
 - ✅ Provides clear priorities and acceptance criteria
 
 ## Important Guidelines
 
-### Focus Area Diversity
+### Focus Area Diversity and Creativity
+
+- **Prioritize Custom Areas**: 60% of runs should invent new, repository-specific focus areas
 - **Avoid Repetition**: Don't select the same area in consecutive runs
-- **Balance Coverage**: Over 10 runs, aim to cover all 10 focus areas at least once
-- **Reuse Strategically**: When reusing, pick the most impactful area from recent history
+- **Be Creative**: Think beyond the standard categories - what unique aspects of this project need attention?
+- **Balance Coverage**: Over 10 runs, aim to explore at least 6-7 different unique areas
+- **Repository-Specific**: Custom areas should reflect actual needs of this specific project
+- **Reuse Strategically**: When reusing (10% of time), pick the most impactful area from recent history
+
+### Custom Focus Area Examples for This Repository
+
+Consider these types of custom areas specific to gh-aw:
+
+- **Workflow-Specific**: "Workflow Template Quality", "Frontmatter Schema Completeness", "Workflow Compilation Feedback"
+- **Tool Integration**: "MCP Server Stability", "GitHub API Tool Coverage", "Safe Output Mechanisms"
+- **User Experience**: "CLI Command Discoverability", "Error Recovery Guidance", "Workflow Debugging Experience"
+- **Developer Productivity**: "Local Development Setup", "Testing Workflow Changes", "Compilation Speed"
+- **Documentation Quality**: "MCP Server Setup Guides", "Tool Configuration Examples", "Troubleshooting Resources"
 
 ### Analysis Depth
 - **Be Thorough**: Collect relevant metrics and perform meaningful analysis
@@ -458,8 +556,9 @@ Your output MUST:
 2. Include a clearly marked section for Copilot agent tasks
 3. Provide 3-5 actionable tasks with code region markers
 4. Note for planner agent to split tasks for Claude
-5. Update cache memory with run history
+5. Update cache memory with run history (including custom area tracking)
 6. Follow the report template structure
 7. Use the reporting MCP for structured content
+8. **For custom focus areas**: Clearly explain the rationale and custom analysis performed
 
-Begin your quality improvement analysis now. Select a focus area, conduct analysis, generate actionable tasks for the Copilot agent, and create the discussion report.
+Begin your quality improvement analysis now. Select a focus area (prioritizing custom, repository-specific areas), conduct appropriate analysis, generate actionable tasks for the Copilot agent, and create the discussion report.
