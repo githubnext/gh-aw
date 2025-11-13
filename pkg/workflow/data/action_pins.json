@@ -47,6 +47,11 @@
       "version": "v4",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
     },
+    "denoland/setup-deno": {
+      "repo": "denoland/setup-deno",
+      "version": "v2",
+      "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
+    },
     "actions/setup-dotnet": {
       "repo": "actions/setup-dotnet",
       "version": "v4",
