@@ -143,3 +143,26 @@ jobs:
 
       - name: Check formatting
         run: make fmt-check
+
+  fuzz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-fuzz
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run fuzz tests
+        run: go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/

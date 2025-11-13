@@ -10,7 +10,42 @@ The testing framework implements **Phase 6 (Quality Assurance)** of the Go reimp
 
 ### 1. Unit Tests (`pkg/*/`)
 
-### 2. Benchmarks (`pkg/*/_benchmark_test.go`)
+### 2. Fuzz Tests (`pkg/*/_fuzz_test.go`)
+
+Fuzz tests use Go's built-in fuzzing support to test functions with randomly generated inputs, helping discover edge cases and security vulnerabilities that traditional tests might miss.
+
+**Running Fuzz Tests:**
+```bash
+# Run expression parser fuzz test for 10 seconds
+go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+
+# Run for extended duration (1 minute)
+go test -fuzz=FuzzExpressionParser -fuzztime=1m ./pkg/workflow/
+
+# Run seed corpus only (no fuzzing)
+go test -run FuzzExpressionParser ./pkg/workflow/
+```
+
+**Available Fuzz Tests:**
+- **FuzzExpressionParser** (`pkg/workflow/expression_parser_fuzz_test.go`): Tests GitHub expression validation against injection attacks
+  - 59 seed cases covering allowed expressions, malicious injections, and edge cases
+  - Validates security controls against secret injection, script tags, command injection
+  - Ensures parser handles malformed input without panic
+
+**Fuzz Test Results:**
+- Seed corpus includes authorized and unauthorized expression patterns
+- Fuzzer generates thousands of variations per second
+- Typical coverage: 87+ test cases in baseline, discovers additional interesting cases during fuzzing
+- All inputs should be handled without panic, unauthorized expressions properly rejected
+
+**Continuous Integration:**
+Fuzz tests can be run in CI with time limits:
+```yaml
+- name: Fuzz test expression parser
+  run: go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
+```
+
+### 3. Benchmarks (`pkg/*/_benchmark_test.go`)
 
 Performance benchmarks measure the speed of critical operations. Run benchmarks to:
 - Detect performance regressions
@@ -64,7 +99,7 @@ benchstat bench_baseline.txt bench_new.txt
 - Log parsing: ~50μs - 1ms depending on log size
 - Schema validation: ~35μs - 130μs depending on complexity
 
-### 3. Test Validation Framework (`test_validation.go`)
+### 4. Test Validation Framework (`test_validation.go`)
 
 Comprehensive validation system that ensures:
 

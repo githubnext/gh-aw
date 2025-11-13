@@ -12,50 +12,8 @@ import (
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
 
 // Note: extractStringValue, parseIntValue, and filterMapKeys have been moved to frontmatter_helpers.go
-
-// addCustomSafeOutputEnvVars adds custom environment variables to safe output job steps
-func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
-	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
-		for key, value := range data.SafeOutputs.Env {
-			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, value))
-		}
-	}
-}
-
-// addSafeOutputGitHubToken adds github-token to the with section of github-script actions
-// Uses precedence: safe-outputs global github-token > top-level github-token > default
-func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-	effectiveToken := getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken)
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
-// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
-// Uses precedence: config token > safe-outputs global github-token > top-level github-token > default
-func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-	// Get effective token using double precedence: config > safe-outputs, then > top-level > default
-	effectiveToken := getEffectiveGitHubToken(configToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
-// addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
-// Uses precedence: config token > safe-outputs global github-token > top-level github-token > COPILOT_GITHUB_TOKEN > COPILOT_CLI_TOKEN > GH_AW_COPILOT_TOKEN (legacy) > GH_AW_GITHUB_TOKEN (legacy)
-func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-	// Get effective token using double precedence: config > safe-outputs, then > top-level > Copilot default
-	effectiveToken := getEffectiveCopilotGitHubToken(configToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
+// Note: addCustomSafeOutputEnvVars, addSafeOutputGitHubToken, addSafeOutputGitHubTokenForConfig,
+//       and addSafeOutputCopilotGitHubTokenForConfig have been moved to safe_outputs_env_helpers.go
 
 // extractYAMLValue extracts a scalar value from the frontmatter map
 func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) string {
