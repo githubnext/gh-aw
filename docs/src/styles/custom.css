@@ -1029,13 +1029,13 @@ html {
 .hero .action.primary {
   background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%);
   border-color: #d896ff;
-  font: #ffffff;
+  color: #ffffff;
 }
 
 .hero .action.primary:hover {
   background: linear-gradient(180deg, #e5c7ff 0%, #8250df 100%);
   border-color: #e5c7ff;
-  font: #ffffff;
+  color: #ffffff;
 }
 
 /* General Links */
