@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var commentLog = logger.New("workflow:comment")
+
 // CommentEventMapping defines the mapping between event identifiers and their GitHub Actions event configurations
 type CommentEventMapping struct {
 	EventName      string   // GitHub Actions event name (e.g., "issues", "issue_comment")
@@ -62,14 +66,17 @@ func GetCommentEventByIdentifier(identifier string) *CommentEventMapping {
 // Returns a list of event identifiers to enable, or nil for default (all events)
 func ParseCommandEvents(eventsValue any) []string {
 	if eventsValue == nil {
+		commentLog.Print("Parsing command events: nil value, using default (all events)")
 		return nil // Default: all events
 	}
 
 	// Handle string value (e.g., "*" or single event)
 	if str, ok := eventsValue.(string); ok {
 		if str == "*" {
+			commentLog.Print("Parsing command events: wildcard, enabling all events")
 			return nil // Explicit all events
 		}
+		commentLog.Printf("Parsing command events: single event: %s", str)
 		return []string{str}
 	}
 
@@ -82,10 +89,12 @@ func ParseCommandEvents(eventsValue any) []string {
 			}
 		}
 		if len(result) > 0 {
+			commentLog.Printf("Parsing command events: array of %d events", len(result))
 			return result
 		}
 	}
 
+	commentLog.Print("Parsing command events: parsing failed, using default (all events)")
 	return nil // Default if parsing fails
 }
 
@@ -94,9 +103,11 @@ func ParseCommandEvents(eventsValue any) []string {
 func FilterCommentEvents(identifiers []string) []CommentEventMapping {
 	// len() for nil slices returns 0, so this handles both nil and empty slices
 	if len(identifiers) == 0 {
+		commentLog.Print("Filtering comment events: no identifiers specified, returning all events")
 		return GetAllCommentEvents()
 	}
 
+	commentLog.Printf("Filtering comment events: %d identifiers specified", len(identifiers))
 	var result []CommentEventMapping
 	for _, identifier := range identifiers {
 		if mapping := GetCommentEventByIdentifier(identifier); mapping != nil {

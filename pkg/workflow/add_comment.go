@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var addCommentLog = logger.New("workflow:add_comment")
 
 // AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
 type AddCommentConfig struct {
@@ -19,6 +23,7 @@ type AddCommentsConfig struct {
 
 // buildCreateOutputAddCommentJob creates the add_comment job
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string, createIssueJobName string, createDiscussionJobName string, createPullRequestJobName string) (*Job, error) {
+	addCommentLog.Printf("Building add_comment job: target=%s, discussion=%v", data.SafeOutputs.AddComments.Target, data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion)
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
 	}
@@ -113,6 +118,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 // parseCommentsConfig handles add-comment configuration
 func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsConfig {
 	if configData, exists := outputMap["add-comment"]; exists {
+		addCommentLog.Print("Parsing add-comment configuration")
 		commentsConfig := &AddCommentsConfig{}
 		commentsConfig.Max = 1 // Default max is 1
 

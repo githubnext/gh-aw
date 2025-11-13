@@ -367,6 +367,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
 func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {
+	log.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, data.StopTime != "")
 	var steps []string
 	var permissions string
 
@@ -636,6 +637,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 // buildMainJob creates the main workflow job
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
+	log.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
 
 	var jobCondition = data.If
@@ -734,6 +736,7 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
+	log.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
@@ -853,17 +856,20 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 	// Check condition 1: If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
+		log.Print("Skipping checkout step: custom steps already contain checkout")
 		return false // Custom steps already have checkout
 	}
 
 	// Check condition 2: If custom agent file is specified (via imports), checkout is required
 	if data.AgentFile != "" {
+		log.Printf("Adding checkout step: custom agent file specified: %s", data.AgentFile)
 		return true // Custom agent file requires checkout to access the file
 	}
 
 	// Check condition 3: If permissions don't grant contents access, don't add checkout
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
+		log.Print("Skipping checkout step: no contents read access in permissions")
 		return false // No contents read access, so checkout is not needed
 	}
 
