@@ -212,12 +212,15 @@ func (c *ContainsNode) Render() string {
 
 // buildConditionTree creates a condition tree from existing if condition and new draft condition
 func buildConditionTree(existingCondition string, draftCondition string) ConditionNode {
+	expressionsLog.Printf("Building condition tree: existing=%q, draft=%q", existingCondition, draftCondition)
 	draftNode := &ExpressionNode{Expression: draftCondition}
 
 	if existingCondition == "" {
+		expressionsLog.Print("No existing condition, using draft only")
 		return draftNode
 	}
 
+	expressionsLog.Print("Combining existing and draft conditions with AND")
 	existingNode := &ExpressionNode{Expression: existingCondition}
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
@@ -232,6 +235,7 @@ func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 
 // buildReactionCondition creates a condition tree for the add_reaction job
 func buildReactionCondition() ConditionNode {
+	expressionsLog.Print("Building reaction condition for multiple event types")
 	// Build a list of event types that should trigger reactions using the new expression nodes
 	var terms []ConditionNode
 
@@ -563,6 +567,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 
 // tokenize breaks the expression string into tokens
 func (p *ExpressionParser) tokenize(expression string) ([]token, error) {
+	expressionsLog.Printf("Tokenizing expression of length %d", len(expression))
 	var tokens []token
 	i := 0
 
@@ -717,6 +722,9 @@ func (p *ExpressionParser) parseUnaryExpression() (ConditionNode, error) {
 
 // parsePrimaryExpression parses literals and parenthesized expressions
 func (p *ExpressionParser) parsePrimaryExpression() (ConditionNode, error) {
+	if expressionsLog.Enabled() {
+		expressionsLog.Printf("Parsing primary expression at token: %s", p.current().value)
+	}
 	switch p.current().kind {
 	case tokenLeftParen:
 		p.advance() // consume (
