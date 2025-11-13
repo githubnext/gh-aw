@@ -11,10 +11,10 @@ import (
 // environment variables are only added to safe output jobs when a reaction is configured
 func TestCommentEnvVarsOnlyWithReaction(t *testing.T) {
 	tests := []struct {
-		name               string
-		markdown           string
-		expectCommentEnvs  bool
-		safeOutputType     string
+		name              string
+		markdown          string
+		expectCommentEnvs bool
+		safeOutputType    string
 	}{
 		{
 			name: "create-pull-request with reaction should have comment env vars",
@@ -165,9 +165,9 @@ Should NOT have comment env vars.
 // include comment_id and comment_repo when a reaction is configured
 func TestActivationJobOutputsWithReaction(t *testing.T) {
 	tests := []struct {
-		name                    string
-		markdown                string
-		expectCommentOutputs    bool
+		name                 string
+		markdown             string
+		expectCommentOutputs bool
 	}{
 		{
 			name: "activation with reaction should have comment outputs",
