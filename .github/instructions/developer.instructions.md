@@ -9,6 +9,7 @@ This document consolidates technical specifications and development guidelines f
 
 ## Table of Contents
 
+- [Capitalization Guidelines](#capitalization-guidelines)
 - [Code Organization](#code-organization)
 - [Validation Architecture](#validation-architecture)
 - [Security Best Practices](#security-best-practices)
@@ -18,6 +19,74 @@ This document consolidates technical specifications and development guidelines f
 - [MCP Logs Guardrail](#mcp-logs-guardrail)
 - [Release Management](#release-management)
 - [Firewall Log Parsing](#firewall-log-parsing)
+
+---
+
+## Capitalization Guidelines
+
+The gh-aw CLI follows context-based capitalization to distinguish between the product name and generic workflow references. This approach provides clarity and maintains professional consistency across all user-facing text.
+
+### Capitalization Rules
+
+The CLI uses different capitalization based on context:
+
+| Context | Format | Example |
+|---------|--------|---------|
+| Product name | **Capitalized** | "GitHub Agentic Workflows CLI from GitHub Next" |
+| Generic workflows | **Lowercase** | "Enable agentic workflows" |
+| Technical terms | **Capitalized** | "Compile Markdown to YAML workflows" |
+
+### Design Rationale
+
+This capitalization convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions". The consistent pattern across all commands, help text, and documentation simplifies both user comprehension and contributor decision-making.
+
+### Decision Flow
+
+Use this flowchart to determine the correct capitalization:
+
+```mermaid
+graph TD
+    A[Text to Write] --> B{What are you referring to?}
+    B -->|The product/tool itself| C[Capitalized:<br/>'GitHub Agentic Workflows']
+    B -->|Actions on workflows| D[Lowercase:<br/>'agentic workflows']
+    B -->|Technical terms/acronyms| E[Standard:<br/>'MCP', 'YAML', 'Compile']
+
+    C --> F[Examples:<br/>'GitHub Agentic Workflows CLI'<br/>'GitHub Agentic Workflows from GitHub Next']
+    D --> G[Examples:<br/>'Enable agentic workflows'<br/>'Initialize repository for agentic workflows'<br/>'Download agentic workflow logs']
+    E --> H[Examples:<br/>'Compile Markdown to YAML workflows'<br/>'MCP helpers']
+```
+
+### Examples
+
+**Product References (Capitalized):**
+```text
+GitHub Agentic Workflows CLI from GitHub Next
+GitHub Agentic Workflows from GitHub Next
+```
+
+**Generic Workflow References (Lowercase):**
+```text
+Enable agentic workflows
+Initialize repository for agentic workflows
+Download and analyze agentic workflow logs
+Add an MCP tool to an agentic workflow
+```
+
+**Technical Terms (Capitalized):**
+```text
+Compile Markdown to YAML workflows
+MCP helpers
+```
+
+### Implementation
+
+The capitalization rules are enforced through automated tests in `cmd/gh-aw/capitalization_test.go`. These tests verify:
+
+- Product name uses "GitHub Agentic Workflows" (capitalized)
+- Generic workflow references use "agentic workflows" (lowercase)
+- Technical terms maintain proper capitalization
+
+The tests run as part of the standard test suite and prevent inconsistencies from being introduced.
 
 ---
 

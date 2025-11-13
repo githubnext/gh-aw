@@ -52,6 +52,22 @@ Compile Markdown to YAML workflows
 MCP helpers
 ```
 
+## Decision Flow
+
+Use this flowchart to determine the correct capitalization:
+
+```mermaid
+graph TD
+    A[Text to Write] --> B{What are you referring to?}
+    B -->|The product/tool itself| C[Capitalized:<br/>'GitHub Agentic Workflows']
+    B -->|Actions on workflows| D[Lowercase:<br/>'agentic workflows']
+    B -->|Technical terms/acronyms| E[Standard:<br/>'MCP', 'YAML', 'Compile']
+
+    C --> F[Examples:<br/>'GitHub Agentic Workflows CLI'<br/>'GitHub Agentic Workflows from GitHub Next']
+    D --> G[Examples:<br/>'Enable agentic workflows'<br/>'Initialize repository for agentic workflows'<br/>'Download agentic workflow logs']
+    E --> H[Examples:<br/>'Compile Markdown to YAML workflows'<br/>'MCP helpers']
+```
+
 ## Implementation
 
 The capitalization rules are enforced through automated tests in `cmd/gh-aw/capitalization_test.go`. These tests verify:
