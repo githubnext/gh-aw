@@ -11,7 +11,7 @@ import (
 
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
 
-// Note: extractStringValue, parseIntValue, and filterMapKeys have been moved to frontmatter_helpers.go
+// Note: extractStringValue, parseIntValue, and filterMapKeys have been moved to map_helpers.go
 // Note: addCustomSafeOutputEnvVars, addSafeOutputGitHubToken, addSafeOutputGitHubTokenForConfig,
 //       and addSafeOutputCopilotGitHubTokenForConfig have been moved to safe_outputs_env_helpers.go
 
