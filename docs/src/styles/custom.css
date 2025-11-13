@@ -84,21 +84,23 @@
   display: none;
 }
 
-/* Light Theme Transparent Backgrounds */
-:root[data-theme='light'] .page {
-  background: transparent !important;
-}
+/* Light Theme Transparent Backgrounds - Desktop only */
+@media (min-width: 769px) {
+  :root[data-theme='light'] .page {
+    background: transparent !important;
+  }
 
-:root[data-theme='light'] .main-frame {
-  background: transparent !important;
-}
+  :root[data-theme='light'] .main-frame {
+    background: transparent !important;
+  }
 
-:root[data-theme='light'] main {
-  background: transparent !important;
-}
+  :root[data-theme='light'] main {
+    background: transparent !important;
+  }
 
-:root[data-theme='light'] .content-panel {
-  background: transparent !important;
+  :root[data-theme='light'] .content-panel {
+    background: transparent !important;
+  }
 }
 
 /* Light Theme Glow Animation */
@@ -120,7 +122,13 @@
 /* Light Theme Sidebar */
 :root[data-theme='light'] .sidebar {
   border-right: 1px solid #d0d7de;
-  background: transparent !important;
+}
+
+/* Light Theme Sidebar - Desktop only transparent */
+@media (min-width: 769px) {
+  :root[data-theme='light'] .sidebar {
+    background: transparent !important;
+  }
 }
 
 /* Light Theme Hero */
@@ -262,21 +270,23 @@ body:has(.hero)::before {
   display: block;
 }
 
-/* Dark Theme Transparent Backgrounds */
-.page {
-  background: transparent !important;
-}
+/* Dark Theme Transparent Backgrounds - Desktop only */
+@media (min-width: 769px) {
+  .page {
+    background: transparent !important;
+  }
 
-.main-frame {
-  background: transparent !important;
-}
+  .main-frame {
+    background: transparent !important;
+  }
 
-main {
-  background: transparent !important;
-}
+  main {
+    background: transparent !important;
+  }
 
-.content-panel {
-  background: transparent !important;
+  .content-panel {
+    background: transparent !important;
+  }
 }
 
 /* Dark Theme Glow Animation */
@@ -297,16 +307,22 @@ main {
 
 /* Dark Theme Sidebar */
 #starlight__sidebar, .sidebar {
-  background-color: transparent !important;
   border-right: 1px solid rgba(48, 54, 61, 0.25);
 }
 
-.sidebar-content {
-  background: transparent !important;
-}
+/* Only make sidebar transparent on desktop */
+@media (min-width: 769px) {
+  #starlight__sidebar, .sidebar {
+    background-color: transparent !important;
+  }
 
-.sidebar-pane {
-  background: transparent !important;
+  .sidebar-content {
+    background: transparent !important;
+  }
+
+  .sidebar-pane {
+    background: transparent !important;
+  }
 }
 
 /* Sidebar Navigation Styling */
@@ -679,14 +695,16 @@ a.button:hover {
 }
 
 /* Right Sidebar (TOC) */
-:root[data-theme='light'] .right-sidebar,
-:root[data-theme='light'] .right-sidebar[class*="astro-"] {
-  border-left-color: rgba(208, 215, 222, 0.4);
-}
+@media (min-width: 769px) {
+  :root[data-theme='light'] .right-sidebar,
+  :root[data-theme='light'] .right-sidebar[class*="astro-"] {
+    border-left-color: rgba(208, 215, 222, 0.4);
+  }
 
-.right-sidebar,
-.right-sidebar[class*="astro-"] {
-  border-left: 1px solid rgba(48, 54, 61, 0.25);
+  .right-sidebar,
+  .right-sidebar[class*="astro-"] {
+    border-left: 1px solid rgba(48, 54, 61, 0.25);
+  }
 }
 
 /* Table of Contents */
@@ -943,6 +961,69 @@ html {
 
 .site-title span {
   color: #f0f6fc;
+}
+
+/* Mobile Navigation - Ensure header elements are visible on mobile */
+@media (max-width: 72rem) {
+  /* Keep custom header links visible on mobile but make them more compact */
+  .custom-header-links {
+    display: flex !important;
+    gap: 0.5rem !important;
+    margin-right: 0.5rem !important;
+  }
+  
+  .header-link {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.8125rem !important;
+  }
+  
+  /* Ensure theme toggle is visible on mobile */
+  starlight-theme-select {
+    display: flex !important;
+  }
+}
+
+/* Extra small mobile - responsive navigation */
+@media (max-width: 768px) {
+  .custom-header-links {
+    display: none !important;
+  }
+  
+  /* Hide title text on mobile to save space - keep only logo icon */
+  .site-title span {
+    display: none !important;
+  }
+  
+  /* Force theme toggle to stay visible on mobile */
+  header starlight-theme-select,
+  .header starlight-theme-select,
+  starlight-theme-select {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Override Starlight's hiding of header right side on mobile */
+  header .sl-flex,
+  header .right-group,
+  header [class*="right"],
+  .social-icons {
+    display: flex !important;
+    visibility: visible !important;
+  }
+  
+  /* Make theme toggle easier to tap on mobile */
+  starlight-theme-select .icon-wrapper,
+  .icon-wrapper {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-width: 2.5rem !important;
+  }
+  
+  /* Ensure proper spacing on mobile header */
+  header {
+    padding: 0.5rem 1rem !important;
+  }
 }
 
 /* Hero Section */
