@@ -125,8 +125,6 @@ jobs:
         run: cd pkg/workflow/js && npm test
   bench:
     runs-on: ubuntu-latest
-    # Run on main branch, workflow_dispatch, or PRs (path filter handles PR filtering at workflow level)
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     permissions:
       contents: read
     concurrency:
@@ -207,8 +205,6 @@ jobs:
 
   fuzz:
     runs-on: ubuntu-latest
-    # Run on main branch, workflow_dispatch, or PRs (path filter handles PR filtering at workflow level)
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     permissions:
       contents: read
     concurrency:
