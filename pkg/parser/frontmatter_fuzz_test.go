@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -197,7 +198,7 @@ on:
 	// Deeply nested structure (overly deep - may hit limits)
 	deepNested := "---\nname: Test\ndata:\n"
 	for i := 0; i < 100; i++ {
-		deepNested += strings.Repeat("  ", i+1) + "level" + string(rune(i%10+'0')) + ":\n"
+		deepNested += strings.Repeat("  ", i+1) + "level" + strconv.Itoa(i%10) + ":\n"
 	}
 	deepNested += strings.Repeat("  ", 101) + "value: deep\n---\n# Content"
 	f.Add(deepNested)
@@ -438,7 +439,7 @@ on: push
 	// Very long array with many items
 	longArray := "---\nname: Test\nitems:\n"
 	for i := 0; i < 1000; i++ {
-		longArray += "  - item" + string(rune(i%10+'0')) + "\n"
+		longArray += "  - item" + strconv.Itoa(i%10) + "\n"
 	}
 	longArray += "---\n# Content"
 	f.Add(longArray)
@@ -526,7 +527,7 @@ on: push
 func containsInvalidPattern(content string) bool {
 	// Check for obviously invalid YAML patterns
 	invalidPatterns := []string{
-		"\x00", // Null byte
+		"\x00",  // Null byte
 		"\t---", // Tab before delimiter
 		"---\t", // Tab after delimiter
 	}

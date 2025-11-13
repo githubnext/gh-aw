@@ -75,8 +75,8 @@ bench-compare:
 .PHONY: fuzz
 fuzz:
 	@echo "Running fuzz tests for 30 seconds..."
-	go test -fuzz=. -fuzztime=30s ./pkg/parser/...
-	go test -fuzz=. -fuzztime=30s ./pkg/workflow/...
+	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
+	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
 
 # Test JavaScript files
 .PHONY: test-js
