@@ -124,23 +124,111 @@ Understanding the architectural patterns used in this codebase will help you mak
 
 ### Core Design Patterns
 
-#### 1. Create Functions Pattern
+#### 1. Create Functions Pattern ✅
 
-The codebase uses a consistent pattern for GitHub API operations:
+The codebase uses a **highly consistent pattern** for GitHub API write operations (safe outputs). This is an exemplary organizational pattern that should be preserved and followed for all new GitHub entity creation operations.
 
-- **One file per entity type**: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
-- **Consistent structure**: Configuration parsing, validation, job generation
-- **Parallel development**: Each creation type is independent
+**Files Following This Pattern** (6 files):
+- `pkg/workflow/create_agent_task.go` - GitHub agent task creation
+- `pkg/workflow/create_code_scanning_alert.go` - Code scanning alert creation
+- `pkg/workflow/create_discussion.go` - Discussion creation
+- `pkg/workflow/create_issue.go` - Issue creation
+- `pkg/workflow/create_pr_review_comment.go` - PR review comment creation
+- `pkg/workflow/create_pull_request.go` - Pull request creation
+
+**Pattern Characteristics**:
+- **One file per entity type**: Clear separation of concerns
+- **Consistent naming**: `create_<entity>.go` format
+- **2-4 related functions** per file:
+  - `parse<Entity>Config()` - Parse YAML configuration
+  - `buildCreateOutput<Entity>Job()` - Build GitHub Actions job
+  - Additional helpers as needed
+- **File size**: Typically 100-400 lines (optimal range)
+- **Clear scope**: All logic for creating one entity type in one place
 
 **Example Structure**:
 ```go
 // In create_issue.go
-type CreateIssuesConfig struct { ... }
-func (c *Compiler) parseIssuesConfig(...) *CreateIssuesConfig
-func (c *Compiler) generateCreateIssuesJob(...) map[string]any
+type CreateIssuesConfig struct {
+    BaseSafeOutputConfig `yaml:",inline"`
+    TitlePrefix          string   `yaml:"title-prefix,omitempty"`
+    Labels               []string `yaml:"labels,omitempty"`
+    Assignees            []string `yaml:"assignees,omitempty"`
+}
+
+func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
+    // Parse configuration from YAML
+}
+
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
+    // Build GitHub Actions job definition
+}
 ```
 
-#### 2. Engine Architecture
+**When to Use This Pattern**:
+- Adding a new `safe-outputs` type for GitHub API operations
+- Creating functionality to write to GitHub (issues, PRs, discussions, etc.)
+- Need to parse configuration and generate GitHub Actions jobs
+
+**Benefits**:
+- Easy to locate specific functionality
+- Prevents files from becoming too large
+- Facilitates parallel development (no merge conflicts)
+- Clear separation of concerns
+- Consistent structure aids code review
+
+#### 2. Validation Functions Pattern ✅
+
+Domain-specific validation is organized into **dedicated validation files**, creating an exemplary separation of validation concerns. This pattern ensures validation logic is easy to find, maintain, and extend.
+
+**Files Following This Pattern** (14 files in `pkg/workflow/`):
+- `agent_validation.go` - Agent file and feature validation
+- `bundler_validation.go` - JavaScript bundler validation
+- `docker_validation.go` - Docker image validation
+- `engine_validation.go` - Engine configuration validation
+- `expression_validation.go` - GitHub Actions expression safety
+- `mcp_config_validation.go` - MCP server configuration validation
+- `npm_validation.go` - NPM package validation
+- `pip_validation.go` - Python package validation
+- `repository_features_validation.go` - Repository feature detection
+- `runtime_validation.go` - Runtime package validation
+- `schema_validation.go` - JSON schema validation
+- `step_order_validation.go` - Workflow step order validation
+- `strict_mode_validation.go` - Strict mode security validation
+- `template_validation.go` - Template and expression validation
+
+**Pattern Characteristics**:
+- **File naming**: `<domain>_validation.go` or `*_validation.go`
+- **Function naming**: `validate<Aspect>()` methods on `*Compiler`
+- **Scope**: All validation for a specific domain in one file
+- **File size**: Typically 100-500 lines
+- **Clear responsibility**: One validation domain per file
+
+**Example Structure**:
+```go
+// In pip_validation.go
+func (c *Compiler) validatePipPackages(packages []string) error {
+    // Validate Python packages exist on PyPI
+}
+
+func (c *Compiler) validateUvPackages(packages []string) error {
+    // Validate uv packages
+}
+```
+
+**When to Use This Pattern**:
+- Adding validation for a new domain (e.g., Ruby gems, Rust crates)
+- Implementing security checks for a specific feature
+- Adding external resource validation (registries, APIs)
+- Need to validate configuration for a subsystem
+
+**Benefits**:
+- Easy to locate validation logic by domain
+- Clear separation prevents validation sprawl
+- Facilitates testing of specific validation rules
+- Enables parallel development of validation features
+
+#### 3. Engine Architecture
 
 Each AI engine follows a consistent pattern:
 
@@ -154,7 +242,77 @@ Each AI engine follows a consistent pattern:
 - `engine_helpers.go` - Shared helper functions
 - `engine_helpers_test.go` - Common test utilities
 
-#### 3. Compiler Architecture
+#### 3. Engine Architecture
+
+Each AI engine follows a consistent pattern:
+
+- **Separate files**: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
+- **Shared utilities**: `engine_helpers.go` contains common functionality
+- **Clear interfaces**: All engines implement common methods
+
+**Key Files**:
+- `agentic_engine.go` - Base engine interface
+- `<engine>_engine.go` - Engine-specific implementation
+- `engine_helpers.go` - Shared helper functions
+- `engine_helpers_test.go` - Common test utilities
+
+#### 4. MCP CLI Functions Pattern ✅
+
+The MCP (Model Context Protocol) CLI commands demonstrate **excellent namespace organization** with a consistent prefix-based naming convention. This pattern keeps related functionality grouped and easy to discover.
+
+**Files Following This Pattern** (16 files in `pkg/cli/`):
+- `mcp_add.go` - Add MCP servers to workflows
+- `mcp_config_file.go` - MCP configuration file handling
+- `mcp_inspect.go` - Inspect MCP server details
+- `mcp_inspect_mcp.go` - MCP server inspection logic
+- `mcp_list.go` - List MCP servers in workflows
+- `mcp_list_tools.go` - List tools from MCP servers
+- `mcp_logs_guardrail.go` - MCP logs output guardrail
+- `mcp_registry.go` - MCP server registry operations
+- `mcp_registry_list.go` - List MCP registry entries
+- `mcp_registry_types.go` - MCP registry type definitions
+- `mcp_schema.go` - MCP schema handling
+- `mcp_secrets.go` - MCP secrets management
+- `mcp_server.go` - MCP server implementation
+- `mcp_validation.go` - MCP configuration validation
+- `mcp_workflow_loader.go` - Load workflows with MCP configs
+- `mcp_workflow_scanner.go` - Scan workflows for MCP usage
+
+**Pattern Characteristics**:
+- **File naming**: `mcp_<function>.go` consistent prefix
+- **Location**: All in `pkg/cli/` package
+- **Scope**: One subcommand or functional area per file
+- **File size**: Typically 40-600 lines (mostly 100-400)
+- **Clear namespace**: `mcp_` prefix groups all related functionality
+
+**Example Structure**:
+```go
+// In mcp_inspect.go
+var mcpInspectLog = logger.New("cli:mcp_inspect")
+
+func NewMCPInspectCommand() *cobra.Command {
+    // Command setup for `gh aw mcp inspect`
+}
+
+func inspectMCPServer(workflowName, serverName string) error {
+    // Implementation
+}
+```
+
+**When to Use This Pattern**:
+- Adding new MCP-related CLI functionality
+- Implementing new MCP subcommands
+- Extending MCP server management features
+- Adding MCP-specific utilities
+
+**Benefits**:
+- Excellent discoverability through naming
+- Clear functional grouping by prefix
+- Prevents CLI code sprawl
+- Easy to understand command structure
+- Facilitates feature additions without conflicts
+
+#### 5. Compiler Architecture
 
 The compiler is organized by responsibility:
 
@@ -165,7 +323,7 @@ The compiler is organized by responsibility:
 
 This separation allows working on different aspects without conflicts.
 
-#### 4. Expression Building
+#### 6. Expression Building
 
 The expression system (`expressions.go`) demonstrates cohesive design:
 
@@ -192,13 +350,31 @@ The expression system (`expressions.go`) demonstrates cohesive design:
 
 ### When to Create New Files
 
-Use this decision tree:
+Use this decision tree to determine when to create a new file:
 
-1. **New safe output type?** → `create_<entity>.go`
-2. **New AI engine?** → `<engine>_engine.go`
-3. **New domain feature?** → `<feature>.go`
-4. **File over 800 lines?** → Consider splitting
-5. **Independent functionality?** → Create new file
+1. **New safe output type?** → `create_<entity>.go` in `pkg/workflow/`
+   - Example: Adding support for creating GitHub Projects
+   - Follow the Create Functions Pattern (see above)
+
+2. **New validation domain?** → `<domain>_validation.go` in `pkg/workflow/`
+   - Example: Adding validation for Rust crates or Go modules
+   - Follow the Validation Functions Pattern (see above)
+
+3. **New MCP CLI feature?** → `mcp_<function>.go` in `pkg/cli/`
+   - Example: Adding `gh aw mcp debug` command
+   - Follow the MCP CLI Functions Pattern (see above)
+
+4. **New AI engine?** → `<engine>_engine.go` in `pkg/workflow/`
+   - Example: Adding support for GPT-4 or Gemini
+   - Follow the Engine Architecture Pattern (see above)
+
+5. **File over 800 lines?** → Consider splitting by functional boundaries
+   - Look for natural separation points
+   - Create new files following existing patterns
+
+6. **Independent functionality?** → Create new file with descriptive name
+   - Avoid generic names like `utils.go` or `helpers.go`
+   - Use context-specific names like `string_utils.go` or `engine_helpers.go`
 
 ### Code Organization Guidelines
 
@@ -211,23 +387,50 @@ Use this decision tree:
 
 #### Naming Conventions
 
-- **Create operations**: `create_<entity>.go`
-- **Engines**: `<engine>_engine.go`
-- **Features**: `<feature>.go`
-- **Helpers**: `<subsystem>_helpers.go`
-- **Tests**: `<feature>_test.go`, `<feature>_integration_test.go`
+**Well-Established Patterns** (Follow These):
+- **Create operations**: `create_<entity>.go` (e.g., `create_issue.go`, `create_pull_request.go`)
+- **Validation files**: `<domain>_validation.go` (e.g., `pip_validation.go`, `engine_validation.go`)
+- **MCP CLI functions**: `mcp_<function>.go` (e.g., `mcp_inspect.go`, `mcp_list_tools.go`)
+- **Engines**: `<engine>_engine.go` (e.g., `copilot_engine.go`, `claude_engine.go`)
+- **Shared helpers**: `<subsystem>_helpers.go` (e.g., `engine_helpers.go`, only when truly shared)
+- **Unit tests**: `<feature>_test.go`
+- **Integration tests**: `<feature>_integration_test.go`
+- **Scenario tests**: `<feature>_<scenario>_test.go`
 
 ### Package Structure
 
 ```
 pkg/workflow/
-├── create_*.go              # GitHub entity creation
+├── create_*.go              # GitHub entity creation (Safe Outputs Pattern)
+│   ├── create_issue.go
+│   ├── create_pull_request.go
+│   ├── create_discussion.go
+│   ├── create_agent_task.go
+│   ├── create_code_scanning_alert.go
+│   └── create_pr_review_comment.go
+├── *_validation.go          # Domain-specific validation (Validation Pattern)
+│   ├── agent_validation.go
+│   ├── engine_validation.go
+│   ├── mcp_config_validation.go
+│   ├── pip_validation.go
+│   ├── npm_validation.go
+│   └── ... (14 validation files)
 ├── *_engine.go              # AI engine implementations
+│   ├── copilot_engine.go
+│   ├── claude_engine.go
+│   └── codex_engine.go
 ├── engine_helpers.go        # Shared engine utilities
 ├── compiler*.go             # Compilation logic
 ├── expressions.go           # Expression building
-├── validation.go            # Schema validation
-├── strings.go               # String utilities
+└── *_test.go                # Tests alongside code
+
+pkg/cli/
+├── mcp_*.go                 # MCP CLI commands (MCP Functions Pattern)
+│   ├── mcp_inspect.go
+│   ├── mcp_list.go
+│   ├── mcp_add.go
+│   ├── mcp_server.go
+│   └── ... (16 MCP files)
 └── *_test.go                # Tests alongside code
 ```
 

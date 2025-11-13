@@ -78,19 +78,103 @@ tests.go                   # All tests
 
 ### Excellent Patterns to Follow
 
-#### Create Functions Pattern
+The codebase has three exemplary organizational patterns that should be preserved and followed for new code.
 
-One file per GitHub entity creation operation:
-- `create_issue.go` - GitHub issue creation logic
-- `create_pull_request.go` - Pull request creation logic
-- `create_discussion.go` - Discussion creation logic
+#### Create Functions Pattern ✅
+
+**Location**: `pkg/workflow/create_*.go` (6 files)
+
+One file per GitHub entity creation operation (safe outputs):
+- `create_agent_task.go` - GitHub agent task creation
 - `create_code_scanning_alert.go` - Code scanning alert creation
+- `create_discussion.go` - Discussion creation  
+- `create_issue.go` - Issue creation
+- `create_pr_review_comment.go` - PR review comment creation
+- `create_pull_request.go` - Pull request creation
 
-Benefits:
+**Characteristics**:
+- **One file per entity**: Each file handles exactly one type of GitHub entity
+- **2-4 functions per file**: Typically `parse<Entity>Config()` and `buildCreateOutput<Entity>Job()`
+- **File size**: 100-400 lines (optimal range for maintainability)
+- **Consistent structure**: All files follow same pattern
+
+**When to use**: Adding new safe-outputs type for GitHub API operations
+
+**Benefits**:
 - Clear separation of concerns
 - Easy to locate specific functionality
 - Prevents files from becoming too large
-- Facilitates parallel development
+- Facilitates parallel development (no merge conflicts)
+
+#### Validation Functions Pattern ✅
+
+**Location**: `pkg/workflow/*_validation.go` (14 files)
+
+Domain-specific validation files for different aspects of workflow compilation:
+- `agent_validation.go` - Agent file and feature validation
+- `bundler_validation.go` - JavaScript bundler validation
+- `docker_validation.go` - Docker image validation
+- `engine_validation.go` - Engine configuration validation
+- `expression_validation.go` - GitHub Actions expression safety
+- `mcp_config_validation.go` - MCP server configuration validation
+- `npm_validation.go` - NPM package validation
+- `pip_validation.go` - Python package validation
+- `repository_features_validation.go` - Repository feature detection
+- `runtime_validation.go` - Runtime package validation
+- `schema_validation.go` - JSON schema validation
+- `step_order_validation.go` - Workflow step order validation
+- `strict_mode_validation.go` - Strict mode security validation
+- `template_validation.go` - Template and expression validation
+
+**Characteristics**:
+- **Domain-specific files**: Each file validates one domain
+- **Function naming**: `validate<Aspect>()` methods on `*Compiler`
+- **Clear scope**: All validation for a domain in one place
+- **File size**: 100-500 lines
+
+**When to use**: Adding validation for a new domain (e.g., Ruby gems, Rust crates) or security checks
+
+**Benefits**:
+- Easy to locate validation logic by domain
+- Clear separation prevents validation sprawl
+- Facilitates testing of specific validation rules
+- Enables parallel development
+
+#### MCP CLI Functions Pattern ✅
+
+**Location**: `pkg/cli/mcp_*.go` (16 files)
+
+Excellent namespace organization for MCP-related CLI commands:
+- `mcp_add.go` - Add MCP servers to workflows
+- `mcp_config_file.go` - MCP configuration file handling
+- `mcp_inspect.go` - Inspect MCP server details
+- `mcp_inspect_mcp.go` - MCP server inspection logic
+- `mcp_list.go` - List MCP servers in workflows
+- `mcp_list_tools.go` - List tools from MCP servers
+- `mcp_logs_guardrail.go` - MCP logs output guardrail
+- `mcp_registry.go` - MCP server registry operations
+- `mcp_registry_list.go` - List MCP registry entries
+- `mcp_registry_types.go` - MCP registry type definitions
+- `mcp_schema.go` - MCP schema handling
+- `mcp_secrets.go` - MCP secrets management
+- `mcp_server.go` - MCP server implementation
+- `mcp_validation.go` - MCP configuration validation
+- `mcp_workflow_loader.go` - Load workflows with MCP configs
+- `mcp_workflow_scanner.go` - Scan workflows for MCP usage
+
+**Characteristics**:
+- **Consistent prefix**: All files use `mcp_` prefix
+- **One function per file**: Each file handles one subcommand or functional area
+- **Clear namespace**: Easy to find all MCP-related code
+- **File size**: 40-600 lines (mostly 100-400)
+
+**When to use**: Adding new MCP-related CLI functionality or MCP subcommands
+
+**Benefits**:
+- Excellent discoverability through naming
+- Clear functional grouping by prefix
+- Prevents CLI code sprawl
+- Easy to understand command structure
 
 #### Engine Separation Pattern
 
@@ -122,14 +206,18 @@ Tests live alongside implementation files:
 ```mermaid
 graph TD
     A[Need to add code] --> B{New safe output type?}
-    B -->|Yes| C[Create create_entity.go]
-    B -->|No| D{New AI engine?}
-    D -->|Yes| E[Create engine_name_engine.go]
-    D -->|No| F{Current file > 800 lines?}
-    F -->|Yes| G[Consider splitting by boundaries]
-    F -->|No| H{Functionality independent?}
-    H -->|Yes| I[Create new file]
-    H -->|No| J[Add to existing file]
+    B -->|Yes| C[Create create_entity.go in pkg/workflow/]
+    B -->|No| D{New validation domain?}
+    D -->|Yes| E[Create domain_validation.go in pkg/workflow/]
+    D -->|No| F{New MCP CLI feature?}
+    F -->|Yes| G[Create mcp_function.go in pkg/cli/]
+    F -->|No| H{New AI engine?}
+    H -->|Yes| I[Create engine_name_engine.go in pkg/workflow/]
+    H -->|No| J{Current file > 800 lines?}
+    J -->|Yes| K[Consider splitting by boundaries]
+    J -->|No| L{Functionality independent?}
+    L -->|Yes| M[Create new file with descriptive name]
+    L -->|No| N[Add to existing file]
 ```
 
 ### Decision Tree: Splitting Files
