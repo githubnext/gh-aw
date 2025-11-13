@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -158,13 +159,8 @@ func containsUnauthorizedPattern(content string) bool {
 	}
 	
 	for _, pattern := range unauthorizedPatterns {
-		if len(content) >= len(pattern) {
-			// Simple substring search
-			for i := 0; i <= len(content)-len(pattern); i++ {
-				if content[i:i+len(pattern)] == pattern {
-					return true
-				}
-			}
+		if strings.Contains(content, pattern) {
+			return true
 		}
 	}
 	
