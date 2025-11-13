@@ -448,6 +448,9 @@ ${patchPreview}`;
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
+        // Update the activation comment with issue link (if a comment was created)
+        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+
         // Set outputs for push failure fallback
         core.setOutput("issue_number", issue.number);
         core.setOutput("issue_url", issue.html_url);
@@ -578,6 +581,9 @@ You can manually create a pull request from the branch if needed.${patchPreview}
       });
 
       core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+
+      // Update the activation comment with issue link (if a comment was created)
+      await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
       // Set output for other jobs to use (issue instead of PR)
       core.setOutput("issue_number", issue.number);

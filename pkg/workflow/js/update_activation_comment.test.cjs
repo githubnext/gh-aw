@@ -128,7 +128,7 @@ describe("update_activation_comment.cjs", () => {
       })
     );
 
-    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with PR link");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with pull request link");
   });
 
   it("should update discussion comment with PR link using GraphQL", async () => {
@@ -186,7 +186,7 @@ describe("update_activation_comment.cjs", () => {
       })
     );
 
-    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with PR link");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with pull request link");
   });
 
   it("should not fail workflow if comment update fails", async () => {
@@ -412,5 +412,106 @@ describe("update_activation_comment.cjs", () => {
 
     // Verify PATCH was not attempted
     expect(mockDependencies.github.request).toHaveBeenCalledTimes(1);
+  });
+
+  it("should update issue comment with issue link when itemType is 'issue'", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock GET request to fetch current comment
+    mockDependencies.github.request.mockImplementation(async (method, params) => {
+      if (method.startsWith("GET")) {
+        return {
+          data: {
+            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
+          },
+        };
+      }
+      // Mock PATCH request to update comment
+      if (method.startsWith("PATCH")) {
+        return {
+          data: {
+            id: 123456,
+            html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456",
+          },
+        };
+      }
+      return { data: {} };
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/issues/99",
+      99,
+      "issue"
+    );
+
+    // Verify comment was updated with issue link
+    expect(mockDependencies.github.request).toHaveBeenCalledWith(
+      "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+        comment_id: 123456,
+        body: expect.stringContaining("✅ Issue created: [#99](https://github.com/testowner/testrepo/issues/99)"),
+      })
+    );
+
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with issue link");
+  });
+
+  it("should update discussion comment with issue link using GraphQL when itemType is 'issue'", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock GraphQL for discussion comment
+    mockDependencies.github.graphql.mockImplementation(async (query, params) => {
+      if (query.includes("query")) {
+        // Mock GET query
+        return {
+          node: {
+            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
+          },
+        };
+      }
+      if (query.includes("mutation")) {
+        // Mock UPDATE mutation
+        return {
+          updateDiscussionComment: {
+            comment: {
+              id: "DC_kwDOABCDEF4ABCDEF",
+              url: "https://github.com/testowner/testrepo/discussions/1#discussioncomment-123456",
+            },
+          },
+        };
+      }
+      return {};
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/issues/99",
+      99,
+      "issue"
+    );
+
+    // Verify GraphQL was called to update comment
+    expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("mutation($commentId: ID!, $body: String!)"),
+      expect.objectContaining({
+        commentId: "DC_kwDOABCDEF4ABCDEF",
+        body: expect.stringContaining("✅ Issue created: [#99](https://github.com/testowner/testrepo/issues/99)"),
+      })
+    );
+
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with issue link");
   });
 });
