@@ -331,7 +331,9 @@ async function main() {
       // Commit body
       // ---
       // file stats
-      patchContent = patchContent.replace(/^---$/gm, match => `${aiFooter}\n${match}`);
+      // We use a lookahead to find the "---" that is followed by diffstat (lines with " file | changes")
+      // This avoids matching "---" that might appear in the commit message body itself
+      patchContent = patchContent.replace(/\n---\n(?= .+\|)/m, `${aiFooter}\n---\n`);
 
       // Write the modified patch back
       fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
