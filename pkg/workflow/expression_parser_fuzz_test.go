@@ -9,7 +9,7 @@ import (
 //
 // The fuzzer validates that:
 // 1. Allowed GitHub expressions are correctly accepted
-// 2. Unauthorized expressions (secrets, env vars) are properly rejected
+// 2. Unauthorized expressions (secrets) are properly rejected
 // 3. Malicious injection attempts are blocked
 // 4. Parser handles all fuzzer-generated inputs without panic
 // 5. Edge cases are handled correctly (empty, very long, nested delimiters)
