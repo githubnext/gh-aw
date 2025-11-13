@@ -45,17 +45,31 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      # Calculate timestamps for 2 hours ago and 4 hours ago
-      TWO_HOURS_AGO=$(date -u -d '2 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-2H '+%Y-%m-%dT%H:%M:%SZ')
-      FOUR_HOURS_AGO=$(date -u -d '4 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-4H '+%Y-%m-%dT%H:%M:%SZ')
+      # Calculate timestamps for 2 hours ago and 4 hours ago using Python (cross-platform)
+      TWO_HOURS_AGO=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+      FOUR_HOURS_AGO=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(hours=4)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+      
+      echo "Searching for PRs merged after: ${FOUR_HOURS_AGO}"
+      echo "Filtering to PRs merged after: ${TWO_HOURS_AGO}"
       
       # Query merged PRs from the last 4 hours maximum (to catch stragglers)
-      gh search prs \
+      if ! gh search prs \
         --repo ${{ github.repository }} \
         --merged \
         --merged ">=${FOUR_HOURS_AGO}" \
         --json number,title,mergedAt,body,labels,url,author \
-        --limit 100 > /tmp/gh-aw/pr-data/all-merged-prs.json
+        --limit 100 > /tmp/gh-aw/pr-data/all-merged-prs.json 2>&1; then
+        echo "::error::Failed to search for merged PRs"
+        cat /tmp/gh-aw/pr-data/all-merged-prs.json || true
+        exit 1
+      fi
+      
+      # Verify we got valid JSON
+      if ! jq empty /tmp/gh-aw/pr-data/all-merged-prs.json 2>/dev/null; then
+        echo "::error::Invalid JSON response from gh search"
+        cat /tmp/gh-aw/pr-data/all-merged-prs.json
+        exit 1
+      fi
       
       # Filter to only PRs from the last 2 hours (main window)
       cat /tmp/gh-aw/pr-data/all-merged-prs.json | \
@@ -199,101 +213,4 @@ The `/tmp/gh-aw/cache-memory/processed-prs.json` file should be a simple JSON ar
 - Process all unprocessed PRs in a single workflow run
 - **If there are no unprocessed PRs, just exit without doing anything** - this is normal and expected
 - The cache memory folder persists across runs, so your processed-prs.json will be there next time
-
-# Changeset Generator for Merged PRs
-
-You are the Changeset Generator agent - responsible for automatically creating changeset files for recently merged pull requests.
-
-## Mission
-
-When pull requests are merged to the default branch, analyze the changes and create properly formatted changeset files that document the changes according to the changeset specification.
-
-## Current Context
-
-- **Repository**: ${{ github.repository }}
-- **Analysis Period**: Last 2 hours
-- **Cache Location**: `/tmp/gh-aw/cache-memory/` - Used to track which PRs have been processed
-- **PR Data Location**: `/tmp/gh-aw/pr-data/recent-merged-prs.json` - Pre-fetched merged PR data
-
-## Task Overview
-
-### Phase 1: Load and Filter PR Data
-
-1. **Load the pre-fetched PR data** from `/tmp/gh-aw/pr-data/recent-merged-prs.json`
-2. **Check the cache** in `/tmp/gh-aw/cache-memory/` to identify which PRs have already been processed
-   - The cache should contain a file or data structure tracking processed PR numbers
-   - Create a simple tracking mechanism (e.g., a JSON file with processed PR numbers)
-3. **Filter out already-processed PRs** to get the list of PRs that need changeset files
-
-### Phase 2: Generate Changeset Files
-
-For each unprocessed merged PR:
-
-1. **Analyze the Pull Request**: Review the PR title and body to understand what has been modified
-2. **Use the repository name as the package identifier** (gh-aw)
-3. **Determine the Change Type**:
-   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**
-   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by "BREAKING CHANGE" or major API changes
-   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)
-   
-   **Important**: Internal changes, tooling, and documentation are always "patch" level.
-
-4. **Generate ONE Changeset File per PR**:
-   - Create file in `.changeset/` directory
-   - Use format from the changeset format reference above
-   - Filename: `<type>-pr-<pr-number>-<short-description>.md` (e.g., `patch-pr-123-fix-bug.md`)
-   - Include PR number in the changeset description for traceability
-
-5. **Update the cache** to mark this PR as processed:
-   - Add the PR number to your tracking file in `/tmp/gh-aw/cache-memory/`
-
-### Phase 3: Create Pull Request
-
-After generating all changeset files:
-
-1. **Git operations are already configured** by the pre-step
-2. **Stage and commit all changeset files**:
-   ```bash
-   git add .changeset/*.md
-   git commit -m "Add changesets for merged PRs"
-   ```
-
-3. **The safe-outputs create-pull-request will automatically**:
-   - Create a new branch
-   - Push your changes
-   - Create a PR with the changeset files
-   - Use title: `[changeset] Add changesets for merged PRs`
-
-4. **Include in the PR description**:
-   - List of PRs processed with their numbers and titles
-   - Summary of changeset files created
-   - Any notes about the changes
-
-## Guidelines
-
-- **Be Accurate**: Analyze each PR content carefully to determine the correct change type
-- **Be Clear**: Each changeset description should clearly explain what changed
-- **Be Concise**: Keep descriptions brief but informative
-- **Follow Conventions**: Use the exact changeset format specified above
-- **Single Package Default**: Always use "gh-aw" as the package identifier
-- **Track Progress**: Always update the cache after processing each PR
-- **One File Per PR**: Each PR gets exactly one changeset file
-- **Smart Naming**: Include PR number in filename for easy tracking (e.g., `patch-pr-456-update-docs.md`)
-
-## Example Changeset File
-
-```markdown
----
-"gh-aw": patch
----
-
-Fixed rendering bug in console output (PR #456)
-```
-
-## Important Notes
-
-- The PR data is already fetched - it's in `/tmp/gh-aw/pr-data/recent-merged-prs.json`
-- Use the cache to avoid processing the same PR twice
-- Process all unprocessed PRs in a single workflow run
-- If there are no unprocessed PRs, simply do nothing (the job won't run due to conditional)
 
