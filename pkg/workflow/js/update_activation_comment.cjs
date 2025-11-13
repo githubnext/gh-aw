@@ -2,16 +2,21 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Update the activation comment with a link to the created pull request
+ * Update the activation comment with a link to the created pull request or issue
  * @param {any} github - GitHub REST API instance
  * @param {any} context - GitHub Actions context
  * @param {any} core - GitHub Actions core
- * @param {string} pullRequestUrl - URL of the created pull request
- * @param {number} pullRequestNumber - Number of the pull request
+ * @param {string} itemUrl - URL of the created item (pull request or issue)
+ * @param {number} itemNumber - Number of the item (pull request or issue)
+ * @param {string} itemType - Type of item: "pull_request" or "issue" (defaults to "pull_request")
  */
-async function updateActivationComment(github, context, core, pullRequestUrl, pullRequestNumber) {
-  const message = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
-  await updateActivationCommentWithMessage(github, context, core, message);
+async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+  const itemLabel = itemType === "issue" ? "issue" : "pull request";
+  const linkMessage =
+    itemType === "issue"
+      ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+      : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
 }
 
 /**
@@ -25,7 +30,7 @@ async function updateActivationComment(github, context, core, pullRequestUrl, pu
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
   const shortSha = commitSha.substring(0, 7);
   const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-  await updateActivationCommentWithMessage(github, context, core, message);
+  await updateActivationCommentWithMessage(github, context, core, message, "commit");
 }
 
 /**
@@ -34,8 +39,9 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
  * @param {any} context - GitHub Actions context
  * @param {any} core - GitHub Actions core
  * @param {string} message - Message to append to the comment
+ * @param {string} label - Optional label for log messages (e.g., "pull request", "issue", "commit")
  */
-async function updateActivationCommentWithMessage(github, context, core, message) {
+async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
 
@@ -102,7 +108,8 @@ async function updateActivationCommentWithMessage(github, context, core, message
       );
 
       const comment = result.updateDiscussionComment.comment;
-      core.info(`Successfully updated discussion comment`);
+      const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
+      core.info(successMessage);
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);
     } else {
@@ -134,7 +141,8 @@ async function updateActivationCommentWithMessage(github, context, core, message
         },
       });
 
-      core.info(`Successfully updated comment`);
+      const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+      core.info(successMessage);
       core.info(`Comment ID: ${response.data.id}`);
       core.info(`Comment URL: ${response.data.html_url}`);
     }

@@ -4751,23 +4751,15 @@ jobs:
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
-            async function updateActivationComment(github, context, core, pullRequestUrl, pullRequestNumber) {
-              const message = `\n\n✅ Pull request created: [#${pullRequestNumber}](${pullRequestUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message);
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message) {
+            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               if (!commentId) {
                 core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
                 return;
               }
-              core.info(`Updating activation comment ${commentId}`);
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              core.info(`Updating activation comment ${commentId} with ${itemLabel} link`);
               let repoOwner = context.repo.owner;
               let repoName = context.repo.repo;
               if (commentRepo) {
@@ -4780,6 +4772,10 @@ jobs:
                 }
               }
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
                 if (isDiscussionComment) {
@@ -4799,7 +4795,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
+                  const updatedBody = currentBody + linkMessage;
                   const result = await github.graphql(
                     `
                     mutation($commentId: ID!, $body: String!) {
@@ -4813,7 +4809,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Successfully updated discussion comment with ${itemLabel} link`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                 } else {
@@ -4830,7 +4826,7 @@ jobs:
                     return;
                   }
                   const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
+                  const updatedBody = currentBody + linkMessage;
                   const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
                     owner: repoOwner,
                     repo: repoName,
@@ -4840,7 +4836,7 @@ jobs:
                       Accept: "application/vnd.github+json",
                     },
                   });
-                  core.info(`Successfully updated comment`);
+                  core.info(`Successfully updated comment with ${itemLabel} link`);
                   core.info(`Comment ID: ${response.data.id}`);
                   core.info(`Comment URL: ${response.data.html_url}`);
                 }
@@ -5168,6 +5164,7 @@ jobs:
                       labels: labels,
                     });
                     core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
                     core.setOutput("issue_number", issue.number);
                     core.setOutput("issue_url", issue.html_url);
                     core.setOutput("branch_name", branchName);
@@ -5266,6 +5263,7 @@ jobs:
                     labels: labels,
                   });
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
                   core.setOutput("issue_number", issue.number);
                   core.setOutput("issue_url", issue.html_url);
                   core.setOutput("branch_name", branchName);
