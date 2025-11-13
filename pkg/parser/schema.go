@@ -344,11 +344,8 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				// Rewrite "additional properties not allowed" errors to be more friendly
 				message := rewriteAdditionalPropertiesError(primaryPath.Message)
 
-				// Add schema-based suggestions
-				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
-				if suggestions != "" {
-					message = message + ". " + suggestions
-				}
+				// Generate suggestions as a slice
+				suggestions := generateSchemaBasedSuggestionsSlice(schemaJSON, primaryPath.Message, primaryPath.Path)
 
 				// Create a compiler error with precise location information
 				compilerErr := console.CompilerError{
@@ -357,9 +354,10 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 						Line:   adjustedLine,
 						Column: location.Column, // Use original column, we'll extend to word in console rendering
 					},
-					Type:    "error",
-					Message: message,
-					Context: adjustedContextLines,
+					Type:        "error",
+					Message:     message,
+					Context:     adjustedContextLines,
+					Suggestions: suggestions,
 					// Hints removed as per requirements
 				}
 
@@ -372,11 +370,8 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 		// Rewrite "additional properties not allowed" errors to be more friendly
 		message := rewriteAdditionalPropertiesError(errorMsg)
 
-		// Add schema-based suggestions for fallback case
-		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "")
-		if suggestions != "" {
-			message = message + ". " + suggestions
-		}
+		// Generate suggestions as a slice for fallback case
+		suggestions := generateSchemaBasedSuggestionsSlice(schemaJSON, errorMsg, "")
 
 		// Fallback: Create a compiler error with basic location information
 		compilerErr := console.CompilerError{
@@ -385,9 +380,10 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				Line:   frontmatterStart,
 				Column: 1, // Use column 1 for fallback, we'll extend to word in console rendering
 			},
-			Type:    "error",
-			Message: message,
-			Context: contextLines,
+			Type:        "error",
+			Message:     message,
+			Context:     contextLines,
+			Suggestions: suggestions,
 			// Hints removed as per requirements
 		}
 
@@ -573,6 +569,37 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) s
 	return ""
 }
 
+// generateSchemaBasedSuggestionsSlice generates helpful suggestions as a slice for use in CompilerError
+func generateSchemaBasedSuggestionsSlice(schemaJSON, errorMessage, jsonPath string) []string {
+	// Parse the schema to extract information for suggestions
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		return nil // Can't parse schema, no suggestions
+	}
+
+	var suggestions []string
+
+	// Check if this is an additional properties error
+	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
+		invalidProps := extractAdditionalPropertyNames(errorMessage)
+		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
+
+		if len(acceptedFields) > 0 {
+			suggestions = generateFieldSuggestionsSlice(invalidProps, acceptedFields)
+		}
+	}
+
+	// Check if this is a type error
+	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
+		example := generateExampleJSONForPath(schemaDoc, jsonPath)
+		if example != "" {
+			suggestions = append(suggestions, fmt.Sprintf("Expected format: %s", example))
+		}
+	}
+
+	return suggestions
+}
+
 // extractAcceptedFieldsFromSchema extracts the list of accepted fields from a schema at a given JSON path
 func extractAcceptedFieldsFromSchema(schemaDoc any, jsonPath string) []string {
 	schemaMap, ok := schemaDoc.(map[string]any)
@@ -702,6 +729,53 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	}
 
 	return suggestion.String()
+}
+
+// generateFieldSuggestionsSlice creates suggestions as a slice for invalid field names
+func generateFieldSuggestionsSlice(invalidProps, acceptedFields []string) []string {
+	if len(acceptedFields) == 0 || len(invalidProps) == 0 {
+		return nil
+	}
+
+	var suggestions []string
+
+	// Find closest matches using simple string distance
+	var closestMatches []string
+	for _, invalidProp := range invalidProps {
+		closest := findClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
+		closestMatches = append(closestMatches, closest...)
+	}
+
+	// If we have specific suggestions, show them
+	if len(closestMatches) > 0 {
+		// Remove duplicates
+		uniqueSuggestions := removeDuplicates(closestMatches)
+		var suggestionList strings.Builder
+		if len(invalidProps) == 1 {
+			suggestionList.WriteString("Did you mean: ")
+		} else {
+			suggestionList.WriteString("Did you mean one of: ")
+		}
+		if len(uniqueSuggestions) <= maxSuggestions {
+			suggestionList.WriteString(strings.Join(uniqueSuggestions, ", "))
+		} else {
+			suggestionList.WriteString(strings.Join(uniqueSuggestions[:maxSuggestions], ", "))
+		}
+		suggestions = append(suggestions, suggestionList.String())
+	}
+
+	// Also add the full list of valid fields
+	var validFieldsList strings.Builder
+	validFieldsList.WriteString("Valid fields: ")
+	if len(acceptedFields) <= maxAcceptedFields {
+		validFieldsList.WriteString(strings.Join(acceptedFields, ", "))
+	} else {
+		validFieldsList.WriteString(strings.Join(acceptedFields[:maxAcceptedFields], ", "))
+		validFieldsList.WriteString(", ...")
+	}
+	suggestions = append(suggestions, validFieldsList.String())
+
+	return suggestions
 }
 
 // findClosestMatches finds the closest matching strings using simple edit distance heuristics

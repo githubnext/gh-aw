@@ -20,11 +20,13 @@ type ErrorPosition struct {
 
 // CompilerError represents a structured compiler error with position information
 type CompilerError struct {
-	Position ErrorPosition
-	Type     string // "error", "warning", "info"
-	Message  string
-	Context  []string // Source code lines for context
-	Hint     string   // Optional hint for fixing the error
+	Position    ErrorPosition
+	Type        string   // "error", "warning", "info"
+	Message     string
+	Context     []string // Source code lines for context
+	Hint        string   // Optional hint for fixing the error
+	Suggestions []string // Actionable suggestions for fixing the error
+	DocsLink    string   // Link to relevant documentation
 }
 
 // Styles for different error types
@@ -135,6 +137,26 @@ func FormatError(err CompilerError) string {
 	}
 
 	// Remove hints as per requirements - hints are no longer displayed
+
+	// Render suggestions if present
+	if len(err.Suggestions) > 0 {
+		output.WriteString("\n")
+		for _, suggestion := range err.Suggestions {
+			output.WriteString("  ")
+			output.WriteString(applyStyle(infoStyle, "•"))
+			output.WriteString(" ")
+			output.WriteString(suggestion)
+			output.WriteString("\n")
+		}
+	}
+
+	// Render documentation link if present
+	if err.DocsLink != "" {
+		output.WriteString("\n")
+		output.WriteString(applyStyle(infoStyle, "Documentation: "))
+		output.WriteString(err.DocsLink)
+		output.WriteString("\n")
+	}
 
 	return output.String()
 }

@@ -350,3 +350,139 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestFormatErrorWithSuggestions(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      CompilerError
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name: "error with single suggestion",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   5,
+					Column: 10,
+				},
+				Type:        "error",
+				Message:     "Unknown property: 'engnie'",
+				Suggestions: []string{"Did you mean: engine"},
+			},
+			expected: []string{
+				"test.md:5:10:",
+				"error:",
+				"Unknown property: 'engnie'",
+				"Did you mean: engine",
+				"•",
+			},
+		},
+		{
+			name: "error with multiple suggestions",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "workflow.md",
+					Line:   3,
+					Column: 5,
+				},
+				Type:    "error",
+				Message: "Unknown property: 'permisions'",
+				Suggestions: []string{
+					"Valid fields: engine, tools, permissions, on, timeout-minutes",
+					"Did you mean: permissions",
+				},
+			},
+			expected: []string{
+				"workflow.md:3:5:",
+				"error:",
+				"Unknown property: 'permisions'",
+				"Valid fields: engine, tools, permissions, on, timeout-minutes",
+				"Did you mean: permissions",
+				"•",
+			},
+		},
+		{
+			name: "error with suggestions and docs link",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   2,
+					Column: 1,
+				},
+				Type:        "error",
+				Message:     "Invalid engine: 'gpt4'",
+				Suggestions: []string{"Valid engines: copilot, claude, codex, custom"},
+				DocsLink:    "https://docs.example.com/workflow-reference",
+			},
+			expected: []string{
+				"test.md:2:1:",
+				"error:",
+				"Invalid engine: 'gpt4'",
+				"Valid engines: copilot, claude, codex, custom",
+				"Documentation:",
+				"https://docs.example.com/workflow-reference",
+				"•",
+			},
+		},
+		{
+			name: "error with only docs link (no suggestions)",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "workflow.md",
+					Line:   4,
+					Column: 8,
+				},
+				Type:     "error",
+				Message:  "Required field 'on' is missing",
+				DocsLink: "https://docs.example.com/triggers",
+			},
+			expected: []string{
+				"workflow.md:4:8:",
+				"error:",
+				"Required field 'on' is missing",
+				"Documentation:",
+				"https://docs.example.com/triggers",
+			},
+		},
+		{
+			name: "error with no suggestions or docs link",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: "Generic error message",
+			},
+			expected: []string{
+				"test.md:1:1:",
+				"error:",
+				"Generic error message",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := FormatError(tt.err)
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+
+			// Verify suggestions appear before docs link when both are present
+			if len(tt.err.Suggestions) > 0 && tt.err.DocsLink != "" {
+				suggestionIdx := strings.Index(output, tt.err.Suggestions[0])
+				docsIdx := strings.Index(output, "Documentation:")
+				if suggestionIdx == -1 || docsIdx == -1 {
+					t.Errorf("Both suggestions and docs link should be present")
+				} else if suggestionIdx > docsIdx {
+					t.Errorf("Suggestions should appear before documentation link")
+				}
+			}
+		})
+	}
+}
