@@ -162,8 +162,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 }
 
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+	compilerYamlLog.Printf("Generating main job steps for workflow: %s", data.Name)
+
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
+	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
 
 	// Add checkout step first if needed
 	if needsCheckout {
@@ -192,6 +195,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Runtime detection now smartly filters out runtimes that already have setup actions
 	runtimeRequirements := DetectRuntimeRequirements(data)
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 	for _, step := range runtimeSetupSteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
@@ -245,6 +249,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)
 	installSteps := engine.GetInstallationSteps(data)
+	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
 	for _, step := range installSteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
@@ -565,6 +570,8 @@ func splitContentIntoChunks(content string) []string {
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+	compilerYamlLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
+
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
@@ -587,6 +594,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Split content into manageable chunks
 	chunks := splitContentIntoChunks(cleanedMarkdownContent)
+	compilerYamlLog.Printf("Split prompt into %d chunks", len(chunks))
 
 	// Create the initial prompt file step
 	yaml.WriteString("      - name: Create prompt\n")
