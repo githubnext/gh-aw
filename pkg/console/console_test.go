@@ -416,3 +416,122 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestFormatErrorWithSuggestionsAndDocsLink(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      CompilerError
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name: "error with suggestions",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   5,
+					Column: 10,
+				},
+				Type:    "error",
+				Message: "Unknown property: 'engnie'",
+				Suggestions: []string{
+					"Valid frontmatter fields: engine, tools, permissions, on, timeout-minutes",
+					"Did you mean: engine",
+				},
+			},
+			expected: []string{
+				"test.md:5:10:",
+				"error:",
+				"Unknown property: 'engnie'",
+				"Suggestions:",
+				"• Valid frontmatter fields: engine, tools, permissions, on, timeout-minutes",
+				"• Did you mean: engine",
+			},
+		},
+		{
+			name: "error with docs link",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "workflow.md",
+					Line:   2,
+					Column: 1,
+				},
+				Type:     "error",
+				Message:  "Invalid engine: 'gpt4'",
+				DocsLink: "https://githubnext.github.io/gh-aw/reference/frontmatter/#engine",
+			},
+			expected: []string{
+				"workflow.md:2:1:",
+				"error:",
+				"Invalid engine: 'gpt4'",
+				"Documentation: https://githubnext.github.io/gh-aw/reference/frontmatter/#engine",
+			},
+		},
+		{
+			name: "error with suggestions and docs link",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   3,
+					Column: 5,
+				},
+				Type:    "error",
+				Message: "Required field 'on' is missing",
+				Suggestions: []string{
+					"Add a trigger to your workflow, for example:",
+					"  on: issues",
+					"  on: pull_request",
+				},
+				DocsLink: "https://githubnext.github.io/gh-aw/reference/frontmatter/",
+			},
+			expected: []string{
+				"test.md:3:5:",
+				"error:",
+				"Required field 'on' is missing",
+				"Suggestions:",
+				"• Add a trigger to your workflow, for example:",
+				"•   on: issues",
+				"•   on: pull_request",
+				"Documentation: https://githubnext.github.io/gh-aw/reference/frontmatter/",
+			},
+		},
+		{
+			name: "error without suggestions or docs link",
+			err: CompilerError{
+				Position: ErrorPosition{
+					File:   "test.md",
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: "generic error",
+			},
+			expected: []string{
+				"test.md:1:1:",
+				"error:",
+				"generic error",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := FormatError(tt.err)
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+
+			// Verify no suggestions section when empty
+			if len(tt.err.Suggestions) == 0 && strings.Contains(output, "Suggestions:") {
+				t.Errorf("Expected no suggestions section for empty suggestions, got:\n%s", output)
+			}
+
+			// Verify no documentation section when empty
+			if tt.err.DocsLink == "" && strings.Contains(output, "Documentation:") {
+				t.Errorf("Expected no documentation section for empty docs link, got:\n%s", output)
+			}
+		})
+	}
+}

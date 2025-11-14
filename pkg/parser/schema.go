@@ -344,11 +344,11 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				// Rewrite "additional properties not allowed" errors to be more friendly
 				message := rewriteAdditionalPropertiesError(primaryPath.Message)
 
-				// Add schema-based suggestions
-				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
-				if suggestions != "" {
-					message = message + ". " + suggestions
-				}
+				// Generate suggestions as a list
+				suggestions := generateSuggestionsAsList(schemaJSON, primaryPath.Message, primaryPath.Path)
+
+				// Generate documentation link
+				docsLink := generateDocumentationLink(schemaJSON, primaryPath.Message, primaryPath.Path)
 
 				// Create a compiler error with precise location information
 				compilerErr := console.CompilerError{
@@ -357,10 +357,11 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 						Line:   adjustedLine,
 						Column: location.Column, // Use original column, we'll extend to word in console rendering
 					},
-					Type:    "error",
-					Message: message,
-					Context: adjustedContextLines,
-					// Hints removed as per requirements
+					Type:        "error",
+					Message:     message,
+					Context:     adjustedContextLines,
+					Suggestions: suggestions,
+					DocsLink:    docsLink,
 				}
 
 				// Format and return the error
@@ -372,11 +373,11 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 		// Rewrite "additional properties not allowed" errors to be more friendly
 		message := rewriteAdditionalPropertiesError(errorMsg)
 
-		// Add schema-based suggestions for fallback case
-		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "")
-		if suggestions != "" {
-			message = message + ". " + suggestions
-		}
+		// Generate suggestions as a list for fallback case
+		suggestions := generateSuggestionsAsList(schemaJSON, errorMsg, "")
+
+		// Generate documentation link
+		docsLink := generateDocumentationLink(schemaJSON, errorMsg, "")
 
 		// Fallback: Create a compiler error with basic location information
 		compilerErr := console.CompilerError{
@@ -385,10 +386,11 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				Line:   frontmatterStart,
 				Column: 1, // Use column 1 for fallback, we'll extend to word in console rendering
 			},
-			Type:    "error",
-			Message: message,
-			Context: contextLines,
-			// Hints removed as per requirements
+			Type:        "error",
+			Message:     message,
+			Context:     contextLines,
+			Suggestions: suggestions,
+			DocsLink:    docsLink,
 		}
 
 		// Format and return the error
@@ -927,4 +929,122 @@ func rewriteAdditionalPropertiesError(message string) string {
 	}
 
 	return message
+}
+
+// generateSuggestionsAsList generates a list of actionable suggestions based on the error
+func generateSuggestionsAsList(schemaJSON, errorMessage, jsonPath string) []string {
+	var suggestions []string
+
+	// Parse the schema to extract information for suggestions
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		return nil // Can't parse schema, no suggestions
+	}
+
+	// Check if this is an additional properties error
+	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
+		invalidProps := extractAdditionalPropertyNames(errorMessage)
+		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
+
+		if len(acceptedFields) > 0 && len(invalidProps) > 0 {
+			// Find "did you mean" suggestions for typos
+			for _, invalidProp := range invalidProps {
+				closest := findClosestMatches(invalidProp, acceptedFields, 1)
+				if len(closest) > 0 {
+					suggestions = append(suggestions, fmt.Sprintf("Did you mean '%s' instead of '%s'?", closest[0], invalidProp))
+				}
+			}
+
+			// Show valid fields (limited to prevent overwhelming output)
+			validFieldsMsg := "Valid frontmatter fields: "
+			if len(acceptedFields) <= maxAcceptedFields {
+				validFieldsMsg += strings.Join(acceptedFields, ", ")
+			} else {
+				validFieldsMsg += strings.Join(acceptedFields[:maxAcceptedFields], ", ") + ", ..."
+			}
+			suggestions = append(suggestions, validFieldsMsg)
+		}
+	}
+
+	// Check if this is a type error
+	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
+		example := generateExampleJSONForPath(schemaDoc, jsonPath)
+		if example != "" {
+			suggestions = append(suggestions, fmt.Sprintf("Expected format: %s", example))
+		}
+	}
+
+	// Check if this is a required field error
+	if strings.Contains(strings.ToLower(errorMessage), "missing property") {
+		// Extract field name from error message
+		re := regexp.MustCompile(`missing property '([^']+)'`)
+		matches := re.FindStringSubmatch(errorMessage)
+		if len(matches) > 1 {
+			fieldName := matches[1]
+			suggestions = append(suggestions, fmt.Sprintf("Add the required field '%s' to your workflow frontmatter", fieldName))
+			
+			// Add specific examples for common required fields
+			if fieldName == "on" {
+				suggestions = append(suggestions, "Example triggers:")
+				suggestions = append(suggestions, "  on: issues")
+				suggestions = append(suggestions, "  on: pull_request")
+				suggestions = append(suggestions, "  on: schedule")
+			}
+		}
+	}
+
+	// Check if this is an invalid enum value error
+	if strings.Contains(strings.ToLower(errorMessage), "must be one of") {
+		// Extract valid values from the error message itself
+		re := regexp.MustCompile(`must be one of (.+?)(?:\n|$)`)
+		matches := re.FindStringSubmatch(errorMessage)
+		if len(matches) > 1 {
+			// The values are already in the error message from schema validation
+			// Provide context-specific suggestions
+			if strings.Contains(errorMessage, "engine") {
+				suggestions = append(suggestions, "Use one of the supported engines: copilot, claude, codex, or custom")
+				suggestions = append(suggestions, "Example: engine: copilot")
+			}
+		}
+	}
+
+	return suggestions
+}
+
+// generateDocumentationLink generates a link to relevant documentation based on the error
+func generateDocumentationLink(schemaJSON, errorMessage, jsonPath string) string {
+	baseURL := "https://githubnext.github.io/gh-aw/reference/frontmatter/"
+
+	// Check if this is an additional properties error (general frontmatter reference)
+	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
+		return baseURL
+	}
+
+	// Check if this is an engine-related error
+	if strings.Contains(strings.ToLower(errorMessage), "engine") {
+		return baseURL + "#engine"
+	}
+
+	// Check if this is a tools-related error
+	if strings.Contains(strings.ToLower(errorMessage), "tools") {
+		return baseURL + "#tools"
+	}
+
+	// Check if this is a permissions-related error
+	if strings.Contains(strings.ToLower(errorMessage), "permission") {
+		return baseURL + "#permissions"
+	}
+
+	// Check if this is a trigger-related error
+	if strings.Contains(strings.ToLower(errorMessage), "on") || strings.Contains(strings.ToLower(errorMessage), "trigger") {
+		return baseURL + "#on"
+	}
+
+	// Check if this is a timeout-related error
+	if strings.Contains(strings.ToLower(errorMessage), "timeout") {
+		return baseURL + "#timeout-minutes"
+	}
+
+	// Default to general frontmatter reference for other errors
+	return baseURL
 }
