@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -61,7 +60,7 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	cmd := exec.Command("gh", "api", apiPath, "--jq", ".object.sha")
+	cmd := ExecGH("api", apiPath, "--jq", ".object.sha")
 	output, err := cmd.Output()
 	if err != nil {
 		// Try without "refs/tags/" prefix in case version is already a ref
