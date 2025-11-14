@@ -29,7 +29,7 @@ tools:
 
 timeout-minutes: 10
 
-source: githubnext/agentics/workflows/ci-doctor.md@1e366aa4518cf83d25defd84e454b9a41e87cf7c
+source: githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
 ---
 # CI Failure Doctor
 
@@ -69,7 +69,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
    - Dependency versions involved
    - Timing patterns
 
-### Phase 3: Historical Context Analysis  
+### Phase 3: Historical Context Analysis
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
    - Read from cached investigation files in `/tmp/memory/investigations/`
    - Parse previous failure patterns and solutions
@@ -81,7 +81,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 ### Phase 4: Root Cause Investigation
 1. **Categorize Failure Type**:
    - **Code Issues**: Syntax errors, logic bugs, test failures
-   - **Infrastructure**: Runner issues, network problems, resource constraints  
+   - **Infrastructure**: Runner issues, network problems, resource constraints
    - **Dependencies**: Version conflicts, missing packages, outdated libraries
    - **Configuration**: Workflow configuration, environment variables
    - **Flaky Tests**: Intermittent failures, timing issues
@@ -121,7 +121,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
    - **Prevention Strategies**: How to avoid similar failures
    - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future
    - **Historical Context**: Similar past failures and their resolutions
-   
+
 2. **Actionable Deliverables**:
    - Create an issue with investigation results (if warranted)
    - Comment on related PR with analysis (if PR-triggered)
