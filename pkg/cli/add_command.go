@@ -45,7 +45,10 @@ Workflow specifications:
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
 The --pr flag automatically creates a pull request with the workflow changes.
-The --force flag overwrites existing workflow files.`,
+The --force flag overwrites existing workflow files.
+
+Note: To create a new workflow from scratch, use the 'new' command instead.`,
+		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			workflows := args
 			numberFlag, _ := cmd.Flags().GetInt("number")
@@ -57,18 +60,6 @@ The --force flag overwrites existing workflow files.`,
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
 			workflowDir, _ := cmd.Flags().GetString("dir")
-
-			// If no arguments provided and not in CI, automatically use interactive mode
-			if len(args) == 0 && !IsRunningInCI() {
-				// Auto-enable interactive mode
-				var workflowName = "my-workflow" // Default name
-				if err := CreateWorkflowInteractively(workflowName, verbose, false); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-					os.Exit(1)
-				}
-				// Exit successfully after interactive creation
-				os.Exit(0)
-			}
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))

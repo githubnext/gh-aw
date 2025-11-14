@@ -32,16 +32,19 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 		// Check if expression is already wrapped in ${{ ... }}
 		// Look for the pattern starting with "${{"
 		if strings.HasPrefix(expr, "${{") {
+			templateLog.Print("Expression already wrapped, skipping")
 			return match // Already wrapped, return as-is
 		}
 
 		// Check if expression is an environment variable reference (starts with ${)
 		// These don't need ${{ }} wrapping as they're already evaluated
 		if strings.HasPrefix(expr, "${") {
+			templateLog.Print("Environment variable reference detected, skipping wrap")
 			return match // Environment variable reference, return as-is
 		}
 
 		// Always wrap expressions that don't start with ${{ or ${
+		templateLog.Printf("Wrapping expression: %s", expr)
 		return "{{#if ${{ " + expr + " }} }}"
 	})
 
@@ -73,6 +76,7 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 
 	// Skip if neither interpolation nor template rendering is needed
 	if !hasExpressions && !hasTemplates {
+		templateLog.Print("No interpolation or template rendering needed, skipping step generation")
 		return
 	}
 

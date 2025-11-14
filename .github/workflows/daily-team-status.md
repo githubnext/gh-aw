@@ -17,9 +17,7 @@ safe-outputs:
   create-discussion:
     title-prefix: "[team-status] "
     category: "announcements"
-imports:
-- githubnext/agentics/shared/reporting.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
-source: githubnext/agentics/workflows/daily-team-status.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
+source: githubnext/agentics/workflows/daily-team-status.md@1e366aa4518cf83d25defd84e454b9a41e87cf7c
 ---
 # Daily Team Status
 
