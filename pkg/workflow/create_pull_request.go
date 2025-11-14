@@ -201,11 +201,11 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
-		// Parse common base fields with default max of 1 (always max 1 for pull requests)
-		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, 1)
+		// Parse common base fields (github-token, max if specified by user)
+		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, -1)
 
 		// Note: max parameter is not supported for pull requests (always limited to 1)
-		// If max is specified, it will be overridden to 1
+		// Override any user-specified max value to enforce the limit
 		pullRequestsConfig.Max = 1
 	} else {
 		// If configData is nil or not a map (e.g., "create-pull-request:" with no value),
