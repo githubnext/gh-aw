@@ -70,6 +70,31 @@
       "version": "v8",
       "sha": "f6d06a003575dde14f917e642302cf1251f28f4a"
     },
+    "erlef/setup-beam@v1": {
+      "repo": "erlef/setup-beam",
+      "version": "v1",
+      "sha": "3559ac3b631a9560f28817e8e7fdde1638664336"
+    },
+    "github/codeql-action/upload-sarif@v3": {
+      "repo": "github/codeql-action/upload-sarif",
+      "version": "v3",
+      "sha": "fb2a9d4376843ba94460a73c39ca9a98b33a12ac"
+    },
+    "haskell-actions/setup@v2": {
+      "repo": "haskell-actions/setup",
+      "version": "v2",
+      "sha": "d5d0f498b388e1a0eab1cd150202f664c5738e35"
+    },
+    "oven-sh/setup-bun@v2": {
+      "repo": "oven-sh/setup-bun",
+      "version": "v2",
+      "sha": "735343b667d3e6f658f44d0eca948eb6282f2b76"
+    },
+    "ruby/setup-ruby@v1": {
+      "repo": "ruby/setup-ruby",
+      "version": "v1",
+      "sha": "e5517072e87f198d9533967ae13d97c11b604005"
+    },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",
       "version": "v8.2.1",
