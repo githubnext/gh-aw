@@ -1012,7 +1012,7 @@ func generateSuggestionsAsList(schemaJSON, errorMessage, jsonPath string) []stri
 }
 
 // generateDocumentationLink generates a link to relevant documentation based on the error
-func generateDocumentationLink(schemaJSON, errorMessage, jsonPath string) string {
+func generateDocumentationLink(errorMessage, jsonPath string) string {
 	baseURL := "https://githubnext.github.io/gh-aw/reference/frontmatter/"
 
 	// Check if this is an additional properties error (general frontmatter reference)
