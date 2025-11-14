@@ -2,25 +2,23 @@
 on: 
   workflow_dispatch:
 permissions:
-  contents: read
-  issues: read
+  contents: write
+  issues: write
+  pull-requests: write
 tools:
   github:
     toolsets: [repos, issues, pull_requests]
     read-only: false
 ---
 
-# Example: Under-provisioned Permissions Warning
+# Example: Properly Provisioned Permissions
 
-This workflow demonstrates the new warning behavior for under-provisioned permissions.
+This workflow demonstrates properly configured permissions for GitHub toolsets.
 
-When compiled in non-strict mode (default), this workflow will produce a warning because:
-- The `repos` toolset requires `contents: write` (but we only have `read`)
-- The `issues` toolset requires `issues: write` (but we only have `read`)
-- The `pull_requests` toolset requires `pull-requests: write` (but we don't have it at all)
+The workflow uses three GitHub toolsets with appropriate write permissions:
+- The `repos` toolset requires `contents: write` for repository operations
+- The `issues` toolset requires `issues: write` for issue management
+- The `pull_requests` toolset requires `pull-requests: write` for PR operations
 
-The warning will suggest two options:
-1. Add the missing write permissions
-2. Or reduce the toolsets to only those that work with read-only permissions
-
-In strict mode (with --strict flag), this would fail with an error instead.
+All required permissions are properly declared in the frontmatter, so this workflow
+compiles without warnings and can execute successfully when dispatched.
