@@ -95,7 +95,7 @@ func TestParseLogFileWithoutAwInfo(t *testing.T) {
 	}
 
 	// Test parseLogFileWithEngine without an engine (simulates no aw_info.json)
-	metrics, err := parseLogFileWithEngine(logFile, nil, false)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -198,7 +198,7 @@ Regular log line: tokens: 1000
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFileWithEngine(logFile, nil, false)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -432,7 +432,7 @@ Claude processing request...
 
 	// Test with Claude engine to parse Claude-specific logs
 	claudeEngine := workflow.NewClaudeEngine()
-	metrics, err := parseLogFileWithEngine(logFile, claudeEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, claudeEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -482,7 +482,7 @@ Now I need to wait for the user's response.
 
 	// Test with Codex engine to parse Codex-specific logs
 	codexEngine := workflow.NewCodexEngine()
-	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -524,7 +524,7 @@ I've posted the PR summary comment with analysis and recommendations. Let me kno
 
 	// Test with Codex engine
 	codexEngine := workflow.NewCodexEngine()
-	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -573,7 +573,7 @@ tokens used: 15234
 
 	// Test with Codex engine to parse new Rust format
 	codexEngine := workflow.NewCodexEngine()
-	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -638,7 +638,7 @@ tokens used: 10000
 
 	// Test with Codex engine to parse mixed formats
 	codexEngine := workflow.NewCodexEngine()
-	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
@@ -698,7 +698,7 @@ token_count: 10000`
 		t.Fatalf("Failed to get Codex engine: %v", err)
 	}
 
-	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFile failed: %v", err)
 	}
@@ -858,7 +858,7 @@ input_tokens: 2000`
 	}
 
 	// Without aw_info.json and specific engine, should return empty metrics
-	metrics, err := parseLogFileWithEngine(logFile, nil, false)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false, false)
 	if err != nil {
 		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}

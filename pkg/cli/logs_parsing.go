@@ -98,7 +98,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 }
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
-func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, verbose bool) (LogMetrics, error) {
+func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, isGitHubCopilotAgent bool, verbose bool) (LogMetrics, error) {
 	// Read the entire log file at once to avoid JSON parsing issues from chunked reading
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -106,6 +106,11 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 	}
 
 	logContent := string(content)
+
+	// If this is a GitHub Copilot agent run, use the specialized parser
+	if isGitHubCopilotAgent {
+		return ParseCopilotAgentLogMetrics(logContent, verbose), nil
+	}
 
 	// If we have a detected engine from aw_info.json, use it directly
 	if detectedEngine != nil {
