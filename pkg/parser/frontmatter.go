@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/ghhelper"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
@@ -908,17 +909,7 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 // downloadFileFromGitHub downloads a file from GitHub using gh CLI
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	// Use gh CLI to download the file
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
-
-	// Set up environment for gh command
-	// gh CLI looks for GH_TOKEN or GITHUB_TOKEN in the environment
-	// If neither is set and gh is not authenticated, it will fail
-	cmd.Env = os.Environ()
-
-	// If GITHUB_TOKEN is set but GH_TOKEN is not, set GH_TOKEN for gh CLI
-	if os.Getenv("GH_TOKEN") == "" && os.Getenv("GITHUB_TOKEN") != "" {
-		cmd.Env = append(cmd.Env, "GH_TOKEN="+os.Getenv("GITHUB_TOKEN"))
-	}
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/ghhelper"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
@@ -393,7 +393,7 @@ func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, er
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := ghhelper.ExecGH(args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
