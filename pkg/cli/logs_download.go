@@ -20,7 +20,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/ghhelper"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
@@ -97,7 +97,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 
 	// Use gh api to download the logs zip file
 	// The endpoint returns a 302 redirect to the actual zip file
-	cmd := ghhelper.ExecGH("api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
+	cmd := workflow.ExecGH("api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
 	output, err := cmd.Output()
 	if err != nil {
 		// Check for authentication errors
@@ -268,7 +268,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		spinner.Start()
 	}
 
-	cmd := ghhelper.ExecGH("run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir)
+	cmd := workflow.ExecGH("run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir)
 	output, err := cmd.CombinedOutput()
 
 	// Stop spinner

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/ghhelper"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -100,7 +100,7 @@ func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 // checkRepositoryAccess checks if the current user has write access to the target repository
 func checkRepositoryAccess(owner, repo string) (bool, error) {
 	// Get current user
-	cmd := ghhelper.ExecGH("api", "/user", "--jq", ".login")
+	cmd := workflow.ExecGH("api", "/user", "--jq", ".login")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to get current user: %w", err)
@@ -108,7 +108,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	username := strings.TrimSpace(string(output))
 
 	// Check user's permission level for the repository
-	cmd = ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
+	cmd = workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
 	output, err = cmd.Output()
 	if err != nil {
 		// If we get an error, it likely means we don't have access or the repo doesn't exist
@@ -133,7 +133,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 // createForkIfNeeded creates a fork of the target repository and returns the fork repo name
 func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner, forkRepo string, err error) {
 	// Get current user
-	cmd := ghhelper.ExecGH("api", "/user", "--jq", ".login")
+	cmd := workflow.ExecGH("api", "/user", "--jq", ".login")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get current user: %w", err)
@@ -170,7 +170,7 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 // fetchPRInfo fetches detailed information about a pull request
 func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 	// Fetch PR details using gh API
-	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/pulls/%d", owner, repo, prNumber),
+	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/pulls/%d", owner, repo, prNumber),
 		"--jq", `{
 			number: .number,
 			title: .title,
@@ -268,7 +268,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Getting default branch of target repository..."))
 	}
 
-	defaultBranchCmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
+	defaultBranchCmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
 	defaultBranchOutput, err := defaultBranchCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get default branch: %w", err)
