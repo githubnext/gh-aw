@@ -38,6 +38,10 @@ func (c *Compiler) parseAgentTaskConfig(outputMap map[string]any) *CreateAgentTa
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &agentTaskConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
+			// still set the default max
+			agentTaskConfig.Max = 1
 		}
 
 		return agentTaskConfig
