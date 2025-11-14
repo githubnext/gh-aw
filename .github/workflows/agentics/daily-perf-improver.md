@@ -51,7 +51,7 @@ steps:
     id: build-steps
     continue-on-error: true # the model may not have got it right, so continue anyway, the model will check the results and try to fix the steps
 
-source: githubnext/agentics/workflows/daily-perf-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/workflows/daily-perf-improver.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Daily Perf Improver
 
@@ -119,13 +119,13 @@ To decide which phase to perform:
 1. **Goal selection**. Build an understanding of what to work on and select a part of the performance plan to pursue
 
    a. Repository is now performance-ready. Review `build-steps/action.yml` and `build-steps.log` to understand setup. If build failed then create fix PR and exit.
-   
+
    b. Read the plan in the discussion mentioned earlier, along with comments.
 
    c. Check for existing performance PRs (especially yours with "${{ github.workflow }}" prefix). Avoid duplicate work.
-   
+
    d. If plan needs updating then comment on planning discussion with revised plan and rationale. Consider maintainer feedback.
-  
+
    e. Select a performance improvement goal to pursue from the plan. Ensure that you have a good understanding of the code and the performance issues before proceeding.
 
    f. Select and read the appropriate performance engineering guide(s) in `.github/copilot/instructions/` to help you with your work. If it doesn't exist, create it and later add it to your pull request.
@@ -133,7 +133,7 @@ To decide which phase to perform:
 2. **Work towards your selected goal**. For the performance improvement goal you selected, do the following:
 
    a. Create a new branch starting with "perf/".
-   
+
    b. Work towards the performance improvement goal you selected. Consider approaches like:
      - **Code optimization:** Algorithm improvements, data structure changes, caching
      - **User experience:** Reducing load times, improving responsiveness, optimizing assets
@@ -156,12 +156,12 @@ To decide which phase to perform:
 
 4. **Results and learnings**
 
-   a. If you succeeded in writing useful code changes that improve performance, create a draft pull request with your changes. 
+   a. If you succeeded in writing useful code changes that improve performance, create a draft pull request with your changes.
 
       **Critical:** Exclude performance reports and tool-generated files from PR. Double-check added files and remove any that don't belong.
 
       Include a description of the improvements with evidence of impact. In the description, explain:
-      
+
       - **Goal and rationale:** Performance target chosen and why it matters
       - **Approach:** Strategy, methodology, and implementation steps
       - **Impact measurement:** How performance was tested and results achieved

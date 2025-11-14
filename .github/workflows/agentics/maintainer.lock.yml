@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/.github/workflows/maintainer.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/.github/workflows/maintainer.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1204,7 +1204,7 @@ jobs:
           
           ## Instructions
           
-          1. **Fetch the latest gh-aw changes**: 
+          1. **Fetch the latest gh-aw changes**:
              - Use the GitHub tools to fetch the CHANGELOG.md or release notes from the `githubnext/gh-aw` repository
              - Review and understand the interesting changes, breaking changes, and new features in the latest version
              - Pay special attention to any migration guides or upgrade instructions
@@ -1228,7 +1228,7 @@ jobs:
                - Any generated `.lock.yml` files
                - A detailed description of what changed, referencing the gh-aw changelog
                - A summary of any manual fixes that were needed
-             
+          
              - **If there are compilation errors you cannot fix**: Create an issue with the title "Failed to upgrade workflows to latest gh-aw version" containing:
                - The specific compilation errors you encountered
                - What you tried to fix them
@@ -3504,8 +3504,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Workflow Maintainer"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/.github/workflows/maintainer.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/.github/workflows/maintainer.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -3892,8 +3892,8 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Agentic Workflow Maintainer"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/.github/workflows/maintainer.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/.github/workflows/maintainer.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4731,8 +4731,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Workflow Maintainer"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/.github/workflows/maintainer.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/.github/workflows/maintainer.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/.github/workflows/maintainer.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

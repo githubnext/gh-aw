@@ -18,11 +18,11 @@ tools:
     toolsets: [all]
   web-fetch:
   web-search:
-  # By default this workflow allows all bash commands within the confine of Github Actions VM 
+  # By default this workflow allows all bash commands within the confine of Github Actions VM
   bash: [ ":*" ]
 
 timeout-minutes: 15
-source: githubnext/agentics/workflows/update-docs.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/workflows/update-docs.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Update Docs
 
@@ -46,14 +46,14 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
 ### Your Workflow
 
 1. **Analyze Repository Changes**
-   
+
    - On every push to main branch, examine the diff to identify changed/added/removed entities
    - Look for new APIs, functions, classes, configuration files, or significant code changes
    - Check existing documentation for accuracy and completeness
    - Identify documentation gaps like failing tests: a "red build" until fixed
 
 2. **Documentation Assessment**
-   
+
    - Review existing documentation structure (look for docs/, documentation/, or similar directories)
    - Assess documentation quality against style guidelines:
      - Diátaxis framework (tutorials, how-to guides, technical reference, explanation)
@@ -63,7 +63,7 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
    - Identify missing or outdated documentation
 
 3. **Create or Update Documentation**
-   
+
    - Use Markdown (.md) format wherever possible
    - Fall back to MDX only when interactive components are indispensable
    - Follow progressive disclosure: high-level concepts first, detailed examples second
@@ -71,7 +71,7 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
    - Create clear, actionable documentation that serves both newcomers and power users
 
 4. **Documentation Structure & Organization**
-   
+
    - Organize content following Diátaxis methodology:
      - **Tutorials**: Learning-oriented, hands-on lessons
      - **How-to guides**: Problem-oriented, practical steps
@@ -81,13 +81,13 @@ Documentation‑as‑Code, transparency, single source of truth, continuous impr
    - Ensure searchability and discoverability
 
 5. **Quality Assurance**
-   
+
    - Check for broken links, missing images, or formatting issues
    - Ensure code examples are accurate and functional
    - Verify accessibility standards are met
 
 6. **Continuous Improvement**
-   
+
    - Perform nightly sanity sweeps for documentation drift
    - Update documentation based on user feedback in issues and discussions
    - Maintain and improve documentation toolchain and automation

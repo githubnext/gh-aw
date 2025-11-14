@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-backlog-burner.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/daily-backlog-burner.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-11-16 04:52:04
+# Effective stop-time: 2025-11-16 06:52:11
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -199,8 +199,8 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Daily Backlog Burner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-backlog-burner.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-backlog-burner.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1548,7 +1548,7 @@ jobs:
               - Estimate the effort required to address each issue, considering factors such as complexity, dependencies, and potential impact.
               - Identify any patterns or common themes among the issues, such as recurring bugs, feature requests, or areas of improvement.
               - Look for any issues that may be duplicates or closely related to each other, and consider whether they can be consolidated or linked together.
-              
+          
              1c. Use this research to create a discussion with title "${GH_AW_EXPR_F76B6721} - Research, Roadmap and Plan". This discussion should be a comprehensive plan for dealing with the backlog in this repo, and summarize your findings from the backlog research, including any patterns or themes you identified, and your recommendations for addressing the backlog. Then exit this entire workflow.
           
           2. Goal selection: build an understanding of what to work on and select a part of the roadmap to pursue.
@@ -1558,24 +1558,24 @@ jobs:
              2b. Read the plan in the discussion mentioned earlier, along with comments.
           
              2c. Check any existing open pull requests especially any opened by you starting with title "${GH_AW_EXPR_F76B6721}".
-             
+          
              2d. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step 3e.
-            
+          
              2e. Select a goal to pursue from the plan. Ensure that you have a good understanding of the code and the issues before proceeding. Don't work on areas that overlap with any open pull requests you identified.
           
           3. Work towards your selected goal.
           
              3a. Create a new branch.
-             
+          
              3b. Make the changes to work towards the goal you selected.
           
              3c. Ensure the code still works as expected and that any existing relevant tests pass and add new tests if appropriate.
           
              3d. Apply any automatic code formatting used in the repo
-             
+          
              3e. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
           
-          4. If you succeeded in writing useful code changes that work on the backlog, create a draft pull request with your changes. 
+          4. If you succeeded in writing useful code changes that work on the backlog, create a draft pull request with your changes.
           
              4a. Do NOT include any tool-generated files in the pull request. Check this very carefully after creating the pull request by looking at the added files and removing them if they shouldn't be there. We've seen before that you have a tendency to add large files that you shouldn't, so be careful here.
           
@@ -1585,7 +1585,7 @@ jobs:
           
           5. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion from step 1a, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not.
           
-          6. If you encounter any unexpected failures or have questions, add 
+          6. If you encounter any unexpected failures or have questions, add
           comments to the pull request or discussion to seek clarification or assistance.
           
           PROMPT_EOF
@@ -4216,8 +4216,8 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_DISCUSSION_CATEGORY: "ideas"
           GH_AW_WORKFLOW_NAME: "Daily Backlog Burner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-backlog-burner.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-backlog-burner.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4522,8 +4522,8 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Daily Backlog Burner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-backlog-burner.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-backlog-burner.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5353,8 +5353,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Backlog Burner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-backlog-burner.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-backlog-burner.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-backlog-burner.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5467,7 +5467,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-11-16 04:52:04
+          GH_AW_STOP_TIME: 2025-11-16 06:52:11
           GH_AW_WORKFLOW_NAME: "Daily Backlog Burner"
         with:
           script: |

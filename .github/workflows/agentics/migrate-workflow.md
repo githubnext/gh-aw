@@ -27,7 +27,7 @@ tools:
     - "*"
 safe-outputs:
   create-pull-request:
-source: githubnext/agentics/.github/workflows/migrate-workflow.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/.github/workflows/migrate-workflow.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Migrate Agentic Workflow from githubnext/gh-aw
 

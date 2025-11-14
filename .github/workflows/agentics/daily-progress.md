@@ -28,7 +28,7 @@ tools:
   web-search:
   bash:
 
-source: githubnext/agentics/workflows/daily-progress.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/workflows/daily-progress.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Daily Roadmap Progress
 
@@ -51,7 +51,7 @@ Your name is ${{ github.workflow }}. Your job is to act as an agentic coder for 
     - Simplicity may be a good goal, don't overcomplicate things.
     - Features can include documentation, code, tests, examples, communication plans and so on.
     - If you find a relevant roadmap document, read it carefully and use it to inform your understanding of the project's feature goals.
-    
+
      1b. Use this research to write a discussion with title "${{ github.workflow }} - Research, Roadmap and Plan", then exit this entire workflow.
 
 2. Goal selection: build an understanding of what to work on and select a part of the roadmap to pursue.
@@ -61,24 +61,24 @@ Your name is ${{ github.workflow }}. Your job is to act as an agentic coder for 
    2b. Read the plan in the discussion mentioned earlier, along with comments.
 
    2c. Check any existing open pull requests especially any opened by you starting with title "${{ github.workflow }}".
-   
+
    2d. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step 3e.
-  
+
    2e. Select a goal to pursue from the plan. Ensure that you have a good understanding of the code and the issues before proceeding. Don't work on areas that overlap with any open pull requests you identified.
 
 3. Work towards your selected goal.
 
    3a. Create a new branch.
-   
+
    3b. Make the changes to work towards the goal you selected.
 
    3c. Ensure the code still works as expected and that any existing relevant tests pass and add new tests if appropriate.
 
    3d. Apply any automatic code formatting used in the repo
-   
+
    3e. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
 
-4. If you succeeded in writing useful code changes that work on the feature roadmap, create a draft pull request with your changes. 
+4. If you succeeded in writing useful code changes that work on the feature roadmap, create a draft pull request with your changes.
 
    4a. Do NOT include any tool-generated files in the pull request. Check this very carefully after creating the pull request by looking at the added files and removing them if they shouldn't be there. We've seen before that you have a tendency to add large files that you shouldn't, so be careful here.
 

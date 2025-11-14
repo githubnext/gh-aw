@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-dependency-updates.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/daily-dependency-updates.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-11-16 04:52:04
+# Effective stop-time: 2025-11-16 06:52:13
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1103,7 +1103,7 @@ jobs:
              - Use the `list_dependabot_alerts` tool to retrieve the list of Dependabot alerts.
              - Use the `get_dependabot_alert` tool to retrieve details of each alert.
           
-          2. Create a new PR with title "${GH_AW_EXPR_F76B6721}". Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then work with a smaller number of updates until things are OK. 
+          2. Create a new PR with title "${GH_AW_EXPR_F76B6721}". Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then work with a smaller number of updates until things are OK.
           
           > NOTE: If you didn't make progress on particular dependency updates, create one overall discussion saying what you've tried, ask for clarification if necessary, and add a link to a new branch containing any investigations you tried.
           
@@ -3730,8 +3730,8 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_DISCUSSION_CATEGORY: "announcements"
           GH_AW_WORKFLOW_NAME: "Agentic Dependency Updater"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-dependency-updates.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-dependency-updates.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4036,8 +4036,8 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Agentic Dependency Updater"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-dependency-updates.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-dependency-updates.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4867,8 +4867,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Dependency Updater"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-dependency-updates.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-dependency-updates.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-dependency-updates.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4981,7 +4981,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-11-16 04:52:04
+          GH_AW_STOP_TIME: 2025-11-16 06:52:13
           GH_AW_WORKFLOW_NAME: "Agentic Dependency Updater"
         with:
           script: |

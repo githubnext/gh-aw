@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-plan.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/daily-plan.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-12-14 04:52:04
+# Effective stop-time: 2025-12-14 06:52:16
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1121,7 +1121,7 @@ jobs:
           
              2c. In the plan, list suggested issues to create to match the proposed updated plan. Don't create any issues, just list the suggestions. Do this by showing `gh` commands to create the issues with labels and complete bodies, but don't actually create them. Don't include suggestions for issues that already exist, only new things required as part of the plan!
           
-          3. Create a new planning discussion with the project plan in its body. 
+          3. Create a new planning discussion with the project plan in its body.
           
              3a. Create a discussion with an appropriate title starting with "${GH_AW_EXPR_F76B6721}" and the current date (e.g., "Daily Plan - 2025-10-10"), using the project plan as the body.
           
@@ -3587,8 +3587,8 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_DISCUSSION_CATEGORY: "announcements"
           GH_AW_WORKFLOW_NAME: "Agentic Planner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-plan.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-plan.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-plan.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-plan.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4101,8 +4101,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Planner"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-plan.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-plan.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-plan.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-plan.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4215,7 +4215,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-12-14 04:52:04
+          GH_AW_STOP_TIME: 2025-12-14 06:52:16
           GH_AW_WORKFLOW_NAME: "Agentic Planner"
         with:
           script: |

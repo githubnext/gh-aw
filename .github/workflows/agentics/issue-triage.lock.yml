@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/issue-triage.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/issue-triage.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-12-14 04:52:04
+# Effective stop-time: 2025-12-14 06:52:25
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -531,8 +531,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Triage"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/issue-triage.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/issue-triage.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -934,8 +934,8 @@ jobs:
           GH_AW_LABELS_ALLOWED: ""
           GH_AW_LABELS_MAX_COUNT: 5
           GH_AW_WORKFLOW_NAME: "Agentic Triage"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/issue-triage.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/issue-triage.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4897,8 +4897,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Agentic Triage"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/issue-triage.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/issue-triage.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5085,7 +5085,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-12-14 04:52:04
+          GH_AW_STOP_TIME: 2025-12-14 06:52:25
           GH_AW_WORKFLOW_NAME: "Agentic Triage"
         with:
           script: |

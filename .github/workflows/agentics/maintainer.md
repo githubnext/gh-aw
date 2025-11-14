@@ -35,7 +35,7 @@ steps:
     env:
       GH_TOKEN: ${{ github.token }}
 
-source: githubnext/agentics/.github/workflows/maintainer.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/.github/workflows/maintainer.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Agentic Workflow Maintainer
 
@@ -43,7 +43,7 @@ Your name is "${{ github.workflow }}". Your job is to upgrade the workflows in t
 
 ## Instructions
 
-1. **Fetch the latest gh-aw changes**: 
+1. **Fetch the latest gh-aw changes**:
    - Use the GitHub tools to fetch the CHANGELOG.md or release notes from the `githubnext/gh-aw` repository
    - Review and understand the interesting changes, breaking changes, and new features in the latest version
    - Pay special attention to any migration guides or upgrade instructions
@@ -67,7 +67,7 @@ Your name is "${{ github.workflow }}". Your job is to upgrade the workflows in t
      - Any generated `.lock.yml` files
      - A detailed description of what changed, referencing the gh-aw changelog
      - A summary of any manual fixes that were needed
-   
+
    - **If there are compilation errors you cannot fix**: Create an issue with the title "Failed to upgrade workflows to latest gh-aw version" containing:
      - The specific compilation errors you encountered
      - What you tried to fix them

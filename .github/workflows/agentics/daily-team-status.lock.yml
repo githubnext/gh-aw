@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-team-status.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/daily-team-status.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-12-14 04:52:04
+# Effective stop-time: 2025-12-14 06:52:22
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -236,7 +236,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.20.2
-          docker pull mcp/fetch
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1050,7 +1049,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=all",
+                  "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.20.2"
                 ],
                 "tools": ["*"],
@@ -1071,16 +1070,6 @@ jobs:
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }
@@ -1103,19 +1092,19 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Daily Team Status
           
-          1. Search for recent open discussions with title "${GH_AW_EXPR_F76B6721}" in the repository. Read them to understand the context of the team and recent activity, and to avoid duplication. 
+          1. Search for recent open discussions with title "${GH_AW_EXPR_F76B6721}" in the repository. Read them to understand the context of the team and recent activity, and to avoid duplication.
           
           2. Write an upbeat, friendly, motiviating summary of recent activity in the repo.
           
              - Include some or all of the following:
-               * Recent issues activity
-               * Recent pull requests
-               * Recent discussions
-               * Recent releases
-               * Recent comments
-               * Recent code reviews
-               * Recent code changes
-               * Recent failed CI runs
+               - Recent issues activity
+               - Recent pull requests
+               - Recent discussions
+               - Recent releases
+               - Recent comments
+               - Recent code reviews
+               - Recent code changes
+               - Recent failed CI runs
           
              - If little has happened, don't write too much.
           
@@ -1132,12 +1121,12 @@ jobs:
              - Include a short haiku at the end of the report to help orient the team to the season of their work.
           
              - In a note at the end of the report, include a log of
-               * all search queries (web, issues, pulls, content) you used to generate the data for the report
-               * all commands you used to generate the data for the report
-               * all files you read to generate the data for the report
-               * places you didn't have time to read or search, but would have liked to
+               - all search queries (web, issues, pulls, content) you used to generate the data for the report
+               - all commands you used to generate the data for the report
+               - all files you read to generate the data for the report
+               - places you didn't have time to read or search, but would have liked to
           
-             Create a new GitHub discussion with title starting with "${GH_AW_EXPR_F76B6721}" containing a markdown report with your findings. Use links where appropriate.
+             Create a new GitHub discussion containing a markdown report with your findings. Use links where appropriate.
           
              Only a new discussion should be created, no existing discussions should be adjusted.
           
@@ -1374,7 +1363,6 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        # --allow-tool web-fetch
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -1383,7 +1371,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool web-fetch --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -3599,11 +3587,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[team-status] "
           GH_AW_DISCUSSION_CATEGORY: "announcements"
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-team-status.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4116,8 +4104,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-team-status.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/daily-team-status.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4230,7 +4218,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-12-14 04:52:04
+          GH_AW_STOP_TIME: 2025-12-14 06:52:22
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
         with:
           script: |

@@ -24,7 +24,7 @@ tools:
 
 timeout-minutes: 15
 
-source: githubnext/agentics/workflows/daily-dependency-updates.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/workflows/daily-dependency-updates.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Agentic Dependency Updater
 
@@ -35,6 +35,6 @@ Your name is "${{ github.workflow }}". Your job is to act as an agentic coder fo
    - Use the `list_dependabot_alerts` tool to retrieve the list of Dependabot alerts.
    - Use the `get_dependabot_alert` tool to retrieve details of each alert.
 
-2. Create a new PR with title "${{ github.workflow }}". Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then work with a smaller number of updates until things are OK. 
+2. Create a new PR with title "${{ github.workflow }}". Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then work with a smaller number of updates until things are OK.
 
 > NOTE: If you didn't make progress on particular dependency updates, create one overall discussion saying what you've tried, ask for clarification if necessary, and add a link to a new branch containing any investigations you tried.

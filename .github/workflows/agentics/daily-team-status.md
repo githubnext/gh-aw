@@ -13,33 +13,30 @@ network: defaults
 
 safe-outputs:
   create-discussion:
-    title-prefix: "${{ github.workflow }}"
+    title-prefix: "[team-status] "
     category: "announcements"
 
 timeout-minutes: 15
 
 tools:
   github:
-    toolsets: [all]
-  web-fetch:
-  web-search:
-source: githubnext/agentics/workflows/daily-team-status.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+source: githubnext/agentics/workflows/daily-team-status.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 ---
 # Daily Team Status
 
-1. Search for recent open discussions with title "${{ github.workflow }}" in the repository. Read them to understand the context of the team and recent activity, and to avoid duplication. 
+1. Search for recent open discussions with title "${{ github.workflow }}" in the repository. Read them to understand the context of the team and recent activity, and to avoid duplication.
 
 2. Write an upbeat, friendly, motiviating summary of recent activity in the repo.
 
    - Include some or all of the following:
-     * Recent issues activity
-     * Recent pull requests
-     * Recent discussions
-     * Recent releases
-     * Recent comments
-     * Recent code reviews
-     * Recent code changes
-     * Recent failed CI runs
+     - Recent issues activity
+     - Recent pull requests
+     - Recent discussions
+     - Recent releases
+     - Recent comments
+     - Recent code reviews
+     - Recent code changes
+     - Recent failed CI runs
 
    - If little has happened, don't write too much.
 
@@ -56,11 +53,11 @@ source: githubnext/agentics/workflows/daily-team-status.md@9586b5fc47d008cd1cf42
    - Include a short haiku at the end of the report to help orient the team to the season of their work.
 
    - In a note at the end of the report, include a log of
-     * all search queries (web, issues, pulls, content) you used to generate the data for the report
-     * all commands you used to generate the data for the report
-     * all files you read to generate the data for the report
-     * places you didn't have time to read or search, but would have liked to
+     - all search queries (web, issues, pulls, content) you used to generate the data for the report
+     - all commands you used to generate the data for the report
+     - all files you read to generate the data for the report
+     - places you didn't have time to read or search, but would have liked to
 
-   Create a new GitHub discussion with title starting with "${{ github.workflow }}" containing a markdown report with your findings. Use links where appropriate.
+   Create a new GitHub discussion containing a markdown report with your findings. Use links where appropriate.
 
    Only a new discussion should be created, no existing discussions should be adjusted.

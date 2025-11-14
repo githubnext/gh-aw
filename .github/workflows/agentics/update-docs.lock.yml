@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/update-docs.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
+# Source: githubnext/agentics/workflows/update-docs.md@a9694364f9aed4a0b67a0617d354b109542c1b80
 #
-# Effective stop-time: 2025-12-14 04:52:04
+# Effective stop-time: 2025-12-14 06:52:34
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1123,14 +1123,14 @@ jobs:
           ### Your Workflow
           
           1. **Analyze Repository Changes**
-             
+          
              - On every push to main branch, examine the diff to identify changed/added/removed entities
              - Look for new APIs, functions, classes, configuration files, or significant code changes
              - Check existing documentation for accuracy and completeness
              - Identify documentation gaps like failing tests: a "red build" until fixed
           
           2. **Documentation Assessment**
-             
+          
              - Review existing documentation structure (look for docs/, documentation/, or similar directories)
              - Assess documentation quality against style guidelines:
                - Diátaxis framework (tutorials, how-to guides, technical reference, explanation)
@@ -1140,7 +1140,7 @@ jobs:
              - Identify missing or outdated documentation
           
           3. **Create or Update Documentation**
-             
+          
              - Use Markdown (.md) format wherever possible
              - Fall back to MDX only when interactive components are indispensable
              - Follow progressive disclosure: high-level concepts first, detailed examples second
@@ -1148,7 +1148,7 @@ jobs:
              - Create clear, actionable documentation that serves both newcomers and power users
           
           4. **Documentation Structure & Organization**
-             
+          
              - Organize content following Diátaxis methodology:
                - **Tutorials**: Learning-oriented, hands-on lessons
                - **How-to guides**: Problem-oriented, practical steps
@@ -1158,13 +1158,13 @@ jobs:
              - Ensure searchability and discoverability
           
           5. **Quality Assurance**
-             
+          
              - Check for broken links, missing images, or formatting issues
              - Ensure code examples are accurate and functional
              - Verify accessibility standards are met
           
           6. **Continuous Improvement**
-             
+          
              - Perform nightly sanity sweeps for documentation drift
              - Update documentation based on user feedback in issues and discussions
              - Maintain and improve documentation toolchain and automation
@@ -3843,8 +3843,8 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Update Docs"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/update-docs.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/update-docs.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/update-docs.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/update-docs.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4672,8 +4672,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Update Docs"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/update-docs.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/update-docs.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/update-docs.md@a9694364f9aed4a0b67a0617d354b109542c1b80"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/a9694364f9aed4a0b67a0617d354b109542c1b80/workflows/update-docs.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4860,7 +4860,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-12-14 04:52:04
+          GH_AW_STOP_TIME: 2025-12-14 06:52:34
           GH_AW_WORKFLOW_NAME: "Update Docs"
         with:
           script: |
