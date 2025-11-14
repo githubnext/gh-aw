@@ -50,8 +50,22 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 		lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
-		if existingStopTime != "" {
-			// Preserve existing stop time during recompilation
+		// If refresh flag is set, always regenerate the stop time
+		if c.refreshStopTime {
+			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
+			if err != nil {
+				return fmt.Errorf("invalid stop-after format: %w", err)
+			}
+			originalStopTime := stopAfter
+			workflowData.StopTime = resolvedStopTime
+
+			if c.verbose && isRelativeStopTime(originalStopTime) {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Refreshed relative stop-after to: %s", resolvedStopTime)))
+			} else if c.verbose && originalStopTime != resolvedStopTime {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Refreshed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+			}
+		} else if existingStopTime != "" {
+			// Preserve existing stop time during recompilation (default behavior)
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
@@ -112,16 +126,14 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 		return ""
 	}
 
-	// Look for the STOP_TIME line in the safety checks section
-	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "STOP_TIME=") {
-			// Extract the value between quotes
-			start := strings.Index(line, `"`) + 1
-			end := strings.LastIndex(line, `"`)
-			if start > 0 && end > start {
-				return line[start:end]
+		// Look for GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
+		// This is in the env section of the stop time check job
+		if strings.Contains(line, "GH_AW_STOP_TIME:") {
+			prefix := "GH_AW_STOP_TIME:"
+			if idx := strings.Index(line, prefix); idx != -1 {
+				return strings.TrimSpace(line[idx+len(prefix):])
 			}
 		}
 	}

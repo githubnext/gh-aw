@@ -90,3 +90,5 @@ __pycache__/
 test_*.sh
 *.zip
 aw.patch
+
+pkg/cli/.github/aw/actions-lock.json

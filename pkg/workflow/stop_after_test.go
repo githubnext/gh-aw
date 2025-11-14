@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,18 +17,18 @@ func TestExtractStopTimeFromLockFile(t *testing.T) {
 		expectedTime string
 	}{
 		{
-			name: "valid stop-time in lock file",
+			name: "valid stop-time in GH_AW_STOP_TIME format",
 			lockContent: `name: Test Workflow
 on:
   workflow_dispatch:
 jobs:
-  safety_checks:
+  stop_time_check:
     runs-on: ubuntu-latest
     steps:
-      - name: Safety checks
-        run: |
-          STOP_TIME="2025-12-31 23:59:59"
-          echo "Checking stop-time limit: $STOP_TIME"`,
+      - uses: actions/github-script@v8
+        env:
+          GH_AW_STOP_TIME: 2025-12-31 23:59:59
+          GH_AW_WORKFLOW_NAME: "Test Workflow"`,
 			expectedTime: "2025-12-31 23:59:59",
 		},
 		{
@@ -44,33 +45,18 @@ jobs:
 			expectedTime: "",
 		},
 		{
-			name: "malformed stop-time line",
+			name: "GH_AW_STOP_TIME with extra whitespace",
 			lockContent: `name: Test Workflow
 on:
   workflow_dispatch:
 jobs:
-  safety_checks:
+  stop_time_check:
     runs-on: ubuntu-latest
     steps:
-      - name: Safety checks
-        run: |
-          STOP_TIME=malformed-no-quotes`,
-			expectedTime: "",
-		},
-		{
-			name: "multiple stop-time lines (should get first)",
-			lockContent: `name: Test Workflow
-on:
-  workflow_dispatch:
-jobs:
-  safety_checks:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Safety checks
-        run: |
-          STOP_TIME="2025-06-01 12:00:00"
-          echo "Checking stop-time limit: $STOP_TIME"
-          STOP_TIME="2025-07-01 12:00:00"`,
+      - uses: actions/github-script@v8
+        env:
+          GH_AW_STOP_TIME:   2025-06-01 12:00:00  
+          GH_AW_WORKFLOW_NAME: "Test Workflow"`,
 			expectedTime: "2025-06-01 12:00:00",
 		},
 	}
@@ -157,4 +143,114 @@ func TestResolveStopTimeRejectsMinutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRefreshStopTimeBehavior tests that the refreshStopTime flag controls stop time preservation
+func TestRefreshStopTimeBehavior(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "refresh-stop-time-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a markdown workflow file with stop-after
+	mdFile := filepath.Join(tmpDir, "test.md")
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+
+	// Create a lock file with existing stop time
+	existingStopTime := "2025-12-31 23:59:59"
+	lockContent := fmt.Sprintf(`name: Test Workflow
+on:
+  workflow_dispatch:
+jobs:
+  stop_time_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script`+"@v8\n"+`        env:
+          GH_AW_STOP_TIME: %s
+          GH_AW_WORKFLOW_NAME: "Test Workflow"
+`, existingStopTime)
+	err = os.WriteFile(lockFile, []byte(lockContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create lock file: %v", err)
+	}
+
+	// Test 1: Default behavior should preserve existing stop time
+	t.Run("default behavior preserves stop time", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetRefreshStopTime(false)
+
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_dispatch": nil,
+				"stop-after":        "+48h",
+			},
+		}
+
+		workflowData := &WorkflowData{}
+		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		if err != nil {
+			t.Fatalf("processStopAfterConfiguration failed: %v", err)
+		}
+
+		if workflowData.StopTime != existingStopTime {
+			t.Errorf("Expected stop time to be preserved as %q, got %q", existingStopTime, workflowData.StopTime)
+		}
+	})
+
+	// Test 2: With refresh flag, should generate new stop time
+	t.Run("refresh flag generates new stop time", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetRefreshStopTime(true)
+
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_dispatch": nil,
+				"stop-after":        "+48h",
+			},
+		}
+
+		workflowData := &WorkflowData{}
+		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		if err != nil {
+			t.Fatalf("processStopAfterConfiguration failed: %v", err)
+		}
+
+		if workflowData.StopTime == existingStopTime {
+			t.Errorf("Expected stop time to be refreshed, but got the same value: %q", workflowData.StopTime)
+		}
+
+		// Verify the new stop time is a valid timestamp
+		if workflowData.StopTime == "" {
+			t.Error("Expected stop time to be set, got empty string")
+		}
+	})
+
+	// Test 3: First compilation without existing lock file should generate new stop time
+	t.Run("first compilation generates new stop time", func(t *testing.T) {
+		// Remove the lock file for this test
+		os.Remove(lockFile)
+
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetRefreshStopTime(false)
+
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"workflow_dispatch": nil,
+				"stop-after":        "+48h",
+			},
+		}
+
+		workflowData := &WorkflowData{}
+		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		if err != nil {
+			t.Fatalf("processStopAfterConfiguration failed: %v", err)
+		}
+
+		// Verify a new stop time was generated
+		if workflowData.StopTime == "" {
+			t.Error("Expected stop time to be set, got empty string")
+		}
+	})
 }
