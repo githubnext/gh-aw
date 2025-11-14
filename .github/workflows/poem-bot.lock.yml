@@ -1897,6 +1897,147 @@ jobs:
               }
               throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
             }
+            const generateGitPatchHandler = args => {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const defaultBranch = process.env.DEFAULT_BRANCH || "main";
+              try {
+                let branchName = null;
+                if (fs.existsSync(outputFile)) {
+                  debug("Reading safe outputs to find branch name...");
+                  const lines = fs.readFileSync(outputFile, "utf8").split("\n");
+                  for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                      const entry = JSON.parse(line);
+                      if (entry.type === "create_pull_request" || entry.type === "push_to_pull_request_branch") {
+                        if (entry.branch) {
+                          branchName = entry.branch;
+                          debug(`Found branch name from ${entry.type}: ${branchName}`);
+                          break;
+                        }
+                      }
+                    } catch (parseError) {
+                      continue;
+                    }
+                  }
+                }
+                if (!branchName) {
+                  debug("No branch found in safe outputs, no patch generation");
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({ 
+                          result: "no_branch",
+                          message: "No branch found in safe outputs"
+                        }),
+                      },
+                    ],
+                  };
+                }
+                debug(`Looking for branch: ${branchName}`);
+                try {
+                  execSync(`git show-ref --verify --quiet "refs/heads/${branchName}"`, { cwd, encoding: "utf8" });
+                  debug(`Branch ${branchName} exists`);
+                } catch (error) {
+                  debug(`Branch ${branchName} does not exist`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({ 
+                          result: "no_branch",
+                          message: `Branch ${branchName} does not exist`
+                        }),
+                      },
+                    ],
+                  };
+                }
+                let baseRef;
+                try {
+                  execSync(`git show-ref --verify --quiet "refs/remotes/origin/${branchName}"`, { cwd, encoding: "utf8" });
+                  baseRef = `origin/${branchName}`;
+                  debug(`Using origin/${branchName} as base for patch generation`);
+                } catch (error) {
+                  debug(`origin/${branchName} does not exist, using merge-base with ${defaultBranch}`);
+                  try {
+                    execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8", stdio: "pipe" });
+                  } catch (fetchError) {
+                    debug(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                  }
+                  try {
+                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, { 
+                      cwd, 
+                      encoding: "utf8" 
+                    }).trim();
+                    debug(`Using merge-base as base: ${baseRef}`);
+                  } catch (mergeBaseError) {
+                    throw new Error(`Failed to find merge-base: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}`);
+                  }
+                }
+                let commitCount = 0;
+                try {
+                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, { 
+                    cwd, 
+                    encoding: "utf8" 
+                  }).trim();
+                  commitCount = parseInt(countOutput, 10);
+                  debug(`Number of commits to include: ${commitCount}`);
+                } catch (countError) {
+                  debug(`Failed to count commits: ${countError instanceof Error ? countError.message : String(countError)}`);
+                }
+                debug(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
+                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, { 
+                  cwd, 
+                  encoding: "utf8",
+                  maxBuffer: 10 * 1024 * 1024 
+                });
+                if (!patchContent || !patchContent.trim()) {
+                  debug("Generated patch is empty - no changes between base and branch");
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({ 
+                          result: "no_changes",
+                          message: "No changes to create patch - branch is up to date with base"
+                        }),
+                      },
+                    ],
+                  };
+                }
+                const patchDir = path.dirname(patchPath);
+                if (!fs.existsSync(patchDir)) {
+                  fs.mkdirSync(patchDir, { recursive: true });
+                }
+                fs.writeFileSync(patchPath, patchContent, "utf8");
+                const patchSizeKB = Math.ceil(Buffer.byteLength(patchContent, "utf8") / 1024);
+                const patchLines = patchContent.split("\n").length;
+                debug(`Patch file created: ${patchPath}`);
+                debug(`Patch size: ${patchSizeKB} KB, ${patchLines} lines, ${commitCount} commits`);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify({ 
+                        result: "success",
+                        path: patchPath,
+                        branch: branchName,
+                        base: baseRef,
+                        size_kb: patchSizeKB,
+                        lines: patchLines,
+                        commits: commitCount
+                      }),
+                    },
+                  ],
+                };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                debug(`Failed to generate patch: ${errorMessage}`);
+                throw new Error(`Failed to generate git patch: ${errorMessage}`);
+              }
+            };
             function getBaseBranch() {
               return process.env.GH_AW_BASE_BRANCH || "main";
             }
@@ -2183,6 +2324,16 @@ jobs:
                 handler: uploadAssetHandler,
               },
               {
+                name: "generate_git_patch",
+                description: "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
+                inputSchema: {
+                  type: "object",
+                  properties: {},
+                  additionalProperties: false,
+                },
+                handler: generateGitPatchHandler,
+              },
+              {
                 name: "missing_tool",
                 description: "Report a missing tool or functionality needed to complete tasks",
                 inputSchema: {
@@ -2209,6 +2360,17 @@ jobs:
                 TOOLS[tool.name] = tool;
               }
             });
+            const hasPRTools = Object.keys(safeOutputsConfig).find(config => {
+              const normalized = normTool(config);
+              return normalized === "create_pull_request" || normalized === "push_to_pull_request_branch";
+            });
+            if (hasPRTools) {
+              const patchTool = ALL_TOOLS.find(t => t.name === "generate_git_patch");
+              if (patchTool && !TOOLS["generate_git_patch"]) {
+                TOOLS["generate_git_patch"] = patchTool;
+                debug("Auto-enabled generate_git_patch tool for PR operations");
+              }
+            }
             Object.keys(safeOutputsConfig).forEach(configKey => {
               const normalizedKey = normTool(configKey);
               if (TOOLS[normalizedKey]) {
@@ -5057,128 +5219,227 @@ jobs:
             }
       - name: Generate git patch
         if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_SHA: ${{ github.sha }}
+          GH_AW_MCP_CONFIG: ${{ env.GH_AW_MCP_CONFIG }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          # Diagnostic logging: Show recent commits before patch generation
-          echo "=== Diagnostic: Recent commits (last 5) ==="
-          git log --oneline -5 || echo "Failed to show git log"
-          # Check current git status
-          echo ""
-          echo "=== Diagnostic: Current git status ==="
-          git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
-            echo ""
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
-                  fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
-                fi
-              fi
-            done < "$GH_AW_SAFE_OUTPUTS"
-          fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
-            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Use the default branch name from environment variable
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin "$DEFAULT_BRANCH"
-                # Find merge base between default branch and current branch
-                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Diagnostic logging: Show diff stats before generating patch
-              echo ""
-              echo "=== Diagnostic: Diff stats for patch generation ==="
-              echo "Command: git diff --stat $BASE_REF..$BRANCH_NAME"
-              git diff --stat "$BASE_REF".."$BRANCH_NAME" || echo "Failed to show diff stats"
-              # Diagnostic logging: Count commits to be included
-              echo ""
-              echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
-              echo "Number of commits: $COMMIT_COUNT"
-              if [ "$COMMIT_COUNT" -gt 0 ]; then
-                echo "Commit SHAs:"
-                git log --oneline "$BASE_REF".."$BRANCH_NAME" || echo "Failed to list commits"
-              fi
-              # Diagnostic logging: Show the exact command being used
-              echo ""
-              echo "=== Diagnostic: Generating patch ==="
-              echo "Command: git format-patch $BASE_REF..$BRANCH_NAME --stdout > /tmp/gh-aw/aw.patch"
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
-            else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
-            fi
-          fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            echo ""
-            echo "=== Diagnostic: Patch file information ==="
-            ls -lh /tmp/gh-aw/aw.patch
-            # Get patch file size in KB
-            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
-            echo "Patch file size: ${PATCH_SIZE} KB"
-            # Count lines in patch
-            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
-            echo "Patch file lines: $PATCH_LINES"
-            # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
-            echo "Commits included in patch: $PATCH_COMMITS"
-            # List commit SHAs in the patch
-            if [ "$PATCH_COMMITS" -gt 0 ]; then
-              echo "Commit SHAs in patch:"
-              grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
-            fi
-            # Show the first 50 lines of the patch for review
-            {
-              echo '## Git Patch'
-              echo ''
-              echo '```diff'
-              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
-              echo '...'
-              echo '```'
-              echo ''
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        with:
+          script: |
+            // @ts-check
+            /// <reference types="@actions/github-script" />
+            /**
+             * Call the safe outputs MCP server to generate a git patch
+             * This script replaces the generate_git_patch.sh shell script
+             */
+            const { execSync } = require("child_process");
+            const fs = require("fs");
+            const path = require("path");
+            async function main() {
+              try {
+                // Get MCP config path
+                const mcpConfigPath = process.env.GH_AW_MCP_CONFIG || "/tmp/gh-aw/.copilot/mcp-config.json";
+                const safeOutputsOutputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
+                // Check if MCP config exists
+                if (!fs.existsSync(mcpConfigPath)) {
+                  core.warning("MCP config not found, cannot generate git patch via MCP server");
+                  return;
+                }
+                // Read MCP config to find the safe outputs server
+                const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, "utf8"));
+                const safeOutputsServer = mcpConfig.mcpServers?.safeoutputs;
+                if (!safeOutputsServer) {
+                  core.warning("Safe outputs MCP server not configured");
+                  return;
+                }
+                core.info("Calling safe outputs MCP server to generate git patch...");
+                // The safe outputs MCP server is already running as part of the workflow
+                // We need to invoke it via the MCP client protocol
+                // For now, we'll use the node module directly if it's a local server
+                if (safeOutputsServer.type === "local" && safeOutputsServer.command === "node") {
+                  const serverScript = safeOutputsServer.args[0];
+                  core.info(`Safe outputs server script: ${serverScript}`);
+                  // Create a JSON-RPC request to call the generate_git_patch tool
+                  const request = {
+                    jsonrpc: "2.0",
+                    id: 1,
+                    method: "tools/call",
+                    params: {
+                      name: "generate_git_patch",
+                      arguments: {},
+                    },
+                  };
+                  // Write request to a temp file
+                  const requestFile = "/tmp/gh-aw/mcp-request.jsonl";
+                  fs.writeFileSync(requestFile, JSON.stringify(request) + "\n");
+                  // Call the MCP server
+                  try {
+                    const response = execSync(`cat ${requestFile} | node ${serverScript}`, {
+                      encoding: "utf8",
+                      maxBuffer: 10 * 1024 * 1024, // 10MB
+                    });
+                    core.info(`MCP server response: ${response}`);
+                    // Parse the response
+                    const lines = response
+                      .split("\n")
+                      .filter(line => line.trim())
+                      .filter(line => !line.startsWith("[safeoutputs]")); // Filter out debug messages
+                    for (const line of lines) {
+                      try {
+                        const msg = JSON.parse(line);
+                        if (msg.result) {
+                          const resultText = msg.result.content?.[0]?.text;
+                          if (resultText) {
+                            const result = JSON.parse(resultText);
+                            core.info(`Patch generation result: ${result.result}`);
+                            if (result.result === "success") {
+                              core.info(`Patch created at ${result.path}`);
+                              core.info(`Branch: ${result.branch}, Base: ${result.base}`);
+                              core.info(`Size: ${result.size_kb} KB, Lines: ${result.lines}, Commits: ${result.commits}`);
+                            } else if (result.result === "no_branch") {
+                              core.info(result.message);
+                            } else if (result.result === "no_changes") {
+                              core.info(result.message);
+                            }
+                          }
+                        } else if (msg.error) {
+                          core.error(`MCP server error: ${msg.error.message}`);
+                        }
+                      } catch (parseError) {
+                        // Skip non-JSON lines
+                        continue;
+                      }
+                    }
+                  } catch (execError) {
+                    core.error(`Failed to call MCP server: ${execError instanceof Error ? execError.message : String(execError)}`);
+                  }
+                } else {
+                  core.warning("Safe outputs server is not a local Node.js server, falling back to direct implementation");
+                  // Fallback: implement the logic directly here (same as the handler)
+                  await generatePatchDirectly();
+                }
+              } catch (error) {
+                core.error(`Error generating git patch: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            /**
+             * Fallback implementation that directly generates the patch
+             * This is the same logic as in the safe_outputs_mcp_server.cjs handler
+             */
+            async function generatePatchDirectly() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const defaultBranch = process.env.DEFAULT_BRANCH || "main";
+              const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
+              try {
+                // Read safe outputs to find branch name
+                let branchName = null;
+                if (fs.existsSync(outputFile)) {
+                  core.info("Reading safe outputs to find branch name...");
+                  const lines = fs.readFileSync(outputFile, "utf8").split("\n");
+                  for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                      const entry = JSON.parse(line);
+                      // Check for create_pull_request or push_to_pull_request_branch
+                      if (entry.type === "create_pull_request" || entry.type === "push_to_pull_request_branch") {
+                        if (entry.branch) {
+                          branchName = entry.branch;
+                          core.info(`Found branch name from ${entry.type}: ${branchName}`);
+                          break;
+                        }
+                      }
+                    } catch (parseError) {
+                      // Skip invalid JSON lines
+                      continue;
+                    }
+                  }
+                }
+                if (!branchName) {
+                  core.info("No branch found in safe outputs, no patch generation");
+                  return;
+                }
+                core.info(`Looking for branch: ${branchName}`);
+                // Check if the branch exists
+                try {
+                  execSync(`git show-ref --verify --quiet "refs/heads/${branchName}"`, { cwd, encoding: "utf8", stdio: "pipe" });
+                  core.info(`Branch ${branchName} exists`);
+                } catch (error) {
+                  core.info(`Branch ${branchName} does not exist`);
+                  return;
+                }
+                // Determine base ref for patch generation
+                let baseRef;
+                try {
+                  // Check if origin/<branchName> exists
+                  execSync(`git show-ref --verify --quiet "refs/remotes/origin/${branchName}"`, { cwd, encoding: "utf8", stdio: "pipe" });
+                  baseRef = `origin/${branchName}`;
+                  core.info(`Using origin/${branchName} as base for patch generation`);
+                } catch (error) {
+                  // Use merge-base with default branch
+                  core.info(`origin/${branchName} does not exist, using merge-base with ${defaultBranch}`);
+                  // Fetch the default branch
+                  try {
+                    execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8", stdio: "pipe" });
+                  } catch (fetchError) {
+                    core.info(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                  }
+                  // Find merge base
+                  try {
+                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, {
+                      cwd,
+                      encoding: "utf8",
+                    }).trim();
+                    core.info(`Using merge-base as base: ${baseRef}`);
+                  } catch (mergeBaseError) {
+                    throw new Error(`Failed to find merge-base: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}`);
+                  }
+                }
+                // Count commits to be included
+                let commitCount = 0;
+                try {
+                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, {
+                    cwd,
+                    encoding: "utf8",
+                  }).trim();
+                  commitCount = parseInt(countOutput, 10);
+                  core.info(`Number of commits to include: ${commitCount}`);
+                } catch (countError) {
+                  core.info(`Failed to count commits: ${countError instanceof Error ? countError.message : String(countError)}`);
+                }
+                // Generate the patch
+                core.info(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
+                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, {
+                  cwd,
+                  encoding: "utf8",
+                  maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+                });
+                // Check if patch has content
+                if (!patchContent || !patchContent.trim()) {
+                  core.info("Generated patch is empty - no changes between base and branch");
+                  return;
+                }
+                // Ensure output directory exists
+                const patchDir = path.dirname(patchPath);
+                if (!fs.existsSync(patchDir)) {
+                  fs.mkdirSync(patchDir, { recursive: true });
+                }
+                // Write patch to file
+                fs.writeFileSync(patchPath, patchContent, "utf8");
+                const patchSizeKB = Math.ceil(Buffer.byteLength(patchContent, "utf8") / 1024);
+                const patchLines = patchContent.split("\n").length;
+                core.info(`Patch file created: ${patchPath}`);
+                core.info(`Patch size: ${patchSizeKB} KB, ${patchLines} lines, ${commitCount} commits`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to generate patch: ${errorMessage}`);
+                throw error;
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
       - name: Upload git patch
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5

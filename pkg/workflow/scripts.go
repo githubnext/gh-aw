@@ -64,6 +64,9 @@ var parseCodexLogScriptSource string
 //go:embed js/parse_copilot_log.cjs
 var parseCopilotLogScriptSource string
 
+//go:embed js/call_generate_git_patch.cjs
+var callGenerateGitPatchScriptSource string
+
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -107,6 +110,9 @@ var (
 
 	createPullRequestScript     string
 	createPullRequestScriptOnce sync.Once
+
+	callGenerateGitPatchScript     string
+	callGenerateGitPatchScriptOnce sync.Once
 
 	interpolatePromptBundled     string
 	interpolatePromptBundledOnce sync.Once
@@ -359,6 +365,23 @@ func getCreatePullRequestScript() string {
 		}
 	})
 	return createPullRequestScript
+}
+
+// getCallGenerateGitPatchScript returns the bundled call_generate_git_patch script
+// Bundling is performed on first access and cached for subsequent calls
+func getCallGenerateGitPatchScript() string {
+	callGenerateGitPatchScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(callGenerateGitPatchScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for call_generate_git_patch, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			callGenerateGitPatchScript = callGenerateGitPatchScriptSource
+		} else {
+			callGenerateGitPatchScript = bundled
+		}
+	})
+	return callGenerateGitPatchScript
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script

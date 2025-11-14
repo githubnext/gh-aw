@@ -9,12 +9,20 @@ import (
 func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Generate git patch\n")
 	yaml.WriteString("        if: always()\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          GITHUB_SHA: ${{ github.sha }}\n")
+	yaml.WriteString("          GH_AW_MCP_CONFIG: ${{ env.GH_AW_MCP_CONFIG }}\n")
+	yaml.WriteString("          GITHUB_WORKSPACE: ${{ github.workspace }}\n")
 	yaml.WriteString("          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	scriptLines := strings.Split(getCallGenerateGitPatchScript(), "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) != "" {
+			yaml.WriteString("            " + line + "\n")
+		}
+	}
 	yaml.WriteString("      - name: Upload git patch\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
