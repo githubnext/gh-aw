@@ -35,7 +35,7 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 	// Add step to download artifact
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact", nil)))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
 	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))

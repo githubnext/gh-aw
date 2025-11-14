@@ -407,7 +407,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		steps = append(steps, "      - name: Check stop-time limit\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", data.StopTime))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
@@ -423,7 +423,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check command position\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		steps = append(steps, "        with:\n")
@@ -521,7 +521,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add shallow checkout for timestamp check
 	// Only checkout .github/workflows directory for minimal performance impact
 	steps = append(steps, "      - name: Checkout workflows\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout", data)))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          sparse-checkout: |\n")
 	steps = append(steps, "            .github/workflows\n")
@@ -531,7 +531,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add timestamp check for lock file vs source file
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
 	steps = append(steps, "        with:\n")
@@ -545,7 +545,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: compute-text\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -563,7 +563,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")

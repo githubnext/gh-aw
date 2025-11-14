@@ -171,7 +171,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add checkout step first if needed
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout", nil)))
 		// Always add with section for persist-credentials
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          persist-credentials: false\n")
@@ -268,7 +268,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generatePrompt(yaml, data)
 
 	// Upload prompt to artifact
-	c.generateUploadPrompt(yaml)
+	c.generateUploadPrompt(yaml, data)
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
@@ -277,7 +277,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateCreateAwInfo(yaml, data, engine)
 
 	// Upload info to artifact
-	c.generateUploadAwInfo(yaml)
+	c.generateUploadAwInfo(yaml, data)
 
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
@@ -304,7 +304,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
 	// upload MCP logs (if any MCP tools were used)
-	c.generateUploadMCPLogs(yaml)
+	c.generateUploadMCPLogs(yaml, data)
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
@@ -360,7 +360,7 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 
 	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent-stdio.log\n")
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
@@ -373,7 +373,7 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Upload safe outputs assets\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: safe-outputs-assets\n")
 	yaml.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
@@ -398,7 +398,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", nil)))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
@@ -469,7 +469,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 
 	yaml.WriteString("      - name: Validate agent logs for errors\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", nil)))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
 
@@ -491,26 +491,26 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	}
 }
 
-func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
+func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder, data *WorkflowData) {
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload agentic run info", []string{"/tmp/gh-aw/aw_info.json"})
 
 	yaml.WriteString("      - name: Upload agentic run info\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
+func (c *Compiler) generateUploadPrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload prompt", []string{"/tmp/gh-aw/aw-prompts/prompt.txt"})
 
 	yaml.WriteString("      - name: Upload prompt\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: prompt.txt\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
@@ -525,13 +525,13 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	// No proxy tools anymore - network filtering is handled at workflow level
 }
 
-func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
+func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, data *WorkflowData) {
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload MCP logs", []string{"/tmp/gh-aw/mcp-logs/"})
 
 	yaml.WriteString("      - name: Upload MCP logs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: mcp-logs\n")
 	yaml.WriteString("          path: /tmp/gh-aw/mcp-logs/\n")
@@ -762,7 +762,7 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const fs = require('fs');\n")
@@ -852,7 +852,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
@@ -860,7 +860,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", nil)))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
@@ -903,7 +903,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", nil)))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_output.json\n")
 	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
@@ -948,7 +948,7 @@ func collectUsedActionPins(yamlContent string) map[string]ActionPin {
 		}
 
 		// Check if this action is in our pinned actions
-		if pin, exists := GetActionPinByRepo(actionRepo); exists {
+		if pin, exists := GetActionPinByRepo(actionRepo, nil); exists {
 			usedPins[actionRepo] = pin
 		}
 	}

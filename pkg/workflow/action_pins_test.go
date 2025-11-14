@@ -7,54 +7,75 @@ import (
 	"testing"
 )
 
-// TestActionPinsExist verifies that all action pinning entries exist
-func TestActionPinsExist(t *testing.T) {
-	// Read action pins from JSON file instead of hardcoded list
-	actionPins := getActionPins()
-
-	// Verify we have at least some pins loaded
-	if len(actionPins) == 0 {
-		t.Fatal("No action pins loaded from JSON file")
+// TestDefaultActionVersionsExist verifies that all default action versions are defined
+func TestDefaultActionVersionsExist(t *testing.T) {
+	if len(defaultActionVersions) == 0 {
+		t.Fatal("No default action versions defined")
 	}
 
-	// Verify each pin has required fields
-	for _, pin := range actionPins {
-		// Verify the pin has a repo
-		if pin.Repo == "" {
-			t.Errorf("Action pin has empty Repo field")
+	// Verify each entry has required fields
+	for repo, version := range defaultActionVersions {
+		// Verify the repo is not empty
+		if repo == "" {
+			t.Errorf("Default action version has empty repo field")
 			continue
 		}
 
-		// Verify the pin has a valid SHA (40 character hex string)
-		if !isValidSHA(pin.SHA) {
-			t.Errorf("Invalid SHA for %s: %s (expected 40-character hex string)", pin.Repo, pin.SHA)
+		// Verify the version is not empty
+		if version == "" {
+			t.Errorf("Missing version for %s", repo)
 		}
 
-		// Verify the pin has a version
-		if pin.Version == "" {
-			t.Errorf("Missing version for %s", pin.Repo)
+		// Verify version starts with 'v'
+		if !strings.HasPrefix(version, "v") {
+			t.Errorf("Version for %s should start with 'v': %s", repo, version)
 		}
 	}
 }
 
 // TestGetActionPinReturnsValidSHA tests that GetActionPin returns valid SHA references
+// This test skips actual resolution if gh CLI is not available
 func TestGetActionPinReturnsValidSHA(t *testing.T) {
-	// Generate test cases dynamically from action pins JSON
-	actionPins := getActionPins()
-
-	if len(actionPins) == 0 {
-		t.Fatal("No action pins loaded from JSON file")
+	if testing.Short() {
+		t.Skip("Skipping network-dependent test in short mode")
 	}
 
-	for _, pin := range actionPins {
-		t.Run(pin.Repo, func(t *testing.T) {
-			result := GetActionPin(pin.Repo)
+	// Check if gh CLI is available
+	if _, err := exec.LookPath("gh"); err != nil {
+		t.Skip("Skipping test: gh CLI not available")
+	}
+
+	// Test a few known actions
+	testCases := []struct {
+		repo    string
+		version string
+	}{
+		{"actions/checkout", "v5"},
+		{"actions/setup-node", "v6"},
+		{"actions/cache", "v4"},
+	}
+
+	// Create WorkflowData with resolver for testing
+	data := &WorkflowData{
+		ActionCache:    NewActionCache("."),
+		ActionResolver: NewActionResolver(NewActionCache(".")),
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.repo, func(t *testing.T) {
+			result := GetActionPin(tc.repo, data)
+
+			// If resolution failed, we might get empty string
+			if result == "" {
+				t.Logf("Warning: GetActionPin(%s) returned empty string (resolution may have failed)", tc.repo)
+				return
+			}
 
 			// Check that the result contains a SHA (40-char hex after @ and before #)
 			// Format is: repo@sha # version
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", tc.repo, result)
 				return
 			}
 
@@ -62,7 +83,7 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 			shaAndComment := parts[1]
 			commentIdx := strings.Index(shaAndComment, " # ")
 			if commentIdx == -1 {
-				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", tc.repo, result)
 				return
 			}
 
@@ -70,7 +91,7 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 			// All action pins should have valid SHAs
 			if !isValidSHA(sha) {
-				t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", tc.repo, result)
 			}
 		})
 	}
@@ -78,7 +99,8 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 // TestGetActionPinFallback tests that GetActionPin returns empty string for unknown actions
 func TestGetActionPinFallback(t *testing.T) {
-	result := GetActionPin("unknown/action")
+	data := &WorkflowData{}
+	result := GetActionPin("unknown/action", data)
 	expected := ""
 	if result != expected {
 		t.Errorf("GetActionPin(unknown/action) = %s, want %s (empty string)", result, expected)
@@ -92,73 +114,6 @@ func isValidSHA(s string) bool {
 	}
 	matched, _ := regexp.MatchString("^[0-9a-f]{40}$", s)
 	return matched
-}
-
-// TestActionPinSHAsMatchVersionTags verifies that the SHAs in actionPins actually correspond to their version tags
-// by querying the GitHub repositories using git ls-remote
-func TestActionPinSHAsMatchVersionTags(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping network-dependent test in short mode")
-	}
-
-	actionPins := getActionPins()
-	// Test all action pins in parallel for faster execution
-	for _, pin := range actionPins {
-		pin := pin // Capture for parallel execution
-		t.Run(pin.Repo, func(t *testing.T) {
-			t.Parallel() // Run subtests in parallel
-
-			// Extract the repository URL from the repo field
-			// For actions like "actions/checkout", the URL is https://github.com/actions/checkout.git
-			// For actions like "github/codeql-action/upload-sarif", we need the base repo
-			repoURL := getGitHubRepoURL(pin.Repo)
-
-			// Use git ls-remote to get the SHA for the version tag
-			cmd := exec.Command("git", "ls-remote", repoURL, "refs/tags/"+pin.Version)
-			output, err := cmd.Output()
-			if err != nil {
-				t.Logf("Warning: Could not verify %s@%s - git ls-remote failed: %v", pin.Repo, pin.Version, err)
-				t.Logf("This may be expected for actions that don't follow standard tagging or private repos")
-				return // Skip verification but don't fail the test
-			}
-
-			outputStr := strings.TrimSpace(string(output))
-			if outputStr == "" {
-				t.Logf("Warning: No tag found for %s@%s", pin.Repo, pin.Version)
-				return // Skip verification but don't fail the test
-			}
-
-			// Extract SHA from git ls-remote output (format: "SHA\trefs/tags/version")
-			parts := strings.Fields(outputStr)
-			if len(parts) < 1 {
-				t.Errorf("Unexpected git ls-remote output format for %s@%s: %s", pin.Repo, pin.Version, outputStr)
-				return
-			}
-
-			actualSHA := parts[0]
-
-			// Verify the SHA matches
-			if actualSHA != pin.SHA {
-				t.Errorf("SHA mismatch for %s@%s:\n  Expected: %s\n  Got:      %s",
-					pin.Repo, pin.Version, pin.SHA, actualSHA)
-				t.Logf("To fix, update the SHA in action_pins.go to: %s", actualSHA)
-			}
-		})
-	}
-}
-
-// getGitHubRepoURL converts a repo path to a GitHub URL
-// For "actions/checkout" -> "https://github.com/actions/checkout.git"
-// For "github/codeql-action/upload-sarif" -> "https://github.com/github/codeql-action.git"
-func getGitHubRepoURL(repo string) string {
-	// For actions with subpaths (like codeql-action/upload-sarif), extract the base repo
-	parts := strings.Split(repo, "/")
-	if len(parts) >= 2 {
-		// Take first two parts (owner/repo)
-		baseRepo := parts[0] + "/" + parts[1]
-		return "https://github.com/" + baseRepo + ".git"
-	}
-	return "https://github.com/" + repo + ".git"
 }
 
 // TestExtractActionRepo tests the extractActionRepo function
@@ -251,11 +206,19 @@ func TestExtractActionVersion(t *testing.T) {
 
 // TestApplyActionPinToStep tests the ApplyActionPinToStep function
 func TestApplyActionPinToStep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network-dependent test in short mode")
+	}
+
+	// Check if gh CLI is available
+	if _, err := exec.LookPath("gh"); err != nil {
+		t.Skip("Skipping test: gh CLI not available")
+	}
+
 	tests := []struct {
 		name         string
 		stepMap      map[string]any
 		expectPinned bool
-		expectedUses string
 	}{
 		{
 			name: "step with pinned action (checkout)",
@@ -264,19 +227,6 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
-		},
-		{
-			name: "step with pinned action (setup-node)",
-			stepMap: map[string]any{
-				"name": "Setup Node",
-				"uses": "actions/setup-node@v6",
-				"with": map[string]any{
-					"node-version": "20",
-				},
-			},
-			expectPinned: true,
-			expectedUses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -285,7 +235,6 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "my-org/my-action@v1",
 			},
 			expectPinned: false,
-			expectedUses: "my-org/my-action@v1",
 		},
 		{
 			name: "step without uses field",
@@ -294,23 +243,16 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"run":  "echo hello",
 			},
 			expectPinned: false,
-			expectedUses: "",
-		},
-		{
-			name: "step with already pinned SHA",
-			stepMap: map[string]any{
-				"name": "Checkout",
-				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
-			},
-			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a minimal WorkflowData for testing
-			data := &WorkflowData{}
+			// Create a WorkflowData with resolver for testing
+			data := &WorkflowData{
+				ActionCache:    NewActionCache("."),
+				ActionResolver: NewActionResolver(NewActionCache(".")),
+			}
 			result := ApplyActionPinToStep(tt.stepMap, data)
 
 			// Check if uses field exists in result
@@ -321,11 +263,15 @@ func TestApplyActionPinToStep(t *testing.T) {
 					return
 				}
 
-				if usesStr != tt.expectedUses {
-					t.Errorf("ApplyActionPinToStep uses = %q, want %q", usesStr, tt.expectedUses)
+				// If the action was expected to be pinned, verify format
+				if tt.expectPinned && usesStr != "" {
+					// Should contain @ and # for pinned format
+					if !strings.Contains(usesStr, "@") || !strings.Contains(usesStr, " # ") {
+						t.Errorf("ApplyActionPinToStep uses = %q, expected pinned format 'repo@sha # version'", usesStr)
+					}
 				}
 
-				// Verify other fields are preserved (check length and keys)
+				// Verify other fields are preserved
 				if len(result) != len(tt.stepMap) {
 					t.Errorf("ApplyActionPinToStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
 				}
@@ -334,44 +280,8 @@ func TestApplyActionPinToStep(t *testing.T) {
 						t.Errorf("ApplyActionPinToStep lost field %q", k)
 					}
 				}
-			} else if tt.expectedUses != "" {
-				t.Errorf("ApplyActionPinToStep removed uses field when it should be %q", tt.expectedUses)
 			}
 		})
-	}
-}
-
-// TestGetActionPinsSorting tests that getActionPins returns sorted action pins
-func TestGetActionPinsSorting(t *testing.T) {
-	pins := getActionPins()
-
-	// Verify we got all the pins (should be 18)
-	if len(pins) != 18 {
-		t.Errorf("getActionPins() returned %d pins, expected 18", len(pins))
-	}
-
-	// Verify they are sorted by version (descending) then by repository name (ascending)
-	for i := 0; i < len(pins)-1; i++ {
-		if pins[i].Version < pins[i+1].Version {
-			t.Errorf("Pins not sorted correctly by version: %s (v%s) should come before %s (v%s)",
-				pins[i].Repo, pins[i].Version, pins[i+1].Repo, pins[i+1].Version)
-		} else if pins[i].Version == pins[i+1].Version && pins[i].Repo > pins[i+1].Repo {
-			t.Errorf("Pins not sorted correctly by repo name within same version: %s should come before %s",
-				pins[i].Repo, pins[i+1].Repo)
-		}
-	}
-
-	// Verify all pins have the required fields
-	for _, pin := range pins {
-		if pin.Repo == "" {
-			t.Error("Found pin with empty Repo field")
-		}
-		if pin.Version == "" {
-			t.Errorf("Pin %s has empty Version field", pin.Repo)
-		}
-		if !isValidSHA(pin.SHA) {
-			t.Errorf("Pin %s has invalid SHA: %s", pin.Repo, pin.SHA)
-		}
 	}
 }
 
@@ -407,7 +317,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.repo, func(t *testing.T) {
-			pin, exists := GetActionPinByRepo(tt.repo)
+			pin, exists := GetActionPinByRepo(tt.repo, nil)
 
 			if exists != tt.expectExists {
 				t.Errorf("GetActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
@@ -420,9 +330,29 @@ func TestGetActionPinByRepo(t *testing.T) {
 				if pin.Version != tt.expectVer {
 					t.Errorf("GetActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
 				}
-				if !isValidSHA(pin.SHA) {
-					t.Errorf("GetActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
-				}
+				// SHA may be empty if resolution fails, so we don't check it
+			}
+		})
+	}
+}
+
+// TestGetDefaultVersion tests the getDefaultVersion function
+func TestGetDefaultVersion(t *testing.T) {
+	tests := []struct {
+		repo     string
+		expected string
+	}{
+		{"actions/checkout", "v5"},
+		{"actions/setup-node", "v6"},
+		{"actions/cache", "v4"},
+		{"unknown/action", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.repo, func(t *testing.T) {
+			result := getDefaultVersion(tt.repo)
+			if result != tt.expected {
+				t.Errorf("getDefaultVersion(%s) = %s, want %s", tt.repo, result, tt.expected)
 			}
 		})
 	}

@@ -66,7 +66,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	} else {
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", data)))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 

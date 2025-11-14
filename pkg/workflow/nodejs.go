@@ -13,7 +13,7 @@ var nodejsLog = logger.New("workflow:nodejs")
 func GenerateNodeJsSetupStep() GitHubActionStep {
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-node")),
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-node", nil)),
 		"        with:",
 		"          node-version: '24'",
 	}

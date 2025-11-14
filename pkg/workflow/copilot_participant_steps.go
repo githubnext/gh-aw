@@ -41,7 +41,7 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 	// Add checkout step for gh CLI to work
 	steps = append(steps, "      - name: Checkout repository for gh CLI\n")
 	steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s != ''\n", config.ConditionStepID, config.ConditionOutputKey))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout", nil)))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          persist-credentials: false\n")
 
@@ -89,7 +89,7 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 
 		steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
 		steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s != ''\n", config.ConditionStepID, config.ConditionOutputKey))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", nil)))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 		steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))

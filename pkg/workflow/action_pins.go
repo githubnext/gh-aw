@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,81 +11,85 @@ import (
 
 var actionPinsLog = logger.New("workflow:action_pins")
 
-//go:embed data/action_pins.json
-var actionPinsJSON []byte
-
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
-	Repo    string `json:"repo"`    // e.g., "actions/checkout"
-	Version string `json:"version"` // e.g., "v5" - the golden/default version
-	SHA     string `json:"sha"`     // Full commit SHA for the pinned version
+	Repo    string // e.g., "actions/checkout"
+	Version string // e.g., "v5" - the golden/default version
+	SHA     string // Full commit SHA for the pinned version
 }
 
-// ActionPinsData represents the structure of the embedded JSON file
-type ActionPinsData struct {
-	Version     string               `json:"version"`
-	Description string               `json:"description"`
-	Actions     map[string]ActionPin `json:"actions"`
+// defaultActionVersions maps action repositories to their default/recommended versions
+// These versions are used when no specific version is requested
+var defaultActionVersions = map[string]string{
+	"actions/ai-inference":               "v1",
+	"actions/cache":                      "v4",
+	"actions/checkout":                   "v5",
+	"actions/download-artifact":          "v6",
+	"actions/github-script":              "v8",
+	"actions/setup-dotnet":               "v4",
+	"actions/setup-go":                   "v5",
+	"actions/setup-java":                 "v4",
+	"actions/setup-node":                 "v6",
+	"actions/setup-python":               "v5",
+	"actions/upload-artifact":            "v5",
+	"astral-sh/setup-uv":                 "v5",
+	"denoland/setup-deno":                "v2",
+	"erlef/setup-beam":                   "v1",
+	"github/codeql-action/upload-sarif":  "v3",
+	"haskell-actions/setup":              "v2",
+	"oven-sh/setup-bun":                  "v2",
+	"ruby/setup-ruby":                    "v1",
 }
 
-// getActionPins unmarshals and returns the action pins from the embedded JSON
-// Returns a sorted slice of action pins (by version descending, then by repo name)
-// This is called on-demand rather than cached globally
-func getActionPins() []ActionPin {
-	actionPinsLog.Print("Unmarshaling action pins from embedded JSON")
-
-	var data ActionPinsData
-	if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
-		actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
-		panic(fmt.Sprintf("failed to load action pins: %v", err))
+// getDefaultVersion returns the default version for a given action repository
+func getDefaultVersion(repo string) string {
+	if version, ok := defaultActionVersions[repo]; ok {
+		return version
 	}
-
-	// Convert map to sorted slice
-	pins := make([]ActionPin, 0, len(data.Actions))
-	for _, pin := range data.Actions {
-		pins = append(pins, pin)
-	}
-
-	// Sort by version (descending) then by repo name (ascending)
-	for i := 0; i < len(pins); i++ {
-		for j := i + 1; j < len(pins); j++ {
-			// Compare versions first (descending)
-			if pins[i].Version < pins[j].Version {
-				pins[i], pins[j] = pins[j], pins[i]
-			} else if pins[i].Version == pins[j].Version {
-				// Same version, sort by repo name (ascending)
-				if pins[i].Repo > pins[j].Repo {
-					pins[i], pins[j] = pins[j], pins[i]
-				}
-			}
-		}
-	}
-
-	actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
-	return pins
-}
-
-// GetActionPin returns the pinned action reference for a given action repository
-// It uses the golden/default version defined in actionPins
-// If no pin is found, it returns an empty string
-// The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
-func GetActionPin(actionRepo string) string {
-	actionPins := getActionPins()
-	for _, pin := range actionPins {
-		if pin.Repo == actionRepo {
-			return actionRepo + "@" + pin.SHA + " # " + pin.Version
-		}
-	}
-	// If no pin exists, return empty string to signal that this action is not pinned
 	return ""
 }
 
+// GetActionPin returns the pinned action reference for a given action repository
+// It uses the default version and dynamically resolves the SHA using WorkflowData's resolver
+// If no default version exists or resolution fails, it returns an action reference without SHA
+// The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
+// If data is nil or resolution is not available, returns "repo@version" without SHA
+func GetActionPin(actionRepo string, data *WorkflowData) string {
+	// Get default version for this action
+	version := getDefaultVersion(actionRepo)
+	if version == "" {
+		actionPinsLog.Printf("No default version defined for %s", actionRepo)
+		return ""
+	}
+
+	// If data is nil or no resolver available, return action@version without SHA
+	if data == nil || data.ActionResolver == nil {
+		actionPinsLog.Printf("No resolver available for %s@%s, returning version reference", actionRepo, version)
+		return fmt.Sprintf("%s@%s", actionRepo, version)
+	}
+
+	// Use GetActionPinWithData to resolve the SHA
+	pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
+	if err != nil {
+		actionPinsLog.Printf("Failed to get action pin for %s@%s: %v, falling back to version reference", actionRepo, version, err)
+		// Fallback to version reference without SHA
+		return fmt.Sprintf("%s@%s", actionRepo, version)
+	}
+
+	if pinnedRef == "" {
+		// Resolution returned empty, use version reference
+		return fmt.Sprintf("%s@%s", actionRepo, version)
+	}
+
+	return pinnedRef
+}
+
 // GetActionPinWithData returns the pinned action reference for a given action@version
-// It tries dynamic resolution first, then falls back to hardcoded pins
+// It uses dynamic resolution via ActionResolver
 // If strictMode is true and resolution fails, it returns an error
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
-	// First try dynamic resolution if resolver is available
+	// Use dynamic resolution if resolver is available
 	if data.ActionResolver != nil {
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
@@ -97,42 +99,29 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			}
 			return actionRepo + "@" + sha + " # " + version, nil
 		}
-	}
 
-	// Dynamic resolution failed, try hardcoded pins
-	actionPins := getActionPins()
-	for _, pin := range actionPins {
-		if pin.Repo == actionRepo {
-			// Check if the version matches the hardcoded version
-			if pin.Version == version {
-				return actionRepo + "@" + pin.SHA + " # " + version, nil
-			}
-			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-			if !data.StrictMode {
-				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, pin.Version)
-				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
-			}
-			break
+		// Resolution failed
+		if data.StrictMode {
+			errMsg := fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+			fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+			return "", fmt.Errorf("%s", errMsg)
 		}
+
+		// In non-strict mode, emit warning and return empty string
+		warningMsg := fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+		fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+		return "", nil
 	}
 
-	// No pin available
+	// No resolver available
 	if data.StrictMode {
-		errMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
-		if data.ActionResolver != nil {
-			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
-		}
+		errMsg := fmt.Sprintf("Unable to pin action %s@%s: no resolver available", actionRepo, version)
 		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
 	// In non-strict mode, emit warning and return empty string
-	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
-	if data.ActionResolver != nil {
-		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
-	}
+	warningMsg := fmt.Sprintf("Unable to pin action %s@%s: no resolver available", actionRepo, version)
 	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
 	return "", nil
 }
@@ -241,12 +230,30 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 }
 
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
-func GetActionPinByRepo(repo string) (ActionPin, bool) {
-	actionPins := getActionPins()
-	for _, pin := range actionPins {
-		if pin.Repo == repo {
-			return pin, true
+// It uses the default version for the repository and resolves the SHA dynamically
+func GetActionPinByRepo(repo string, data *WorkflowData) (ActionPin, bool) {
+	version := getDefaultVersion(repo)
+	if version == "" {
+		return ActionPin{}, false
+	}
+
+	// Try to resolve the SHA using the provided WorkflowData
+	sha := ""
+	if data != nil && data.ActionResolver != nil {
+		resolvedSHA, err := data.ActionResolver.ResolveSHA(repo, version)
+		if err == nil && resolvedSHA != "" {
+			sha = resolvedSHA
+			// Save cache
+			if data.ActionCache != nil {
+				_ = data.ActionCache.Save()
+			}
 		}
 	}
-	return ActionPin{}, false
+
+	// Return the ActionPin with the version (SHA may be empty if resolution failed)
+	return ActionPin{
+		Repo:    repo,
+		Version: version,
+		SHA:     sha,
+	}, true
 }

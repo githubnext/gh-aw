@@ -338,11 +338,11 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
 		steps = append(steps, squidLogsCollection)
 
-		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name, workflowData)
 		steps = append(steps, squidLogsUpload)
 
 		// Add firewall log parsing step to create step summary
-		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
+		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name, workflowData)
 		steps = append(steps, firewallLogParsing)
 	}
 
@@ -901,7 +901,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 }
 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact
-func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
+func generateSquidLogsUploadStep(workflowName string, data *WorkflowData) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := fmt.Sprintf("squid-logs-%s", sanitizedName)
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
@@ -909,7 +909,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: Upload Firewall Logs",
 		"        if: always()",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact", data)),
 		"        with:",
 		fmt.Sprintf("          name: %s", artifactName),
 		fmt.Sprintf("          path: %s", squidLogsDir),
@@ -920,7 +920,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 }
 
 // generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary
-func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
+func generateFirewallLogParsingStep(workflowName string, data *WorkflowData) GitHubActionStep {
 	// Get the firewall log parser script
 	parserScript := GetLogParserScript("parse_firewall_logs")
 	if parserScript == "" {
@@ -931,7 +931,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: Parse firewall logs for step summary",
 		"        if: always()",
-		"        uses: " + GetActionPin("actions/github-script"),
+		"        uses: " + GetActionPin("actions/github-script", data),
 		"        with:",
 		"          script: |",
 	}
