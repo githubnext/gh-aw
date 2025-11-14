@@ -331,7 +331,7 @@ jobs:
   run: expensive-command  # BAD - should be conditional
 
 # Don't use inefficient checkout
-- uses: actions/checkout@v4
+- uses: actions/checkout@v5
   with:
     fetch-depth: 0  # BAD - slow, usually not needed
 ```

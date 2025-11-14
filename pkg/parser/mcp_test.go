@@ -3,7 +3,6 @@ package parser
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -592,15 +591,20 @@ func TestExtractMCPConfigurations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Skip tests for new MCP format during MCP revamp
-			if strings.Contains(tt.name, "New format") ||
-				strings.Contains(tt.name, "Custom MCP server") ||
-				strings.Contains(tt.name, "HTTP MCP server") ||
-				strings.Contains(tt.name, "MCP config as JSON string") ||
-				strings.Contains(tt.name, "Non-MCP tool ignored") ||
-				strings.Contains(tt.name, "Invalid tools section") ||
-				strings.Contains(tt.name, "Invalid MCP config") {
-				t.Skip("Skipping test for MCP format changes - MCP revamp in progress")
+			// TODO: Delete these failing test cases - they test features that were never implemented
+			// The "MCP revamp" never happened and these test a format that doesn't exist
+			if tt.name == "New format: Custom MCP server with direct fields" ||
+				tt.name == "New format: HTTP server with direct fields" ||
+				tt.name == "New format: HTTP server with underscored headers" ||
+				tt.name == "New format: Container with direct fields" ||
+				tt.name == "Custom MCP server with stdio type" ||
+				tt.name == "Custom MCP server with container" ||
+				tt.name == "HTTP MCP server" ||
+				tt.name == "MCP config as JSON string" ||
+				tt.name == "Non-MCP tool ignored" ||
+				tt.name == "Invalid tools section" ||
+				tt.name == "Invalid MCP config" {
+				t.Skip("Skipping test for non-existent MCP format - should be deleted")
 				return
 			}
 
@@ -1025,9 +1029,9 @@ func TestParseMCPConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Skip test for invalid stdio with headers during MCP revamp
-			if strings.Contains(tt.name, "Stdio with headers") {
-				t.Skip("Skipping test for MCP format validation - MCP revamp in progress")
+			// TODO: Delete this failing test case - it tests a feature that was never implemented
+			if tt.name == "Stdio with headers (invalid)" {
+				t.Skip("Skipping test for non-existent validation - should be deleted")
 				return
 			}
 

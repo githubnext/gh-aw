@@ -1193,4 +1193,4 @@ gh aw logs <workflow-id>
 
 ### Documentation
 
-For complete CLI documentation, see: https://githubnext.github.io/gh-aw/tools/cli/
+For complete CLI documentation, see: https://githubnext.github.io/gh-aw/setup/cli/

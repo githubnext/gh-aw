@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -32,20 +33,30 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
 
-A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
-The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
-The workflow file is then executed by GitHub Actions in response to events in the repository.`,
+Common Tasks:
+  gh aw init                  # Set up a new repository
+  gh aw new my-workflow       # Create your first workflow
+  gh aw compile               # Compile all workflows
+  gh aw run my-workflow       # Execute a workflow
+  gh aw logs my-workflow      # View execution logs
+  gh aw audit <run-id>        # Debug a failed run
+
+For detailed help on any command, use:
+  gh aw [command] --help`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new <workflow-base-name>",
+	Use:   "new [workflow-base-name]",
 	Short: "Create a new workflow Markdown file with example configuration",
 	Long: `Create a new workflow Markdown file with commented examples and explanations of all available options.
 
-The created file will include comprehensive examples of:
+When called without a workflow name (or with --interactive flag), launches an interactive wizard
+to guide you through creating a workflow with custom settings.
+
+When called with a workflow name, creates a template file with comprehensive examples of:
 - All trigger types (on: events)
 - Permissions configuration
 - AI processor settings
@@ -53,13 +64,39 @@ The created file will include comprehensive examples of:
 - All frontmatter options with explanations
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` new my-workflow
+  ` + constants.CLIExtensionPrefix + ` new                      # Interactive mode
+  ` + constants.CLIExtensionPrefix + ` new --interactive        # Interactive mode (explicit)
+  ` + constants.CLIExtensionPrefix + ` new my-workflow          # Create template file
   ` + constants.CLIExtensionPrefix + ` new issue-handler --force`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		workflowName := args[0]
 		forceFlag, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+		interactiveFlag, _ := cmd.Flags().GetBool("interactive")
+
+		// If no arguments provided or interactive flag is set, use interactive mode
+		if len(args) == 0 || interactiveFlag {
+			// Check if running in CI environment
+			if cli.IsRunningInCI() {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Interactive mode cannot be used in CI environments. Please provide a workflow name."))
+				os.Exit(1)
+			}
+
+			// Use default workflow name for interactive mode
+			workflowName := "my-workflow"
+			if len(args) > 0 {
+				workflowName = args[0]
+			}
+
+			if err := cli.CreateWorkflowInteractively(workflowName, verbose, forceFlag); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+			return
+		}
+
+		// Template mode with workflow name
+		workflowName := args[0]
 		if err := cli.NewWorkflow(workflowName, verbose, forceFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
@@ -84,9 +121,9 @@ var removeCmd = &cobra.Command{
 }
 
 var enableCmd = &cobra.Command{
-	Use:   "enable [workflow-name]...",
+	Use:   "enable [workflow-id]...",
 	Short: "Enable agentic workflows",
-	Long: `Enable one or more workflows by name, or all workflows if no names are provided.
+	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
@@ -101,9 +138,9 @@ Examples:
 }
 
 var disableCmd = &cobra.Command{
-	Use:   "disable [workflow-name]...",
+	Use:   "disable [workflow-id]...",
 	Short: "Disable agentic workflows and cancel any in-progress runs",
-	Long: `Disable one or more workflows by name, or all workflows if no names are provided.
+	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
@@ -130,7 +167,7 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - For Go: Creates go.mod for go install/get packages
   - Creates .github/dependabot.yml with all detected ecosystems
   - Use --force to overwrite existing dependabot.yml
-  - Cannot be used with specific workflow files or custom --workflows-dir
+  - Cannot be used with specific workflow files or custom --dir
   - Only processes workflows in the default .github/workflows directory
 
 Examples:
@@ -138,7 +175,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
-  ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
+  ` + constants.CLIExtensionPrefix + ` compile --dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
   ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
@@ -147,7 +184,8 @@ Examples:
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
-		workflowDir, _ := cmd.Flags().GetString("workflows-dir")
+		dir, _ := cmd.Flags().GetString("dir")
+		workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
@@ -163,6 +201,16 @@ Examples:
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
+		}
+
+		// Handle --workflows-dir deprecation
+		workflowDir := dir
+		if workflowsDir != "" {
+			if dir != "" {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("cannot use both --dir and --workflows-dir flags"))
+				os.Exit(1)
+			}
+			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
 			MarkdownFiles:        args,
@@ -185,18 +233,24 @@ Examples:
 			JSONOutput:           jsonOutput,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			errMsg := err.Error()
+			// Check if error is already formatted (contains suggestions or starts with ✗)
+			if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
+				fmt.Fprintln(os.Stderr, errMsg)
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+			}
 			os.Exit(1)
 		}
 	},
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow-id-or-name>...",
+	Use:   "run <workflow-id>...",
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-This command accepts one or more workflow IDs or agentic workflow names.
+This command accepts one or more workflow IDs.
 The workflows must have been added as actions and compiled.
 
 This command only works with workflows that have workflow_dispatch triggers.
@@ -241,6 +295,24 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
+	// Add command groups to root command
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "setup",
+		Title: "Setup Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "development",
+		Title: "Development Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "execution",
+		Title: "Execution Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "analysis",
+		Title: "Analysis Commands:",
+	})
+
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
 
@@ -329,14 +401,17 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Create and setup init command
 	initCmd := cli.NewInitCommand()
 
-	// Add force flag to new command
+	// Add flags to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
-	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
+	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
@@ -364,6 +439,31 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
 
+	// Create commands that need group assignment
+	mcpCmd := cli.NewMCPCommand()
+	logsCmd := cli.NewLogsCommand()
+	auditCmd := cli.NewAuditCommand()
+
+	// Assign commands to groups
+	// Setup Commands
+	initCmd.GroupID = "setup"
+	newCmd.GroupID = "setup"
+	addCmd.GroupID = "setup"
+
+	// Development Commands
+	compileCmd.GroupID = "development"
+	mcpCmd.GroupID = "development"
+	statusCmd.GroupID = "development"
+
+	// Execution Commands
+	runCmd.GroupID = "execution"
+	enableCmd.GroupID = "execution"
+	disableCmd.GroupID = "execution"
+
+	// Analysis Commands
+	logsCmd.GroupID = "analysis"
+	auditCmd.GroupID = "analysis"
+
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(updateCmd)
@@ -371,15 +471,14 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
 
-	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(enableCmd)
 	rootCmd.AddCommand(disableCmd)
-	rootCmd.AddCommand(cli.NewLogsCommand())
-	rootCmd.AddCommand(cli.NewAuditCommand())
-	rootCmd.AddCommand(cli.NewMCPCommand())
+	rootCmd.AddCommand(logsCmd)
+	rootCmd.AddCommand(auditCmd)
+	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(cli.NewMCPServerCommand())
 	rootCmd.AddCommand(cli.NewPRCommand())
 	rootCmd.AddCommand(versionCmd)

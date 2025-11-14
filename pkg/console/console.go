@@ -435,6 +435,21 @@ func FormatErrorMessage(message string) string {
 	return applyStyle(errorStyle, "✗ ") + message
 }
 
+// FormatErrorWithSuggestions formats an error message with actionable suggestions
+func FormatErrorWithSuggestions(message string, suggestions []string) string {
+	var output strings.Builder
+	output.WriteString(FormatErrorMessage(message))
+
+	if len(suggestions) > 0 {
+		output.WriteString("\n\nSuggestions:\n")
+		for _, suggestion := range suggestions {
+			output.WriteString("  • " + suggestion + "\n")
+		}
+	}
+
+	return output.String()
+}
+
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects
 func RenderTableAsJSON(config TableConfig) (string, error) {

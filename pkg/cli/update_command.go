@@ -11,21 +11,20 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
 // NewUpdateCommand creates the update command
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update [workflow-name]...",
+		Use:   "update [workflow-id]...",
 		Short: "Update workflows from their source repositories and check for gh-aw updates",
 		Long: `Update one or more workflows from their source repositories and check for gh-aw updates.
 
 The command:
 1. Checks if a newer version of gh-aw is available
 2. Updates workflows using the 'source' field in the workflow frontmatter
-3. Recompiles all workflows
+3. Compiles each workflow immediately after update
 
 For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
@@ -37,20 +36,24 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
-  ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes`,
+  ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
+  ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory`,
 		Run: func(cmd *cobra.Command, args []string) {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			prFlag, _ := cmd.Flags().GetBool("pr")
+			workflowDir, _ := cmd.Flags().GetString("dir")
+			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+			stopAfter, _ := cmd.Flags().GetString("stop-after")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
-			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag); err != nil {
+			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -61,6 +64,9 @@ Examples:
 	cmd.Flags().Bool("force", false, "Force update even if no changes detected")
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
+	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the updated workflow")
+	cmd.Flags().String("stop-after", "", "Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	return cmd
 }
@@ -106,50 +112,23 @@ func checkExtensionUpdate(verbose bool) error {
 	return nil
 }
 
-// runCompileWorkflows runs the compile command to recompile all workflows
-func runCompileWorkflows(verbose bool, engineOverride string) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Compiling workflows..."))
-	}
-
-	// Create a compiler instance similar to how compile command does it
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-
-	// Compile all workflows in the workflows directory
-	workflowsDir := getWorkflowsDir()
-	_, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to compile workflows: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully compiled all workflows"))
-	}
-	return nil
-}
-
 // UpdateWorkflowsWithExtensionCheck performs the complete update process:
 // 1. Check for gh-aw extension updates
-// 2. Update workflows from source repositories
-// 3. Compile all workflows
-// 4. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool) error {
+// 2. Update workflows from source repositories (compiles each workflow after update)
+// 3. Optionally create a PR
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string) error {
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
 		return fmt.Errorf("extension update check failed: %w", err)
 	}
 
 	// Step 2: Update workflows from source repositories
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride); err != nil {
+	// Note: Each workflow is compiled immediately after update
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 3: Compile all workflows
-	if err := runCompileWorkflows(verbose, engineOverride); err != nil {
-		return fmt.Errorf("compile failed: %w", err)
-	}
-
-	// Step 4: Optionally create PR if flag is set
+	// Step 3: Optionally create PR if flag is set
 	if createPR {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
@@ -243,8 +222,11 @@ func createUpdatePR(verbose bool) error {
 }
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string) error {
-	workflowsDir := getWorkflowsDir()
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string) error {
+	// Use provided workflows directory or default
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
 
 	// Find all workflows with source field
 	workflows, err := findWorkflowsWithSource(workflowsDir, workflowNames, verbose)
@@ -261,21 +243,29 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))
 
+	// Track update results
+	var successfulUpdates []string
+	var failedUpdates []updateFailure
+
 	// Update each workflow
-	updatedCount := 0
 	for _, wf := range workflows {
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, err)))
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter); err != nil {
+			failedUpdates = append(failedUpdates, updateFailure{
+				Name:  wf.Name,
+				Error: err.Error(),
+			})
 			continue
 		}
-		updatedCount++
+		successfulUpdates = append(successfulUpdates, wf.Name)
 	}
 
-	if updatedCount == 0 {
+	// Show summary
+	showUpdateSummary(successfulUpdates, failedUpdates)
+
+	if len(successfulUpdates) == 0 {
 		return fmt.Errorf("no workflows were successfully updated")
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated %d workflow(s)", updatedCount)))
 	return nil
 }
 
@@ -284,6 +274,37 @@ type workflowWithSource struct {
 	Name       string
 	Path       string
 	SourceSpec string // e.g., "owner/repo/path@ref"
+}
+
+// updateFailure represents a failed workflow update
+type updateFailure struct {
+	Name  string
+	Error string
+}
+
+// showUpdateSummary displays a summary of workflow updates using console helpers
+func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Update Summary ==="))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Show successful updates
+	if len(successfulUpdates) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated and compiled %d workflow(s):", len(successfulUpdates))))
+		for _, name := range successfulUpdates {
+			fmt.Fprintf(os.Stderr, "  ✓ %s\n", name)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Show failed updates
+	if len(failedUpdates) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
+		for _, failure := range failedUpdates {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %s\n", failure.Name, failure.Error)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
 }
 
 // findWorkflowsWithSource finds all workflows that have a source field
@@ -523,7 +544,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string) error {
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source: %s", wf.SourceSpec)))
@@ -554,6 +575,30 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Check if update is needed
 	if !force && currentRef == latestRef {
+		// Download the source content to check if local file has been modified
+		sourceContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		if err != nil {
+			// If we can't download for comparison, just show the up-to-date message
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download source for comparison: %v", err)))
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			return nil
+		}
+
+		// Read current workflow content
+		currentContent, err := os.ReadFile(wf.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read current workflow: %w", err)
+		}
+
+		// Check if local file differs from source
+		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
+			return nil
+		}
+
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
 		return nil
 	}
@@ -588,6 +633,35 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	mergedContent, hasConflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to merge workflow content: %w", err)
+	}
+
+	// Handle stop-after field modifications
+	if noStopAfter {
+		// Remove stop-after field if requested
+		cleanedContent, err := RemoveFieldFromOnTrigger(mergedContent, "stop-after")
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove stop-after field: %v", err)))
+			}
+		} else {
+			mergedContent = cleanedContent
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
+			}
+		}
+	} else if stopAfter != "" {
+		// Set custom stop-after value if provided
+		updatedContent, err := SetFieldInOnTrigger(mergedContent, "stop-after", stopAfter)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
+			}
+		} else {
+			mergedContent = updatedContent
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", stopAfter)))
+			}
+		}
 	}
 
 	// Write updated content
@@ -651,6 +725,70 @@ func normalizeWhitespace(content string) string {
 	}
 
 	return normalized
+}
+
+// hasLocalModifications checks if the local workflow file has been modified from its source
+// It resolves the source field and imports on the remote content, then compares with local
+// Note: stop-after field is ignored during comparison as it's a deployment-specific setting
+func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
+	// Normalize both contents
+	sourceNormalized := normalizeWhitespace(sourceContent)
+	localNormalized := normalizeWhitespace(localContent)
+
+	// Remove stop-after field from both contents for comparison
+	// This field is deployment-specific and should not trigger "local modifications" warnings
+	sourceNormalized, _ = RemoveFieldFromOnTrigger(sourceNormalized, "stop-after")
+	localNormalized, _ = RemoveFieldFromOnTrigger(localNormalized, "stop-after")
+
+	// Parse the source spec to get repo and ref information
+	parsedSourceSpec, err := parseSourceSpec(sourceSpec)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse source spec: %v", err)))
+		}
+		// Fall back to simple comparison
+		return sourceNormalized != localNormalized
+	}
+
+	// Add the source field to the remote content
+	sourceWithSource, err := UpdateFieldInFrontmatter(sourceNormalized, "source", sourceSpec)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to add source field to remote content: %v", err)))
+		}
+		// Fall back to simple comparison
+		return sourceNormalized != localNormalized
+	}
+
+	// Resolve imports on the remote content
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: parsedSourceSpec.Repo,
+			Version:  parsedSourceSpec.Ref,
+		},
+		WorkflowPath: parsedSourceSpec.Path,
+	}
+
+	sourceResolved, err := processIncludesInContent(sourceWithSource, workflow, parsedSourceSpec.Ref, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to process imports on remote content: %v", err)))
+		}
+		// Use the version with source field but without resolved imports
+		sourceResolved = sourceWithSource
+	}
+
+	// Normalize again after processing
+	sourceResolvedNormalized := normalizeWhitespace(sourceResolved)
+
+	// Compare the normalized contents
+	hasModifications := sourceResolvedNormalized != localNormalized
+
+	if verbose && hasModifications {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Local modifications detected"))
+	}
+
+	return hasModifications
 }
 
 // MergeWorkflowContent performs a 3-way merge of workflow content using git merge-file

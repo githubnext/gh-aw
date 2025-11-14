@@ -3,32 +3,23 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
+# Source: githubnext/agentics/workflows/daily-team-status.md@1e366aa4518cf83d25defd84e454b9a41e87cf7c
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/reporting.md
+# Effective stop-time: 2025-12-14 13:10:46
 #
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   add_comment["add_comment"]
 #   agent["agent"]
 #   create_discussion["create_discussion"]
-#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   agent --> add_comment
-#   create_discussion --> add_comment
-#   create_pull_request --> add_comment
-#   detection --> add_comment
+#   pre_activation["pre_activation"]
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> create_discussion
 #   detection --> create_discussion
-#   agent --> create_pull_request
-#   activation --> create_pull_request
-#   detection --> create_pull_request
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
@@ -46,35 +37,26 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Daily Test Coverage Improver"
+name: "Daily Team Status"
 "on":
   schedule:
-  - cron: "0 2 * * 1-5"
+  - cron: "0 9 * * 1-5"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  attestations: read
-  checks: read
   contents: read
-  deployments: read
-  discussions: read
   issues: read
-  models: read
-  packages: read
-  pages: read
   pull-requests: read
-  repository-projects: read
-  security-events: read
-  statuses: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Test Coverage Improver"
+run-name: "Daily Team Status"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -90,7 +72,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-test-improver.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-team-status.lock.yml"
         with:
           script: |
             const fs = require("fs");
@@ -161,442 +143,13 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  add_comment:
-    needs:
-      - agent
-      - create_discussion
-      - create_pull_request
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
-    steps:
-      - name: Debug agent outputs
-        env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-        run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Add Issue Comment
-        id: add_comment
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_TARGET: "*"
-          GITHUB_AW_COMMENT_DISCUSSION: "true"
-          GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
-          GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
-          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getCampaign(format) {
-              const campaign = process.env.GH_AW_CAMPAIGN || "";
-              if (campaign) {
-                core.info(`Campaign: ${campaign}`);
-                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
-              }
-              return "";
-            }
-            function getRepositoryUrl() {
-              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-              if (targetRepoSlug) {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${targetRepoSlug}`;
-              } else if (context.payload.repository?.html_url) {
-                return context.payload.repository.html_url;
-              } else {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-              }
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              let result;
-              if (replyToId) {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message, replyToId }
-                );
-              } else {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message }
-                );
-              }
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const commentItems = result.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getTargetNumber(item) {
-                return item.item_number;
-              }
-              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "#### Related Items\n\n";
-                  if (createdIssueUrl && createdIssueNumber) {
-                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  }
-                  if (createdDiscussionUrl && createdDiscussionNumber) {
-                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  }
-                  if (createdPullRequestUrl && createdPullRequestNumber) {
-                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  }
-                  summaryContent += "\n";
-                }
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-                return;
-              }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let itemNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    itemNumber = parseInt(targetNumber, 10);
-                    if (isNaN(itemNumber) || itemNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
-                      continue;
-                    }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
-                  } else {
-                    core.info(`Target is "*" but no number specified in comment item`);
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  itemNumber = parseInt(commentTarget, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  if (isIssueContext) {
-                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                    if (context.payload.issue) {
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                    if (context.payload.pull_request) {
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  } else if (isDiscussionContext) {
-                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!itemNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                let hasReferences = false;
-                let referencesSection = "\n\n#### Related Items\n\n";
-                if (createdIssueUrl && createdIssueNumber) {
-                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdDiscussionUrl && createdDiscussionNumber) {
-                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdPullRequestUrl && createdPullRequestNumber) {
-                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  hasReferences = true;
-                }
-                if (hasReferences) {
-                  body += referencesSection;
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getCampaign("markdown");
-                body += generateFooter(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
-                try {
-                  let comment;
-                  if (commentEndpoint === "discussions") {
-                    core.info(`Creating comment on discussion #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    let replyToId;
-                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
-                      replyToId = context.payload.comment.node_id;
-                      core.info(`Creating threaded reply to comment ${replyToId}`);
-                    }
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: itemNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      attestations: read
-      checks: read
       contents: read
-      deployments: read
-      discussions: read
       issues: read
-      models: read
-      packages: read
-      pages: read
       pull-requests: read
-      repository-projects: read
-      security-events: read
-      statuses: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -610,21 +163,6 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
-      - id: check_coverage_steps_file
-        name: Check if action.yml exists
-        run: |
-          if [ -f ".github/actions/daily-test-improver/coverage-steps/action.yml" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-        shell: bash
-      - continue-on-error: true
-        id: coverage-steps
-        if: steps.check_coverage_steps_file.outputs.exists == 'true'
-        name: Build the project and produce coverage report, logging to coverage-steps.log
-        uses: ./.github/actions/daily-test-improver/coverage-steps
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -699,17 +237,16 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.20.2
-          docker pull mcp/fetch
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1,"target":"*"},"create_discussion":{"max":1},"create_pull_request":{},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1518,7 +1055,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=all",
+                  "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.20.2"
                 ],
                 "tools": ["*"],
@@ -1539,16 +1076,6 @@ jobs:
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }
@@ -1569,178 +1096,27 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ## Report Formatting
+          # Daily Team Status
           
-          Structure your report with an overview followed by detailed content:
+          Create an upbeat daily status report for the team as a GitHub discussion.
           
-          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          ## What to include
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          - Recent repository activity (issues, PRs, discussions, releases, code changes)
+          - Team productivity suggestions and improvement ideas
+          - Community engagement highlights
+          - Project investment and feature recommendations
           
-          **Example format:**
+          ## Style
           
-          `````markdown
-          Brief overview paragraph 1 introducing the report and its main findings.
+          - Be positive, encouraging, and helpful 🌟
+          - Use emojis moderately for engagement
+          - Keep it concise - adjust length based on actual activity
           
-          Optional overview paragraph 2 with additional context or highlights.
+          ## Process
           
-          <details>
-          <summary><b>Full Report Details</b></summary>
-          
-          ## Detailed Analysis
-          
-          Full report content with all sections, tables, and detailed information goes here.
-          
-          ### Section 1
-          [Content]
-          
-          ### Section 2
-          [Content]
-          
-          </details>
-          `````
-          
-          ## Reporting Workflow Run Information
-          
-          When analyzing workflow run logs or reporting information from GitHub Actions runs:
-          
-          ### 1. Workflow Run ID Formatting
-          
-          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-          
-          **Format:**
-          `````markdown
-          [§12345](https://github.com/owner/repo/actions/runs/12345)
-          `````
-          
-          **Example:**
-          `````markdown
-          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          `````
-          
-          ### 2. Document References for Workflow Runs
-          
-          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-          
-          **Format:**
-          `````markdown
-          ---
-          
-          **References:**
-          - [§12345](https://github.com/owner/repo/actions/runs/12345)
-          - [§12346](https://github.com/owner/repo/actions/runs/12346)
-          - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          `````
-          
-          **Guidelines:**
-          - Include **maximum 3 references** to keep reports concise
-          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-          - If analyzing more than 3 runs, select the most important ones for references
-          
-          ## Footer Attribution
-          
-          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-          
-          # Daily Test Coverage Improver
-          
-          ## Job Description
-          
-          You are an AI test engineer for `${GH_AW_EXPR_D892F163}`. Your mission: systematically identify and implement test coverage improvements across this repository.
-          
-          You are doing your work in phases. Right now you will perform just one of the following three phases. Choose the phase depending on what has been done so far.
-          
-          ## Phase selection
-          
-          To decide which phase to perform:
-          
-          1. First check for existing open discussion titled "${GH_AW_EXPR_F76B6721}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
-          
-          2. Next check if `.github/actions/daily-test-improver/coverage-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
-          
-          3. Finally, if both those exist, then perform Phase 3.
-          
-          ## Phase 1 - Testing research
-          
-          1. Research the current state of test coverage in the repository. Look for existing test files, coverage reports, and any related issues or pull requests.
-          
-          2. Create a discussion with title "${GH_AW_EXPR_F76B6721} - Research and Plan" that includes:
-            - A summary of your findings about the repository, its testing strategies, its test coverage
-            - A plan for how you will approach improving test coverage, including specific areas to focus on and strategies to use
-            - Details of the commands needed to run to build the project, run tests, and generate coverage reports
-            - Details of how tests are organized in the repo, and how new tests should be organized
-            - Opportunities for new ways of greatly increasing test coverage
-            - Any questions or clarifications needed from maintainers
-          
-          3. Exit this entire workflow, do not proceed to Phase 2 on this run. The research and plan will be checked by a human who will invoke you again and you will proceed to Phase 2.
-          
-          ## Phase 2 - Coverage steps inference and configuration
-          
-          1. Check if an open pull request with title "${GH_AW_EXPR_F76B6721} - Updates to complete configuration" exists in this repo. If it does, add a comment to the pull request saying configuration needs to be completed, then exit the workflow.
-          
-          2. Have a careful think about the CI commands needed to build the repository, run tests, produce a combined coverage report and upload it as an artifact. Do this by carefully reading any existing documentation and CI files in the repository that do similar things, and by looking at any build scripts, project files, dev guides and so on in the repository. If multiple projects are present, perform build and coverage testing on as many as possible, and where possible merge the coverage reports into one combined report. Work out the steps you worked out, in order, as a series of YAML steps suitable for inclusion in a GitHub Action.
-          
-          3. Create the file `.github/actions/daily-test-improver/coverage-steps/action.yml` containing these steps, ensuring that the action.yml file is valid. Leave comments in the file to explain what the steps are doing, where the coverage report will be generated, and any other relevant information. Ensure that the steps include uploading the coverage report(s) as an artifact called "coverage".  Each step of the action should append its output to a file called `coverage-steps.log` in the root of the repository. Ensure that the action.yml file is valid and correctly formatted.
-          
-          4. Before running any of the steps, make a pull request for the addition of the `action.yml` file, with title "${GH_AW_EXPR_F76B6721} - Updates to complete configuration". Encourage the maintainer to review the files carefully to ensure they are appropriate for the project.
-          
-          5. Try to run through the steps you worked out manually one by one. If the a step needs updating, then update the branch you created in step 2e. Continue through all the steps. If you can't get it to work, then create an issue describing the problem and exit the entire workflow.
-          
-          6. Add brief comment (1 or 2 sentences) to the discussion identified at the start of the workflow stating what you've done. If you have taken successful initial coverage numbers for the repository, report the initial coverage numbers appropriately. Then exit the entire workflow.
-          
-          ## Phase 3 - Work selection, work and results
-          
-          1. **Decide what to work on**
-          
-             a. You can assume that the repository is in a state where the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` have been run and a test coverage report has been generated, perhaps with other detailed coverage information. Look at the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` to work out what has been run and where the coverage report should be, and find it. Also read any output files such as `coverage-steps.log` to understand what has been done. If the coverage steps failed, work out what needs to be fixed in `.github/actions/daily-test-improver/coverage-steps/action.yml` and make a pull request for those fixes and exit the entire workflow. If you can't find the coverage report, read a previous actions log for the run, or otherwise work out why the build or coverage generation failed by going through it step by step, then create an issue describing the problem. Only continue if you have a valid fresh coverage report.
-          
-             b. Read the coverge report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
-             
-             c. Check the most recent pull request with title starting with "${GH_AW_EXPR_F76B6721}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
-          
-             d. Check for existing open pull opened by you starting with title "${GH_AW_EXPR_F76B6721}". Don't repeat work from any open pull requests.
-             
-             e. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step (f).
-            
-             f. Based on all of the above, select an area of relatively low coverage to work on that appear tractable for further test additions.
-          
-          2. **Do the work**. Do the following:
-          
-             a. Create a new branch
-             
-             b. Write new tests to improve coverage. Ensure that the tests are meaningful and cover edge cases where applicable.
-          
-             c. Build the tests if necessary and remove any build errors.
-             
-             d. Run the new tests to ensure they pass.
-          
-             e. Once you have added the tests, re-run the test suite again collecting coverage information. Check that overall coverage has improved. If coverage has not improved then exit.
-          
-             f. Apply any automatic code formatting used in the repo
-             
-             g. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
-          
-             h. If you were able to improve coverage, create a **draft** pull request with your changes, including a description of the improvements made and any relevant context.
-          
-              - Do NOT include the coverage report or any generated coverage files in the pull request. Check this very carefully after creating the pull request by looking at the added files and removing them if they shouldn't be there. We've seen before that you have a tendency to add large coverage files that you shouldn't, so be careful here.
-          
-              - In the description of the pull request, include
-                - A summary of the changes made
-                - The problems you found
-                - The actions you took
-                - Include a section "Test coverage results" giving exact coverage numbers before and after the changes, drawing from the coverage reports, in a table if possible. Include changes in numbers for overall coverage. If coverage numbers a guesstimates, rather than based on coverage reports, say so. Don't blag, be honest. Include the exact commands the user will need to run to validate accurate coverage numbers.
-                - Include a section "Replicating the test coverage measurements" with the exact commands needed to install dependencies, build the code, run tests, generate coverage reports including a summary before/after table, so that someone else can replicate them. If you used any scripts or programs to help with this, include them in the repository if appropriate, or include links to them if they are external.
-                - List possible other areas for future improvement
-                - In a collapsed section list
-                  - all bash commands you ran
-                  - all web searches you performed
-                  - all web pages you fetched 
-          
-              - After creation, check the pull request to ensure it is correct, includes all expected files, and doesn't include any unwanted files or changes. Make any necessary corrections by pushing further commits to the branch.
-          
-          3. If you think you found bugs in the code while adding tests, also create one single combined issue for all of them, starting the title of the issue with "${GH_AW_EXPR_F76B6721}". Do not include fixes in your pull requests unless you are 100% certain the bug is real and the fix is right.
-          
-          4. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion titled "${GH_AW_EXPR_F76B6721}" found earlier, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not, and reporting the coverage improvement numbers achieved and current overall coverage numbers.
+          1. Gather recent activity from the repository
+          2. Create a new GitHub discussion with your findings and insights
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1790,26 +1166,6 @@ jobs:
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
-          
-          
-          ---
-          
-          ## File Editing Access
-          
-          **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
-          
-          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
-          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
-          
-          **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
-          
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1819,22 +1175,9 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Reporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Adding a Comment to an Issue or Pull Request**
-          
-          To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
-          
-          **Creating a Pull Request**
-          
-          To create a pull request:
-          1. Make any file changes directly in the working directory
-          2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -1880,8 +1223,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         with:
           script: |
             const fs = require("fs");
@@ -1972,8 +1313,8 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.354",
-              workflow_name: "Daily Test Coverage Improver",
+              agent_version: "0.0.355",
+              workflow_name: "Daily Team Status",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2007,7 +1348,9 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+        # --allow-tool github
+        # --allow-tool safeoutputs
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -2015,7 +1358,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -4198,137 +3541,6 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Generate git patch
-        if: always()
-        env:
-          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_SHA: ${{ github.sha }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          # Diagnostic logging: Show recent commits before patch generation
-          echo "=== Diagnostic: Recent commits (last 5) ==="
-          git log --oneline -5 || echo "Failed to show git log"
-          # Check current git status
-          echo ""
-          echo "=== Diagnostic: Current git status ==="
-          git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
-            echo ""
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
-                  fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
-                fi
-              fi
-            done < "$GH_AW_SAFE_OUTPUTS"
-          fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
-            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Use the default branch name from environment variable
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin "$DEFAULT_BRANCH"
-                # Find merge base between default branch and current branch
-                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Diagnostic logging: Show diff stats before generating patch
-              echo ""
-              echo "=== Diagnostic: Diff stats for patch generation ==="
-              echo "Command: git diff --stat $BASE_REF..$BRANCH_NAME"
-              git diff --stat "$BASE_REF".."$BRANCH_NAME" || echo "Failed to show diff stats"
-              # Diagnostic logging: Count commits to be included
-              echo ""
-              echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
-              echo "Number of commits: $COMMIT_COUNT"
-              if [ "$COMMIT_COUNT" -gt 0 ]; then
-                echo "Commit SHAs:"
-                git log --oneline "$BASE_REF".."$BRANCH_NAME" || echo "Failed to list commits"
-              fi
-              # Diagnostic logging: Show the exact command being used
-              echo ""
-              echo "=== Diagnostic: Generating patch ==="
-              echo "Command: git format-patch $BASE_REF..$BRANCH_NAME --stdout > /tmp/gh-aw/aw.patch"
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
-            else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
-            fi
-          fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            echo ""
-            echo "=== Diagnostic: Patch file information ==="
-            ls -lh /tmp/gh-aw/aw.patch
-            # Get patch file size in KB
-            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
-            echo "Patch file size: ${PATCH_SIZE} KB"
-            # Count lines in patch
-            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
-            echo "Patch file lines: $PATCH_LINES"
-            # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
-            echo "Commits included in patch: $PATCH_COMMITS"
-            # List commit SHAs in the patch
-            if [ "$PATCH_COMMITS" -gt 0 ]; then
-              echo "Commit SHAs in patch:"
-              grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
-            fi
-            # Show the first 50 lines of the patch for review
-            {
-              echo '## Git Patch'
-              echo ''
-              echo '```diff'
-              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
-              echo '...'
-              echo '```'
-              echo ''
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
   create_discussion:
     needs:
@@ -4362,11 +3574,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
-          GH_AW_DISCUSSION_CATEGORY: "ideas"
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[team-status] "
+          GH_AW_DISCUSSION_CATEGORY: "announcements"
+          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@1e366aa4518cf83d25defd84e454b9a41e87cf7c"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1e366aa4518cf83d25defd84e454b9a41e87cf7c/workflows/daily-team-status.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4605,629 +3817,6 @@ jobs:
             }
             await main();
 
-  create_pull_request:
-    needs:
-      - agent
-      - activation
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Pull Request
-        id: create_pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_DRAFT: "true"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message, "commit");
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              if (!commentId) {
-                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-                return;
-              }
-              core.info(`Updating activation comment ${commentId}`);
-              let repoOwner = context.repo.owner;
-              let repoName = context.repo.repo;
-              if (commentRepo) {
-                const parts = commentRepo.split("/");
-                if (parts.length === 2) {
-                  repoOwner = parts[0];
-                  repoName = parts[1];
-                } else {
-                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-                }
-              }
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const currentComment = await github.graphql(
-                    `
-                    query($commentId: ID!) {
-                      node(id: $commentId) {
-                        ... on DiscussionComment {
-                          body
-                        }
-                      }
-                    }`,
-                    { commentId: commentId }
-                  );
-                  if (!currentComment?.node?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                    return;
-                  }
-                  const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: updatedBody }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  if (!currentComment?.data?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted");
-                    return;
-                  }
-                  const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            function getCampaign(format) {
-              const campaign = process.env.GH_AW_CAMPAIGN || "";
-              if (campaign) {
-                core.info(`Campaign: ${campaign}`);
-                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
-              }
-              return "";
-            }
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              const fingerprintComment = getCampaign("markdown");
-              if (fingerprintComment) {
-                bodyLines.push(fingerprintComment);
-              }
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
-                }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            }
-            await main();
-
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -5265,7 +3854,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Test Coverage Improver"
+          WORKFLOW_NAME: "Daily Team Status"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5394,7 +3983,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -5501,9 +4090,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@1e366aa4518cf83d25defd84e454b9a41e87cf7c"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1e366aa4518cf83d25defd84e454b9a41e87cf7c/workflows/daily-team-status.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5606,4 +4195,46 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
+    steps:
+      - name: Check stop-time limit
+        id: check_stop_time
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_STOP_TIME: 2025-12-14 13:10:46
+          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+        with:
+          script: |
+            async function main() {
+              const stopTime = process.env.GH_AW_STOP_TIME;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
+              if (!stopTime) {
+                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
+                return;
+              }
+              if (!workflowName) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+                return;
+              }
+              core.info(`Checking stop-time limit: ${stopTime}`);
+              const stopTimeDate = new Date(stopTime);
+              if (isNaN(stopTimeDate.getTime())) {
+                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
+                return;
+              }
+              const currentTime = new Date();
+              core.info(`Current time: ${currentTime.toISOString()}`);
+              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
+              if (currentTime >= stopTimeDate) {
+                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
+                core.setOutput("stop_time_ok", "false");
+                return;
+              }
+              core.setOutput("stop_time_ok", "true");
+            }
+            await main();
 

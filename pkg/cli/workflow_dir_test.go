@@ -100,7 +100,7 @@ This is a test workflow in a custom directory.
 	if err == nil {
 		t.Error("CompileWorkflows with absolute workflows-dir should fail")
 	}
-	if err != nil && err.Error() != "workflows-dir must be a relative path, got: /absolute/path" {
+	if err != nil && err.Error() != "--dir must be a relative path, got: /absolute/path" {
 		t.Errorf("Expected specific error message for absolute path, got: %v", err)
 	}
 
@@ -162,7 +162,7 @@ func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
 			name:        "absolute path is invalid",
 			workflowDir: "/absolute/path",
 			expectError: true,
-			errorMsg:    "workflows-dir must be a relative path, got: /absolute/path",
+			errorMsg:    "--dir must be a relative path, got: /absolute/path",
 		},
 		{
 			name:        "path with .. is cleaned but valid",

@@ -3,7 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/ci-doctor.md
+# Source: githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
+#
+# Effective stop-time: 2025-11-16 13:10:44
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -14,6 +16,8 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
+#   pre_activation --> activation
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
@@ -50,11 +54,7 @@ name: "CI Failure Doctor"
     - Daily Perf Improver
     - Daily Test Coverage Improver
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -63,8 +63,10 @@ run-name: "CI Failure Doctor"
 
 jobs:
   activation:
+    needs: pre_activation
     if: >
-      (github.event.workflow_run.conclusion == 'failure') && ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
+      ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.conclusion == 'failure')) &&
+      ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -197,9 +199,8 @@ jobs:
           GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_CAMPAIGN: "ci-doctor-failures"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/09e77ed2e49f0612e258db12839e86e8e2a6c692/workflows/ci-doctor.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -569,11 +570,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      issues: read
-      pull-requests: read
+    permissions: read-all
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -681,7 +678,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Downloading container images
         run: |
           set -e
@@ -1589,9 +1586,9 @@ jobs:
              - Dependency versions involved
              - Timing patterns
           
-          ### Phase 3: Historical Context Analysis  
+          ### Phase 3: Historical Context Analysis
           1. **Search Investigation History**: Use file-based storage to search for similar failures:
-             - Read from cached investigation files in `/tmp/gh-aw/memory/investigations/`
+             - Read from cached investigation files in `/tmp/memory/investigations/`
              - Parse previous failure patterns and solutions
              - Look for recurring error signatures
           2. **Issue History**: Search existing issues for related problems
@@ -1601,7 +1598,7 @@ jobs:
           ### Phase 4: Root Cause Investigation
           1. **Categorize Failure Type**:
              - **Code Issues**: Syntax errors, logic bugs, test failures
-             - **Infrastructure**: Runner issues, network problems, resource constraints  
+             - **Infrastructure**: Runner issues, network problems, resource constraints
              - **Dependencies**: Version conflicts, missing packages, outdated libraries
              - **Configuration**: Workflow configuration, environment variables
              - **Flaky Tests**: Intermittent failures, timing issues
@@ -1615,8 +1612,8 @@ jobs:
           
           ### Phase 5: Pattern Storage and Knowledge Building
           1. **Store Investigation**: Save structured investigation data to files:
-             - Write investigation report to `/tmp/gh-aw/memory/investigations/<timestamp>-<run-id>.json`
-             - Store error patterns in `/tmp/gh-aw/memory/patterns/`
+             - Write investigation report to `/tmp/memory/investigations/<timestamp>-<run-id>.json`
+             - Store error patterns in `/tmp/memory/patterns/`
              - Maintain an index file of all investigations for fast searching
           2. **Update Pattern Database**: Enhance knowledge with new findings by updating pattern files
           3. **Save Artifacts**: Store detailed logs and analysis in the cached directories
@@ -1641,7 +1638,7 @@ jobs:
              - **Prevention Strategies**: How to avoid similar failures
              - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future
              - **Historical Context**: Similar past failures and their resolutions
-             
+          
           2. **Actionable Deliverables**:
              - Create an issue with investigation results (if warranted)
              - Comment on related PR with analysis (if PR-triggered)
@@ -1699,8 +1696,8 @@ jobs:
           
           ## Cache Usage Strategy
           
-          - Store investigation database and knowledge patterns in `/tmp/gh-aw/memory/investigations/` and `/tmp/gh-aw/memory/patterns/`
-          - Cache detailed log analysis and artifacts in `/tmp/gh-aw/investigation/logs/` and `/tmp/gh-aw/investigation/reports/`
+          - Store investigation database and knowledge patterns in `/tmp/memory/investigations/` and `/tmp/memory/patterns/`
+          - Cache detailed log analysis and artifacts in `/tmp/investigation/logs/` and `/tmp/investigation/reports/`
           - Persist findings across workflow runs using GitHub Actions cache
           - Build cumulative knowledge about failure patterns and solutions using structured JSON files
           - Use file-based indexing for fast pattern matching and similarity detection
@@ -1941,7 +1938,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.354",
+              agent_version: "0.0.355",
               workflow_name: "CI Failure Doctor",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4206,9 +4203,8 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_CAMPAIGN: "ci-doctor-failures"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/09e77ed2e49f0612e258db12839e86e8e2a6c692/workflows/ci-doctor.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4695,7 +4691,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4803,9 +4799,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_CAMPAIGN: "ci-doctor-failures"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/09e77ed2e49f0612e258db12839e86e8e2a6c692/workflows/ci-doctor.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4908,4 +4903,47 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
+    steps:
+      - name: Check stop-time limit
+        id: check_stop_time
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_STOP_TIME: 2025-11-16 13:10:44
+          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
+        with:
+          script: |
+            async function main() {
+              const stopTime = process.env.GH_AW_STOP_TIME;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
+              if (!stopTime) {
+                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
+                return;
+              }
+              if (!workflowName) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+                return;
+              }
+              core.info(`Checking stop-time limit: ${stopTime}`);
+              const stopTimeDate = new Date(stopTime);
+              if (isNaN(stopTimeDate.getTime())) {
+                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
+                return;
+              }
+              const currentTime = new Date();
+              core.info(`Current time: ${currentTime.toISOString()}`);
+              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
+              if (currentTime >= stopTimeDate) {
+                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
+                core.setOutput("stop_time_ok", "false");
+                return;
+              }
+              core.setOutput("stop_time_ok", "true");
+            }
+            await main();
 

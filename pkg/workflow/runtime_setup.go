@@ -29,6 +29,24 @@ type RuntimeRequirement struct {
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
 var knownRuntimes = []*Runtime{
 	{
+		ID:             "bun",
+		Name:           "Bun",
+		ActionRepo:     "oven-sh/setup-bun",
+		ActionVersion:  "v2",
+		VersionField:   "bun-version",
+		DefaultVersion: constants.DefaultBunVersion,
+		Commands:       []string{"bun", "bunx"},
+	},
+	{
+		ID:             "deno",
+		Name:           "Deno",
+		ActionRepo:     "denoland/setup-deno",
+		ActionVersion:  "v2",
+		VersionField:   "deno-version",
+		DefaultVersion: constants.DefaultDenoVersion,
+		Commands:       []string{"deno"},
+	},
+	{
 		ID:             "dotnet",
 		Name:           ".NET",
 		ActionRepo:     "actions/setup-dotnet",
@@ -208,6 +226,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
 func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
+	log.Print("Scanning custom steps for runtime commands")
 	lines := strings.Split(customSteps, "\n")
 	for _, line := range lines {
 		// Look for run: commands
@@ -259,6 +278,7 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 
 // detectFromMCPConfigs scans MCP server configurations for runtime commands
 func detectFromMCPConfigs(tools map[string]any, requirements map[string]*RuntimeRequirement) {
+	log.Printf("Scanning %d MCP configurations for runtime commands", len(tools))
 	for _, tool := range tools {
 		// Handle structured MCP config with command field
 		if toolMap, ok := tool.(map[string]any); ok {
@@ -351,6 +371,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 
 // generateSetupStep creates a setup step for a given runtime
 func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
+	log.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
 	// Use default version if none specified
 	if version == "" {
 		version = runtime.DefaultVersion
@@ -408,6 +429,7 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 
 // applyRuntimeOverrides applies runtime version overrides from frontmatter
 func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*RuntimeRequirement) {
+	log.Printf("Applying runtime overrides for %d configured runtimes", len(runtimes))
 	for runtimeID, configAny := range runtimes {
 		// Parse runtime configuration
 		configMap, ok := configAny.(map[string]any)

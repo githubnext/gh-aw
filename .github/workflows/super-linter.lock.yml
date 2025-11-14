@@ -169,7 +169,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Download super-linter log
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -268,7 +268,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Downloading container images
         run: |
           set -e
@@ -1565,7 +1565,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.354",
+              agent_version: "0.0.355",
               workflow_name: "Super Linter Report",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4314,7 +4314,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.354
+        run: npm install -g @github/copilot@0.0.355
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4541,7 +4541,7 @@ jobs:
           persist-credentials: false
       - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 # v8.2.1
+        uses: super-linter/super-linter@v8.2.1
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
@@ -4563,7 +4563,7 @@ jobs:
           fi
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: super-linter-log
           path: super-linter.log

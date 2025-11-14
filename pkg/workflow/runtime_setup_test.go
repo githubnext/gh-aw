@@ -12,6 +12,16 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 		expected []string // Expected runtime IDs
 	}{
 		{
+			name:     "bun command",
+			command:  "bun install",
+			expected: []string{"bun"},
+		},
+		{
+			name:     "bunx command",
+			command:  "bunx tsc",
+			expected: []string{"bun"},
+		},
+		{
 			name:     "npm install command",
 			command:  "npm install",
 			expected: []string{"node"},
@@ -50,6 +60,11 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			name:     "ruby command",
 			command:  "ruby script.rb",
 			expected: []string{"ruby"},
+		},
+		{
+			name:     "deno command",
+			command:  "deno run main.ts",
+			expected: []string{"deno"},
 		},
 		{
 			name:     "dotnet command",
@@ -257,6 +272,18 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		expectSteps  int
 		checkContent []string
 	}{
+		{
+			name: "generates bun setup",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("bun"), Version: "1.1"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Bun",
+				"oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76",
+				"bun-version: '1.1'",
+			},
+		},
 		{
 			name: "generates node setup",
 			requirements: []RuntimeRequirement{

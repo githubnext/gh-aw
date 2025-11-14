@@ -24,10 +24,9 @@ type ActionPin struct {
 }
 
 // ActionPinsData represents the structure of the embedded JSON file
+// This matches the schema used by ActionCache for consistency
 type ActionPinsData struct {
-	Version     string               `json:"version"`
-	Description string               `json:"description"`
-	Actions     map[string]ActionPin `json:"actions"`
+	Entries map[string]ActionPin `json:"entries"` // key: "repo@version"
 }
 
 // getActionPins unmarshals and returns the action pins from the embedded JSON
@@ -43,8 +42,8 @@ func getActionPins() []ActionPin {
 	}
 
 	// Convert map to sorted slice
-	pins := make([]ActionPin, 0, len(data.Actions))
-	for _, pin := range data.Actions {
+	pins := make([]ActionPin, 0, len(data.Entries))
+	for _, pin := range data.Entries {
 		pins = append(pins, pin)
 	}
 
@@ -195,7 +194,7 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 
 // extractActionRepo extracts the action repository from a uses string
 // For example:
-//   - "actions/checkout@v4" -> "actions/checkout"
+//   - "actions/checkout@v5" -> "actions/checkout"
 //   - "actions/setup-node@v6" -> "actions/setup-node"
 //   - "github/codeql-action/upload-sarif@v3" -> "github/codeql-action/upload-sarif"
 //   - "actions/checkout" -> "actions/checkout"
@@ -212,7 +211,7 @@ func extractActionRepo(uses string) string {
 
 // extractActionVersion extracts the version from a uses string
 // For example:
-//   - "actions/checkout@v4" -> "v4"
+//   - "actions/checkout@v5" -> "v4"
 //   - "actions/setup-node@v6" -> "v5"
 //   - "actions/checkout" -> ""
 func extractActionVersion(uses string) string {

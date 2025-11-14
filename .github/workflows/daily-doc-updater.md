@@ -113,7 +113,7 @@ find docs/src/content/docs -name '*.md' -o -name '*.mdx'
 For each missing or incomplete feature documentation:
 
 1. **Determine the correct file** based on the feature type:
-   - CLI commands → `docs/src/content/docs/tools/cli.md`
+   - CLI commands → `docs/src/content/docs/setup/cli.md`
    - Workflow reference → `docs/src/content/docs/reference/`
    - How-to guides → `docs/src/content/docs/guides/`
    - Samples → `docs/src/content/docs/samples/`

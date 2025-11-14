@@ -21,4 +21,4 @@ timeout-minutes: 10
 strict: true
 ---
 
-Review the last 2 merged pull requests in this repository and post summary in an issue.
+Review the last 2 merged pull requests in the ${{ github.repository }} repository and post summary in an issue.

@@ -18,16 +18,19 @@ const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 const DefaultClaudeCodeVersion = "2.0.37"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.354"
+const DefaultCopilotVersion = "0.0.355"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion = "0.55.0"
+const DefaultCodexVersion = "0.57.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion = "v0.20.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion = "v0.1.1"
+
+// DefaultBunVersion is the default version of Bun for runtime setup
+const DefaultBunVersion = "1.1"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
@@ -49,6 +52,9 @@ const DefaultElixirVersion = "1.17"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion = "9.10"
+
+// DefaultDenoVersion is the default version of Deno for runtime setup
+const DefaultDenoVersion = "2.x"
 
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
 const DefaultAgenticWorkflowTimeoutMinutes = 20

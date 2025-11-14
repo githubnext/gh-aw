@@ -73,6 +73,8 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		lines = append(lines, frontmatterLines...)
 		lines = append(lines, "---")
 		if result.Markdown != "" {
+			// Add empty line before markdown content to match original format
+			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
 
@@ -150,6 +152,8 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error
 		lines = append(lines, frontmatterLines...)
 		lines = append(lines, "---")
 		if result.Markdown != "" {
+			// Add empty line before markdown content to match original format
+			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
 
@@ -158,4 +162,135 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error
 
 	// Fallback to original behavior if no frontmatter lines are available
 	return updateFieldInFrontmatterFallback(result, fieldName, fieldValue)
+}
+
+// RemoveFieldFromOnTrigger removes a field from the 'on' trigger object in the frontmatter.
+// This handles nested fields like "stop-after" which are located under the "on" key.
+// It preserves the original formatting of the frontmatter as much as possible.
+func RemoveFieldFromOnTrigger(content, fieldName string) (string, error) {
+	frontmatterEditorLog.Printf("Removing field from 'on' trigger: %s", fieldName)
+
+	// Parse frontmatter using parser package
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		frontmatterEditorLog.Printf("Failed to parse frontmatter: %v", err)
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Check if frontmatter exists
+	if result.Frontmatter == nil {
+		// No frontmatter, return content unchanged
+		return content, nil
+	}
+
+	// Check if 'on' field exists
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		// No 'on' field, return content unchanged
+		return content, nil
+	}
+
+	// Check if 'on' is an object (map)
+	onMap, isMap := onValue.(map[string]any)
+	if !isMap {
+		// 'on' is not a map (might be a string), return content unchanged
+		return content, nil
+	}
+
+	// Check if the field to remove exists in the 'on' map
+	if _, fieldExists := onMap[fieldName]; !fieldExists {
+		// Field doesn't exist, return content unchanged
+		return content, nil
+	}
+
+	// Remove the field from the map
+	delete(onMap, fieldName)
+	result.Frontmatter["on"] = onMap
+
+	// Convert back to YAML with proper field ordering
+	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(result.Frontmatter, constants.PriorityWorkflowFields)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+	}
+
+	// Clean up quoted keys - replace "on": with on: at the start of a line
+	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
+	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
+
+	// Reconstruct the file
+	var lines []string
+	lines = append(lines, "---")
+	if frontmatterStr != "" {
+		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	frontmatterEditorLog.Printf("Successfully removed field %s from 'on' trigger", fieldName)
+	return strings.Join(lines, "\n"), nil
+}
+
+// SetFieldInOnTrigger sets a field value in the 'on' trigger object in the frontmatter.
+// This handles nested fields like "stop-after" which are located under the "on" key.
+// It preserves the original formatting of the frontmatter as much as possible.
+func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) {
+	frontmatterEditorLog.Printf("Setting field in 'on' trigger: %s = %s", fieldName, fieldValue)
+
+	// Parse frontmatter using parser package
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		frontmatterEditorLog.Printf("Failed to parse frontmatter: %v", err)
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Check if frontmatter exists
+	if result.Frontmatter == nil {
+		result.Frontmatter = make(map[string]any)
+	}
+
+	// Check if 'on' field exists
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		// Create a new 'on' map if it doesn't exist
+		result.Frontmatter["on"] = map[string]any{
+			fieldName: fieldValue,
+		}
+	} else {
+		// Check if 'on' is an object (map)
+		onMap, isMap := onValue.(map[string]any)
+		if !isMap {
+			// 'on' is not a map (might be a string), cannot set field
+			return "", fmt.Errorf("'on' field is not an object, cannot set nested field")
+		}
+
+		// Set the field in the map
+		onMap[fieldName] = fieldValue
+		result.Frontmatter["on"] = onMap
+	}
+
+	// Convert back to YAML with proper field ordering
+	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(result.Frontmatter, constants.PriorityWorkflowFields)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+	}
+
+	// Clean up quoted keys - replace "on": with on: at the start of a line
+	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
+	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
+
+	// Reconstruct the file
+	var lines []string
+	lines = append(lines, "---")
+	if frontmatterStr != "" {
+		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	frontmatterEditorLog.Printf("Successfully set field %s in 'on' trigger", fieldName)
+	return strings.Join(lines, "\n"), nil
 }

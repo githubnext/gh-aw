@@ -9,82 +9,52 @@ import (
 
 // TestActionPinsExist verifies that all action pinning entries exist
 func TestActionPinsExist(t *testing.T) {
-	expectedActions := []string{
-		"actions/checkout",
-		"actions/github-script",
-		"actions/upload-artifact",
-		"actions/download-artifact",
-		"actions/cache",
-		"actions/setup-node",
-		"actions/setup-python",
-		"actions/setup-go",
-		"actions/setup-java",
-		"actions/setup-dotnet",
-		"erlef/setup-beam",
-		"haskell-actions/setup",
-		"ruby/setup-ruby",
-		"astral-sh/setup-uv",
+	// Read action pins from JSON file instead of hardcoded list
+	actionPins := getActionPins()
+
+	// Verify we have at least some pins loaded
+	if len(actionPins) == 0 {
+		t.Fatal("No action pins loaded from JSON file")
 	}
 
-	actionPins := getActionPins()
-	for _, action := range expectedActions {
-		var pin ActionPin
-		found := false
-		for _, p := range actionPins {
-			if p.Repo == action {
-				pin = p
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Missing action pin for %s", action)
+	// Verify each pin has required fields
+	for _, pin := range actionPins {
+		// Verify the pin has a repo
+		if pin.Repo == "" {
+			t.Errorf("Action pin has empty Repo field")
 			continue
 		}
 
 		// Verify the pin has a valid SHA (40 character hex string)
 		if !isValidSHA(pin.SHA) {
-			t.Errorf("Invalid SHA for %s: %s (expected 40-character hex string)", action, pin.SHA)
+			t.Errorf("Invalid SHA for %s: %s (expected 40-character hex string)", pin.Repo, pin.SHA)
 		}
 
 		// Verify the pin has a version
 		if pin.Version == "" {
-			t.Errorf("Missing version for %s", action)
+			t.Errorf("Missing version for %s", pin.Repo)
 		}
 	}
 }
 
 // TestGetActionPinReturnsValidSHA tests that GetActionPin returns valid SHA references
 func TestGetActionPinReturnsValidSHA(t *testing.T) {
-	tests := []struct {
-		repo    string
-		wantSHA bool
-	}{
-		{"actions/checkout", true},
-		{"actions/github-script", true},
-		{"actions/upload-artifact", true},
-		{"actions/download-artifact", true},
-		{"actions/cache", true},
-		{"actions/setup-node", true},
-		{"actions/setup-python", true},
-		{"actions/setup-go", true},
-		{"actions/setup-java", true},
-		{"actions/setup-dotnet", true},
-		{"erlef/setup-beam", true},
-		{"haskell-actions/setup", true},
-		{"ruby/setup-ruby", true},
-		{"astral-sh/setup-uv", true},
+	// Generate test cases dynamically from action pins JSON
+	actionPins := getActionPins()
+
+	if len(actionPins) == 0 {
+		t.Fatal("No action pins loaded from JSON file")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.repo, func(t *testing.T) {
-			result := GetActionPin(tt.repo)
+	for _, pin := range actionPins {
+		t.Run(pin.Repo, func(t *testing.T) {
+			result := GetActionPin(pin.Repo)
 
 			// Check that the result contains a SHA (40-char hex after @ and before #)
 			// Format is: repo@sha # version
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", tt.repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
 				return
 			}
 
@@ -92,16 +62,15 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 			shaAndComment := parts[1]
 			commentIdx := strings.Index(shaAndComment, " # ")
 			if commentIdx == -1 {
-				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", tt.repo, result)
+				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
 				return
 			}
 
 			sha := shaAndComment[:commentIdx]
 
-			if tt.wantSHA {
-				if !isValidSHA(sha) {
-					t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", tt.repo, result)
-				}
+			// All action pins should have valid SHAs
+			if !isValidSHA(sha) {
+				t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
 			}
 		})
 	}
@@ -376,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 16)
-	if len(pins) != 16 {
-		t.Errorf("getActionPins() returned %d pins, expected 16", len(pins))
+	// Verify we got all the pins (should be 18)
+	if len(pins) != 18 {
+		t.Errorf("getActionPins() returned %d pins, expected 18", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)

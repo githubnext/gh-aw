@@ -13,7 +13,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates
+build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -70,6 +70,13 @@ bench-compare:
 	@echo "Running benchmarks and saving results..."
 	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_results.txt
 	@echo "Benchmark results saved to bench_results.txt"
+
+# Run fuzz tests
+.PHONY: fuzz
+fuzz:
+	@echo "Running fuzz tests for 30 seconds..."
+	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
+	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
 
 # Test JavaScript files
 .PHONY: test-js
@@ -232,6 +239,17 @@ sync-templates:
 	@cp .github/agents/create-shared-agentic-workflow.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
+# Sync action pins from .github/aw to pkg/workflow/data
+.PHONY: sync-action-pins
+sync-action-pins:
+	@echo "Syncing actions-lock.json from .github/aw to pkg/workflow/data/action_pins.json..."
+	@if [ -f .github/aw/actions-lock.json ]; then \
+		cp .github/aw/actions-lock.json pkg/workflow/data/action_pins.json; \
+		echo "✓ Action pins synced successfully"; \
+	else \
+		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \
+	fi
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: sync-templates build
@@ -259,7 +277,7 @@ version:
 	@node scripts/changeset.js version
 
 .PHONY: release
-release: test
+release: build
 	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns
@@ -278,6 +296,9 @@ help:
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
+	@echo "  bench            - Run benchmarks for performance testing"
+	@echo "  bench-compare    - Run benchmarks with comparison output"
+	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
@@ -294,6 +315,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
+	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"

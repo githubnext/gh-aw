@@ -200,7 +200,7 @@ func validateCompileConfig(config CompileConfig) error {
 			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
 		}
 		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
-			return fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
+			return fmt.Errorf("--dependabot flag cannot be used with custom --dir")
 		}
 	}
 
@@ -211,7 +211,7 @@ func validateCompileConfig(config CompileConfig) error {
 
 	// Validate workflow directory path
 	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
-		return fmt.Errorf("workflows-dir must be a relative path, got: %s", config.WorkflowDir)
+		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)
 	}
 
 	return nil
@@ -326,9 +326,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compileLog.Printf("Resolving workflow file: %s", markdownFile)
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
-				errMsg := fmt.Sprintf("failed to resolve workflow '%s': %v", markdownFile, err)
 				if !jsonOutput {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+					// Print the error directly - it already contains suggestions and formatting
+					fmt.Fprintln(os.Stderr, err.Error())
 				}
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
@@ -457,6 +457,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		} else {
 			// Print summary for text output
 			printCompilationSummary(stats)
+		}
+
+		// Save the action cache after all compilations
+		actionCache := compiler.GetSharedActionCache()
+		if actionCache != nil {
+			if err := actionCache.Save(); err != nil {
+				compileLog.Printf("Failed to save action cache: %v", err)
+				if verbose {
+					fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+				}
+			} else {
+				compileLog.Print("Action cache saved successfully")
+				if verbose {
+					fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+				}
+			}
 		}
 
 		// Return error if any compilations failed
@@ -669,6 +685,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		printCompilationSummary(stats)
 	}
 
+	// Save the action cache after all compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+			}
+		}
+	}
+
 	// Return error if any compilations failed
 	if errorCount > 0 {
 		return workflowDataList, fmt.Errorf("compilation failed")
@@ -858,6 +890,37 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	}
 }
 
+// compileSingleFile compiles a single markdown workflow file and updates compilation statistics
+// If checkExists is true, the function will check if the file exists before compiling
+// Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
+func compileSingleFile(compiler *workflow.Compiler, file string, stats *CompilationStats, verbose bool, checkExists bool) bool {
+	// Check if file exists if requested (for watch mode)
+	if checkExists {
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			compileLog.Printf("File %s was deleted, skipping compilation", file)
+			return false
+		}
+	}
+
+	stats.Total++
+
+	compileLog.Printf("Compiling: %s", file)
+	if verbose {
+		fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
+	}
+
+	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
+		// Always show compilation errors on new line
+		fmt.Fprintln(os.Stderr, err.Error())
+		stats.Errors++
+		stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+	} else {
+		compileLog.Printf("Successfully compiled: %s", file)
+	}
+
+	return true
+}
+
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
 func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
 	compileLog.Printf("Compiling all workflow files in directory: %s", workflowsDir)
@@ -885,24 +948,27 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 
 	// Compile each file
 	for _, file := range mdFiles {
-		stats.Total++
-
-		compileLog.Printf("Compiling: %s", file)
-		if verbose {
-			fmt.Printf("🔨 Compiling: %s\n", file)
-		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
-			// Always show compilation errors on new line
-			fmt.Fprintln(os.Stderr, err.Error())
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else {
-			compileLog.Printf("Successfully compiled: %s", file)
-		}
+		compileSingleFile(compiler, file, stats, verbose, false)
 	}
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Save the action cache after all compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+			}
+		}
+	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
@@ -935,31 +1001,24 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	stats := &CompilationStats{}
 
 	for _, file := range files {
-		// Check if file still exists (might have been deleted between detection and compilation)
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			compileLog.Printf("File %s was deleted, skipping compilation", file)
-			continue
-		}
-
-		stats.Total++
-
-		compileLog.Printf("Compiling: %s", file)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
-		}
-
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
-			// Always show compilation errors on new line
-			fmt.Fprintln(os.Stderr, err.Error())
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else {
-			compileLog.Printf("Successfully compiled: %s", file)
-		}
+		compileSingleFile(compiler, file, stats, verbose, true)
 	}
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Save the action cache after compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+		}
+	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {

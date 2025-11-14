@@ -355,3 +355,294 @@ Base content with upstream notes.`
 		t.Error("Expected both local and upstream permission changes to be merged")
 	}
 }
+
+// TestFindWorkflowsWithSource_CustomDirectory tests that findWorkflowsWithSource works with custom directories
+func TestFindWorkflowsWithSource_CustomDirectory(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
+	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom workflow directory: %v", err)
+	}
+
+	// Create a workflow file with source field
+	workflowContent := `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`
+
+	workflowPath := filepath.Join(customWorkflowDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Create a workflow file without source field
+	workflowWithoutSource := `---
+on: push
+engine: claude
+---
+
+# Another Workflow
+
+No source field.`
+
+	workflowPath2 := filepath.Join(customWorkflowDir, "no-source.md")
+	if err := os.WriteFile(workflowPath2, []byte(workflowWithoutSource), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Test findWorkflowsWithSource with custom directory
+	workflows, err := findWorkflowsWithSource(customWorkflowDir, nil, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Should find only one workflow (the one with source field)
+	if len(workflows) != 1 {
+		t.Errorf("Expected to find 1 workflow with source field, got %d", len(workflows))
+	}
+
+	if len(workflows) > 0 {
+		if workflows[0].Name != "test-workflow" {
+			t.Errorf("Expected workflow name 'test-workflow', got '%s'", workflows[0].Name)
+		}
+		if workflows[0].SourceSpec != "test/repo/workflow.md@v1.0.0" {
+			t.Errorf("Expected source spec 'test/repo/workflow.md@v1.0.0', got '%s'", workflows[0].SourceSpec)
+		}
+	}
+}
+
+// TestUpdateWorkflows_CustomDirectory tests that UpdateWorkflows respects custom directory parameter
+func TestUpdateWorkflows_CustomDirectory(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
+	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom workflow directory: %v", err)
+	}
+
+	// Create a workflow file with source field
+	workflowContent := `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`
+
+	workflowPath := filepath.Join(customWorkflowDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Test that findWorkflowsWithSource can find workflows in custom directory
+	workflows, err := findWorkflowsWithSource(customWorkflowDir, nil, false)
+	if err != nil {
+		t.Fatalf("Expected no error finding workflows, got: %v", err)
+	}
+
+	if len(workflows) == 0 {
+		t.Fatal("Expected to find at least one workflow")
+	}
+
+	// Verify the workflow was found in the custom directory
+	if !strings.Contains(workflows[0].Path, customWorkflowDir) {
+		t.Errorf("Expected workflow path to contain custom directory '%s', got '%s'", customWorkflowDir, workflows[0].Path)
+	}
+}
+
+// TestShowUpdateSummary tests the update summary display
+func TestShowUpdateSummary(t *testing.T) {
+	tests := []struct {
+		name              string
+		successfulUpdates []string
+		failedUpdates     []updateFailure
+		wantSuccess       bool
+		wantFailed        bool
+	}{
+		{
+			name:              "all successful",
+			successfulUpdates: []string{"workflow1", "workflow2", "workflow3"},
+			failedUpdates:     []updateFailure{},
+			wantSuccess:       true,
+			wantFailed:        false,
+		},
+		{
+			name:              "all failed",
+			successfulUpdates: []string{},
+			failedUpdates: []updateFailure{
+				{Name: "workflow1", Error: "failed to download"},
+				{Name: "workflow2", Error: "merge conflict"},
+			},
+			wantSuccess: false,
+			wantFailed:  true,
+		},
+		{
+			name:              "mixed results",
+			successfulUpdates: []string{"workflow1", "workflow3"},
+			failedUpdates: []updateFailure{
+				{Name: "workflow2", Error: "failed to compile"},
+			},
+			wantSuccess: true,
+			wantFailed:  true,
+		},
+		{
+			name:              "empty results",
+			successfulUpdates: []string{},
+			failedUpdates:     []updateFailure{},
+			wantSuccess:       false,
+			wantFailed:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test just verifies the function doesn't panic and can be called
+			// We don't check the exact output format since it uses console helpers
+			// and the exact formatting may change
+			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates)
+		})
+	}
+}
+
+// TestHasLocalModifications tests the local modifications detection
+func TestHasLocalModifications(t *testing.T) {
+	tests := []struct {
+		name           string
+		sourceContent  string
+		localContent   string
+		sourceSpec     string
+		expectModified bool
+		description    string
+	}{
+		{
+			name: "no modifications - identical content",
+			sourceContent: `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+
+Test content.`,
+			localContent: `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: false,
+			description:    "Local file with source field should match source without it",
+		},
+		{
+			name: "local modifications in frontmatter",
+			sourceContent: `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+
+Test content.`,
+			localContent: `---
+on: push
+engine: claude
+permissions:
+  contents: read
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: true,
+			description:    "Local has extra permissions field",
+		},
+		{
+			name: "local modifications in markdown",
+			sourceContent: `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+
+Test content.`,
+			localContent: `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content with local additions.`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: true,
+			description:    "Local has modified markdown content",
+		},
+		{
+			name: "whitespace differences should be ignored",
+			sourceContent: `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+
+Test content.`,
+			localContent: `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.
+`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: false,
+			description:    "Trailing whitespace should be normalized",
+		},
+		{
+			name: "both empty",
+			sourceContent: `---
+on: push
+---
+
+# Empty`,
+			localContent: `---
+on: push
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Empty`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: false,
+			description:    "Both files minimal but identical",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasLocalModifications(tt.sourceContent, tt.localContent, tt.sourceSpec, false)
+
+			if result != tt.expectModified {
+				t.Errorf("%s: expected modified=%v, got %v", tt.description, tt.expectModified, result)
+			}
+		})
+	}
+}

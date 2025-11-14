@@ -21,16 +21,16 @@ func TestCompileDependabotValidation(t *testing.T) {
 			errorMsg:    "--dependabot flag cannot be used with specific workflow files",
 		},
 		{
-			name: "dependabot with custom workflows-dir",
+			name: "dependabot with custom --dir",
 			config: CompileConfig{
 				WorkflowDir: "custom/workflows",
 				Dependabot:  true,
 			},
 			expectError: true,
-			errorMsg:    "--dependabot flag cannot be used with custom --workflows-dir",
+			errorMsg:    "--dependabot flag cannot be used with custom --dir",
 		},
 		{
-			name: "dependabot with default workflows-dir is ok",
+			name: "dependabot with default workflows dir is ok",
 			config: CompileConfig{
 				WorkflowDir: ".github/workflows",
 				Dependabot:  true,
@@ -38,7 +38,7 @@ func TestCompileDependabotValidation(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "dependabot with empty workflows-dir is ok",
+			name: "dependabot with empty workflows dir is ok",
 			config: CompileConfig{
 				WorkflowDir: "",
 				Dependabot:  true,

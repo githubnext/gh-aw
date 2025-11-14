@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths:
+      - '**.go'
+      - 'pkg/workflow/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 jobs:
   test:
@@ -91,6 +95,8 @@ jobs:
 
       - name: Rebuild lock files
         run: make recompile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
     runs-on: ubuntu-latest
     permissions:
@@ -229,4 +235,6 @@ jobs:
         run: go mod verify
 
       - name: Run fuzz tests
-        run: go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+        run: |
+          go test -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
+          go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/

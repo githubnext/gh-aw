@@ -2,12 +2,14 @@ package cli
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -79,10 +81,18 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 	// Try to find the workflow in local sources only (not packages)
 	_, path, err := readWorkflowFile(workflowPath, workflowsDir)
 	if err != nil {
-		return "", fmt.Errorf("workflow '%s' not found in local .github/workflows or components", fileOrWorkflowName)
+		suggestions := []string{
+			fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+			fmt.Sprintf("Create a new workflow with '%s new %s'", constants.CLIExtensionPrefix, fileOrWorkflowName),
+			"Check for typos in the workflow name",
+		}
+		return "", errors.New(console.FormatErrorWithSuggestions(
+			fmt.Sprintf("workflow '%s' not found in local .github/workflows", fileOrWorkflowName),
+			suggestions,
+		))
 	}
 
-	commandsLog.Print("Found workflow in local components")
+	commandsLog.Print("Found workflow in local .github/workflows")
 
 	// Return absolute path
 	absPath, err := filepath.Abs(path)

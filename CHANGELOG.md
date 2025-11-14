@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.7 - 2025-11-14
+
+### Bug Fixes
+
+#### Update GitHub MCP Server version to v0.20.2
+
+
 ## v0.28.6 - 2025-11-07
 
 Maintenance release with dependency updates and minor improvements.

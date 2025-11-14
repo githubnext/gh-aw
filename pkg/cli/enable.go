@@ -1,12 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
@@ -167,7 +171,15 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 
 	// Report any workflows that weren't found
 	if len(notFoundNames) > 0 {
-		return fmt.Errorf("workflows not found: %s", strings.Join(notFoundNames, ", "))
+		suggestions := []string{
+			fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+			"Check for typos in the workflow names",
+			"Ensure the workflows have been compiled and pushed to GitHub",
+		}
+		return errors.New(console.FormatErrorWithSuggestions(
+			fmt.Sprintf("workflows not found: %s", strings.Join(notFoundNames, ", ")),
+			suggestions,
+		))
 	}
 
 	// If no targets after filtering, everything was already in the desired state
