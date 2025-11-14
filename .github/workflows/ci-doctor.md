@@ -8,7 +8,7 @@ on:
       - main
     # This will trigger only when the CI workflow completes with failure
     # The condition is handled in the workflow body
-  stop-after: +48h
+  stop-after: +1mo
 
 # Only trigger for failures - check in the workflow body
 if: ${{ github.event.workflow_run.conclusion == 'failure' }}
@@ -29,7 +29,7 @@ tools:
 
 timeout-minutes: 10
 
-source: githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
+source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 ---
 # CI Failure Doctor
 

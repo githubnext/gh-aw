@@ -992,6 +992,11 @@ func TestLogsCommandFlags(t *testing.T) {
 	if engineFlag.DefValue != "" {
 		t.Errorf("Expected engine flag default value to be empty, got: %s", engineFlag.DefValue)
 	}
+
+	// Test that engine flag has the -e shorthand for consistency with other commands
+	if engineFlag.Shorthand != "e" {
+		t.Errorf("Expected engine flag shorthand to be 'e', got: %s", engineFlag.Shorthand)
+	}
 }
 
 func TestFormatFileSize(t *testing.T) {

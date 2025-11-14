@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -393,7 +392,7 @@ func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, er
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {

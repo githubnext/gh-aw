@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -907,38 +908,27 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 
 // downloadFileFromGitHub downloads a file from GitHub using gh CLI
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
-	// Use gh CLI to download the file
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
+	// Use go-gh/v2 to download the file
+	stdout, stderr, err := gh.Exec("api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
 
-	// Set up environment for gh command
-	// gh CLI looks for GH_TOKEN or GITHUB_TOKEN in the environment
-	// If neither is set and gh is not authenticated, it will fail
-	cmd.Env = os.Environ()
-
-	// If GITHUB_TOKEN is set but GH_TOKEN is not, set GH_TOKEN for gh CLI
-	if os.Getenv("GH_TOKEN") == "" && os.Getenv("GITHUB_TOKEN") != "" {
-		cmd.Env = append(cmd.Env, "GH_TOKEN="+os.Getenv("GITHUB_TOKEN"))
-	}
-
-	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if this is an authentication error
-		outputStr := string(output)
-		if strings.Contains(outputStr, "GH_TOKEN") || strings.Contains(outputStr, "authentication") || strings.Contains(outputStr, "not logged into") {
+		stderrStr := stderr.String()
+		if strings.Contains(stderrStr, "GH_TOKEN") || strings.Contains(stderrStr, "authentication") || strings.Contains(stderrStr, "not logged into") {
 			return nil, fmt.Errorf("failed to fetch file content: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
 		}
-		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(outputStr), err)
+		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(stderrStr), err)
 	}
 
 	// The content is base64 encoded, decode it
-	contentBase64 := strings.TrimSpace(string(output))
+	contentBase64 := strings.TrimSpace(stdout.String())
 	if contentBase64 == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API for %s/%s/%s@%s", owner, repo, path, ref)
 	}
 
-	cmd = exec.Command("base64", "-d")
-	cmd.Stdin = strings.NewReader(contentBase64)
-	content, err := cmd.Output()
+	decodeCmd := exec.Command("base64", "-d")
+	decodeCmd.Stdin = strings.NewReader(contentBase64)
+	content, err := decodeCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}

@@ -74,8 +74,8 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &missingToolConfig.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 0 (no limit)
+			c.parseBaseSafeOutputConfig(configMap, &missingToolConfig.BaseSafeOutputConfig, 0)
 		}
 
 		return missingToolConfig
