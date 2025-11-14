@@ -199,6 +199,7 @@
 }
 
 :root[data-theme='light'] .sl-markdown-content table {
+  width: 100%;
   border: 1px solid #d0d7de;
 }
 
@@ -553,6 +554,7 @@ header::after {
 
 /* Tables */
 .sl-markdown-content table {
+  width: 100%;
   border: 1px solid #30363d;
   border-radius: 6px;
   border-collapse: separate;
