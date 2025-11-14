@@ -4699,7 +4699,7 @@ jobs:
                                 projectId,
                                 name: fieldName,
                                 dataType: "SINGLE_SELECT",
-                                options: [{ name: String(fieldValue), color: "GRAY" }],
+                                options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
                               }
                             );
                             field = createFieldResult.createProjectV2Field.projectV2Field;
@@ -4716,7 +4716,7 @@ jobs:
                         if (!option) {
                           core.info(`Option "${fieldValue}" not found for field "${fieldName}", attempting to create it...`);
                           try {
-                            const allOptions = [...field.options.map(o => ({ name: o.name })), { name: String(fieldValue) }];
+                            const allOptions = [...field.options.map(o => ({ name: o.name, description: "" })), { name: String(fieldValue), description: "" }];
                             const createOptionResult = await githubClient.graphql(
                               `mutation($projectId: ID!, $fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                                 updateProjectV2Field(input: {
