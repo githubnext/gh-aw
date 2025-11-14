@@ -1035,8 +1035,8 @@ func generateDocumentationLink(errorMessage, jsonPath string) string {
 		return baseURL + "#permissions"
 	}
 
-	// Check if this is a trigger-related error
-	if strings.Contains(strings.ToLower(errorMessage), "on") || strings.Contains(strings.ToLower(errorMessage), "trigger") {
+	// Check if this is a trigger-related error (use jsonPath for more accuracy)
+	if strings.Contains(jsonPath, "/on") || strings.Contains(strings.ToLower(errorMessage), "trigger") {
 		return baseURL + "#on"
 	}
 
