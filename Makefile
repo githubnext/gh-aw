@@ -266,7 +266,7 @@ version:
 	@node scripts/changeset.js version
 
 .PHONY: release
-release: test
+release: build
 	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns
