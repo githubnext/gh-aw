@@ -42,11 +42,13 @@ When analyzing workflow run logs or reporting information from GitHub Actions ru
 **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
 
 **Format:**
+
 `````markdown
 [§12345](https://github.com/owner/repo/actions/runs/12345)
 `````
 
 **Example:**
+
 `````markdown
 Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
 `````
@@ -56,6 +58,7 @@ Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/45
 When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
 
 **Format:**
+
 `````markdown
 ---
 
@@ -66,6 +69,7 @@ When your analysis is based on information mined from one or more workflow runs,
 `````
 
 **Guidelines:**
+
 - Include **maximum 3 references** to keep reports concise
 - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
 - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
