@@ -39,6 +39,8 @@
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#   - super-linter/super-linter@v8.2.1 (2bdd90ed3262e023ac84bf8fe35dc480721fc1f2)
+#     https://github.com/super-linter/super-linter/commit/2bdd90ed3262e023ac84bf8fe35dc480721fc1f2
 
 name: "Super Linter Report"
 "on":
