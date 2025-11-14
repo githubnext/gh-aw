@@ -93,6 +93,8 @@ steps:
     continue-on-error: true
     env:
       GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+      # Security: Pass step output through environment variable to prevent template injection
+      EXTENSION_INSTALLED: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/agent-sessions
@@ -112,7 +114,8 @@ steps:
       # Check if gh agent-task extension is installed
       if ! gh agent-task --help &> /dev/null; then
         echo "::warning::gh agent-task extension is not installed"
-        echo "::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}"
+        # Security: Use environment variable instead of template expression in bash script
+        echo "::warning::Extension installation status from previous step: $EXTENSION_INSTALLED"
         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
