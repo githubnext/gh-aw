@@ -18,7 +18,7 @@
   "dependencies": {
     "@astrojs/starlight": "^0.35.2",
     "@primer/octicons": "^19.20.0",
-    "astro": "^5.14.4",
+    "astro": "^5.15.6",
     "sharp": "^0.34.2",
     "starlight-changelogs": "^0.2.1",
     "starlight-links-validator": "^0.17.2",
