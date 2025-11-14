@@ -457,3 +457,57 @@ Test content.`
 		t.Errorf("Expected workflow path to contain custom directory '%s', got '%s'", customWorkflowDir, workflows[0].Path)
 	}
 }
+
+// TestShowUpdateSummary tests the update summary display
+func TestShowUpdateSummary(t *testing.T) {
+	tests := []struct {
+		name              string
+		successfulUpdates []string
+		failedUpdates     []updateFailure
+		wantSuccess       bool
+		wantFailed        bool
+	}{
+		{
+			name:              "all successful",
+			successfulUpdates: []string{"workflow1", "workflow2", "workflow3"},
+			failedUpdates:     []updateFailure{},
+			wantSuccess:       true,
+			wantFailed:        false,
+		},
+		{
+			name:              "all failed",
+			successfulUpdates: []string{},
+			failedUpdates: []updateFailure{
+				{Name: "workflow1", Error: "failed to download"},
+				{Name: "workflow2", Error: "merge conflict"},
+			},
+			wantSuccess: false,
+			wantFailed:  true,
+		},
+		{
+			name:              "mixed results",
+			successfulUpdates: []string{"workflow1", "workflow3"},
+			failedUpdates: []updateFailure{
+				{Name: "workflow2", Error: "failed to compile"},
+			},
+			wantSuccess: true,
+			wantFailed:  true,
+		},
+		{
+			name:              "empty results",
+			successfulUpdates: []string{},
+			failedUpdates:     []updateFailure{},
+			wantSuccess:       false,
+			wantFailed:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test just verifies the function doesn't panic and can be called
+			// We don't check the exact output format since it uses console helpers
+			// and the exact formatting may change
+			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates)
+		})
+	}
+}
