@@ -242,12 +242,12 @@ sync-templates:
 # Sync action pins from .github/aw to pkg/workflow/data
 .PHONY: sync-action-pins
 sync-action-pins:
-	@echo "Syncing action_pins.json from .github/aw to pkg/workflow/data..."
-	@if [ -f .github/aw/action_pins.json ]; then \
-		cp .github/aw/action_pins.json pkg/workflow/data/action_pins.json; \
+	@echo "Syncing actions-lock.json from .github/aw to pkg/workflow/data/action_pins.json..."
+	@if [ -f .github/aw/actions-lock.json ]; then \
+		cp .github/aw/actions-lock.json pkg/workflow/data/action_pins.json; \
 		echo "✓ Action pins synced successfully"; \
 	else \
-		echo "⚠ Warning: .github/aw/action_pins.json does not exist yet"; \
+		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \
 	fi
 
 # Recompile all workflow files
@@ -321,7 +321,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
-	@echo "  sync-action-pins - Sync action_pins.json from .github/aw to pkg/workflow/data (runs automatically during build)"
+	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"

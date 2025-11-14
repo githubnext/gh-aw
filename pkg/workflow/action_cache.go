@@ -12,7 +12,7 @@ var actionCacheLog = logger.New("workflow:action_cache")
 
 const (
 	// CacheFileName is the name of the cache file in .github/aw/
-	CacheFileName = "action_pins.json"
+	CacheFileName = "actions-lock.json"
 )
 
 // ActionCacheEntry represents a cached action pin resolution
