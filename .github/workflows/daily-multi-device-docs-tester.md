@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: claude
   max-turns: 30  # Prevent runaway token usage
