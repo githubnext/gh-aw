@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -103,39 +102,21 @@ func (c *ImportCache) Save() error {
 
 // marshalSorted marshals the cache with entries sorted by key
 func (c *ImportCache) marshalSorted() ([]byte, error) {
-	// Extract and sort the keys
-	keys := make([]string, 0, len(c.Entries))
-	for key := range c.Entries {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	// Manually construct JSON with sorted keys
-	var result []byte
-	result = append(result, []byte("{\n  \"entries\": {\n")...)
-
-	for i, key := range keys {
-		entry := c.Entries[key]
-
-		// Marshal the entry
-		entryJSON, err := json.MarshalIndent(entry, "    ", "  ")
-		if err != nil {
-			return nil, err
-		}
-
-		// Add the key and entry
-		result = append(result, []byte("    \""+key+"\": ")...)
-		result = append(result, entryJSON...)
-
-		// Add comma if not the last entry
-		if i < len(keys)-1 {
-			result = append(result, ',')
-		}
-		result = append(result, '\n')
+	// Create wrapper struct for proper JSON structure
+	// Go's json.Marshal maintains sorted keys for maps (as of Go 1.12+)
+	wrapper := struct {
+		Entries map[string]ImportCacheEntry `json:"entries"`
+	}{
+		Entries: c.Entries,
 	}
 
-	result = append(result, []byte("  }\n}")...)
-	return result, nil
+	// Use standard JSON marshaling with sorted keys
+	data, err := json.MarshalIndent(wrapper, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 // Get retrieves a cached file path if it exists
