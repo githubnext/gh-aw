@@ -21,8 +21,8 @@ import (
 var runLog = logger.New("cli:run_command")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, verbose bool) error {
-	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s", workflowIdOrName, enable, engineOverride, repoOverride)
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, wait=%v", workflowIdOrName, enable, engineOverride, repoOverride, waitForCompletion)
 
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
@@ -325,19 +325,22 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
 	}
 
-	// Auto-merge PRs if requested and we have a valid run
-	if autoMergePRs {
+	// Wait for workflow completion if requested (for --repeat or --auto-merge-prs)
+	if waitForCompletion || autoMergePRs {
 		if runErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information for auto-merge: %v", runErr)))
+			if autoMergePRs {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information for auto-merge: %v", runErr)))
+			} else if waitForCompletion {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information: %v", runErr)))
+			}
 		} else {
-			// Wait for workflow completion before attempting to auto-merge PRs
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
-
 			// Determine target repository: use repo override if provided, otherwise get current repo
 			targetRepo := repoOverride
 			if targetRepo == "" {
 				if currentRepo, err := GetCurrentRepoSlug(); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine target repository for auto-merge: %v", err)))
+					if autoMergePRs {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine target repository for auto-merge: %v", err)))
+					}
 					targetRepo = ""
 				} else {
 					targetRepo = currentRepo
@@ -345,13 +348,26 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 			}
 
 			if targetRepo != "" {
+				// Wait for workflow completion
+				if autoMergePRs {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Waiting for workflow completion..."))
+				}
+
 				runIDStr := fmt.Sprintf("%d", runInfo.DatabaseID)
 				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, verbose); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully, skipping auto-merge: %v", err)))
+					if autoMergePRs {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully, skipping auto-merge: %v", err)))
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully: %v", err)))
+					}
 				} else {
-					// Auto-merge PRs created after the workflow start time
-					if err := AutoMergePullRequestsCreatedAfter(targetRepo, workflowStartTime, verbose); err != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
+					// Auto-merge PRs if requested and workflow completed successfully
+					if autoMergePRs {
+						if err := AutoMergePullRequestsCreatedAfter(targetRepo, workflowStartTime, verbose); err != nil {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
+						}
 					}
 				}
 			}
@@ -406,12 +422,15 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 	runAllWorkflows := func() error {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Running %d workflow(s)...", len(workflowNames))))
 
+		// Wait for completion when using --repeat to ensure workflows finish before next iteration
+		waitForCompletion := repeatCount > 0
+
 		for i, workflowName := range workflowNames {
 			if len(workflowNames) > 1 {
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, waitForCompletion, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
