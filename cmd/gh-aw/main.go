@@ -33,13 +33,16 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
 
-A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
-The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
-The workflow file is then executed by GitHub Actions in response to events in the repository.
+Common Tasks:
+  gh aw init                  # Set up a new repository
+  gh aw new my-workflow       # Create your first workflow
+  gh aw compile               # Compile all workflows
+  gh aw run my-workflow       # Execute a workflow
+  gh aw logs my-workflow      # View execution logs
+  gh aw audit <run-id>        # Debug a failed run
 
-Note: A workflow-id is the basename of the markdown file without the .md extension.
-For example, for 'weekly-research.md', the workflow-id is 'weekly-research'.
-This is different from the optional 'name' field in the workflow frontmatter, which sets the display name in GitHub Actions UI.`,
+For detailed help on any command, use:
+  gh aw [command] --help`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -292,6 +295,24 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
+	// Add command groups to root command
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "setup",
+		Title: "Setup Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "development",
+		Title: "Development Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "execution",
+		Title: "Execution Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "analysis",
+		Title: "Analysis Commands:",
+	})
+
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
 
@@ -418,6 +439,31 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
 
+	// Create commands that need group assignment
+	mcpCmd := cli.NewMCPCommand()
+	logsCmd := cli.NewLogsCommand()
+	auditCmd := cli.NewAuditCommand()
+
+	// Assign commands to groups
+	// Setup Commands
+	initCmd.GroupID = "setup"
+	newCmd.GroupID = "setup"
+	addCmd.GroupID = "setup"
+
+	// Development Commands
+	compileCmd.GroupID = "development"
+	mcpCmd.GroupID = "development"
+	statusCmd.GroupID = "development"
+
+	// Execution Commands
+	runCmd.GroupID = "execution"
+	enableCmd.GroupID = "execution"
+	disableCmd.GroupID = "execution"
+
+	// Analysis Commands
+	logsCmd.GroupID = "analysis"
+	auditCmd.GroupID = "analysis"
+
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(updateCmd)
@@ -430,9 +476,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(enableCmd)
 	rootCmd.AddCommand(disableCmd)
-	rootCmd.AddCommand(cli.NewLogsCommand())
-	rootCmd.AddCommand(cli.NewAuditCommand())
-	rootCmd.AddCommand(cli.NewMCPCommand())
+	rootCmd.AddCommand(logsCmd)
+	rootCmd.AddCommand(auditCmd)
+	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(cli.NewMCPServerCommand())
 	rootCmd.AddCommand(cli.NewPRCommand())
 	rootCmd.AddCommand(versionCmd)
