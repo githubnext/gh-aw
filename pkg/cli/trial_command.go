@@ -76,6 +76,7 @@ Workflows from different repositories:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
 
 Repository mode examples:
+  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repo myorg/myrepo            # Run directly in myorg/myrepo (no simulation)
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
@@ -93,6 +94,7 @@ Advanced examples:
 
 Repository modes:
 - Default: Simulate execution against current repository (using --logical-repo semantics)
+- --repo: Run directly in the specified repository (no simulation, workflows installed and run in that repo)
 - --logical-repo: Simulate execution against specified repository (github.repository points to that repo)
 - --clone-repo: Clone specified repository contents into host repository (no simulation)
 
@@ -191,10 +193,14 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 	if logicalRepoSpec != "" && cloneRepoSpec != "" {
 		return fmt.Errorf("--logical-repo and --clone-repo are mutually exclusive, please specify only one")
 	}
+	if hostRepoSpec != "" && (logicalRepoSpec != "" || cloneRepoSpec != "") {
+		return fmt.Errorf("when using --repo for direct trial mode, do not specify --logical-repo or --clone-repo")
+	}
 
 	var logicalRepoSlug string
 	var cloneRepoSlug string
 	var cloneRepoVersion string
+	var directTrialMode bool
 
 	if cloneRepoSpec != "" {
 		// Use clone-repo mode: clone the specified repo contents into host repo
@@ -206,6 +212,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		cloneRepoSlug = cloneRepo.RepoSlug
 		cloneRepoVersion = cloneRepo.Version
 		logicalRepoSlug = "" // Empty string means skip logical repo simulation
+		directTrialMode = false
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Clone mode: Will clone contents from %s into host repository", cloneRepoSlug)))
 	} else if logicalRepoSpec != "" {
 		// Use logical-repo mode: simulate the workflow running against the specified repo
@@ -216,7 +223,14 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		}
 
 		logicalRepoSlug = logicalRepo.RepoSlug
+		directTrialMode = false
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", logicalRepoSlug)))
+	} else if hostRepoSpec != "" {
+		// Direct trial mode: run workflows directly in the specified repo without simulation
+		logicalRepoSlug = ""
+		cloneRepoSlug = ""
+		directTrialMode = true
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Direct trial mode: Workflows will be installed and run directly in the specified repository"))
 	} else {
 		// Fall back to current repository for logical-repo mode
 		var err error
@@ -224,6 +238,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		if err != nil {
 			return fmt.Errorf("failed to determine simulated host repository: %w", err)
 		}
+		directTrialMode = false
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", logicalRepoSlug)))
 	}
 
@@ -251,7 +266,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !quiet {
-		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, deleteHostRepo, forceDeleteHostRepo, pushSecrets, autoMergePRs, repeatCount); err != nil {
+		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, deleteHostRepo, forceDeleteHostRepo, pushSecrets, autoMergePRs, repeatCount, directTrialMode); err != nil {
 			return err
 		}
 	}
@@ -325,7 +340,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, appendText, pushSecrets, verbose); err != nil {
+			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, appendText, pushSecrets, directTrialMode, verbose); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
@@ -474,7 +489,7 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int, directTrialMode bool) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
 	fmt.Fprintln(os.Stderr, "")
@@ -499,6 +514,10 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		// Clone-repo mode
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Source:    %s (will be cloned)\n"), cloneRepoSlug)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Clone repository contents into host repository"))
+	} else if directTrialMode {
+		// Direct trial mode
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (direct)\n"), hostRepoSlug)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Run workflows directly in repository (no simulation)"))
 	} else {
 		// Logical-repo mode
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (simulated)\n"), logicalRepoSlug)
@@ -571,6 +590,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	// Step 3/2: Install and compile workflows
 	if cloneRepoSlug != "" {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile the specified workflows\n"), stepNum)
+	} else if directTrialMode {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile the specified workflows directly in the repository\n"), stepNum)
 	} else {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile the specified workflows in trial mode\n"), stepNum)
 	}
@@ -767,7 +788,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, pushSecrets bool, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, pushSecrets bool, directTrialMode bool, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -805,9 +826,13 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		}
 	}
 
-	// Now we need to modify the workflow for trial mode
-	if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, logicalRepoSlug, verbose); err != nil {
-		return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
+	// Modify the workflow for trial mode (skip in direct trial mode)
+	if !directTrialMode {
+		if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, logicalRepoSlug, verbose); err != nil {
+			return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
+		}
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Direct trial mode: Skipping trial mode modifications"))
 	}
 
 	// Compile the workflow with trial modifications
@@ -821,7 +846,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
-		TrialMode:            (cloneRepoSlug == ""), // Enable trial mode in compiler if in clone-repo mode
+		TrialMode:            !directTrialMode && (cloneRepoSlug == ""), // Enable trial mode in compiler unless in direct mode or clone-repo mode
 		TrialLogicalRepoSlug: logicalRepoSlug,
 	}
 	workflowDataList, err := CompileWorkflows(config)
