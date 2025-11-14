@@ -170,7 +170,7 @@ Examples:
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		
+
 		// Handle --workflows-dir deprecation
 		workflowDir := dir
 		if workflowsDir != "" {
@@ -360,7 +360,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
-	compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
+	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
