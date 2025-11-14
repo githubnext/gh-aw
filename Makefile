@@ -13,7 +13,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates
+build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -239,6 +239,17 @@ sync-templates:
 	@cp .github/agents/create-shared-agentic-workflow.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
+# Sync action pins from .github/aw to pkg/workflow/data
+.PHONY: sync-action-pins
+sync-action-pins:
+	@echo "Syncing action_pins.json from .github/aw to pkg/workflow/data..."
+	@if [ -f .github/aw/action_pins.json ]; then \
+		cp .github/aw/action_pins.json pkg/workflow/data/action_pins.json; \
+		echo "✓ Action pins synced successfully"; \
+	else \
+		echo "⚠ Warning: .github/aw/action_pins.json does not exist yet"; \
+	fi
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: sync-templates build
@@ -310,6 +321,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
+	@echo "  sync-action-pins - Sync action_pins.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"

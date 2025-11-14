@@ -24,10 +24,9 @@ type ActionPin struct {
 }
 
 // ActionPinsData represents the structure of the embedded JSON file
+// This matches the schema used by ActionCache for consistency
 type ActionPinsData struct {
-	Version     string               `json:"version"`
-	Description string               `json:"description"`
-	Actions     map[string]ActionPin `json:"actions"`
+	Entries map[string]ActionPin `json:"entries"` // key: "repo@version"
 }
 
 // getActionPins unmarshals and returns the action pins from the embedded JSON
@@ -43,8 +42,8 @@ func getActionPins() []ActionPin {
 	}
 
 	// Convert map to sorted slice
-	pins := make([]ActionPin, 0, len(data.Actions))
-	for _, pin := range data.Actions {
+	pins := make([]ActionPin, 0, len(data.Entries))
+	for _, pin := range data.Entries {
 		pins = append(pins, pin)
 	}
 
