@@ -25,7 +25,7 @@ func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 The command:
 1. Checks if a newer version of gh-aw is available
 2. Updates workflows using the 'source' field in the workflow frontmatter
-3. Recompiles all workflows
+3. Compiles each workflow immediately after updating it
 
 For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
@@ -130,9 +130,8 @@ func runCompileWorkflows(verbose bool, engineOverride string) error {
 
 // UpdateWorkflowsWithExtensionCheck performs the complete update process:
 // 1. Check for gh-aw extension updates
-// 2. Update workflows from source repositories
-// 3. Compile all workflows
-// 4. Optionally create a PR
+// 2. Update workflows from source repositories (each workflow is compiled after update)
+// 3. Optionally create a PR
 func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool) error {
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
@@ -140,16 +139,12 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 	}
 
 	// Step 2: Update workflows from source repositories
+	// Note: Each workflow is compiled immediately after being updated
 	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 3: Compile all workflows
-	if err := runCompileWorkflows(verbose, engineOverride); err != nil {
-		return fmt.Errorf("compile failed: %w", err)
-	}
-
-	// Step 4: Optionally create PR if flag is set
+	// Step 3: Optionally create PR if flag is set
 	if createPR {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
@@ -261,21 +256,38 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))
 
-	// Update each workflow
-	updatedCount := 0
-	for _, wf := range workflows {
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, err)))
-			continue
-		}
-		updatedCount++
+	// Track results for summary
+	summary := &updateSummary{
+		Total:   len(workflows),
+		Results: make([]updateResult, 0, len(workflows)),
 	}
 
-	if updatedCount == 0 {
+	// Update each workflow
+	for _, wf := range workflows {
+		result := updateWorkflow(wf, allowMajor, force, verbose, engineOverride)
+		summary.Results = append(summary.Results, result)
+
+		// Update counters based on status
+		switch result.Status {
+		case "success":
+			summary.Updated++
+		case "up-to-date":
+			summary.UpToDate++
+		case "conflicts":
+			summary.Conflicts++
+		case "failed":
+			summary.Failed++
+		}
+	}
+
+	// Print summary
+	printUpdateSummary(summary)
+
+	// Return error if no workflows were successfully updated
+	if summary.Updated == 0 && summary.Conflicts == 0 && summary.UpToDate == 0 {
 		return fmt.Errorf("no workflows were successfully updated")
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated %d workflow(s)", updatedCount)))
 	return nil
 }
 
@@ -284,6 +296,74 @@ type workflowWithSource struct {
 	Name       string
 	Path       string
 	SourceSpec string // e.g., "owner/repo/path@ref"
+}
+
+// updateResult represents the result of updating a single workflow
+type updateResult struct {
+	Name          string
+	Status        string // "success", "conflicts", "failed", "up-to-date"
+	Error         error
+	FromRef       string
+	ToRef         string
+	WasCompiled   bool
+}
+
+// updateSummary tracks the results of all workflow updates
+type updateSummary struct {
+	Total           int
+	UpToDate        int
+	Updated         int
+	Conflicts       int
+	Failed          int
+	Results         []updateResult
+}
+
+// printUpdateSummary prints a detailed summary of workflow updates
+func printUpdateSummary(summary *updateSummary) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Update Summary ==="))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Total workflows: %d", summary.Total)))
+	
+	if summary.Updated > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Successfully updated and compiled: %d", summary.Updated)))
+		for _, result := range summary.Results {
+			if result.Status == "success" {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  - %s (%s → %s)", result.Name, result.FromRef, result.ToRef)))
+			}
+		}
+	}
+	
+	if summary.UpToDate > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("• Already up to date: %d", summary.UpToDate)))
+		for _, result := range summary.Results {
+			if result.Status == "up-to-date" {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s (%s)", result.Name, result.FromRef)))
+			}
+		}
+	}
+	
+	if summary.Conflicts > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Updated with merge conflicts (needs manual review): %d", summary.Conflicts)))
+		for _, result := range summary.Results {
+			if result.Status == "conflicts" {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  - %s (%s → %s) - NOT COMPILED", result.Name, result.FromRef, result.ToRef)))
+			}
+		}
+	}
+	
+	if summary.Failed > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to update: %d", summary.Failed)))
+		for _, result := range summary.Results {
+			if result.Status == "failed" {
+				errorMsg := ""
+				if result.Error != nil {
+					errorMsg = fmt.Sprintf(": %v", result.Error)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("  - %s%s", result.Name, errorMsg)))
+			}
+		}
+	}
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // findWorkflowsWithSource finds all workflows that have a source field
@@ -523,7 +603,12 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string) error {
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string) updateResult {
+	result := updateResult{
+		Name:   wf.Name,
+		Status: "failed", // Default to failed, will be updated on success
+	}
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source: %s", wf.SourceSpec)))
@@ -532,7 +617,9 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	// Parse source spec
 	sourceSpec, err := parseSourceSpec(wf.SourceSpec)
 	if err != nil {
-		return fmt.Errorf("failed to parse source spec: %w", err)
+		result.Error = fmt.Errorf("failed to parse source spec: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	// If no ref specified, use default branch
@@ -540,12 +627,16 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	if currentRef == "" {
 		currentRef = "main"
 	}
+	result.FromRef = currentRef
 
 	// Resolve latest ref
 	latestRef, err := resolveLatestRef(sourceSpec.Repo, currentRef, allowMajor, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to resolve latest ref: %w", err)
+		result.Error = fmt.Errorf("failed to resolve latest ref: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
+	result.ToRef = latestRef
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current ref: %s", currentRef)))
@@ -555,7 +646,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	// Check if update is needed
 	if !force && currentRef == latestRef {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
-		return nil
+		result.Status = "up-to-date"
+		return result
 	}
 
 	// Download the base version (current ref from source)
@@ -565,7 +657,9 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	baseContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to download base workflow: %w", err)
+		result.Error = fmt.Errorf("failed to download base workflow: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	// Download the latest version
@@ -575,39 +669,53 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	newContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, latestRef, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to download workflow: %w", err)
+		result.Error = fmt.Errorf("failed to download workflow: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	// Read current workflow content
 	currentContent, err := os.ReadFile(wf.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read current workflow: %w", err)
+		result.Error = fmt.Errorf("failed to read current workflow: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	// Perform 3-way merge using git merge-file
 	mergedContent, hasConflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to merge workflow content: %w", err)
+		result.Error = fmt.Errorf("failed to merge workflow content: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	// Write updated content
 	if err := os.WriteFile(wf.Path, []byte(mergedContent), 0644); err != nil {
-		return fmt.Errorf("failed to write updated workflow: %w", err)
+		result.Error = fmt.Errorf("failed to write updated workflow: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
 	if hasConflicts {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, currentRef, latestRef)))
-		return nil // Not an error, but user needs to resolve conflicts
+		result.Status = "conflicts"
+		result.WasCompiled = false
+		return result
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
 
 	// Compile the updated workflow
 	if err := compileWorkflow(wf.Path, verbose, engineOverride); err != nil {
-		return fmt.Errorf("failed to compile updated workflow: %w", err)
+		result.Error = fmt.Errorf("failed to compile updated workflow: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Compilation failed for %s: %v", wf.Name, result.Error)))
+		return result
 	}
 
-	return nil
+	result.Status = "success"
+	result.WasCompiled = true
+	return result
 }
 
 // downloadWorkflowContent downloads the content of a workflow file from GitHub
