@@ -499,7 +499,7 @@ Supply chain attacks target dependencies in CI/CD pipelines.
 **Insecure:**
 ```yaml
 steps:
-  - uses: actions/checkout@v4           # Tag can be moved
+  - uses: actions/checkout@v5           # Tag can be moved
   - uses: actions/setup-node@main       # Branch can be updated
 ```
 

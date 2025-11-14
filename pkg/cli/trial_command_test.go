@@ -195,14 +195,14 @@ steps:
 			inputContent: `---
 steps:
 - name: Checkout
-  uses: actions/checkout@v4
+  uses: actions/checkout@v5
 - name: Build
   run: make build
 ---`,
 			expectedContent: `---
 steps:
 - name: Checkout
-  uses: actions/checkout@v4
+  uses: actions/checkout@v5
   with:
     repository: owner/repo
 - name: Build
@@ -241,7 +241,7 @@ steps:
     run: echo "between checkouts"
     
   - name: Checkout different version
-    uses: actions/checkout@v4
+    uses: actions/checkout@v5
 ---`,
 			expectedContent: `---
 steps:
@@ -254,7 +254,7 @@ steps:
     run: echo "between checkouts"
     
   - name: Checkout different version
-    uses: actions/checkout@v4
+    uses: actions/checkout@v5
     with:
       repository: multi/repo
 ---`,
