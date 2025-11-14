@@ -371,7 +371,7 @@ func ExtractMarkdown(filePath string) (string, error) {
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
+	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -389,7 +389,7 @@ type importQueueItem struct {
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
 // Returns result containing merged tools, engines, markdown content, and list of imported files
 // Uses BFS traversal with queues for deterministic ordering and cycle detection
-func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (*ImportsResult, error) {
+func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string, cache *ImportCache) (*ImportsResult, error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
@@ -451,7 +451,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 
 		// Resolve import path (supports workflowspec format)
-		fullPath, err := resolveIncludePath(filePath, baseDir)
+		fullPath, err := resolveIncludePath(filePath, baseDir, cache)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
@@ -558,7 +558,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 					}
 
 					// Resolve nested import path relative to the workflows directory, not the nested file's directory
-					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir)
+					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir, cache)
 					if err != nil {
 						return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
 					}
@@ -724,7 +724,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			}
 
 			// Resolve file path first to get the canonical path
-			fullPath, err := resolveIncludePath(filePath, baseDir)
+			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, show a friendly informational message to stdout
@@ -796,12 +796,12 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 }
 
 // resolveIncludePath resolves include path based on workflowspec format or relative path
-func resolveIncludePath(filePath, baseDir string) (string, error) {
+func resolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	// Check if this is a workflowspec (contains owner/repo/path format)
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 	if isWorkflowSpec(filePath) {
-		// Download from GitHub using workflowspec
-		return downloadIncludeFromWorkflowSpec(filePath)
+		// Download from GitHub using workflowspec (with cache support)
+		return downloadIncludeFromWorkflowSpec(filePath, cache)
 	}
 
 	// Regular path, resolve relative to base directory
@@ -850,7 +850,8 @@ func isWorkflowSpec(path string) bool {
 }
 
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec
-func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
+// It first checks the cache, and only downloads if not cached
+func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
 	// Parse the workflowspec
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 
@@ -880,13 +881,38 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 	repo := slashParts[1]
 	filePath := strings.Join(slashParts[2:], "/")
 
+	// Check cache first if available
+	if cache != nil {
+		if cachedPath, found := cache.Get(owner, repo, filePath, ref); found {
+			log.Printf("Using cached import: %s/%s/%s@%s", owner, repo, filePath, ref)
+			return cachedPath, nil
+		}
+	}
+
 	// Download the file content from GitHub
 	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
 
-	// Create a temporary file to store the downloaded content
+	// If cache is available, store in cache
+	if cache != nil {
+		// Get the actual commit SHA for this ref
+		// For now, we'll use the ref as the SHA (could be improved to fetch actual SHA)
+		cachedPath, err := cache.Set(owner, repo, filePath, ref, ref, content)
+		if err != nil {
+			log.Printf("Failed to cache import: %v", err)
+			// Don't fail the compilation, fall back to temp file
+		} else {
+			// Save cache manifest
+			if err := cache.Save(); err != nil {
+				log.Printf("Failed to save cache manifest: %v", err)
+			}
+			return cachedPath, nil
+		}
+	}
+
+	// Fallback: Create a temporary file to store the downloaded content
 	tempFile, err := os.CreateTemp("", "gh-aw-include-*.md")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
@@ -1322,7 +1348,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 			}
 
 			// Resolve file path
-			fullPath, err := resolveIncludePath(filePath, baseDir)
+			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, skip extraction
