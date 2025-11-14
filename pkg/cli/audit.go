@@ -213,7 +213,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 	}
 
 	// Extract metrics from logs
-	metrics, err := extractLogMetrics(runOutputDir, verbose)
+	metrics, err := extractLogMetrics(runOutputDir, verbose, run.WorkflowPath)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics: %v", err)))
@@ -386,7 +386,7 @@ func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, er
 	args = append(args,
 		endpoint,
 		"--jq",
-		"{databaseId: .id, number: .run_number, url: .html_url, status: .status, conclusion: .conclusion, workflowName: .name, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, event: .event, headBranch: .head_branch, headSha: .head_sha, displayTitle: .display_title}",
+		"{databaseId: .id, number: .run_number, url: .html_url, status: .status, conclusion: .conclusion, workflowName: .name, workflowPath: .path, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, event: .event, headBranch: .head_branch, headSha: .head_sha, displayTitle: .display_title}",
 	)
 
 	if verbose {

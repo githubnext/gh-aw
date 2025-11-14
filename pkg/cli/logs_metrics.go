@@ -29,14 +29,20 @@ import (
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // extractLogMetrics extracts metrics from downloaded log files
-func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
+// workflowPath is optional and can be provided to help detect GitHub Copilot agent runs
+func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
 	var metrics LogMetrics
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
 	}
 
 	// First check if this is a GitHub Copilot agent run (not Copilot CLI)
-	detector := NewCopilotAgentDetector(logDir, verbose)
+	var detector *CopilotAgentDetector
+	if len(workflowPath) > 0 && workflowPath[0] != "" {
+		detector = NewCopilotAgentDetectorWithPath(logDir, verbose, workflowPath[0])
+	} else {
+		detector = NewCopilotAgentDetector(logDir, verbose)
+	}
 	isGitHubCopilotAgent := detector.IsGitHubCopilotAgent()
 
 	if isGitHubCopilotAgent && verbose {

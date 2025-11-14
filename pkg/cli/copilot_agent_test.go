@@ -13,14 +13,40 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupFunc      func(string) error
+		workflowPath   string
 		expectedResult bool
 	}{
+		{
+			name: "detects from workflow path copilot-swe-agent.yml",
+			setupFunc: func(dir string) error {
+				return nil // No files needed, just workflow path
+			},
+			workflowPath:   ".github/workflows/copilot-swe-agent.yml",
+			expectedResult: true,
+		},
+		{
+			name: "detects from workflow path copilot-swe-agent.yaml",
+			setupFunc: func(dir string) error {
+				return nil
+			},
+			workflowPath:   ".github/workflows/copilot-swe-agent.yaml",
+			expectedResult: true,
+		},
+		{
+			name: "does not detect from different workflow path",
+			setupFunc: func(dir string) error {
+				return nil
+			},
+			workflowPath:   ".github/workflows/my-workflow.yml",
+			expectedResult: false,
+		},
 		{
 			name: "aw_info.json present means agentic workflow, not copilot agent",
 			setupFunc: func(dir string) error {
 				awInfo := `{"workflow_name": "copilot-swe-agent-task", "workflow_file": "test.yml"}`
 				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
 			},
+			workflowPath:   ".github/workflows/copilot-swe-agent.yml",
 			expectedResult: false,
 		},
 		{
@@ -82,8 +108,13 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 				t.Fatalf("Setup failed: %v", err)
 			}
 
-			// Run detector
-			detector := NewCopilotAgentDetector(tmpDir, false)
+			// Run detector with workflow path if provided
+			var detector *CopilotAgentDetector
+			if tt.workflowPath != "" {
+				detector = NewCopilotAgentDetectorWithPath(tmpDir, false, tt.workflowPath)
+			} else {
+				detector = NewCopilotAgentDetector(tmpDir, false)
+			}
 			result := detector.IsGitHubCopilotAgent()
 
 			if result != tt.expectedResult {

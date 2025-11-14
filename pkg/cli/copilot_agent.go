@@ -16,8 +16,9 @@ var copilotAgentLog = logger.New("cli:copilot_agent")
 
 // CopilotAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot agent
 type CopilotAgentDetector struct {
-	runDir  string
-	verbose bool
+	runDir       string
+	verbose      bool
+	workflowPath string // Optional: workflow file path from GitHub API (e.g., .github/workflows/copilot-swe-agent.yml)
 }
 
 // NewCopilotAgentDetector creates a new detector for GitHub Copilot agent runs
@@ -25,6 +26,15 @@ func NewCopilotAgentDetector(runDir string, verbose bool) *CopilotAgentDetector 
 	return &CopilotAgentDetector{
 		runDir:  runDir,
 		verbose: verbose,
+	}
+}
+
+// NewCopilotAgentDetectorWithPath creates a detector with workflow path hint
+func NewCopilotAgentDetectorWithPath(runDir string, verbose bool, workflowPath string) *CopilotAgentDetector {
+	return &CopilotAgentDetector{
+		runDir:       runDir,
+		verbose:      verbose,
+		workflowPath: workflowPath,
 	}
 }
 
@@ -40,19 +50,49 @@ func (d *CopilotAgentDetector) IsGitHubCopilotAgent() bool {
 		return false
 	}
 
-	// Heuristic 1: Check for agent-specific log patterns
+	// Heuristic 1: Check workflow path if provided (most reliable hint from GitHub API)
+	if d.hasAgentWorkflowPath() {
+		copilotAgentLog.Print("Detected copilot-swe-agent in workflow path")
+		return true
+	}
+
+	// Heuristic 2: Check for agent-specific log patterns
 	if d.hasAgentLogPatterns() {
 		copilotAgentLog.Print("Detected agent log patterns")
 		return true
 	}
 
-	// Heuristic 2: Check for agent-specific artifacts
+	// Heuristic 3: Check for agent-specific artifacts
 	if d.hasAgentArtifacts() {
 		copilotAgentLog.Print("Detected agent artifacts")
 		return true
 	}
 
 	copilotAgentLog.Print("No GitHub Copilot agent indicators found")
+	return false
+}
+
+// hasAgentWorkflowPath checks if the workflow path indicates a Copilot agent run
+// The workflow ID is always "copilot-swe-agent" for GitHub Copilot agent runs
+func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
+	if d.workflowPath == "" {
+		return false
+	}
+
+	// Extract the workflow filename from the path
+	// E.g., .github/workflows/copilot-swe-agent.yml -> copilot-swe-agent
+	filename := filepath.Base(d.workflowPath)
+	workflowID := strings.TrimSuffix(filename, filepath.Ext(filename))
+
+	// GitHub Copilot agent runs always use "copilot-swe-agent" as the workflow ID
+	if workflowID == "copilot-swe-agent" {
+		if d.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("Detected GitHub Copilot agent from workflow path: %s (ID: %s)", d.workflowPath, workflowID)))
+		}
+		return true
+	}
+
 	return false
 }
 
