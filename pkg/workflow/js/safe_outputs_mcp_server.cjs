@@ -484,10 +484,10 @@ const generateGitPatchHandler = args => {
     if (fs.existsSync(outputFile)) {
       debug("Reading safe outputs to find branch name...");
       const lines = fs.readFileSync(outputFile, "utf8").split("\n");
-      
+
       for (const line of lines) {
         if (!line.trim()) continue;
-        
+
         try {
           const entry = JSON.parse(line);
           // Check for create_pull_request or push_to_pull_request_branch
@@ -511,9 +511,9 @@ const generateGitPatchHandler = args => {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ 
+            text: JSON.stringify({
               result: "no_branch",
-              message: "No branch found in safe outputs"
+              message: "No branch found in safe outputs",
             }),
           },
         ],
@@ -532,9 +532,9 @@ const generateGitPatchHandler = args => {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ 
+            text: JSON.stringify({
               result: "no_branch",
-              message: `Branch ${branchName} does not exist`
+              message: `Branch ${branchName} does not exist`,
             }),
           },
         ],
@@ -551,19 +551,19 @@ const generateGitPatchHandler = args => {
     } catch (error) {
       // Use merge-base with default branch
       debug(`origin/${branchName} does not exist, using merge-base with ${defaultBranch}`);
-      
+
       // Fetch the default branch
       try {
         execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8", stdio: "pipe" });
       } catch (fetchError) {
         debug(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
       }
-      
+
       // Find merge base
       try {
-        baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, { 
-          cwd, 
-          encoding: "utf8" 
+        baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, {
+          cwd,
+          encoding: "utf8",
         }).trim();
         debug(`Using merge-base as base: ${baseRef}`);
       } catch (mergeBaseError) {
@@ -574,9 +574,9 @@ const generateGitPatchHandler = args => {
     // Count commits to be included
     let commitCount = 0;
     try {
-      const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, { 
-        cwd, 
-        encoding: "utf8" 
+      const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, {
+        cwd,
+        encoding: "utf8",
       }).trim();
       commitCount = parseInt(countOutput, 10);
       debug(`Number of commits to include: ${commitCount}`);
@@ -586,10 +586,10 @@ const generateGitPatchHandler = args => {
 
     // Generate the patch
     debug(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
-    const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, { 
-      cwd, 
+    const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, {
+      cwd,
       encoding: "utf8",
-      maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
     });
 
     // Check if patch has content
@@ -599,9 +599,9 @@ const generateGitPatchHandler = args => {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ 
+            text: JSON.stringify({
               result: "no_changes",
-              message: "No changes to create patch - branch is up to date with base"
+              message: "No changes to create patch - branch is up to date with base",
             }),
           },
         ],
@@ -616,10 +616,10 @@ const generateGitPatchHandler = args => {
 
     // Write patch to file
     fs.writeFileSync(patchPath, patchContent, "utf8");
-    
+
     const patchSizeKB = Math.ceil(Buffer.byteLength(patchContent, "utf8") / 1024);
     const patchLines = patchContent.split("\n").length;
-    
+
     debug(`Patch file created: ${patchPath}`);
     debug(`Patch size: ${patchSizeKB} KB, ${patchLines} lines, ${commitCount} commits`);
 
@@ -627,19 +627,18 @@ const generateGitPatchHandler = args => {
       content: [
         {
           type: "text",
-          text: JSON.stringify({ 
+          text: JSON.stringify({
             result: "success",
             path: patchPath,
             branch: branchName,
             base: baseRef,
             size_kb: patchSizeKB,
             lines: patchLines,
-            commits: commitCount
+            commits: commitCount,
           }),
         },
       ],
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     debug(`Failed to generate patch: ${errorMessage}`);
@@ -961,7 +960,8 @@ const ALL_TOOLS = [
   },
   {
     name: "generate_git_patch",
-    description: "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
+    description:
+      "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
     inputSchema: {
       type: "object",
       properties: {},
