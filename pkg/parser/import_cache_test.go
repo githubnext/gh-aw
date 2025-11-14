@@ -3,6 +3,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -89,6 +90,25 @@ func TestImportCacheDirectory(t *testing.T) {
 	// Verify directory was created
 	if _, err := os.Stat(expectedDir); os.IsNotExist(err) {
 		t.Errorf("Cache directory was not created: %s", expectedDir)
+	}
+
+	// Verify .gitattributes was auto-generated
+	gitAttributesPath := filepath.Join(expectedDir, ".gitattributes")
+	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+		t.Errorf(".gitattributes file was not created: %s", gitAttributesPath)
+	}
+
+	// Verify .gitattributes content
+	content, err := os.ReadFile(gitAttributesPath)
+	if err != nil {
+		t.Fatalf("Failed to read .gitattributes: %v", err)
+	}
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "linguist-generated=true") {
+		t.Error(".gitattributes missing 'linguist-generated=true'")
+	}
+	if !strings.Contains(contentStr, "merge=ours") {
+		t.Error(".gitattributes missing 'merge=ours'")
 	}
 }
 

@@ -63,6 +63,12 @@ func (c *ImportCache) Set(owner, repo, path, sha, _ string, content []byte) (str
 		return "", err
 	}
 
+	// Ensure .gitattributes file exists in cache root
+	if err := c.ensureGitAttributes(); err != nil {
+		importCacheLog.Printf("Failed to ensure .gitattributes: %v", err)
+		// Non-fatal error - continue with caching
+	}
+
 	// Write content to cache file
 	if err := os.WriteFile(fullCachePath, content, 0644); err != nil {
 		importCacheLog.Printf("Failed to write cache file: %v", err)
@@ -76,4 +82,36 @@ func (c *ImportCache) Set(owner, repo, path, sha, _ string, content []byte) (str
 // GetCacheDir returns the base cache directory path
 func (c *ImportCache) GetCacheDir() string {
 	return filepath.Join(c.baseDir, ImportCacheDir)
+}
+
+// ensureGitAttributes creates the .gitattributes file in the cache directory if it doesn't exist
+func (c *ImportCache) ensureGitAttributes() error {
+	gitAttributesPath := filepath.Join(c.GetCacheDir(), ".gitattributes")
+
+	// Check if .gitattributes already exists
+	if _, err := os.Stat(gitAttributesPath); err == nil {
+		// File already exists, nothing to do
+		return nil
+	}
+
+	// Ensure cache root directory exists
+	cacheDir := c.GetCacheDir()
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return err
+	}
+
+	// Create .gitattributes file with content
+	content := `# Mark all cached import files as generated
+* linguist-generated=true
+
+# Use 'ours' merge strategy to keep local cached versions
+* merge=ours
+`
+
+	if err := os.WriteFile(gitAttributesPath, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	importCacheLog.Printf("Created .gitattributes in cache directory: %s", gitAttributesPath)
+	return nil
 }
