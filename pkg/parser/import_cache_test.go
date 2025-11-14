@@ -25,7 +25,7 @@ func TestImportCache(t *testing.T) {
 	path := "workflows/test.md"
 	sha := "abc123"
 
-	cachedPath, err := cache.Set(owner, repo, path, sha, "", testContent)
+	cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestImportCacheDirectory(t *testing.T) {
 
 	// Create a cache entry to trigger directory creation
 	testContent := []byte("test")
-	_, err = cache.Set("owner", "repo", "test.md", "sha1", "", testContent)
+	_, err = cache.Set("owner", "repo", "test.md", "sha1", testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestImportCacheMissingFile(t *testing.T) {
 
 	// Add entry to cache
 	testContent := []byte("test")
-	cachedPath, err := cache.Set("owner", "repo", "test.md", "sha1", "", testContent)
+	cachedPath, err := cache.Set("owner", "repo", "test.md", "sha1", testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}

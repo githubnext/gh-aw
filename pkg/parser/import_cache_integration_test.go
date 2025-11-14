@@ -47,7 +47,7 @@ This is shared configuration.
 
 	// Cache the "remote" file
 	sha := "abc123"
-	cachedPath, err := cache.Set("testowner", "testrepo", "workflows/shared.md", sha, sha, sharedContent)
+	cachedPath, err := cache.Set("testowner", "testrepo", "workflows/shared.md", sha, sharedContent)
 	if err != nil {
 		t.Fatalf("Failed to cache file: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 	}
 
 	for _, f := range files {
-		_, err := cache.Set(f.owner, f.repo, f.path, f.sha, "", []byte(f.content))
+		_, err := cache.Set(f.owner, f.repo, f.path, f.sha, []byte(f.content))
 		if err != nil {
 			t.Fatalf("Failed to cache file %s/%s/%s@%s: %v", f.owner, f.repo, f.path, f.sha, err)
 		}
