@@ -14,8 +14,8 @@ engine: copilot
 
 permissions:
   contents: read
-  pull-requests: read
   issues: read
+  repository-projects: read
 
 safe-outputs:
   update-project:
@@ -72,7 +72,7 @@ You are the Bug Bash Campaign orchestrator. Every week, you organize a focused b
 
 6. **Before adding items, ensure required fields exist on the project board:**
    - Try to use the projects toolset from the GitHub MCP server to check if these fields exist:
-     - `Status` (SingleSelect) - with option "To Do"
+     - `Status` (SingleSelect) - with option "Todo"
      - `Priority` (SingleSelect) - with options: "Critical", "High", "Medium"
      - `Complexity` (SingleSelect) - with options: "Complex", "Quick Win", "Standard"
      - `Impact` (SingleSelect) - with options: "Blocker", "Major", "Minor"
@@ -82,7 +82,7 @@ You are the Bug Bash Campaign orchestrator. Every week, you organize a focused b
    - **If field operations fail or are not supported:** Log the error in the summary and proceed with item addition anyway (the safe-output handler will handle field creation/validation)
 
 7. For each selected issue emit an `update-project` safe output using the project URL from step 1. Use the projects toolset from the GitHub MCP server to interact with the project board. Safe output fields:
-   - Status: "To Do"
+   - Status: "Todo"
    - Priority: (from classification above)
    - Complexity: (from classification above)
    - Impact: (from classification above)
@@ -123,7 +123,7 @@ If you encounter errors when using the GitHub MCP server:
   "content_type": "issue",
   "content_number": 123,
   "fields": {
-    "Status": "To Do",
+    "Status": "Todo",
     "Priority": "High",
     "Complexity": "Standard",
     "Impact": "Major",

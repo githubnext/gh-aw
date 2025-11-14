@@ -20,11 +20,6 @@
       "version": "v6",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
-    "actions/download-artifact@v6": {
-      "repo": "actions/download-artifact",
-      "version": "v6",
-      "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
-    },
     "actions/github-script@v8": {
       "repo": "actions/github-script",
       "version": "v8",

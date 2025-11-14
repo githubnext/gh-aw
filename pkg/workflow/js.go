@@ -96,6 +96,7 @@ func getUpdateProjectScript() string {
 	})
 	return updateProjectScript
 }
+
 //go:embed js/generate_footer.cjs
 var generateFooterScript string
 

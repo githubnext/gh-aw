@@ -51,11 +51,8 @@ describe("update_project.cjs", () => {
   let tempFilePath;
 
   // Helper function to set agent output via file
-  const setAgentOutput = (data) => {
-    tempFilePath = path.join(
-      "/tmp",
-      `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`
-    );
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
     process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
@@ -132,9 +129,7 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
 
       // Verify campaign ID was logged
-      const campaignIdLog = mockCore.info.mock.calls.find((call) =>
-        call[0].startsWith("Campaign ID:")
-      );
+      const campaignIdLog = mockCore.info.mock.calls.find(call => call[0].startsWith("Campaign ID:"));
       expect(campaignIdLog).toBeDefined();
       expect(campaignIdLog[0]).toMatch(/Campaign ID: bug-bash-q1-2025-[a-z0-9]{8}/);
     });
@@ -211,14 +206,8 @@ describe("update_project.cjs", () => {
       // Verify outputs were set
       expect(mockCore.setOutput).toHaveBeenCalledWith("project-id", "project123");
       expect(mockCore.setOutput).toHaveBeenCalledWith("project-number", 1);
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "project-url",
-        "https://github.com/testowner/testrepo/projects/1"
-      );
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "campaign-id",
-        expect.stringMatching(/new-campaign-[a-z0-9]{8}/)
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("project-url", "https://github.com/testowner/testrepo/projects/1");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("campaign-id", expect.stringMatching(/new-campaign-[a-z0-9]{8}/));
     });
 
     it("should use custom campaign ID when provided", async () => {
@@ -262,10 +251,7 @@ describe("update_project.cjs", () => {
 
       // Verify custom campaign ID was used
       expect(mockCore.info).toHaveBeenCalledWith("Campaign ID: custom-id-2025");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "campaign-id",
-        "custom-id-2025"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("campaign-id", "custom-id-2025");
     });
   });
 
@@ -300,15 +286,10 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
       // No need to wait with eval
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "✓ Found existing project: Existing Campaign (#5)"
-      );
-      
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Found existing project: Existing Campaign (#5)");
+
       // Should not create a new project
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(
-        expect.stringContaining("createProjectV2"),
-        expect.anything()
-      );
+      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("createProjectV2"), expect.anything());
     });
 
     it("should find existing project by number", async () => {
@@ -340,9 +321,7 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
       // No need to wait with eval
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "✓ Found existing project: 7 (#7)"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Found existing project: 7 (#7)");
     });
   });
 
@@ -361,9 +340,7 @@ describe("update_project.cjs", () => {
         .mockResolvedValueOnce({
           repository: {
             projectsV2: {
-              nodes: [
-                { id: "project123", title: "Bug Tracking", number: 1 },
-              ],
+              nodes: [{ id: "project123", title: "Bug Tracking", number: 1 }],
             },
           },
         })
@@ -437,9 +414,7 @@ describe("update_project.cjs", () => {
         .mockResolvedValueOnce({
           repository: {
             projectsV2: {
-              nodes: [
-                { id: "project123", title: "Bug Tracking", number: 1 },
-              ],
+              nodes: [{ id: "project123", title: "Bug Tracking", number: 1 }],
             },
           },
         })
@@ -470,10 +445,7 @@ describe("update_project.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
 
       // Should not add item again
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(
-        expect.stringContaining("addProjectV2ItemById"),
-        expect.anything()
-      );
+      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addProjectV2ItemById"), expect.anything());
     });
   });
 
@@ -492,9 +464,7 @@ describe("update_project.cjs", () => {
         .mockResolvedValueOnce({
           repository: {
             projectsV2: {
-              nodes: [
-                { id: "project789", title: "PR Review Board", number: 3 },
-              ],
+              nodes: [{ id: "project789", title: "PR Review Board", number: 3 }],
             },
           },
         })
@@ -604,9 +574,7 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
       // No need to wait with eval
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        '✓ Updated field "Status" = "In Progress"'
-      );
+      expect(mockCore.info).toHaveBeenCalledWith('✓ Updated field "Status" = "In Progress"');
     });
 
     it("should handle single select field with options", async () => {
@@ -626,9 +594,7 @@ describe("update_project.cjs", () => {
         .mockResolvedValueOnce({
           repository: {
             projectsV2: {
-              nodes: [
-                { id: "priority-project", title: "Priority Board", number: 5 },
-              ],
+              nodes: [{ id: "priority-project", title: "Priority Board", number: 5 }],
             },
           },
         })
@@ -705,9 +671,7 @@ describe("update_project.cjs", () => {
         .mockResolvedValueOnce({
           repository: {
             projectsV2: {
-              nodes: [
-                { id: "test-project", title: "Test Project", number: 1 },
-              ],
+              nodes: [{ id: "test-project", title: "Test Project", number: 1 }],
             },
           },
         })
@@ -746,9 +710,7 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
       // No need to wait with eval
 
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        'Field "NonExistentField" not found in project'
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith('Field "NonExistentField" not found in project');
     });
   });
 
@@ -790,9 +752,7 @@ describe("update_project.cjs", () => {
         });
 
       // Mock label addition to fail
-      mockGithub.rest.issues.addLabels.mockRejectedValueOnce(
-        new Error("Label creation failed")
-      );
+      mockGithub.rest.issues.addLabels.mockRejectedValueOnce(new Error("Label creation failed"));
 
       setAgentOutput(output);
 
@@ -800,14 +760,10 @@ describe("update_project.cjs", () => {
       // No need to wait with eval
 
       // Should warn but not fail
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        "Failed to add campaign label: Label creation failed"
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to add campaign label: Label creation failed");
 
       // Should still complete successfully
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "✓ Project management completed successfully"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Project management completed successfully");
     });
 
     it("should throw error on project creation failure", async () => {
@@ -834,9 +790,7 @@ describe("update_project.cjs", () => {
       await eval(`(async () => { ${updateProjectScript} })()`);
       // No need to wait with eval
 
-      expect(mockCore.error).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to manage project:")
-      );
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project:"));
     });
   });
 });

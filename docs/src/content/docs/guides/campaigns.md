@@ -95,7 +95,7 @@ You are managing a performance optimization campaign.
 4. **Add each issue to the campaign board** with:
    - Priority: Critical/High/Medium based on impact
    - Effort: XS/S/M/L based on complexity
-   - Status: "To Do"
+   - Status: "Todo"
 
 5. **Track progress** as issues are resolved
 
