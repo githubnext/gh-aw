@@ -135,7 +135,7 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - For Go: Creates go.mod for go install/get packages
   - Creates .github/dependabot.yml with all detected ecosystems
   - Use --force to overwrite existing dependabot.yml
-  - Cannot be used with specific workflow files or custom --workflows-dir
+  - Cannot be used with specific workflow files or custom --dir
   - Only processes workflows in the default .github/workflows directory
 
 Examples:
@@ -143,7 +143,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
-  ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
+  ` + constants.CLIExtensionPrefix + ` compile --dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
   ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
@@ -152,7 +152,8 @@ Examples:
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
-		workflowDir, _ := cmd.Flags().GetString("workflows-dir")
+		dir, _ := cmd.Flags().GetString("dir")
+		workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
@@ -168,6 +169,16 @@ Examples:
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
+		}
+		
+		// Handle --workflows-dir deprecation
+		workflowDir := dir
+		if workflowsDir != "" {
+			if dir != "" {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("cannot use both --dir and --workflows-dir flags"))
+				os.Exit(1)
+			}
+			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
 			MarkdownFiles:        args,
@@ -347,7 +358,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
-	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
+	compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")

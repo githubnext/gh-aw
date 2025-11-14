@@ -200,7 +200,7 @@ func validateCompileConfig(config CompileConfig) error {
 			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
 		}
 		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
-			return fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
+			return fmt.Errorf("--dependabot flag cannot be used with custom --dir")
 		}
 	}
 
@@ -211,7 +211,7 @@ func validateCompileConfig(config CompileConfig) error {
 
 	// Validate workflow directory path
 	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
-		return fmt.Errorf("workflows-dir must be a relative path, got: %s", config.WorkflowDir)
+		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)
 	}
 
 	return nil
