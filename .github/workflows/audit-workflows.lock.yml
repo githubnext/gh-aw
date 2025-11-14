@@ -1402,11 +1402,13 @@ jobs:
           **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
           
           **Format:**
+          
           `````markdown
           [§12345](https://github.com/owner/repo/actions/runs/12345)
           `````
           
           **Example:**
+          
           `````markdown
           Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
           `````
@@ -1416,6 +1418,7 @@ jobs:
           When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
           
           **Format:**
+          
           `````markdown
           ---
           
@@ -1426,6 +1429,7 @@ jobs:
           `````
           
           **Guidelines:**
+          
           - Include **maximum 3 references** to keep reports concise
           - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
           - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
@@ -1786,7 +1790,6 @@ jobs:
           import os
           
           data_file = '/tmp/gh-aw/python/data/data.csv'
-          if not os.path.exists(data_file):
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
@@ -1794,6 +1797,7 @@ jobs:
         run: |
           # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          if not os.path.exists(data_file):
               raise FileNotFoundError(f"Data file not found: {data_file}")
           ```
           
