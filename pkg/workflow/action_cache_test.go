@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -123,4 +124,76 @@ func TestActionCacheTrailingNewline(t *testing.T) {
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		t.Error("Cache file should end with a trailing newline for prettier compliance")
 	}
+}
+
+func TestActionCacheSortedEntries(t *testing.T) {
+	// Create temporary directory for testing
+	tmpDir := t.TempDir()
+
+	// Create cache and add entries in non-alphabetical order
+	cache := NewActionCache(tmpDir)
+	cache.Set("zzz/last-action", "v1", "sha111")
+	cache.Set("actions/checkout", "v5", "sha222")
+	cache.Set("mmm/middle-action", "v2", "sha333")
+	cache.Set("actions/setup-node", "v4", "sha444")
+	cache.Set("aaa/first-action", "v3", "sha555")
+
+	// Save to disk
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Read the file content
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("Failed to read cache file: %v", err)
+	}
+
+	content := string(data)
+
+	// Verify that entries appear in alphabetical order by checking their positions
+	entries := []string{
+		"aaa/first-action@v3",
+		"actions/checkout@v5",
+		"actions/setup-node@v4",
+		"mmm/middle-action@v2",
+		"zzz/last-action@v1",
+	}
+
+	lastPos := -1
+	for _, entry := range entries {
+		pos := indexOf(content, entry)
+		if pos == -1 {
+			t.Errorf("Entry %s not found in cache file", entry)
+			continue
+		}
+		if pos < lastPos {
+			t.Errorf("Entry %s appears before previous entry (not sorted)", entry)
+		}
+		lastPos = pos
+	}
+
+	// Also verify the file is valid JSON
+	var loadedCache ActionCache
+	err = json.Unmarshal(data, &loadedCache)
+	if err != nil {
+		t.Fatalf("Saved cache is not valid JSON: %v", err)
+	}
+
+	// Verify all entries are present
+	if len(loadedCache.Entries) != 5 {
+		t.Errorf("Expected 5 entries, got %d", len(loadedCache.Entries))
+	}
+}
+
+// indexOf returns the index of substr in s, or -1 if not found
+func indexOf(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }
