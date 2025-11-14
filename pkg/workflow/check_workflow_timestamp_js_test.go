@@ -83,17 +83,24 @@ This is a test workflow to verify timestamp checking uses JavaScript.
 		t.Error("Expected timestamp check to NOT use inline bash (run: |)")
 	}
 
-	// Verify the JavaScript content is present (check for key functions)
-	if !strings.Contains(lockContentStr, "GITHUB_WORKSPACE") {
-		t.Error("Expected JavaScript to reference GITHUB_WORKSPACE")
+	// Verify the JavaScript content is present and uses GitHub API
+	if !strings.Contains(lockContentStr, "github.rest.repos.getContent") {
+		t.Error("Expected JavaScript to use github.rest.repos.getContent API")
 	}
-	if !strings.Contains(lockContentStr, "GITHUB_WORKFLOW") {
-		t.Error("Expected JavaScript to reference GITHUB_WORKFLOW")
+	if !strings.Contains(lockContentStr, "github.rest.repos.listCommits") {
+		t.Error("Expected JavaScript to use github.rest.repos.listCommits API")
 	}
 
-	// Verify the old bash-specific variables are NOT present in the inline format
-	// (They might still be referenced within the JavaScript, but not as bash variable assignments)
-	if strings.Contains(timestampCheckSection, "WORKFLOW_FILE=\"${GITHUB_WORKSPACE}") {
-		t.Error("Expected timestamp check to NOT contain inline bash variable assignment")
+	// Verify context variables are used for repository info
+	if !strings.Contains(lockContentStr, "context.repo") {
+		t.Error("Expected JavaScript to reference context.repo")
+	}
+
+	// Verify the old filesystem-based approach is NOT present
+	if strings.Contains(lockContentStr, "fs.accessSync") {
+		t.Error("Expected timestamp check to NOT use filesystem operations (fs.accessSync)")
+	}
+	if strings.Contains(lockContentStr, "fs.statSync") {
+		t.Error("Expected timestamp check to NOT use filesystem operations (fs.statSync)")
 	}
 }

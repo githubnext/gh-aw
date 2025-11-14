@@ -56,78 +56,120 @@ run-name: "Daily Code Metrics and Trend Tracking Agent"
 jobs:
   activation:
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
     steps:
-      - name: Checkout workflows
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          sparse-checkout: |
-            .github/workflows
-          sparse-checkout-cone-mode: false
-          fetch-depth: 1
-          persist-credentials: false
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_FILE: "daily-code-metrics.lock.yml"
         with:
           script: |
-            const fs = require("fs");
-            const path = require("path");
             async function main() {
-              const workspace = process.env.GITHUB_WORKSPACE;
               const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
-              if (!workspace) {
-                core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
-                return;
-              }
               if (!workflowFile) {
                 core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
                 return;
               }
-              const workflowBasename = path.basename(workflowFile, ".lock.yml");
-              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
-              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
-              core.info(`Checking workflow timestamps:`);
-              core.info(`  Source: ${workflowMdFile}`);
-              core.info(`  Lock file: ${lockFile}`);
-              let workflowExists = false;
-              let lockExists = false;
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              const ref = context.sha || context.ref;
+              const workflowBasename = workflowFile.replace(/\.lock\.yml$/, "");
+              const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
+              const lockPath = `.github/workflows/${workflowFile}`;
+              core.info(`Checking workflow timestamps using GitHub API:`);
+              core.info(`  Repository: ${owner}/${repo}`);
+              core.info(`  Source: ${workflowMdPath}`);
+              core.info(`  Lock file: ${lockPath}`);
+              core.info(`  Ref: ${ref}`);
+              let workflowData;
+              let lockData;
               try {
-                fs.accessSync(workflowMdFile, fs.constants.F_OK);
-                workflowExists = true;
+                const workflowResponse = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: workflowMdPath,
+                  ref,
+                });
+                workflowData = workflowResponse.data;
               } catch (error) {
-                core.info(`Source file does not exist: ${workflowMdFile}`);
+                if (error.status === 404) {
+                  core.info(`Source file does not exist: ${workflowMdPath}`);
+                } else {
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to fetch source file: ${errorMsg}`);
+                }
               }
               try {
-                fs.accessSync(lockFile, fs.constants.F_OK);
-                lockExists = true;
+                const lockResponse = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: lockPath,
+                  ref,
+                });
+                lockData = lockResponse.data;
               } catch (error) {
-                core.info(`Lock file does not exist: ${lockFile}`);
+                if (error.status === 404) {
+                  core.info(`Lock file does not exist: ${lockPath}`);
+                } else {
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to fetch lock file: ${errorMsg}`);
+                }
               }
-              if (!workflowExists || !lockExists) {
+              if (!workflowData || !lockData) {
                 core.info("Skipping timestamp check - one or both files not found");
                 return;
               }
-              const workflowStat = fs.statSync(workflowMdFile);
-              const lockStat = fs.statSync(lockFile);
-              const workflowMtime = workflowStat.mtime.getTime();
-              const lockMtime = lockStat.mtime.getTime();
-              core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
-              core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
-              if (workflowMtime > lockMtime) {
-                const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+              let workflowCommit;
+              let lockCommit;
+              try {
+                const workflowCommitsResponse = await github.rest.repos.listCommits({
+                  owner,
+                  repo,
+                  path: workflowMdPath,
+                  sha: ref,
+                  per_page: 1,
+                });
+                if (workflowCommitsResponse.data && workflowCommitsResponse.data.length > 0) {
+                  workflowCommit = workflowCommitsResponse.data[0];
+                }
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to fetch commits for source file: ${errorMsg}`);
+              }
+              try {
+                const lockCommitsResponse = await github.rest.repos.listCommits({
+                  owner,
+                  repo,
+                  path: lockPath,
+                  sha: ref,
+                  per_page: 1,
+                });
+                if (lockCommitsResponse.data && lockCommitsResponse.data.length > 0) {
+                  lockCommit = lockCommitsResponse.data[0];
+                }
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to fetch commits for lock file: ${errorMsg}`);
+              }
+              if (!workflowCommit || !lockCommit) {
+                core.info("Skipping timestamp check - could not fetch commit information");
+                return;
+              }
+              const workflowDate = new Date(workflowCommit.commit.committer.date);
+              const lockDate = new Date(lockCommit.commit.committer.date);
+              core.info(`  Source last modified: ${workflowDate.toISOString()}`);
+              core.info(`  Lock file last modified: ${lockDate.toISOString()}`);
+              if (workflowDate > lockDate) {
+                const warningMessage = `WARNING: Lock file '${lockPath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
-                const workflowTimestamp = workflowStat.mtime.toISOString();
-                const lockTimestamp = lockStat.mtime.toISOString();
-                const gitSha = process.env.GITHUB_SHA;
+                const workflowTimestamp = workflowDate.toISOString();
+                const lockTimestamp = lockDate.toISOString();
+                const gitSha = context.sha;
                 let summary = core.summary
                   .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
                   .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
                   .addRaw("**Files:**\n")
-                  .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
-                  .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
+                  .addRaw(`- Source: \`${workflowMdPath}\` (last modified: ${workflowTimestamp})\n`)
+                  .addRaw(`- Lock: \`${lockPath}\` (last modified: ${lockTimestamp})\n\n`);
                 if (gitSha) {
                   summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
                 }
@@ -137,9 +179,7 @@ jobs:
                 core.info("✅ Lock file is up to date");
               }
             }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            await main();
 
   agent:
     needs: activation

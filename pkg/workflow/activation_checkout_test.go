@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-// TestActivationJobCheckoutStep tests that the activation job always includes
-// a shallow checkout step for the timestamp check
-func TestActivationJobCheckoutStep(t *testing.T) {
+// TestActivationJobTimestampCheck tests that the activation job uses GitHub API
+// for timestamp checking instead of actions/checkout
+func TestActivationJobTimestampCheck(t *testing.T) {
 	tests := []struct {
 		name        string
 		frontmatter string
 		description string
 	}{
 		{
-			name: "basic workflow includes activation checkout",
+			name: "basic workflow uses API for timestamp check",
 			frontmatter: `---
 on:
   issues:
@@ -26,10 +26,10 @@ permissions:
   issues: write
 engine: claude
 ---`,
-			description: "Activation job should include shallow checkout for timestamp check",
+			description: "Activation job should use GitHub API for timestamp check, not checkout",
 		},
 		{
-			name: "workflow without contents permission includes activation checkout",
+			name: "workflow without contents permission uses API",
 			frontmatter: `---
 on:
   issues:
@@ -38,10 +38,10 @@ permissions:
   issues: write
 engine: claude
 ---`,
-			description: "Activation job should include checkout even when main job doesn't need it",
+			description: "Activation job should use API even when main job doesn't have contents permission",
 		},
 		{
-			name: "workflow with reaction includes activation checkout",
+			name: "workflow with reaction uses API for timestamp check",
 			frontmatter: `---
 on:
   issues:
@@ -51,13 +51,13 @@ permissions:
   issues: write
 engine: claude
 ---`,
-			description: "Activation job with reaction should include checkout",
+			description: "Activation job with reaction should use API for timestamp check",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "activation-checkout-test")
+			tmpDir, err := os.MkdirTemp("", "activation-timestamp-test")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,40 +122,43 @@ engine: claude
 
 			activationJobSection := lockContentStr[activationJobStart:activationJobEnd]
 
-			// Verify checkout step is present
-			if !strings.Contains(activationJobSection, "actions/checkout@") {
-				t.Errorf("%s: Activation job should contain checkout step\nSection:\n%s",
+			// Verify checkout step is NOT present
+			if strings.Contains(activationJobSection, "actions/checkout@") {
+				t.Errorf("%s: Activation job should NOT contain checkout step\nSection:\n%s",
 					tt.description, activationJobSection)
 			}
 
-			// Verify it's a sparse checkout
-			if !strings.Contains(activationJobSection, "sparse-checkout:") {
-				t.Errorf("%s: Checkout should use sparse-checkout", tt.description)
+			// Verify checkout-related configuration is NOT present
+			if strings.Contains(activationJobSection, "sparse-checkout:") {
+				t.Errorf("%s: Should NOT use sparse-checkout (no checkout needed)", tt.description)
 			}
 
-			// Verify it checks out .github/workflows
-			if !strings.Contains(activationJobSection, ".github/workflows") {
-				t.Errorf("%s: Should checkout .github/workflows directory", tt.description)
+			if strings.Contains(activationJobSection, "fetch-depth:") {
+				t.Errorf("%s: Should NOT have fetch-depth (no checkout needed)", tt.description)
 			}
 
-			// Verify shallow clone
-			if !strings.Contains(activationJobSection, "fetch-depth: 1") {
-				t.Errorf("%s: Should use shallow clone (fetch-depth: 1)", tt.description)
+			if strings.Contains(activationJobSection, "persist-credentials:") {
+				t.Errorf("%s: Should NOT have persist-credentials (no checkout needed)", tt.description)
 			}
 
-			// Verify persist-credentials: false
-			if !strings.Contains(activationJobSection, "persist-credentials: false") {
-				t.Errorf("%s: Should set persist-credentials: false", tt.description)
-			}
-
-			// Verify sparse-checkout-cone-mode: false
-			if !strings.Contains(activationJobSection, "sparse-checkout-cone-mode: false") {
-				t.Errorf("%s: Should set sparse-checkout-cone-mode: false", tt.description)
-			}
-
-			// Verify timestamp check step is present after checkout
+			// Verify timestamp check step is present
 			if !strings.Contains(activationJobSection, "Check workflow file timestamps") {
 				t.Errorf("%s: Should contain timestamp check step", tt.description)
+			}
+
+			// Verify it uses GitHub API (github.rest.repos)
+			if !strings.Contains(activationJobSection, "github.rest.repos") {
+				t.Errorf("%s: Should use GitHub API (github.rest.repos) for timestamp check\nSection:\n%s",
+					tt.description, activationJobSection)
+			}
+
+			// Verify it references getContent and listCommits
+			if !strings.Contains(activationJobSection, "getContent") {
+				t.Errorf("%s: Should call github.rest.repos.getContent", tt.description)
+			}
+
+			if !strings.Contains(activationJobSection, "listCommits") {
+				t.Errorf("%s: Should call github.rest.repos.listCommits", tt.description)
 			}
 		})
 	}

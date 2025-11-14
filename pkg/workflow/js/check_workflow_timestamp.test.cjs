@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-import os from "os";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -48,14 +47,33 @@ const mockCore = {
   },
 };
 
+// Mock GitHub context and API
+const mockContext = {
+  repo: {
+    owner: "test-owner",
+    repo: "test-repo",
+  },
+  sha: "abc123def456",
+  ref: "refs/heads/main",
+};
+
+const mockGithub = {
+  rest: {
+    repos: {
+      getContent: vi.fn(),
+      listCommits: vi.fn(),
+    },
+  },
+};
+
 // Set up global variables
 global.core = mockCore;
+global.context = mockContext;
+global.github = mockGithub;
 
 describe("check_workflow_timestamp.cjs", () => {
   let checkWorkflowTimestampScript;
   let originalEnv;
-  let tmpDir;
-  let workflowsDir;
 
   beforeEach(() => {
     // Reset all mocks
@@ -63,17 +81,8 @@ describe("check_workflow_timestamp.cjs", () => {
 
     // Store original environment
     originalEnv = {
-      GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
       GH_AW_WORKFLOW_FILE: process.env.GH_AW_WORKFLOW_FILE,
     };
-
-    // Create a temporary directory for test files
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-test-"));
-    workflowsDir = path.join(tmpDir, ".github", "workflows");
-    fs.mkdirSync(workflowsDir, { recursive: true });
-
-    // Set up environment
-    process.env.GITHUB_WORKSPACE = tmpDir;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "check_workflow_timestamp.cjs");
@@ -82,35 +91,15 @@ describe("check_workflow_timestamp.cjs", () => {
 
   afterEach(() => {
     // Restore original environment
-    if (originalEnv.GITHUB_WORKSPACE !== undefined) {
-      process.env.GITHUB_WORKSPACE = originalEnv.GITHUB_WORKSPACE;
-    } else {
-      delete process.env.GITHUB_WORKSPACE;
-    }
     if (originalEnv.GH_AW_WORKFLOW_FILE !== undefined) {
       process.env.GH_AW_WORKFLOW_FILE = originalEnv.GH_AW_WORKFLOW_FILE;
     } else {
       delete process.env.GH_AW_WORKFLOW_FILE;
     }
-
-    // Clean up temporary directory
-    if (tmpDir && fs.existsSync(tmpDir)) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
   });
 
   describe("when environment variables are missing", () => {
-    it("should fail if GITHUB_WORKSPACE is not set", async () => {
-      delete process.env.GITHUB_WORKSPACE;
-      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
-
-      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKSPACE not available"));
-    });
-
     it("should fail if GH_AW_WORKFLOW_FILE is not set", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       delete process.env.GH_AW_WORKFLOW_FILE;
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
@@ -119,14 +108,19 @@ describe("check_workflow_timestamp.cjs", () => {
     });
   });
 
-  describe("when files do not exist", () => {
+  describe("when files do not exist in repository", () => {
     it("should skip check when source file does not exist", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      // Create only the lock file
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock source file not found (404)
+      mockGithub.rest.repos.getContent.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          const error = new Error("Not Found");
+          error.status = 404;
+          throw error;
+        }
+        return Promise.resolve({ data: { sha: "lock123" } });
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -137,12 +131,17 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should skip check when lock file does not exist", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      // Create only the source file
-      const workflowFile = path.join(workflowsDir, "test.md");
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      // Mock lock file not found (404)
+      mockGithub.rest.repos.getContent.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.lock.yml") {
+          const error = new Error("Not Found");
+          error.status = 404;
+          throw error;
+        }
+        return Promise.resolve({ data: { sha: "workflow123" } });
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -153,8 +152,14 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should skip check when both files do not exist", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+
+      // Mock both files not found (404)
+      mockGithub.rest.repos.getContent.mockImplementation(() => {
+        const error = new Error("Not Found");
+        error.status = 404;
+        throw error;
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -165,21 +170,41 @@ describe("check_workflow_timestamp.cjs", () => {
   });
 
   describe("when lock file is up to date", () => {
-    it("should pass when lock file is newer than source file", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
+    it("should pass when lock file commit is newer than source file", async () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create source file first
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      // Mock commits - source older, lock newer
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create lock file (newer)
-      fs.writeFileSync(lockFile, "# Lock file content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -189,21 +214,25 @@ describe("check_workflow_timestamp.cjs", () => {
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
     });
 
-    it("should pass when lock file has same timestamp as source file", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
+    it("should pass when lock file has same commit timestamp as source file", async () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create both files at the same time
-      const now = new Date();
-      fs.writeFileSync(workflowFile, "# Workflow content");
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - same timestamp
+      const sameDate = new Date("2024-01-01T10:00:00Z");
 
-      // Set both files to have the exact same timestamp
-      fs.utimesSync(workflowFile, now, now);
-      fs.utimesSync(lockFile, now, now);
+      mockGithub.rest.repos.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: "commit123",
+            commit: {
+              committer: { date: sameDate.toISOString() },
+            },
+          },
+        ],
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -215,21 +244,41 @@ describe("check_workflow_timestamp.cjs", () => {
   });
 
   describe("when lock file is outdated", () => {
-    it("should warn when source file is newer than lock file", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
+    it("should warn when source file commit is newer than lock file", async () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create lock file first
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - source newer, lock older
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create source file (newer)
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -242,20 +291,40 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should include file paths in warning message", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "my-workflow.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "my-workflow.md");
-      const lockFile = path.join(workflowsDir, "my-workflow.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create lock file first
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - source newer
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create source file (newer)
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/my-workflow.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -264,20 +333,40 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should add step summary with warning", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create lock file first
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - source newer
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create source file (newer)
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -287,22 +376,41 @@ describe("check_workflow_timestamp.cjs", () => {
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
 
-    it("should include git SHA in summary when GITHUB_SHA is available", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
+    it("should include git SHA in summary", async () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
-      process.env.GITHUB_SHA = "abc123def456";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create lock file first
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - source newer
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create source file (newer)
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -312,24 +420,44 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should include file timestamps in summary", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "test.md");
-      const lockFile = path.join(workflowsDir, "test.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      // Create lock file first
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - source newer
+      const oldDate = new Date("2024-01-01T10:00:00Z");
+      const newDate = new Date("2024-01-02T10:00:00Z");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Create source file (newer)
-      fs.writeFileSync(workflowFile, "# Workflow content");
+      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+        if (params.path === ".github/workflows/test.md") {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "workflow123",
+                commit: {
+                  committer: { date: newDate.toISOString() },
+                },
+              },
+            ],
+          });
+        } else {
+          return Promise.resolve({
+            data: [
+              {
+                sha: "lock123",
+                commit: {
+                  committer: { date: oldDate.toISOString() },
+                },
+              },
+            ],
+          });
+        }
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("modified:"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("last modified:"));
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/));
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
@@ -337,14 +465,24 @@ describe("check_workflow_timestamp.cjs", () => {
 
   describe("with different workflow names", () => {
     it("should handle workflow names with hyphens", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "my-test-workflow.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "my-test-workflow.md");
-      const lockFile = path.join(workflowsDir, "my-test-workflow.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      fs.writeFileSync(workflowFile, "# Workflow content");
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - same timestamp
+      const sameDate = new Date("2024-01-01T10:00:00Z");
+
+      mockGithub.rest.repos.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: "commit123",
+            commit: {
+              committer: { date: sameDate.toISOString() },
+            },
+          },
+        ],
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -353,14 +491,24 @@ describe("check_workflow_timestamp.cjs", () => {
     });
 
     it("should handle workflow names with underscores", async () => {
-      process.env.GITHUB_WORKSPACE = tmpDir;
       process.env.GH_AW_WORKFLOW_FILE = "my_test_workflow.lock.yml";
 
-      const workflowFile = path.join(workflowsDir, "my_test_workflow.md");
-      const lockFile = path.join(workflowsDir, "my_test_workflow.lock.yml");
+      // Mock both files exist
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: "abc123" } });
 
-      fs.writeFileSync(workflowFile, "# Workflow content");
-      fs.writeFileSync(lockFile, "# Lock file content");
+      // Mock commits - same timestamp
+      const sameDate = new Date("2024-01-01T10:00:00Z");
+
+      mockGithub.rest.repos.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: "commit123",
+            commit: {
+              committer: { date: sameDate.toISOString() },
+            },
+          },
+        ],
+      });
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 

@@ -65,23 +65,23 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify activation job has checkout step for timestamp check (sparse checkout)
+	// Test 2: Verify activation job uses GitHub API for timestamp check (no checkout needed)
 	activationJobSection := extractJobSection(lockContentStr, constants.ActivationJobName)
-	if !strings.Contains(activationJobSection, "actions/checkout") {
-		t.Error("Activation job should contain actions/checkout step for timestamp check")
+	if strings.Contains(activationJobSection, "actions/checkout") {
+		t.Error("Activation job should not contain actions/checkout step (uses GitHub API for timestamp check)")
 	}
 
-	// Verify it's a sparse checkout of workflows directory
-	if !strings.Contains(activationJobSection, "sparse-checkout:") {
-		t.Error("Activation job checkout should use sparse-checkout")
+	// Verify that activation job uses GitHub API for timestamp check (no checkout needed)
+	if strings.Contains(activationJobSection, "sparse-checkout:") {
+		t.Error("Activation job should not use checkout (uses GitHub API for timestamp check)")
 	}
-	if !strings.Contains(activationJobSection, ".github/workflows") {
-		t.Error("Activation job checkout should checkout .github/workflows directory")
+	if strings.Contains(activationJobSection, "actions/checkout@") {
+		t.Error("Activation job should not use actions/checkout (uses GitHub API for timestamp check)")
 	}
 
-	// Test 3: Verify activation job has contents: read permission for checkout step
-	if !strings.Contains(activationJobSection, "contents: read") {
-		t.Error("Activation job should have contents: read permission for checkout step")
+	// Test 3: Verify activation job does NOT have contents: read permission (no longer needed without checkout)
+	if strings.Contains(activationJobSection, "contents: read") {
+		t.Error("Activation job should not have contents: read permission (no checkout needed)")
 	}
 
 	// Test 4: Verify no separate add_reaction job exists
