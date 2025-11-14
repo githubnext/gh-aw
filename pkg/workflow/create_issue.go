@@ -23,7 +23,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	if configData, exists := outputMap["create-issue"]; exists {
 		createIssueLog.Print("Parsing create-issue configuration")
 		issuesConfig := &CreateIssuesConfig{}
-		issuesConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse title-prefix using shared helper
@@ -49,16 +48,19 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			// Validate that target-repo is not "*" - only definite strings are allowed
-			if targetRepoSlug == "*" {
+			// Parse target-repo using shared helper with validation
+			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			if isInvalid {
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			issuesConfig.TargetRepoSlug = targetRepoSlug
 
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "create-issue:" with no value),
+			// still set the default max
+			issuesConfig.Max = 1
 		}
 
 		return issuesConfig

@@ -67,12 +67,8 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
 	if configData, exists := outputMap["update-issue"]; exists {
 		updateIssuesConfig := &UpdateIssuesConfig{}
-		updateIssuesConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &updateIssuesConfig.BaseSafeOutputConfig)
-
 			// Parse target
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
@@ -103,6 +99,13 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			if _, exists := configMap["body"]; exists {
 				updateIssuesConfig.Body = new(bool)
 			}
+
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &updateIssuesConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "update-issue:" with no value),
+			// still set the default max
+			updateIssuesConfig.Max = 1
 		}
 
 		return updateIssuesConfig

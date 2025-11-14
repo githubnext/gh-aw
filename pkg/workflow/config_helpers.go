@@ -58,3 +58,17 @@ func parseTitlePrefixFromConfig(configMap map[string]any) string {
 func parseTargetRepoFromConfig(configMap map[string]any) string {
 	return extractStringFromMap(configMap, "target-repo", configHelpersLog)
 }
+
+// parseTargetRepoWithValidation extracts the target-repo value from a config map and validates it.
+// Returns the target repository slug as a string, or empty string if not present or invalid.
+// Returns an error (indicated by the second return value being true) if the value is "*" (wildcard),
+// which is not allowed for safe output target repositories.
+func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
+	targetRepoSlug := parseTargetRepoFromConfig(configMap)
+	// Validate that target-repo is not "*" - only definite strings are allowed
+	if targetRepoSlug == "*" {
+		configHelpersLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return "", true // Return true to indicate validation error
+	}
+	return targetRepoSlug, false
+}

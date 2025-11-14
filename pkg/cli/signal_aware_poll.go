@@ -84,7 +84,7 @@ func PollWithSignalHandling(options PollOptions) error {
 
 		case <-ticker.C:
 			// Check if timeout exceeded
-			if time.Since(start) > options.Timeout {
+			if options.Timeout > 0 && time.Since(start) > options.Timeout {
 				pollLog.Printf("Timeout exceeded: %v", options.Timeout)
 				return fmt.Errorf("operation timed out after %v", options.Timeout)
 			}

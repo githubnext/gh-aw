@@ -101,18 +101,21 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 	createCodeScanningAlertLog.Print("Parsing create-code-scanning-alert configuration")
 	configData := outputMap["create-code-scanning-alert"]
 	securityReportsConfig := &CreateCodeScanningAlertsConfig{}
-	securityReportsConfig.Max = 0 // Default max is 0 (unlimited)
 
 	if configMap, ok := configData.(map[string]any); ok {
-		// Parse common base fields
-		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig)
-
 		// Parse driver
 		if driver, exists := configMap["driver"]; exists {
 			if driverStr, ok := driver.(string); ok {
 				securityReportsConfig.Driver = driverStr
 			}
 		}
+
+		// Parse common base fields with default max of 0 (unlimited)
+		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0)
+	} else {
+		// If configData is nil or not a map (e.g., "create-code-scanning-alert:" with no value),
+		// still set the default max (0 = unlimited)
+		securityReportsConfig.BaseSafeOutputConfig.Max = 0
 	}
 
 	return securityReportsConfig

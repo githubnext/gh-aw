@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -498,7 +499,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
 func getCurrentGitHubUsername() (string, error) {
-	cmd := exec.Command("gh", "api", "user", "--jq", ".login")
+	cmd := workflow.ExecGH("api", "user", "--jq", ".login")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get GitHub username: %w", err)

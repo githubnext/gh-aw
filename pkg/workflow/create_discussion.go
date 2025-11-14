@@ -16,12 +16,8 @@ type CreateDiscussionsConfig struct {
 func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
 	if configData, exists := outputMap["create-discussion"]; exists {
 		discussionsConfig := &CreateDiscussionsConfig{}
-		discussionsConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig)
-
 			// Parse title-prefix using shared helper
 			discussionsConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
@@ -39,13 +35,19 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				}
 			}
 
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			// Validate that target-repo is not "*" - only definite strings are allowed
-			if targetRepoSlug == "*" {
+			// Parse target-repo using shared helper with validation
+			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			if isInvalid {
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			discussionsConfig.TargetRepoSlug = targetRepoSlug
+
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "create-discussion:" with no value),
+			// still set the default max
+			discussionsConfig.Max = 1
 		}
 
 		return discussionsConfig
