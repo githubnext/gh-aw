@@ -909,17 +909,17 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	// Use gh CLI to download the file
 	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
-	
+
 	// Set up environment for gh command
 	// gh CLI looks for GH_TOKEN or GITHUB_TOKEN in the environment
 	// If neither is set and gh is not authenticated, it will fail
 	cmd.Env = os.Environ()
-	
+
 	// If GITHUB_TOKEN is set but GH_TOKEN is not, set GH_TOKEN for gh CLI
 	if os.Getenv("GH_TOKEN") == "" && os.Getenv("GITHUB_TOKEN") != "" {
 		cmd.Env = append(cmd.Env, "GH_TOKEN="+os.Getenv("GITHUB_TOKEN"))
 	}
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if this is an authentication error
@@ -935,7 +935,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	if contentBase64 == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API for %s/%s/%s@%s", owner, repo, path, ref)
 	}
-	
+
 	cmd = exec.Command("base64", "-d")
 	cmd.Stdin = strings.NewReader(contentBase64)
 	content, err := cmd.Output()
