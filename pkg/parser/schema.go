@@ -668,31 +668,36 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 
 	var suggestion strings.Builder
 
-	if len(invalidProps) == 1 {
-		suggestion.WriteString("Did you mean one of: ")
-	} else {
-		suggestion.WriteString("Valid fields are: ")
-	}
-
-	// Find closest matches using simple string distance
+	// Find closest matches using Levenshtein distance
 	var suggestions []string
 	for _, invalidProp := range invalidProps {
 		closest := findClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
 		suggestions = append(suggestions, closest...)
 	}
 
-	// If we have specific suggestions, show them first
-	if len(suggestions) > 0 {
-		// Remove duplicates
-		uniqueSuggestions := removeDuplicates(suggestions)
-		if len(uniqueSuggestions) <= maxSuggestions {
-			suggestion.WriteString(strings.Join(uniqueSuggestions, ", "))
+	// Remove duplicates
+	uniqueSuggestions := removeDuplicates(suggestions)
+
+	// Generate appropriate message based on suggestions found
+	if len(uniqueSuggestions) > 0 {
+		if len(invalidProps) == 1 && len(uniqueSuggestions) == 1 {
+			// Single typo, single suggestion
+			suggestion.WriteString("Did you mean '")
+			suggestion.WriteString(uniqueSuggestions[0])
+			suggestion.WriteString("'?")
 		} else {
-			suggestion.WriteString(strings.Join(uniqueSuggestions[:maxSuggestions], ", "))
-			suggestion.WriteString(", ...")
+			// Multiple typos or multiple suggestions
+			suggestion.WriteString("Did you mean: ")
+			if len(uniqueSuggestions) <= maxSuggestions {
+				suggestion.WriteString(strings.Join(uniqueSuggestions, ", "))
+			} else {
+				suggestion.WriteString(strings.Join(uniqueSuggestions[:maxSuggestions], ", "))
+				suggestion.WriteString(", ...")
+			}
 		}
 	} else {
-		// Show all accepted fields if no close matches
+		// No close matches found - show all valid fields
+		suggestion.WriteString("Valid fields are: ")
 		if len(acceptedFields) <= maxAcceptedFields {
 			suggestion.WriteString(strings.Join(acceptedFields, ", "))
 		} else {
@@ -704,29 +709,40 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	return suggestion.String()
 }
 
-// findClosestMatches finds the closest matching strings using simple edit distance heuristics
+// findClosestMatches finds the closest matching strings using Levenshtein distance
 func findClosestMatches(target string, candidates []string, maxResults int) []string {
 	type match struct {
-		value string
-		score int
+		value    string
+		distance int
 	}
+
+	const maxDistance = 3 // Maximum acceptable Levenshtein distance
 
 	var matches []match
 	targetLower := strings.ToLower(target)
 
 	for _, candidate := range candidates {
 		candidateLower := strings.ToLower(candidate)
-		score := calculateSimilarityScore(targetLower, candidateLower)
+		
+		// Skip exact matches
+		if targetLower == candidateLower {
+			continue
+		}
 
-		// Only include if there's some similarity
-		if score > 0 {
-			matches = append(matches, match{value: candidate, score: score})
+		distance := levenshteinDistance(targetLower, candidateLower)
+
+		// Only include if distance is within acceptable range
+		if distance <= maxDistance {
+			matches = append(matches, match{value: candidate, distance: distance})
 		}
 	}
 
-	// Sort by score (higher is better)
+	// Sort by distance (lower is better), then alphabetically for ties
 	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].score > matches[j].score
+		if matches[i].distance != matches[j].distance {
+			return matches[i].distance < matches[j].distance
+		}
+		return matches[i].value < matches[j].value
 	})
 
 	// Return top matches
@@ -738,44 +754,58 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 	return results
 }
 
-// calculateSimilarityScore calculates a simple similarity score between two strings
-func calculateSimilarityScore(a, b string) int {
-	// Early exit for obviously poor matches (length difference > 2x shorter string length)
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
-	lengthDiff := abs(len(a) - len(b))
-	if lengthDiff > minLen*2 && minLen > 0 {
-		return 0
-	}
+// levenshteinDistance computes the Levenshtein distance between two strings.
+// This is the minimum number of single-character edits (insertions, deletions, or substitutions)
+// required to change one string into the other.
+func levenshteinDistance(a, b string) int {
+	aLen := len(a)
+	bLen := len(b)
 
-	// Simple heuristics for string similarity
-	score := 0
-
-	// Bonus for substring matches
-	if strings.Contains(b, a) || strings.Contains(a, b) {
-		score += 10
+	// Early exit for empty strings
+	if aLen == 0 {
+		return bLen
+	}
+	if bLen == 0 {
+		return aLen
 	}
 
-	// Bonus for common prefixes
-	commonPrefix := 0
-	for i := 0; i < len(a) && i < len(b) && a[i] == b[i]; i++ {
-		commonPrefix++
+	// Create a 2D matrix for dynamic programming
+	// We only need the previous row, so we can optimize space
+	previousRow := make([]int, bLen+1)
+	currentRow := make([]int, bLen+1)
+
+	// Initialize the first row (distance from empty string)
+	for i := 0; i <= bLen; i++ {
+		previousRow[i] = i
 	}
-	score += commonPrefix * 2
 
-	// Bonus for common suffixes
-	commonSuffix := 0
-	for i := 0; i < len(a) && i < len(b) && a[len(a)-1-i] == b[len(b)-1-i]; i++ {
-		commonSuffix++
+	// Calculate distances for each character in string a
+	for i := 1; i <= aLen; i++ {
+		currentRow[0] = i // Distance from empty string
+
+		for j := 1; j <= bLen; j++ {
+			// Cost of substitution (0 if characters match, 1 otherwise)
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+
+			// Minimum of:
+			// - Deletion: previousRow[j] + 1
+			// - Insertion: currentRow[j-1] + 1
+			// - Substitution: previousRow[j-1] + cost
+			deletion := previousRow[j] + 1
+			insertion := currentRow[j-1] + 1
+			substitution := previousRow[j-1] + cost
+
+			currentRow[j] = min(deletion, min(insertion, substitution))
+		}
+
+		// Swap rows for next iteration
+		previousRow, currentRow = currentRow, previousRow
 	}
-	score += commonSuffix * 2
 
-	// Penalty for length difference
-	score -= lengthDiff
-
-	return score
+	return previousRow[bLen]
 }
 
 // generateExampleJSONForPath generates an example JSON object for a specific schema path
