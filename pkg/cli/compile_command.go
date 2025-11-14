@@ -165,6 +165,7 @@ type CompileConfig struct {
 	Poutine              bool     // Run poutine security scanner on generated .lock.yml files
 	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
 	JSONOutput           bool     // Output validation results as JSON
+	ForceAll             bool     // Force recompilation of all workflows (disable incremental)
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -173,6 +174,7 @@ type CompilationStats struct {
 	Errors          int
 	Warnings        int
 	FailedWorkflows []string // Names of workflows that failed compilation
+	Skipped         int      // Number of workflows skipped (unchanged)
 }
 
 // ValidationError represents a single validation error or warning
@@ -525,11 +527,50 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	}
 
+	// Load compilation cache for incremental compilation
+	var cache *CompilationCache
+	var useCache bool
+	if !config.ForceAll && !noEmit && !purge {
+		var err error
+		cache, err = LoadCompilationCache(workflowDir)
+		if err != nil {
+			compileLog.Printf("Failed to load cache, continuing without incremental compilation: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load compilation cache: %v", err)))
+			}
+		} else {
+			useCache = true
+			compileLog.Print("Incremental compilation enabled")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using incremental compilation (only changed workflows will be recompiled)"))
+			}
+		}
+	} else if config.ForceAll {
+		compileLog.Print("Force-all flag set, skipping incremental compilation")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling all workflows (--force-all)"))
+		}
+	}
+
 	// Compile each file
 	var errorCount int
 	var successCount int
 	for _, file := range mdFiles {
 		stats.Total++
+
+		// Check if this file needs recompilation using the cache
+		if useCache {
+			needsRecompile, err := cache.NeedsRecompile(file)
+			if err != nil {
+				compileLog.Printf("Cache check failed for %s: %v", filepath.Base(file), err)
+				// Continue with compilation if cache check fails
+			} else if !needsRecompile {
+				// Skip this file - it hasn't changed
+				stats.Skipped++
+				compileLog.Printf("Skipping unchanged file: %s", filepath.Base(file))
+				continue
+			}
+		}
 
 		// Initialize validation result for this workflow
 		result := ValidationResult{
@@ -584,6 +625,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			continue
 		}
 		successCount++
+
+		// Update cache hash for successfully compiled workflow
+		if useCache {
+			if err := cache.UpdateHash(file); err != nil {
+				compileLog.Printf("Failed to update cache for %s: %v", filepath.Base(file), err)
+			}
+		}
 
 		// Add successful validation result
 		validationResults = append(validationResults, result)
@@ -656,6 +704,18 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Note: Instructions are only written by the init command
 	// The compile command should not write instruction files
+
+	// Save compilation cache for incremental compilation
+	if useCache {
+		if err := cache.Save(); err != nil {
+			compileLog.Printf("Failed to save cache: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save compilation cache: %v", err)))
+			}
+		} else {
+			compileLog.Print("Compilation cache saved successfully")
+		}
+	}
 
 	// Output JSON if requested
 	if jsonOutput {
@@ -997,8 +1057,15 @@ func printCompilationSummary(stats *CompilationStats) {
 		return
 	}
 
-	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
-		stats.Total, stats.Errors, stats.Warnings)
+	var summary string
+	if stats.Skipped > 0 {
+		compiled := stats.Total - stats.Skipped
+		summary = fmt.Sprintf("Compiled %d workflow(s) (%d skipped, unchanged): %d error(s), %d warning(s)",
+			compiled, stats.Skipped, stats.Errors, stats.Warnings)
+	} else {
+		summary = fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
+			stats.Total, stats.Errors, stats.Warnings)
+	}
 
 	// Use different formatting based on whether there were errors
 	if stats.Errors > 0 {
