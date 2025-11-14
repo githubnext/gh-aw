@@ -418,6 +418,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Setup Commands
 	initCmd.GroupID = "setup"
 	newCmd.GroupID = "setup"
+	addCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
