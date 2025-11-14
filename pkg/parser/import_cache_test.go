@@ -17,11 +17,6 @@ func TestImportCache(t *testing.T) {
 	// Create a new cache
 	cache := NewImportCache(tempDir)
 
-	// Test cache is empty initially
-	if len(cache.Entries) != 0 {
-		t.Errorf("Expected empty cache, got %d entries", len(cache.Entries))
-	}
-
 	// Test Set and Get
 	testContent := []byte("# Test Workflow\n\nTest content")
 	owner := "testowner"
@@ -58,28 +53,14 @@ func TestImportCache(t *testing.T) {
 		t.Errorf("Path mismatch. Expected %s, got %s", cachedPath, retrievedPath)
 	}
 
-	// Test Save and Load
-	if err := cache.Save(); err != nil {
-		t.Fatalf("Failed to save cache: %v", err)
-	}
-
-	// Create new cache instance and load
+	// Test that a new cache instance can find the file
 	cache2 := NewImportCache(tempDir)
-	if err := cache2.Load(); err != nil {
-		t.Fatalf("Failed to load cache: %v", err)
-	}
-
-	// Verify loaded cache has the entry
-	if len(cache2.Entries) != 1 {
-		t.Errorf("Expected 1 entry in loaded cache, got %d", len(cache2.Entries))
-	}
-
 	retrievedPath2, found := cache2.Get(owner, repo, path, ref)
 	if !found {
-		t.Error("Cache entry not found after Load")
+		t.Error("Cache entry not found from new cache instance")
 	}
 	if retrievedPath2 != cachedPath {
-		t.Errorf("Path mismatch after load. Expected %s, got %s", cachedPath, retrievedPath2)
+		t.Errorf("Path mismatch from new instance. Expected %s, got %s", cachedPath, retrievedPath2)
 	}
 }
 
@@ -141,7 +122,7 @@ func TestImportCacheMissingFile(t *testing.T) {
 	}
 }
 
-func TestImportCacheEmptyLoad(t *testing.T) {
+func TestImportCacheEmptyCache(t *testing.T) {
 	// Create temp directory for testing
 	tempDir, err := os.MkdirTemp("", "import-cache-empty-test-*")
 	if err != nil {
@@ -151,13 +132,9 @@ func TestImportCacheEmptyLoad(t *testing.T) {
 
 	cache := NewImportCache(tempDir)
 
-	// Load from empty directory should not fail
-	if err := cache.Load(); err != nil {
-		t.Errorf("Load from empty directory should not fail: %v", err)
-	}
-
-	// Cache should still be empty
-	if len(cache.Entries) != 0 {
-		t.Errorf("Expected empty cache after loading from empty dir, got %d entries", len(cache.Entries))
+	// Try to get from empty cache - should return not found
+	_, found := cache.Get("owner", "repo", "test.md", "main")
+	if found {
+		t.Error("Expected cache miss for empty cache, but got hit")
 	}
 }

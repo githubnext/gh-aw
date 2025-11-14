@@ -159,7 +159,6 @@ func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 			cwd = "."
 		}
 		c.importCache = parser.NewImportCache(cwd)
-		_ = c.importCache.Load() // Ignore errors if cache doesn't exist
 		log.Print("Initialized shared import cache for compiler")
 	}
 	return c.importCache

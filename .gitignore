@@ -92,7 +92,3 @@ test_*.sh
 aw.patch
 
 pkg/cli/.github/aw/actions-lock.json
-
-# Import cache directory (but keep manifest)
-.github/aw/imports/*/
-!.github/aw/imports/manifest.json

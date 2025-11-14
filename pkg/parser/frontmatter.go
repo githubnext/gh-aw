@@ -897,17 +897,11 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 
 	// If cache is available, store in cache
 	if cache != nil {
-		// Get the actual commit SHA for this ref
-		// For now, we'll use the ref as the SHA (could be improved to fetch actual SHA)
 		cachedPath, err := cache.Set(owner, repo, filePath, ref, ref, content)
 		if err != nil {
 			log.Printf("Failed to cache import: %v", err)
 			// Don't fail the compilation, fall back to temp file
 		} else {
-			// Save cache manifest
-			if err := cache.Save(); err != nil {
-				log.Printf("Failed to save cache manifest: %v", err)
-			}
 			return cachedPath, nil
 		}
 	}

@@ -51,17 +51,6 @@ This is shared configuration.
 		t.Fatalf("Failed to cache file: %v", err)
 	}
 
-	// Save the cache manifest
-	if err := cache.Save(); err != nil {
-		t.Fatalf("Failed to save cache: %v", err)
-	}
-
-	// Verify the manifest file was created
-	manifestPath := filepath.Join(tempDir, ImportCacheDir, "manifest.json")
-	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-		t.Errorf("Manifest file was not created: %s", manifestPath)
-	}
-
 	// Verify cache can retrieve the file
 	retrievedPath, found := cache.Get("testowner", "testrepo", "workflows/shared.md", "main")
 	if !found {
@@ -80,19 +69,16 @@ This is shared configuration.
 		t.Errorf("Content mismatch. Expected %q, got %q", sharedContent, content)
 	}
 
-	// Test loading from a new cache instance (simulating offline scenario)
+	// Test new cache instance can find the file (simulating offline scenario)
 	cache2 := NewImportCache(tempDir)
-	if err := cache2.Load(); err != nil {
-		t.Fatalf("Failed to load cache in new instance: %v", err)
-	}
 
-	// Verify we can still retrieve the file
+	// Verify we can still retrieve the file using filesystem lookup
 	retrievedPath2, found := cache2.Get("testowner", "testrepo", "workflows/shared.md", "main")
 	if !found {
-		t.Error("Failed to retrieve cached file from loaded cache")
+		t.Error("Failed to retrieve cached file from new cache instance")
 	}
 	if retrievedPath2 != cachedPath {
-		t.Errorf("Retrieved path mismatch after load. Expected %s, got %s", cachedPath, retrievedPath2)
+		t.Errorf("Retrieved path mismatch from new instance. Expected %s, got %s", cachedPath, retrievedPath2)
 	}
 }
 
@@ -127,11 +113,6 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 		}
 	}
 
-	// Save cache
-	if err := cache.Save(); err != nil {
-		t.Fatalf("Failed to save cache: %v", err)
-	}
-
 	// Verify all files are retrievable
 	for _, f := range files {
 		path, found := cache.Get(f.owner, f.repo, f.path, f.ref)
@@ -152,13 +133,25 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 		}
 	}
 
-	// Load from new cache instance and verify
+	// Verify from new cache instance using filesystem lookup
 	cache2 := NewImportCache(tempDir)
-	if err := cache2.Load(); err != nil {
-		t.Fatalf("Failed to load cache: %v", err)
-	}
 
-	if len(cache2.Entries) != len(files) {
-		t.Errorf("Expected %d entries in loaded cache, got %d", len(files), len(cache2.Entries))
+	for _, f := range files {
+		path, found := cache2.Get(f.owner, f.repo, f.path, f.ref)
+		if !found {
+			t.Errorf("Failed to retrieve cached file from new instance %s/%s/%s@%s", f.owner, f.repo, f.path, f.ref)
+			continue
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Errorf("Failed to read cached file: %v", err)
+			continue
+		}
+
+		if string(content) != f.content {
+			t.Errorf("Content mismatch from new instance for %s/%s/%s@%s. Expected %q, got %q",
+				f.owner, f.repo, f.path, f.ref, f.content, string(content))
+		}
 	}
 }
