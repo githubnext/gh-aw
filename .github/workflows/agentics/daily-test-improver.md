@@ -4,11 +4,13 @@ on:
     schedule:
         # Run daily at 2am UTC, all days except Saturday and Sunday
         - cron: "0 2 * * 1-5"
+    stop-after: +48h # workflow will no longer trigger after 48 hours
 
-timeout-minutes: 45
+timeout-minutes: 30
 
 permissions:
   all: read
+  id-token: write  # for auth in some actions
 
 network: defaults
 
@@ -25,26 +27,21 @@ safe-outputs:
 tools:
   web-fetch:
   web-search:
-  # By default this workflow allows all bash commands within the confine of Github Actions VM 
-  bash: [ ":*" ]
+  bash:
   github:
     toolsets: [all]
-imports:
-  - shared/reporting.md
 
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
-    with:
-      persist-credentials: false
 
   - name: Check if action.yml exists
     id: check_coverage_steps_file
     run: |
       if [ -f ".github/actions/daily-test-improver/coverage-steps/action.yml" ]; then
-        echo "exists=true" >> "$GITHUB_OUTPUT"
+        echo "exists=true" >> $GITHUB_OUTPUT
       else
-        echo "exists=false" >> "$GITHUB_OUTPUT"
+        echo "exists=false" >> $GITHUB_OUTPUT
       fi
     shell: bash
   - name: Build the project and produce coverage report, logging to coverage-steps.log
@@ -53,7 +50,7 @@ steps:
     id: coverage-steps
     continue-on-error: true # the model may not have got it right, so continue anyway, the model will check the results and try to fix the steps
 
-source: githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
+source: githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
 ---
 # Daily Test Coverage Improver
 
@@ -67,7 +64,7 @@ You are doing your work in phases. Right now you will perform just one of the fo
 
 To decide which phase to perform:
 
-1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. Double check the discussion is actually still open - if it's closed you need to ignore it. If found, and open, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
 
 2. Next check if `.github/actions/daily-test-improver/coverage-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
 
@@ -107,7 +104,7 @@ To decide which phase to perform:
 
    a. You can assume that the repository is in a state where the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` have been run and a test coverage report has been generated, perhaps with other detailed coverage information. Look at the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` to work out what has been run and where the coverage report should be, and find it. Also read any output files such as `coverage-steps.log` to understand what has been done. If the coverage steps failed, work out what needs to be fixed in `.github/actions/daily-test-improver/coverage-steps/action.yml` and make a pull request for those fixes and exit the entire workflow. If you can't find the coverage report, read a previous actions log for the run, or otherwise work out why the build or coverage generation failed by going through it step by step, then create an issue describing the problem. Only continue if you have a valid fresh coverage report.
 
-   b. Read the coverge report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
+   b. Read the coverage report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
    
    c. Check the most recent pull request with title starting with "${{ github.workflow }}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
 

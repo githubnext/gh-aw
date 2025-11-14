@@ -1,32 +1,35 @@
 ---
-if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-network: defaults
 on:
   workflow_run:
+    workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically
     types:
-    - completed
-    workflows:
-    - Daily Perf Improver
-    - Daily Test Coverage Improver
+      - completed
     branches:
       - main
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-  actions: read
-campaign: ci-doctor-failures
+    # This will trigger only when the CI workflow completes with failure
+    # The condition is handled in the workflow body
+  stop-after: +48h
+
+# Only trigger for failures - check in the workflow body
+if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+permissions: read-all
+
+network: defaults
+
 safe-outputs:
-  add-comment: null
   create-issue:
-    title-prefix: ${{ github.workflow }}
-source: githubnext/agentics/workflows/ci-doctor.md
-timeout-minutes: 10
+    title-prefix: "${{ github.workflow }}"
+  add-comment:
+
 tools:
   cache-memory: true
-  web-fetch: null
-  web-search: null
-strict: true
+  web-fetch:
+  web-search:
+
+timeout-minutes: 10
+
+source: githubnext/agentics/workflows/ci-doctor.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
 ---
 # CI Failure Doctor
 
@@ -68,7 +71,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 ### Phase 3: Historical Context Analysis  
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
-   - Read from cached investigation files in `/tmp/gh-aw/memory/investigations/`
+   - Read from cached investigation files in `/tmp/memory/investigations/`
    - Parse previous failure patterns and solutions
    - Look for recurring error signatures
 2. **Issue History**: Search existing issues for related problems
@@ -92,8 +95,8 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 ### Phase 5: Pattern Storage and Knowledge Building
 1. **Store Investigation**: Save structured investigation data to files:
-   - Write investigation report to `/tmp/gh-aw/memory/investigations/<timestamp>-<run-id>.json`
-   - Store error patterns in `/tmp/gh-aw/memory/patterns/`
+   - Write investigation report to `/tmp/memory/investigations/<timestamp>-<run-id>.json`
+   - Store error patterns in `/tmp/memory/patterns/`
    - Maintain an index file of all investigations for fast searching
 2. **Update Pattern Database**: Enhance knowledge with new findings by updating pattern files
 3. **Save Artifacts**: Store detailed logs and analysis in the cached directories
@@ -176,8 +179,8 @@ When creating an investigation issue, use this structure:
 
 ## Cache Usage Strategy
 
-- Store investigation database and knowledge patterns in `/tmp/gh-aw/memory/investigations/` and `/tmp/gh-aw/memory/patterns/`
-- Cache detailed log analysis and artifacts in `/tmp/gh-aw/investigation/logs/` and `/tmp/gh-aw/investigation/reports/`
+- Store investigation database and knowledge patterns in `/tmp/memory/investigations/` and `/tmp/memory/patterns/`
+- Cache detailed log analysis and artifacts in `/tmp/investigation/logs/` and `/tmp/investigation/reports/`
 - Persist findings across workflow runs using GitHub Actions cache
 - Build cumulative knowledge about failure patterns and solutions using structured JSON files
 - Use file-based indexing for fast pattern matching and similarity detection
