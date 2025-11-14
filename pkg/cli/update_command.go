@@ -11,7 +11,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +24,7 @@ func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 The command:
 1. Checks if a newer version of gh-aw is available
 2. Updates workflows using the 'source' field in the workflow frontmatter
-3. Recompiles all workflows
+3. Compiles each workflow immediately after update
 
 For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
@@ -109,37 +108,10 @@ func checkExtensionUpdate(verbose bool) error {
 	return nil
 }
 
-// runCompileWorkflows runs the compile command to recompile all workflows
-func runCompileWorkflows(verbose bool, engineOverride string, workflowsDir string) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Compiling workflows..."))
-	}
-
-	// Create a compiler instance similar to how compile command does it
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-
-	// Use provided workflows directory or default
-	if workflowsDir == "" {
-		workflowsDir = getWorkflowsDir()
-	}
-
-	// Compile all workflows in the workflows directory
-	_, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to compile workflows: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully compiled all workflows"))
-	}
-	return nil
-}
-
 // UpdateWorkflowsWithExtensionCheck performs the complete update process:
 // 1. Check for gh-aw extension updates
-// 2. Update workflows from source repositories
-// 3. Compile all workflows
-// 4. Optionally create a PR
+// 2. Update workflows from source repositories (compiles each workflow after update)
+// 3. Optionally create a PR
 func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string) error {
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
@@ -147,16 +119,12 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 	}
 
 	// Step 2: Update workflows from source repositories
+	// Note: Each workflow is compiled immediately after update
 	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 3: Compile all workflows
-	if err := runCompileWorkflows(verbose, engineOverride, workflowsDir); err != nil {
-		return fmt.Errorf("compile failed: %w", err)
-	}
-
-	// Step 4: Optionally create PR if flag is set
+	// Step 3: Optionally create PR if flag is set
 	if createPR {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
@@ -271,21 +239,29 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))
 
+	// Track update results
+	var successfulUpdates []string
+	var failedUpdates []updateFailure
+
 	// Update each workflow
-	updatedCount := 0
 	for _, wf := range workflows {
 		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update %s: %v", wf.Name, err)))
+			failedUpdates = append(failedUpdates, updateFailure{
+				Name:  wf.Name,
+				Error: err.Error(),
+			})
 			continue
 		}
-		updatedCount++
+		successfulUpdates = append(successfulUpdates, wf.Name)
 	}
 
-	if updatedCount == 0 {
+	// Show summary
+	showUpdateSummary(successfulUpdates, failedUpdates)
+
+	if len(successfulUpdates) == 0 {
 		return fmt.Errorf("no workflows were successfully updated")
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated %d workflow(s)", updatedCount)))
 	return nil
 }
 
@@ -294,6 +270,37 @@ type workflowWithSource struct {
 	Name       string
 	Path       string
 	SourceSpec string // e.g., "owner/repo/path@ref"
+}
+
+// updateFailure represents a failed workflow update
+type updateFailure struct {
+	Name  string
+	Error string
+}
+
+// showUpdateSummary displays a summary of workflow updates using console helpers
+func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Update Summary ==="))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Show successful updates
+	if len(successfulUpdates) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated and compiled %d workflow(s):", len(successfulUpdates))))
+		for _, name := range successfulUpdates {
+			fmt.Fprintf(os.Stderr, "  ✓ %s\n", name)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Show failed updates
+	if len(failedUpdates) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
+		for _, failure := range failedUpdates {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %s\n", failure.Name, failure.Error)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
 }
 
 // findWorkflowsWithSource finds all workflows that have a source field
