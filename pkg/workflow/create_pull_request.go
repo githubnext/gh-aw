@@ -201,13 +201,6 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
-		// Parse github-token (Note: max is always 1 for pull requests and set by parseBaseSafeOutputConfig)
-		if githubToken, exists := configMap["github-token"]; exists {
-			if githubTokenStr, ok := githubToken.(string); ok {
-				pullRequestsConfig.GitHubToken = githubTokenStr
-			}
-		}
-
 		// Parse common base fields with default max of 1 (always max 1 for pull requests)
 		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, 1)
 
