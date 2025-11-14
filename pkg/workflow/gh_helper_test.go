@@ -147,3 +147,156 @@ func TestExecGHWithMultipleArgs(t *testing.T) {
 		t.Errorf("Expected environment to contain GH_TOKEN=test-token")
 	}
 }
+
+func TestApplyJQFilter(t *testing.T) {
+	tests := []struct {
+		name        string
+		jsonData    string
+		filter      string
+		expected    string
+		expectError bool
+	}{
+		{
+			name:     "simple field extraction",
+			jsonData: `{"name": "test"}`,
+			filter:   ".name",
+			expected: "test\n",
+		},
+		{
+			name:     "nested field extraction",
+			jsonData: `{"object": {"sha": "abc123"}}`,
+			filter:   ".object.sha",
+			expected: "abc123\n",
+		},
+		{
+			name:     "number field",
+			jsonData: `{"count": 42}`,
+			filter:   ".count",
+			expected: "42\n",
+		},
+		{
+			name:     "boolean field",
+			jsonData: `{"enabled": true}`,
+			filter:   ".enabled",
+			expected: "true\n",
+		},
+		{
+			name:        "missing field",
+			jsonData:    `{"name": "test"}`,
+			filter:      ".missing",
+			expectError: true,
+		},
+		{
+			name:        "invalid JSON",
+			jsonData:    `{invalid}`,
+			filter:      ".name",
+			expectError: true,
+		},
+		{
+			name:     "complex object",
+			jsonData: `{"meta": {"nested": {"value": "deep"}}}`,
+			filter:   ".meta.nested.value",
+			expected: "deep\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := applyJQFilter([]byte(tt.jsonData), tt.filter)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if string(result) != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, string(result))
+			}
+		})
+	}
+}
+
+func TestCallGitHubRESTAPI(t *testing.T) {
+	// This is a unit test that verifies the function exists and has the right signature
+	// Integration tests would require network access
+
+	t.Run("function exists and accepts correct parameters", func(t *testing.T) {
+		// Test that the function can be called (will fail due to network, but that's expected)
+		_, err := callGitHubRESTAPI("/repos/actions/checkout/git/ref/tags/v4", ".object.sha")
+		
+		// We expect an error (network error in test environment), but we're just verifying
+		// the function signature is correct
+		if err == nil {
+			// If somehow this succeeds (network is available), that's fine too
+			t.Log("REST API call succeeded (network available)")
+		} else {
+			// Expected: network error or API error
+			t.Logf("Expected network error in test environment: %v", err)
+		}
+	})
+}
+
+func TestExecGHWithRESTFallback_NonAPICommand(t *testing.T) {
+	// Save original environment
+	originalGHToken := os.Getenv("GH_TOKEN")
+	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
+	defer func() {
+		os.Setenv("GH_TOKEN", originalGHToken)
+		os.Setenv("GITHUB_TOKEN", originalGitHubToken)
+	}()
+
+	// Clear tokens to ensure gh CLI will fail
+	os.Unsetenv("GH_TOKEN")
+	os.Unsetenv("GITHUB_TOKEN")
+
+	t.Run("non-api command should not trigger REST fallback", func(t *testing.T) {
+		// This should fail with the original error, not attempt REST fallback
+		_, fromREST, err := ExecGHWithRESTFallback("repo", "view")
+		
+		if err == nil {
+			t.Logf("Command succeeded (gh is configured), skipping fallback test")
+			return
+		}
+
+		// Should not have used REST fallback for non-api commands
+		if fromREST {
+			t.Errorf("Expected fromREST to be false for non-api commands, got true")
+		}
+	})
+}
+
+func TestExecGHWithRESTFallback_InsufficientArgs(t *testing.T) {
+	// Save original environment
+	originalGHToken := os.Getenv("GH_TOKEN")
+	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
+	defer func() {
+		os.Setenv("GH_TOKEN", originalGHToken)
+		os.Setenv("GITHUB_TOKEN", originalGitHubToken)
+	}()
+
+	// Clear tokens to ensure gh CLI will fail
+	os.Unsetenv("GH_TOKEN")
+	os.Unsetenv("GITHUB_TOKEN")
+
+	t.Run("api command with insufficient args should not trigger REST fallback", func(t *testing.T) {
+		// This should fail with the original error
+		_, fromREST, err := ExecGHWithRESTFallback("api")
+		
+		if err == nil {
+			t.Logf("Command succeeded unexpectedly")
+			return
+		}
+
+		// Should not have used REST fallback
+		if fromREST {
+			t.Errorf("Expected fromREST to be false for insufficient args, got true")
+		}
+	})
+}

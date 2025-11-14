@@ -50,6 +50,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 }
 
 // resolveFromGitHub uses gh CLI to resolve the SHA for an action@version
+// Falls back to unauthenticated REST API if gh CLI fails due to authentication
 func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
 	baseRepo := extractBaseRepo(repo)
@@ -60,11 +61,14 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	cmd := ExecGH("api", apiPath, "--jq", ".object.sha")
-	output, err := cmd.Output()
+	output, fromREST, err := ExecGHWithRESTFallback("api", apiPath, "--jq", ".object.sha")
 	if err != nil {
 		// Try without "refs/tags/" prefix in case version is already a ref
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
+	}
+
+	if fromREST {
+		resolverLog.Printf("Resolved using REST API fallback")
 	}
 
 	sha := strings.TrimSpace(string(output))
