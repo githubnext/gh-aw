@@ -881,11 +881,21 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	repo := slashParts[1]
 	filePath := strings.Join(slashParts[2:], "/")
 
-	// Check cache first if available
+	// Resolve ref to SHA for cache lookup
+	var sha string
 	if cache != nil {
-		if cachedPath, found := cache.Get(owner, repo, filePath, ref); found {
-			log.Printf("Using cached import: %s/%s/%s@%s", owner, repo, filePath, ref)
-			return cachedPath, nil
+		// Only resolve SHA if we're using the cache
+		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
+		if err != nil {
+			log.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
+			// Continue without caching if SHA resolution fails
+		} else {
+			sha = resolvedSHA
+			// Check cache using SHA
+			if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
+				log.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
+				return cachedPath, nil
+			}
 		}
 	}
 
@@ -895,9 +905,9 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
 
-	// If cache is available, store in cache
-	if cache != nil {
-		cachedPath, err := cache.Set(owner, repo, filePath, ref, ref, content)
+	// If cache is available and we have a SHA, store in cache
+	if cache != nil && sha != "" {
+		cachedPath, err := cache.Set(owner, repo, filePath, sha, sha, content)
 		if err != nil {
 			log.Printf("Failed to cache import: %v", err)
 			// Don't fail the compilation, fall back to temp file
@@ -927,6 +937,49 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 }
 
 // downloadFileFromGitHub downloads a file from GitHub using gh CLI
+// resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
+func resolveRefToSHA(owner, repo, ref string) (string, error) {
+	// If ref is already a full SHA (40 hex characters), return it as-is
+	if len(ref) == 40 && isHexString(ref) {
+		return ref, nil
+	}
+
+	// Use gh CLI to get the commit SHA for the ref
+	// This works for branches, tags, and short SHAs
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		outputStr := string(output)
+		if strings.Contains(outputStr, "GH_TOKEN") || strings.Contains(outputStr, "authentication") || strings.Contains(outputStr, "not logged into") {
+			return "", fmt.Errorf("failed to resolve ref to SHA: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+		}
+		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
+	}
+
+	sha := strings.TrimSpace(string(output))
+	if sha == "" {
+		return "", fmt.Errorf("empty SHA returned for ref %s in %s/%s", ref, owner, repo)
+	}
+
+	// Validate it's a valid SHA (40 hex characters)
+	if len(sha) != 40 || !isHexString(sha) {
+		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
+	}
+
+	return sha, nil
+}
+
+// isHexString checks if a string contains only hexadecimal characters
+func isHexString(s string) bool {
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	// Use gh CLI to download the file
 	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")

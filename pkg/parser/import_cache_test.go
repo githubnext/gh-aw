@@ -22,10 +22,9 @@ func TestImportCache(t *testing.T) {
 	owner := "testowner"
 	repo := "testrepo"
 	path := "workflows/test.md"
-	ref := "main"
 	sha := "abc123"
 
-	cachedPath, err := cache.Set(owner, repo, path, ref, sha, testContent)
+	cachedPath, err := cache.Set(owner, repo, path, sha, "", testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}
@@ -45,7 +44,7 @@ func TestImportCache(t *testing.T) {
 	}
 
 	// Test Get
-	retrievedPath, found := cache.Get(owner, repo, path, ref)
+	retrievedPath, found := cache.Get(owner, repo, path, sha)
 	if !found {
 		t.Error("Cache entry not found after Set")
 	}
@@ -55,7 +54,7 @@ func TestImportCache(t *testing.T) {
 
 	// Test that a new cache instance can find the file
 	cache2 := NewImportCache(tempDir)
-	retrievedPath2, found := cache2.Get(owner, repo, path, ref)
+	retrievedPath2, found := cache2.Get(owner, repo, path, sha)
 	if !found {
 		t.Error("Cache entry not found from new cache instance")
 	}
@@ -82,7 +81,7 @@ func TestImportCacheDirectory(t *testing.T) {
 
 	// Create a cache entry to trigger directory creation
 	testContent := []byte("test")
-	_, err = cache.Set("owner", "repo", "test.md", "main", "sha1", testContent)
+	_, err = cache.Set("owner", "repo", "test.md", "sha1", "", testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}
@@ -105,7 +104,7 @@ func TestImportCacheMissingFile(t *testing.T) {
 
 	// Add entry to cache
 	testContent := []byte("test")
-	cachedPath, err := cache.Set("owner", "repo", "test.md", "main", "sha1", testContent)
+	cachedPath, err := cache.Set("owner", "repo", "test.md", "sha1", "", testContent)
 	if err != nil {
 		t.Fatalf("Failed to set cache entry: %v", err)
 	}
@@ -116,7 +115,7 @@ func TestImportCacheMissingFile(t *testing.T) {
 	}
 
 	// Try to get the entry - should return not found since file is missing
-	_, found := cache.Get("owner", "repo", "test.md", "main")
+	_, found := cache.Get("owner", "repo", "test.md", "sha1")
 	if found {
 		t.Error("Expected cache miss for deleted file, but got hit")
 	}
@@ -133,7 +132,7 @@ func TestImportCacheEmptyCache(t *testing.T) {
 	cache := NewImportCache(tempDir)
 
 	// Try to get from empty cache - should return not found
-	_, found := cache.Get("owner", "repo", "test.md", "main")
+	_, found := cache.Get("owner", "repo", "test.md", "nonexistent-sha")
 	if found {
 		t.Error("Expected cache miss for empty cache, but got hit")
 	}

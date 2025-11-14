@@ -46,13 +46,14 @@ This is shared configuration.
 `)
 
 	// Cache the "remote" file
-	cachedPath, err := cache.Set("testowner", "testrepo", "workflows/shared.md", "main", "abc123", sharedContent)
+	sha := "abc123"
+	cachedPath, err := cache.Set("testowner", "testrepo", "workflows/shared.md", sha, sha, sharedContent)
 	if err != nil {
 		t.Fatalf("Failed to cache file: %v", err)
 	}
 
 	// Verify cache can retrieve the file
-	retrievedPath, found := cache.Get("testowner", "testrepo", "workflows/shared.md", "main")
+	retrievedPath, found := cache.Get("testowner", "testrepo", "workflows/shared.md", sha)
 	if !found {
 		t.Error("Failed to retrieve cached file")
 	}
@@ -73,7 +74,7 @@ This is shared configuration.
 	cache2 := NewImportCache(tempDir)
 
 	// Verify we can still retrieve the file using filesystem lookup
-	retrievedPath2, found := cache2.Get("testowner", "testrepo", "workflows/shared.md", "main")
+	retrievedPath2, found := cache2.Get("testowner", "testrepo", "workflows/shared.md", sha)
 	if !found {
 		t.Error("Failed to retrieve cached file from new cache instance")
 	}
@@ -107,17 +108,17 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 	}
 
 	for _, f := range files {
-		_, err := cache.Set(f.owner, f.repo, f.path, f.ref, f.sha, []byte(f.content))
+		_, err := cache.Set(f.owner, f.repo, f.path, f.sha, "", []byte(f.content))
 		if err != nil {
-			t.Fatalf("Failed to cache file %s/%s/%s@%s: %v", f.owner, f.repo, f.path, f.ref, err)
+			t.Fatalf("Failed to cache file %s/%s/%s@%s: %v", f.owner, f.repo, f.path, f.sha, err)
 		}
 	}
 
 	// Verify all files are retrievable
 	for _, f := range files {
-		path, found := cache.Get(f.owner, f.repo, f.path, f.ref)
+		path, found := cache.Get(f.owner, f.repo, f.path, f.sha)
 		if !found {
-			t.Errorf("Failed to retrieve cached file %s/%s/%s@%s", f.owner, f.repo, f.path, f.ref)
+			t.Errorf("Failed to retrieve cached file %s/%s/%s@%s", f.owner, f.repo, f.path, f.sha)
 			continue
 		}
 
@@ -129,7 +130,7 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 
 		if string(content) != f.content {
 			t.Errorf("Content mismatch for %s/%s/%s@%s. Expected %q, got %q",
-				f.owner, f.repo, f.path, f.ref, f.content, string(content))
+				f.owner, f.repo, f.path, f.sha, f.content, string(content))
 		}
 	}
 
@@ -137,9 +138,9 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 	cache2 := NewImportCache(tempDir)
 
 	for _, f := range files {
-		path, found := cache2.Get(f.owner, f.repo, f.path, f.ref)
+		path, found := cache2.Get(f.owner, f.repo, f.path, f.sha)
 		if !found {
-			t.Errorf("Failed to retrieve cached file from new instance %s/%s/%s@%s", f.owner, f.repo, f.path, f.ref)
+			t.Errorf("Failed to retrieve cached file from new instance %s/%s/%s@%s", f.owner, f.repo, f.path, f.sha)
 			continue
 		}
 
@@ -151,7 +152,7 @@ func TestImportCacheMultipleFiles(t *testing.T) {
 
 		if string(content) != f.content {
 			t.Errorf("Content mismatch from new instance for %s/%s/%s@%s. Expected %q, got %q",
-				f.owner, f.repo, f.path, f.ref, f.content, string(content))
+				f.owner, f.repo, f.path, f.sha, f.content, string(content))
 		}
 	}
 }

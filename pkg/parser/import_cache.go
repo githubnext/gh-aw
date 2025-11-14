@@ -29,30 +29,31 @@ func NewImportCache(repoRoot string) *ImportCache {
 }
 
 // Get retrieves a cached file path if it exists
-// It checks the filesystem directly for the expected cache file
-func (c *ImportCache) Get(owner, repo, path, ref string) (string, bool) {
-	// Use content-based approach: try to find cached file for this import
-	// Cache path: .github/aw/imports/owner/repo/ref/sanitized_path.md
+// sha parameter should be the resolved commit SHA
+func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
+	// Use SHA-based approach: cache files are stored by commit SHA
+	// Cache path: .github/aw/imports/owner/repo/sha/sanitized_path.md
 	sanitizedPath := strings.ReplaceAll(path, "/", "_")
-	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, ref, sanitizedPath)
+	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 
 	// Check if the cached file exists
 	if _, err := os.Stat(fullCachePath); os.IsNotExist(err) {
-		importCacheLog.Printf("Cache miss: %s/%s/%s@%s", owner, repo, path, ref)
+		importCacheLog.Printf("Cache miss: %s/%s/%s@%s", owner, repo, path, sha)
 		return "", false
 	}
 
-	importCacheLog.Printf("Cache hit: %s/%s/%s@%s -> %s", owner, repo, path, ref, fullCachePath)
+	importCacheLog.Printf("Cache hit: %s/%s/%s@%s -> %s", owner, repo, path, sha, fullCachePath)
 	return fullCachePath, true
 }
 
 // Set stores a new cache entry by saving the content to the cache directory
-func (c *ImportCache) Set(owner, repo, path, ref, sha string, content []byte) (string, error) {
-	// Use ref (not sha) in path to match Get() lookup
-	// This allows the same ref to be cached consistently
+// sha parameter should be the resolved commit SHA
+func (c *ImportCache) Set(owner, repo, path, sha, _ string, content []byte) (string, error) {
+	// Use SHA in path for consistent caching
+	// This ensures that different refs pointing to the same commit reuse the same cache
 	sanitizedPath := strings.ReplaceAll(path, "/", "_")
-	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, ref, sanitizedPath)
+	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 
 	// Ensure directory exists
@@ -68,7 +69,7 @@ func (c *ImportCache) Set(owner, repo, path, ref, sha string, content []byte) (s
 		return "", err
 	}
 
-	importCacheLog.Printf("Cached import: %s/%s/%s@%s -> %s", owner, repo, path, ref, fullCachePath)
+	importCacheLog.Printf("Cached import: %s/%s/%s@%s -> %s", owner, repo, path, sha, fullCachePath)
 	return fullCachePath, nil
 }
 
