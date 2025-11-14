@@ -4,11 +4,13 @@ on:
     schedule:
         # Run daily at 2am UTC, all days except Saturday and Sunday
         - cron: "0 2 * * 1-5"
+    stop-after: +48h # workflow will no longer trigger after 48 hours
 
 timeout-minutes: 60
 
 permissions:
   all: read
+  id-token: write  # for auth in some actions
 
 network: defaults
 
@@ -27,27 +29,20 @@ tools:
   web-fetch:
   web-search:
   github:
-    toolsets: [all]  
-  # Configure bash build commands here, or in .github/workflows/agentics/daily-dependency-updates.config.md
-  #
-  # By default this workflow allows all bash commands within the confine of Github Actions VM 
-  bash: [ ":*" ]
-imports:
-  - shared/reporting.md
+    toolsets: [all]
+  bash:
 
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
-    with:
-      persist-credentials: false
 
   - name: Check if action.yml exists
     id: check_build_steps_file
     run: |
       if [ -f ".github/actions/daily-perf-improver/build-steps/action.yml" ]; then
-        echo "exists=true" >> "$GITHUB_OUTPUT"
+        echo "exists=true" >> $GITHUB_OUTPUT
       else
-        echo "exists=false" >> "$GITHUB_OUTPUT"
+        echo "exists=false" >> $GITHUB_OUTPUT
       fi
     shell: bash
   - name: Build the project ready for performance testing, logging to build-steps.log
@@ -56,7 +51,7 @@ steps:
     id: build-steps
     continue-on-error: true # the model may not have got it right, so continue anyway, the model will check the results and try to fix the steps
 
-source: githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
+source: githubnext/agentics/workflows/daily-perf-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
 ---
 # Daily Perf Improver
 
@@ -70,7 +65,7 @@ You are doing your work in phases. Right now you will perform just one of the fo
 
 To decide which phase to perform:
 
-1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. Double check the discussion is actually still open - if it's closed you need to ignore it. If found, and open, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
 
 2. Next check if `.github/actions/daily-perf-improver/build-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
 
@@ -103,7 +98,7 @@ To decide which phase to perform:
 
 1. Check for open PR titled "${{ github.workflow }} - Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
 
-2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development environment setup.
+2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development, testing tools (if any used in repo), linting tools (if any used in repo), code formatting tools (if any used in repo) and other environment setup.
 
 3. Create `.github/actions/daily-perf-improver/build-steps/action.yml` with validated build steps. Each step must log output to `build-steps.log` in repo root. Cross-check against existing CI/devcontainer configs.
 
@@ -153,11 +148,13 @@ To decide which phase to perform:
 
    d. Measure performance impact. Document measurement attempts even if unsuccessful. If no improvement then iterate, revert, or try different approach.
 
-   e. Apply any automatic code formatting used in the repo
+3. **Finalizing changes**
 
-   f. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
+   a. Apply any automatic code formatting used in the repo.
 
-3. **Results and learnings**
+   b. Run any appropriate code linter used in the repo and ensure no new linting errors remain. Check the CI checks to see what linting is being used.
+
+4. **Results and learnings**
 
    a. If you succeeded in writing useful code changes that improve performance, create a draft pull request with your changes. 
 
@@ -182,4 +179,4 @@ To decide which phase to perform:
 
    b. If failed or lessons learned then add more files to the PR branch to update relevant performance guide in `.github/copilot/instructions/` with insights. Create a new guide if needed, or split, merge or delete existing guides as appropriate. This is your chance to improve the performance engineering documentation for next time, so you and your team don't make the same mistakes again! Make the most of it!
 
-4. **Final update**: Add brief comment (1 or 2 sentences) to the discussion identified at the start of the workflow stating goal worked on, PR links, and progress made.
+5. **Final update**: Add brief comment (1 or 2 sentences) to the discussion identified at the start of the workflow stating goal worked on, PR links, and progress made.

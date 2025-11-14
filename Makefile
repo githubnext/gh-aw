@@ -274,6 +274,12 @@ release: build
 agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-status-badges
 	@echo "Agent finished tasks successfully."
 
+agentics-add: build
+	./gh-aw add --dir agentics githubnext/agentics/*
+
+agentics-update: build
+	./gh-aw update --dir .github/workflows/agentics
+
 # Help target
 .PHONY: help
 help:
@@ -308,6 +314,8 @@ help:
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-status-badges - Generate workflow status badges documentation page"
+	@echo "  agentics-add     - Add all agentics from githubnext/agentics repo"
+	@echo "  agentics-update  - Update all agentics from githubnext/agentics repo"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  version   - Preview next version from changesets"

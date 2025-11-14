@@ -398,3 +398,155 @@ func TestHandleFileDeleted(t *testing.T) {
 		handleFileDeleted(markdownFile, false)
 	})
 }
+
+// TestCompileSingleFile tests the compileSingleFile helper function
+func TestCompileSingleFile(t *testing.T) {
+	t.Run("compile single file successfully", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Create a valid workflow file
+		filePath := filepath.Join(workflowsDir, "test.md")
+		content := "---\non: push\nengine: claude\n---\n# Test\n\nTest workflow content"
+		os.WriteFile(filePath, []byte(content), 0644)
+
+		compiler := workflow.NewCompiler(false, "", "test")
+		stats := &CompilationStats{}
+
+		// Compile without checking existence
+		result := compileSingleFile(compiler, filePath, stats, false, false)
+
+		if !result {
+			t.Error("Expected compilation to be attempted")
+		}
+
+		if stats.Total != 1 {
+			t.Errorf("Expected Total to be 1, got %d", stats.Total)
+		}
+
+		if stats.Errors != 0 {
+			t.Errorf("Expected no errors, got %d", stats.Errors)
+		}
+
+		// Check that lock file was created
+		lockFile := filepath.Join(workflowsDir, "test.lock.yml")
+		if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+			t.Error("Expected lock file to be created")
+		}
+	})
+
+	t.Run("compile single file with error", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Create an invalid workflow file
+		filePath := filepath.Join(workflowsDir, "invalid.md")
+		content := "---\nmalformed: yaml: content:\n  - missing\n    proper: structure\n---\n# Invalid\n"
+		os.WriteFile(filePath, []byte(content), 0644)
+
+		compiler := workflow.NewCompiler(false, "", "test")
+		stats := &CompilationStats{}
+
+		// Compile without checking existence
+		result := compileSingleFile(compiler, filePath, stats, false, false)
+
+		if !result {
+			t.Error("Expected compilation to be attempted")
+		}
+
+		if stats.Total != 1 {
+			t.Errorf("Expected Total to be 1, got %d", stats.Total)
+		}
+
+		if stats.Errors != 1 {
+			t.Errorf("Expected 1 error, got %d", stats.Errors)
+		}
+
+		if len(stats.FailedWorkflows) != 1 {
+			t.Errorf("Expected 1 failed workflow, got %d", len(stats.FailedWorkflows))
+		}
+
+		if stats.FailedWorkflows[0] != "invalid.md" {
+			t.Errorf("Expected failed workflow to be 'invalid.md', got '%s'", stats.FailedWorkflows[0])
+		}
+	})
+
+	t.Run("compile single file with checkExists true and file exists", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Create a valid workflow file
+		filePath := filepath.Join(workflowsDir, "test.md")
+		content := "---\non: push\nengine: claude\n---\n# Test\n\nTest workflow content"
+		os.WriteFile(filePath, []byte(content), 0644)
+
+		compiler := workflow.NewCompiler(false, "", "test")
+		stats := &CompilationStats{}
+
+		// Compile with existence check
+		result := compileSingleFile(compiler, filePath, stats, false, true)
+
+		if !result {
+			t.Error("Expected compilation to be attempted")
+		}
+
+		if stats.Total != 1 {
+			t.Errorf("Expected Total to be 1, got %d", stats.Total)
+		}
+	})
+
+	t.Run("compile single file with checkExists true and file does not exist", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Use a non-existent file path
+		filePath := filepath.Join(workflowsDir, "nonexistent.md")
+
+		compiler := workflow.NewCompiler(false, "", "test")
+		stats := &CompilationStats{}
+
+		// Compile with existence check - should skip
+		result := compileSingleFile(compiler, filePath, stats, false, true)
+
+		if result {
+			t.Error("Expected compilation to be skipped for non-existent file")
+		}
+
+		if stats.Total != 0 {
+			t.Errorf("Expected Total to be 0 (not attempted), got %d", stats.Total)
+		}
+	})
+
+	t.Run("compile single file verbose mode", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Create a valid workflow file
+		filePath := filepath.Join(workflowsDir, "verbose-test.md")
+		content := "---\non: push\nengine: claude\n---\n# Verbose Test\n\nTest workflow content"
+		os.WriteFile(filePath, []byte(content), 0644)
+
+		compiler := workflow.NewCompiler(false, "", "test")
+		stats := &CompilationStats{}
+
+		// Compile in verbose mode
+		result := compileSingleFile(compiler, filePath, stats, true, false)
+
+		if !result {
+			t.Error("Expected compilation to be attempted")
+		}
+
+		if stats.Total != 1 {
+			t.Errorf("Expected Total to be 1, got %d", stats.Total)
+		}
+
+		if stats.Errors != 0 {
+			t.Errorf("Expected no errors, got %d", stats.Errors)
+		}
+	})
+}
