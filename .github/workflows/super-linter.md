@@ -60,7 +60,7 @@ jobs:
       
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: super-linter-log
           path: super-linter.log
