@@ -677,8 +677,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
 
-	// Compile the updated workflow
-	if err := compileWorkflow(wf.Path, verbose, engineOverride); err != nil {
+	// Compile the updated workflow with refreshStopTime enabled
+	if err := compileWorkflowWithRefresh(wf.Path, verbose, engineOverride, true); err != nil {
 		return fmt.Errorf("failed to compile updated workflow: %w", err)
 	}
 
