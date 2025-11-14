@@ -10,7 +10,7 @@ on:
         required: true
         type: string
 
-engine: claude
+engine: copilot
 
 permissions:
   contents: read
