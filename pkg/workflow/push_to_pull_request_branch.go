@@ -194,8 +194,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 0 (no limit)
+			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)
 		}
 
 		return pushToBranchConfig

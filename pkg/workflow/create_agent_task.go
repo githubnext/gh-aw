@@ -20,7 +20,6 @@ func (c *Compiler) parseAgentTaskConfig(outputMap map[string]any) *CreateAgentTa
 	if configData, exists := outputMap["create-agent-task"]; exists {
 		createAgentTaskLog.Print("Parsing create-agent-task configuration")
 		agentTaskConfig := &CreateAgentTaskConfig{}
-		agentTaskConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base branch
@@ -30,16 +29,19 @@ func (c *Compiler) parseAgentTaskConfig(outputMap map[string]any) *CreateAgentTa
 				}
 			}
 
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			// Validate that target-repo is not "*" - only definite strings are allowed
-			if targetRepoSlug == "*" {
+			// Parse target-repo using shared helper with validation
+			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			if isInvalid {
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			agentTaskConfig.TargetRepoSlug = targetRepoSlug
 
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &agentTaskConfig.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &agentTaskConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
+			// still set the default max
+			agentTaskConfig.Max = 1
 		}
 
 		return agentTaskConfig

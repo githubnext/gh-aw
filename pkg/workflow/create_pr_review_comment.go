@@ -98,12 +98,8 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 
 	configData := outputMap["create-pull-request-review-comment"]
 	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Side: "RIGHT"} // Default side is RIGHT
-	prReviewCommentsConfig.Max = 10                                                 // Default max is 10
 
 	if configMap, ok := configData.(map[string]any); ok {
-		// Parse common base fields
-		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig)
-
 		// Parse side
 		if side, exists := configMap["side"]; exists {
 			if sideStr, ok := side.(string); ok {
@@ -121,13 +117,19 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 			}
 		}
 
-		// Parse target-repo using shared helper
-		targetRepoSlug := parseTargetRepoFromConfig(configMap)
-		// Validate that target-repo is not "*" - only definite strings are allowed
-		if targetRepoSlug == "*" {
+		// Parse target-repo using shared helper with validation
+		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+		if isInvalid {
 			return nil // Invalid configuration, return nil to cause validation error
 		}
 		prReviewCommentsConfig.TargetRepoSlug = targetRepoSlug
+
+		// Parse common base fields with default max of 10
+		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig, 10)
+	} else {
+		// If configData is nil or not a map (e.g., "create-pull-request-review-comment:" with no value),
+		// still set the default max
+		prReviewCommentsConfig.Max = 10
 	}
 
 	return prReviewCommentsConfig

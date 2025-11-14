@@ -455,3 +455,63 @@ func TestParsePRReviewCommentsConfigWithWildcardTargetRepo(t *testing.T) {
 		t.Errorf("expected nil for wildcard target-repo, got %+v", result)
 	}
 }
+
+func TestParseTargetRepoWithValidation(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         map[string]any
+		expectedSlug  string
+		expectedError bool
+	}{
+		{
+			name: "valid target-repo",
+			input: map[string]any{
+				"target-repo": "owner/repo",
+			},
+			expectedSlug:  "owner/repo",
+			expectedError: false,
+		},
+		{
+			name: "empty target-repo",
+			input: map[string]any{
+				"target-repo": "",
+			},
+			expectedSlug:  "",
+			expectedError: false,
+		},
+		{
+			name:          "missing target-repo",
+			input:         map[string]any{},
+			expectedSlug:  "",
+			expectedError: false,
+		},
+		{
+			name: "wildcard target-repo (invalid)",
+			input: map[string]any{
+				"target-repo": "*",
+			},
+			expectedSlug:  "",
+			expectedError: true,
+		},
+		{
+			name: "target-repo with special characters",
+			input: map[string]any{
+				"target-repo": "github-next/gh-aw",
+			},
+			expectedSlug:  "github-next/gh-aw",
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			slug, isInvalid := parseTargetRepoWithValidation(tt.input)
+			if slug != tt.expectedSlug {
+				t.Errorf("expected slug %q, got %q", tt.expectedSlug, slug)
+			}
+			if isInvalid != tt.expectedError {
+				t.Errorf("expected error %v, got %v", tt.expectedError, isInvalid)
+			}
+		})
+	}
+}
