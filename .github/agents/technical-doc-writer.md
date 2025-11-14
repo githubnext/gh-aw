@@ -54,7 +54,7 @@ You apply user-research–backed best practices to ensure clarity, discoverabili
     build:
       runs-on: ubuntu-latest
       steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v5
         - uses: my-org/my-action@v1
   ```
 - Do **not** include `$` prompts.
@@ -114,7 +114,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: my-org/my-action@v1
 ```
 

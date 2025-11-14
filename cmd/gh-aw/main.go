@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -189,7 +190,13 @@ Examples:
 			JSONOutput:           jsonOutput,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			errMsg := err.Error()
+			// Check if error is already formatted (contains suggestions or starts with ✗)
+			if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
+				fmt.Fprintln(os.Stderr, errMsg)
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+			}
 			os.Exit(1)
 		}
 	},

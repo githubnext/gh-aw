@@ -499,7 +499,7 @@ Supply chain attacks target dependencies in CI/CD pipelines.
 **Insecure:**
 ```yaml
 steps:
-  - uses: actions/checkout@v4           # Tag can be moved
+  - uses: actions/checkout@v5           # Tag can be moved
   - uses: actions/setup-node@main       # Branch can be updated
 ```
 
@@ -718,7 +718,7 @@ With triggering context:
 
 ```markdown
 >
-> To add this workflow in your repository, run `gh aw add owner/repo/path@ref`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).
+> To add this workflow in your repository, run `gh aw add owner/repo/path@ref`. See [usage guide](https://githubnext.github.io/gh-aw/setup/cli/).
 ```
 
 #### Staged Mode Preview

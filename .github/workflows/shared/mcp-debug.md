@@ -21,7 +21,7 @@ safe-outputs:
         pull-requests: write
       steps:
         - name: Checkout repository
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
         - name: Post diagnostic report to pull request
           uses: actions/github-script@v8
           with:
