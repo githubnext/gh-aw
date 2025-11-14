@@ -459,6 +459,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			printCompilationSummary(stats)
 		}
 
+		// Save the action cache after all compilations
+		actionCache := compiler.GetSharedActionCache()
+		if actionCache != nil {
+			if err := actionCache.Save(); err != nil {
+				compileLog.Printf("Failed to save action cache: %v", err)
+				if verbose {
+					fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+				}
+			} else {
+				compileLog.Print("Action cache saved successfully")
+				if verbose {
+					fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+				}
+			}
+		}
+
 		// Return error if any compilations failed
 		if errorCount > 0 {
 			// Return the first error message for backward compatibility with tests
@@ -667,6 +683,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	} else {
 		// Print summary for text output
 		printCompilationSummary(stats)
+	}
+
+	// Save the action cache after all compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+			}
+		}
 	}
 
 	// Return error if any compilations failed
@@ -922,6 +954,22 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
+	// Save the action cache after all compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+			}
+		}
+	}
+
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
@@ -958,6 +1006,19 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Save the action cache after compilations
+	actionCache := compiler.GetSharedActionCache()
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+		}
+	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
