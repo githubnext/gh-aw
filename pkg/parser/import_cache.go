@@ -22,18 +22,18 @@ const (
 
 // ImportCacheEntry represents a cached import file
 type ImportCacheEntry struct {
-	Owner    string `json:"owner"`    // GitHub owner (user or org)
-	Repo     string `json:"repo"`     // Repository name
-	Path     string `json:"path"`     // File path within repository
-	Ref      string `json:"ref"`      // Git ref (branch, tag, or SHA)
-	SHA      string `json:"sha"`      // Commit SHA for the cached content
+	Owner     string `json:"owner"`      // GitHub owner (user or org)
+	Repo      string `json:"repo"`       // Repository name
+	Path      string `json:"path"`       // File path within repository
+	Ref       string `json:"ref"`        // Git ref (branch, tag, or SHA)
+	SHA       string `json:"sha"`        // Commit SHA for the cached content
 	CachePath string `json:"cache_path"` // Path to cached file
 }
 
 // ImportCache manages cached imported workflow files
 type ImportCache struct {
 	Entries map[string]ImportCacheEntry `json:"entries"` // key: "owner/repo/path@ref"
-	baseDir string                                       // Base directory for cache (typically repo root)
+	baseDir string                      // Base directory for cache (typically repo root)
 }
 
 // NewImportCache creates a new import cache instance
@@ -49,7 +49,7 @@ func NewImportCache(repoRoot string) *ImportCache {
 func (c *ImportCache) Load() error {
 	manifestPath := filepath.Join(c.baseDir, ImportCacheDir, "manifest.json")
 	importCacheLog.Printf("Loading import cache from: %s", manifestPath)
-	
+
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -160,32 +160,32 @@ func (c *ImportCache) Get(owner, repo, path, ref string) (string, bool) {
 // Set stores a new cache entry and saves the content to the cache directory
 func (c *ImportCache) Set(owner, repo, path, ref, sha string, content []byte) (string, error) {
 	key := fmt.Sprintf("%s/%s/%s@%s", owner, repo, path, ref)
-	
+
 	// Create cache path: .github/aw/imports/owner/repo/sha/path
 	// Use content hash for SHA if not provided
 	if sha == "" {
 		hash := sha256.Sum256(content)
 		sha = hex.EncodeToString(hash[:])[:12] // Use first 12 chars
 	}
-	
+
 	// Sanitize path for filesystem
 	sanitizedPath := strings.ReplaceAll(path, "/", "_")
 	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(fullCachePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		importCacheLog.Printf("Failed to create cache directory: %v", err)
 		return "", err
 	}
-	
+
 	// Write content to cache file
 	if err := os.WriteFile(fullCachePath, content, 0644); err != nil {
 		importCacheLog.Printf("Failed to write cache file: %v", err)
 		return "", err
 	}
-	
+
 	// Store entry in manifest
 	c.Entries[key] = ImportCacheEntry{
 		Owner:     owner,
@@ -195,7 +195,7 @@ func (c *ImportCache) Set(owner, repo, path, ref, sha string, content []byte) (s
 		SHA:       sha,
 		CachePath: relativeCachePath,
 	}
-	
+
 	importCacheLog.Printf("Cached import: %s -> %s", key, fullCachePath)
 	return fullCachePath, nil
 }

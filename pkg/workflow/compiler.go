@@ -49,21 +49,21 @@ type FileTracker interface {
 type Compiler struct {
 	verbose              bool
 	engineOverride       string
-	customOutput         string            // If set, output will be written to this path instead of default location
-	version              string            // Version of the extension
-	skipValidation       bool              // If true, skip schema validation
-	noEmit               bool              // If true, validate without generating lock files
-	strictMode           bool              // If true, enforce strict validation requirements
-	trialMode            bool              // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug string            // If set in trial mode, the logical repository to checkout
-	refreshStopTime      bool              // If true, regenerate stop-after times instead of preserving existing ones
-	jobManager           *JobManager       // Manages jobs and dependencies
-	engineRegistry       *EngineRegistry   // Registry of available agentic engines
-	fileTracker          FileTracker       // Optional file tracker for tracking created files
-	warningCount         int               // Number of warnings encountered during compilation
-	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
-	actionCache          *ActionCache      // Shared cache for action pin resolutions across all workflows
-	actionResolver       *ActionResolver   // Shared resolver for action pins across all workflows
+	customOutput         string              // If set, output will be written to this path instead of default location
+	version              string              // Version of the extension
+	skipValidation       bool                // If true, skip schema validation
+	noEmit               bool                // If true, validate without generating lock files
+	strictMode           bool                // If true, enforce strict validation requirements
+	trialMode            bool                // If true, suppress safe outputs for trial mode execution
+	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
+	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	jobManager           *JobManager         // Manages jobs and dependencies
+	engineRegistry       *EngineRegistry     // Registry of available agentic engines
+	fileTracker          FileTracker         // Optional file tracker for tracking created files
+	warningCount         int                 // Number of warnings encountered during compilation
+	stepOrderTracker     *StepOrderTracker   // Tracks step ordering for validation
+	actionCache          *ActionCache        // Shared cache for action pin resolutions across all workflows
+	actionResolver       *ActionResolver     // Shared resolver for action pins across all workflows
 	importCache          *parser.ImportCache // Shared cache for imported workflow files
 }
 
