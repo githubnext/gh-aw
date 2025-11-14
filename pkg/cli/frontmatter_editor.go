@@ -73,6 +73,8 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		lines = append(lines, frontmatterLines...)
 		lines = append(lines, "---")
 		if result.Markdown != "" {
+			// Add empty line before markdown content to match original format
+			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
 
@@ -150,6 +152,8 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error
 		lines = append(lines, frontmatterLines...)
 		lines = append(lines, "---")
 		if result.Markdown != "" {
+			// Add empty line before markdown content to match original format
+			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
 
