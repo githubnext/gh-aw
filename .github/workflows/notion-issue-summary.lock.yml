@@ -230,7 +230,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.355
+        run: npm install -g @github/copilot@0.0.358
       - name: Downloading container images
         run: |
           set -e
@@ -1315,7 +1315,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.355",
+              agent_version: "0.0.358",
               workflow_name: "Issue Summary to Notion",
               experimental: false,
               supports_tools_allowlist: true,
