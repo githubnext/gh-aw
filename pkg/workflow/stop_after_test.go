@@ -59,9 +59,6 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Test Workflow"`,
 			expectedTime: "2025-06-01 12:00:00",
 		},
-          STOP_TIME="2025-07-01 12:00:00"`,
-			expectedTime: "2025-06-01 12:00:00",
-		},
 	}
 
 	for _, tt := range tests {
@@ -170,8 +167,7 @@ jobs:
   stop_time_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v8
-        env:
+      - uses: actions/github-script`+"@v8\n"+`        env:
           GH_AW_STOP_TIME: %s
           GH_AW_WORKFLOW_NAME: "Test Workflow"
 `, existingStopTime)
