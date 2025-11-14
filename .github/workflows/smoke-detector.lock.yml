@@ -1491,147 +1491,6 @@ jobs:
               }
               throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
             }
-            const generateGitPatchHandler = args => {
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              const patchPath = "/tmp/gh-aw/aw.patch";
-              const defaultBranch = process.env.DEFAULT_BRANCH || "main";
-              try {
-                let branchName = null;
-                if (fs.existsSync(outputFile)) {
-                  debug("Reading safe outputs to find branch name...");
-                  const lines = fs.readFileSync(outputFile, "utf8").split("\n");
-                  for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                      const entry = JSON.parse(line);
-                      if (entry.type === "create_pull_request" || entry.type === "push_to_pull_request_branch") {
-                        if (entry.branch) {
-                          branchName = entry.branch;
-                          debug(`Found branch name from ${entry.type}: ${branchName}`);
-                          break;
-                        }
-                      }
-                    } catch (parseError) {
-                      continue;
-                    }
-                  }
-                }
-                if (!branchName) {
-                  debug("No branch found in safe outputs, no patch generation");
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: JSON.stringify({
-                          result: "no_branch",
-                          message: "No branch found in safe outputs",
-                        }),
-                      },
-                    ],
-                  };
-                }
-                debug(`Looking for branch: ${branchName}`);
-                try {
-                  execSync(`git show-ref --verify --quiet "refs/heads/${branchName}"`, { cwd, encoding: "utf8" });
-                  debug(`Branch ${branchName} exists`);
-                } catch (error) {
-                  debug(`Branch ${branchName} does not exist`);
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: JSON.stringify({
-                          result: "no_branch",
-                          message: `Branch ${branchName} does not exist`,
-                        }),
-                      },
-                    ],
-                  };
-                }
-                let baseRef;
-                try {
-                  execSync(`git show-ref --verify --quiet "refs/remotes/origin/${branchName}"`, { cwd, encoding: "utf8" });
-                  baseRef = `origin/${branchName}`;
-                  debug(`Using origin/${branchName} as base for patch generation`);
-                } catch (error) {
-                  debug(`origin/${branchName} does not exist, using merge-base with ${defaultBranch}`);
-                  try {
-                    execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8", stdio: "pipe" });
-                  } catch (fetchError) {
-                    debug(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
-                  }
-                  try {
-                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, {
-                      cwd,
-                      encoding: "utf8",
-                    }).trim();
-                    debug(`Using merge-base as base: ${baseRef}`);
-                  } catch (mergeBaseError) {
-                    throw new Error(`Failed to find merge-base: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}`);
-                  }
-                }
-                let commitCount = 0;
-                try {
-                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, {
-                    cwd,
-                    encoding: "utf8",
-                  }).trim();
-                  commitCount = parseInt(countOutput, 10);
-                  debug(`Number of commits to include: ${commitCount}`);
-                } catch (countError) {
-                  debug(`Failed to count commits: ${countError instanceof Error ? countError.message : String(countError)}`);
-                }
-                debug(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
-                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, {
-                  cwd,
-                  encoding: "utf8",
-                  maxBuffer: 10 * 1024 * 1024, 
-                });
-                if (!patchContent || !patchContent.trim()) {
-                  debug("Generated patch is empty - no changes between base and branch");
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: JSON.stringify({
-                          result: "no_changes",
-                          message: "No changes to create patch - branch is up to date with base",
-                        }),
-                      },
-                    ],
-                  };
-                }
-                const patchDir = path.dirname(patchPath);
-                if (!fs.existsSync(patchDir)) {
-                  fs.mkdirSync(patchDir, { recursive: true });
-                }
-                fs.writeFileSync(patchPath, patchContent, "utf8");
-                const patchSizeKB = Math.ceil(Buffer.byteLength(patchContent, "utf8") / 1024);
-                const patchLines = patchContent.split("\n").length;
-                debug(`Patch file created: ${patchPath}`);
-                debug(`Patch size: ${patchSizeKB} KB, ${patchLines} lines, ${commitCount} commits`);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({
-                        result: "success",
-                        path: patchPath,
-                        branch: branchName,
-                        base: baseRef,
-                        size_kb: patchSizeKB,
-                        lines: patchLines,
-                        commits: commitCount,
-                      }),
-                    },
-                  ],
-                };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                debug(`Failed to generate patch: ${errorMessage}`);
-                throw new Error(`Failed to generate git patch: ${errorMessage}`);
-              }
-            };
             function getBaseBranch() {
               return process.env.GH_AW_BASE_BRANCH || "main";
             }
@@ -1918,17 +1777,6 @@ jobs:
                 handler: uploadAssetHandler,
               },
               {
-                name: "generate_git_patch",
-                description:
-                  "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
-                inputSchema: {
-                  type: "object",
-                  properties: {},
-                  additionalProperties: false,
-                },
-                handler: generateGitPatchHandler,
-              },
-              {
                 name: "missing_tool",
                 description: "Report a missing tool or functionality needed to complete tasks",
                 inputSchema: {
@@ -1955,17 +1803,6 @@ jobs:
                 TOOLS[tool.name] = tool;
               }
             });
-            const hasPRTools = Object.keys(safeOutputsConfig).find(config => {
-              const normalized = normTool(config);
-              return normalized === "create_pull_request" || normalized === "push_to_pull_request_branch";
-            });
-            if (hasPRTools) {
-              const patchTool = ALL_TOOLS.find(t => t.name === "generate_git_patch");
-              if (patchTool && !TOOLS["generate_git_patch"]) {
-                TOOLS["generate_git_patch"] = patchTool;
-                debug("Auto-enabled generate_git_patch tool for PR operations");
-              }
-            }
             Object.keys(safeOutputsConfig).forEach(configKey => {
               const normalizedKey = normTool(configKey);
               if (TOOLS[normalizedKey]) {
