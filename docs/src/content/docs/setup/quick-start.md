@@ -47,9 +47,9 @@ Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Co
 5. Generate your token
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
-   ```bash wrap
-   gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
-   ```
+```bash wrap
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
+```
 
 :::note
 There is an ongoing work to support authentication with the GitHub Action token. 
