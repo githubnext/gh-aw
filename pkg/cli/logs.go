@@ -14,7 +14,6 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/githubnext/gh-aw/pkg/ghhelper"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -139,7 +138,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
 	}
 
-	cmd := ghhelper.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}")
+	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
@@ -185,7 +184,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
 
-	cmd := ghhelper.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
+	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
