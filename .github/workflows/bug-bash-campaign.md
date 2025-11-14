@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       project_url:
-        description: "GitHub project URL (org or user)"
+        description: "GitHub Project v2 user/org URL"
         required: true
         type: string
 
@@ -15,6 +15,7 @@ engine: copilot
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 safe-outputs:
   update-project:
@@ -69,20 +70,32 @@ You are the Bug Bash Campaign orchestrator. Every week, you organize a focused b
 
    **Classification**: concatenated string `Priority|Impact|Complexity` (e.g., `High|Minor|Quick Win`)
 
-6. For each selected issue emit an `update-project` safe output using the project from step 1 (either the provided URL or the calculated name with spaces around the dash). Use the projects toolset from the GitHub MCP server to interact with the project board. Safe output fields:
+6. **Before adding items, ensure required fields exist on the project board:**
+   - Try to use the projects toolset from the GitHub MCP server to check if these fields exist:
+     - `Status` (SingleSelect) - with option "To Do"
+     - `Priority` (SingleSelect) - with options: "Critical", "High", "Medium"
+     - `Complexity` (SingleSelect) - with options: "Complex", "Quick Win", "Standard"
+     - `Impact` (SingleSelect) - with options: "Blocker", "Major", "Minor"
+     - `Classification` (Text) - for storing concatenated classification string
+   - If any field is missing, attempt to create it with the appropriate type and options
+   - If field exists but missing required options, attempt to add the missing options
+   - **If field operations fail or are not supported:** Log the error in the summary and proceed with item addition anyway (the safe-output handler will handle field creation/validation)
+
+7. For each selected issue emit an `update-project` safe output using the project from step 1 (either the provided URL or the calculated name with spaces around the dash). Use the projects toolset from the GitHub MCP server to interact with the project board. Safe output fields:
    - Status: "To Do"
    - Priority: (from classification above)
    - Complexity: (from classification above)
    - Impact: (from classification above)
    - Classification: (concatenated string from above)
-7. Limit additions to `max` (15) in safe-outputs.
-8. Log a summary to the workflow step summary with:
+8. Limit additions to `max` (15) in safe-outputs.
+9. Log a summary to the workflow step summary with:
    - Project name used
+   - Fields created or updated (if any), or note if field operations were not available/failed
    - Count scanned vs added vs skipped
    - Priority distribution (Critical / High / Medium)
    - Top 10 candidates (markdown table) sorted by Priority then Impact
    - Quick Wins count (Complexity="Quick Win")
-   - Any permission or configuration issues encountered
+   - Any permission, API access, or configuration issues encountered (with specific error messages if available)
 
 ## Guardrails
 - **Required label**: Issue MUST have at least one of: `bug`, `defect`, or `regression`
@@ -94,6 +107,13 @@ You are the Bug Bash Campaign orchestrator. Every week, you organize a focused b
 - Abort additions (but still produce summary) if `PROJECT_GITHUB_TOKEN` missing or lacks `repository-projects: write`.
 - When classifying, use EXACT body length (not truncated) for Complexity determination.
 - Count ALL reaction types when calculating engagement for Priority.
+
+## Error Handling
+If you encounter errors when using the GitHub MCP server:
+- **"failed to list" or JSON parsing errors**: The MCP server may not support the requested operation. Log the error and continue with available operations.
+- **Project not found**: Verify the project URL/name is correct and the token has access. Report in summary.
+- **Field operations fail**: Skip field creation/validation and let the safe-output handler manage fields. Continue with item additions.
+- **Rate limiting or API errors**: Log the error details and proceed with any successful operations.
 
 ## Example (Project Update)
 ```json
@@ -112,7 +132,7 @@ You are the Bug Bash Campaign orchestrator. Every week, you organize a focused b
 }
 ```
 
-**Important:** The `project` field can be either a **project name** (e.g., "Bug Bash 2025 - W46") or a **project URL** (e.g., "https://github.com/users/mnkiefer/projects/19"). When a URL is provided as input, use it directly.
+**Important:** The `project` field can be either a **project name** (e.g., "Bug Bash 2025 - W46") or a **project URL** (e.g., "https://github.com/users/monalisa/projects/42"). When a URL is provided as input, use it directly.
 
 Note: The `Classification` field is the concatenated string `Priority|Impact|Complexity` for easy sorting and filtering.
 
@@ -121,6 +141,7 @@ Note: The `Classification` field is the concatenated string `Priority|Impact|Com
 # Bug Bash Weekly Campaign Summary
 
 **Project**: <CALCULATED_PROJECT_NAME> (e.g., Bug Bash 2025 - W46)
+**Fields Created/Updated**: <LIST_OF_FIELDS> (or 'None - all fields existed')
 **Scanned**: <SCANNED_COUNT> | **Added**: <ADDED_COUNT> | **Skipped**: <SKIPPED_COUNT>
 
 ## Priority Distribution
