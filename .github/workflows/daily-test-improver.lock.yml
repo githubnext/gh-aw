@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Source: githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
+# Source: githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -211,8 +211,8 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1654,7 +1654,7 @@ jobs:
           
           To decide which phase to perform:
           
-          1. First check for existing open discussion titled "${GH_AW_EXPR_F76B6721}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+          1. First check for existing open discussion titled "${GH_AW_EXPR_F76B6721}" using `list_discussions`. Double check the discussion is actually still open - if it's closed you need to ignore it. If found, and open, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
           
           2. Next check if `.github/actions/daily-test-improver/coverage-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
           
@@ -1694,30 +1694,30 @@ jobs:
           
              a. You can assume that the repository is in a state where the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` have been run and a test coverage report has been generated, perhaps with other detailed coverage information. Look at the steps in `.github/actions/daily-test-improver/coverage-steps/action.yml` to work out what has been run and where the coverage report should be, and find it. Also read any output files such as `coverage-steps.log` to understand what has been done. If the coverage steps failed, work out what needs to be fixed in `.github/actions/daily-test-improver/coverage-steps/action.yml` and make a pull request for those fixes and exit the entire workflow. If you can't find the coverage report, read a previous actions log for the run, or otherwise work out why the build or coverage generation failed by going through it step by step, then create an issue describing the problem. Only continue if you have a valid fresh coverage report.
           
-             b. Read the coverge report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
-             
+             b. Read the coverage report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
+          
              c. Check the most recent pull request with title starting with "${GH_AW_EXPR_F76B6721}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
           
              d. Check for existing open pull opened by you starting with title "${GH_AW_EXPR_F76B6721}". Don't repeat work from any open pull requests.
-             
+          
              e. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step (f).
-            
+          
              f. Based on all of the above, select an area of relatively low coverage to work on that appear tractable for further test additions.
           
           2. **Do the work**. Do the following:
           
              a. Create a new branch
-             
+          
              b. Write new tests to improve coverage. Ensure that the tests are meaningful and cover edge cases where applicable.
           
              c. Build the tests if necessary and remove any build errors.
-             
+          
              d. Run the new tests to ensure they pass.
           
              e. Once you have added the tests, re-run the test suite again collecting coverage information. Check that overall coverage has improved. If coverage has not improved then exit.
           
              f. Apply any automatic code formatting used in the repo
-             
+          
              g. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
           
              h. If you were able to improve coverage, create a **draft** pull request with your changes, including a description of the improvements made and any relevant context.
@@ -1734,7 +1734,7 @@ jobs:
                 - In a collapsed section list
                   - all bash commands you ran
                   - all web searches you performed
-                  - all web pages you fetched 
+                  - all web pages you fetched
           
               - After creation, check the pull request to ensure it is correct, includes all expected files, and doesn't include any unwanted files or changes. Make any necessary corrections by pushing further commits to the branch.
           
@@ -2007,6 +2007,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
+        # --allow-tool safeoutputs
+        # --allow-tool shell
+        # --allow-tool web-fetch
+        # --allow-tool write
         timeout-minutes: 45
         run: |
           set -o pipefail
@@ -2015,7 +2020,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool web-fetch --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -4365,8 +4370,8 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_DISCUSSION_CATEGORY: "ideas"
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4671,8 +4676,8 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5502,8 +5507,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/9586b5fc47d008cd1cf42f6c298a46abfd774fb5/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

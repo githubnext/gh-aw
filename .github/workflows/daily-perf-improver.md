@@ -27,10 +27,7 @@ tools:
   web-fetch:
   web-search:
   github:
-    toolsets: [all]  
-  # Configure bash build commands here, or in .github/workflows/agentics/daily-dependency-updates.config.md
-  #
-  # By default this workflow allows all bash commands within the confine of Github Actions VM 
+    toolsets: [all]
   bash: [ ":*" ]
 imports:
   - shared/reporting.md
@@ -56,7 +53,7 @@ steps:
     id: build-steps
     continue-on-error: true # the model may not have got it right, so continue anyway, the model will check the results and try to fix the steps
 
-source: githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
+source: githubnext/agentics/workflows/daily-perf-improver.md@9586b5fc47d008cd1cf42f6c298a46abfd774fb5
 ---
 # Daily Perf Improver
 
@@ -70,7 +67,7 @@ You are doing your work in phases. Right now you will perform just one of the fo
 
 To decide which phase to perform:
 
-1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. Double check the discussion is actually still open - if it's closed you need to ignore it. If found, and open, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
 
 2. Next check if `.github/actions/daily-perf-improver/build-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
 
@@ -103,7 +100,7 @@ To decide which phase to perform:
 
 1. Check for open PR titled "${{ github.workflow }} - Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
 
-2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development environment setup.
+2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development, testing tools (if any used in repo), linting tools (if any used in repo), code formatting tools (if any used in repo) and other environment setup.
 
 3. Create `.github/actions/daily-perf-improver/build-steps/action.yml` with validated build steps. Each step must log output to `build-steps.log` in repo root. Cross-check against existing CI/devcontainer configs.
 
@@ -124,13 +121,13 @@ To decide which phase to perform:
 1. **Goal selection**. Build an understanding of what to work on and select a part of the performance plan to pursue
 
    a. Repository is now performance-ready. Review `build-steps/action.yml` and `build-steps.log` to understand setup. If build failed then create fix PR and exit.
-   
+
    b. Read the plan in the discussion mentioned earlier, along with comments.
 
    c. Check for existing performance PRs (especially yours with "${{ github.workflow }}" prefix). Avoid duplicate work.
-   
+
    d. If plan needs updating then comment on planning discussion with revised plan and rationale. Consider maintainer feedback.
-  
+
    e. Select a performance improvement goal to pursue from the plan. Ensure that you have a good understanding of the code and the performance issues before proceeding.
 
    f. Select and read the appropriate performance engineering guide(s) in `.github/copilot/instructions/` to help you with your work. If it doesn't exist, create it and later add it to your pull request.
@@ -138,7 +135,7 @@ To decide which phase to perform:
 2. **Work towards your selected goal**. For the performance improvement goal you selected, do the following:
 
    a. Create a new branch starting with "perf/".
-   
+
    b. Work towards the performance improvement goal you selected. Consider approaches like:
      - **Code optimization:** Algorithm improvements, data structure changes, caching
      - **User experience:** Reducing load times, improving responsiveness, optimizing assets
@@ -153,18 +150,20 @@ To decide which phase to perform:
 
    d. Measure performance impact. Document measurement attempts even if unsuccessful. If no improvement then iterate, revert, or try different approach.
 
-   e. Apply any automatic code formatting used in the repo
+3. **Finalizing changes**
 
-   f. Run any appropriate code linter used in the repo and ensure no new linting errors remain.
+   a. Apply any automatic code formatting used in the repo.
 
-3. **Results and learnings**
+   b. Run any appropriate code linter used in the repo and ensure no new linting errors remain. Check the CI checks to see what linting is being used.
 
-   a. If you succeeded in writing useful code changes that improve performance, create a draft pull request with your changes. 
+4. **Results and learnings**
+
+   a. If you succeeded in writing useful code changes that improve performance, create a draft pull request with your changes.
 
       **Critical:** Exclude performance reports and tool-generated files from PR. Double-check added files and remove any that don't belong.
 
       Include a description of the improvements with evidence of impact. In the description, explain:
-      
+
       - **Goal and rationale:** Performance target chosen and why it matters
       - **Approach:** Strategy, methodology, and implementation steps
       - **Impact measurement:** How performance was tested and results achieved
@@ -182,4 +181,4 @@ To decide which phase to perform:
 
    b. If failed or lessons learned then add more files to the PR branch to update relevant performance guide in `.github/copilot/instructions/` with insights. Create a new guide if needed, or split, merge or delete existing guides as appropriate. This is your chance to improve the performance engineering documentation for next time, so you and your team don't make the same mistakes again! Make the most of it!
 
-4. **Final update**: Add brief comment (1 or 2 sentences) to the discussion identified at the start of the workflow stating goal worked on, PR links, and progress made.
+5. **Final update**: Add brief comment (1 or 2 sentences) to the discussion identified at the start of the workflow stating goal worked on, PR links, and progress made.
