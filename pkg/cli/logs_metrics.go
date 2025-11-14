@@ -29,10 +29,24 @@ import (
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // extractLogMetrics extracts metrics from downloaded log files
-func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
+// workflowPath is optional and can be provided to help detect GitHub Copilot agent runs
+func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
 	var metrics LogMetrics
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
+	}
+
+	// First check if this is a GitHub Copilot agent run (not Copilot CLI)
+	var detector *CopilotAgentDetector
+	if len(workflowPath) > 0 && workflowPath[0] != "" {
+		detector = NewCopilotAgentDetectorWithPath(logDir, verbose, workflowPath[0])
+	} else {
+		detector = NewCopilotAgentDetector(logDir, verbose)
+	}
+	isGitHubCopilotAgent := detector.IsGitHubCopilotAgent()
+
+	if isGitHubCopilotAgent && verbose {
+		fmt.Println(console.FormatInfoMessage("Detected GitHub Copilot agent run, using specialized parser"))
 	}
 
 	// First check for aw_info.json to determine the engine
@@ -110,7 +124,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			!strings.Contains(fileName, "aw_output") &&
 			fileName != "agent_output.json" {
 
-			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
+			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotAgent, verbose)
 			if err != nil && verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
 				return nil // Continue processing other files
