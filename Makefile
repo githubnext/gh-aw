@@ -278,7 +278,7 @@ agentics-add: build
 	./gh-aw add --dir agentics githubnext/agentics/*
 
 agentics-update: build
-	./gh-aw update agentics/*
+	./gh-aw update --dir .github/workflows/agentics
 
 # Help target
 .PHONY: help
