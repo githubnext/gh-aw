@@ -736,7 +736,7 @@ func removeFieldFromFrontmatter(content, fieldName string) (string, error) {
 	// Try to preserve original frontmatter formatting by manually removing the field
 	if len(result.FrontmatterLines) > 0 {
 		frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
-		
+
 		// Filter out the field line
 		for _, line := range result.FrontmatterLines {
 			trimmedLine := strings.TrimSpace(line)
@@ -751,7 +751,7 @@ func removeFieldFromFrontmatter(content, fieldName string) (string, error) {
 		lines = append(lines, "---")
 		lines = append(lines, frontmatterLines...)
 		lines = append(lines, "---")
-		
+
 		// The parser's Markdown field doesn't include the blank line after ---
 		// We need to add it back to match the original format
 		content := strings.Join(lines, "\n")

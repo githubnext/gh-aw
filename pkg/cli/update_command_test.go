@@ -515,12 +515,12 @@ func TestShowUpdateSummary(t *testing.T) {
 // TestHasLocalModifications tests the local modifications detection
 func TestHasLocalModifications(t *testing.T) {
 	tests := []struct {
-		name             string
-		sourceContent    string
-		localContent     string
-		sourceSpec       string
-		expectModified   bool
-		description      string
+		name           string
+		sourceContent  string
+		localContent   string
+		sourceSpec     string
+		expectModified bool
+		description    string
 	}{
 		{
 			name: "no modifications - identical content",
@@ -639,7 +639,7 @@ source: test/repo/workflow.md@v1.0.0
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := hasLocalModifications(tt.sourceContent, tt.localContent, tt.sourceSpec, false)
-			
+
 			if result != tt.expectModified {
 				t.Errorf("%s: expected modified=%v, got %v", tt.description, tt.expectModified, result)
 			}
