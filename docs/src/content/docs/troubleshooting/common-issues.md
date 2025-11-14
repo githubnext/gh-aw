@@ -356,9 +356,9 @@ on:
 **Common Causes:**
 
 1. **Dependencies not installed**
-   ```bash
-   cd docs && npm install
-   ```
+```bash
+cd docs && npm install
+```
 
 2. **Syntax errors in markdown**
    - Check for malformed frontmatter
