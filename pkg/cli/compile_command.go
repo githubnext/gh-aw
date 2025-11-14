@@ -165,6 +165,7 @@ type CompileConfig struct {
 	Poutine              bool     // Run poutine security scanner on generated .lock.yml files
 	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
 	JSONOutput           bool     // Output validation results as JSON
+	RefreshStopTime      bool     // Force regeneration of stop-after times instead of preserving existing ones
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -283,6 +284,12 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		if trialLogicalRepoSlug != "" {
 			compiler.SetTrialLogicalRepoSlug(trialLogicalRepoSlug)
 		}
+	}
+
+	// Set refresh stop time flag
+	compiler.SetRefreshStopTime(config.RefreshStopTime)
+	if config.RefreshStopTime {
+		compileLog.Print("Stop time refresh enabled: will regenerate stop-after times")
 	}
 
 	if watch {
