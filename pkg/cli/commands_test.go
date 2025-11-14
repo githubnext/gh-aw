@@ -424,7 +424,7 @@ Test workflow for command existence.`
 		{func() error { return StatusWorkflows("nonexistent", false, false) }, false, "StatusWorkflows"},                                // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("nonexistent") }, true, "EnableWorkflows"},                                               // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("nonexistent") }, true, "DisableWorkflows"},                                             // Should now also error when no workflows found to disable
-		{func() error { return RunWorkflowOnGitHub("", false, "", "", false, false, false, false) }, true, "RunWorkflowOnGitHub"},              // Should error with empty workflow name
+		{func() error { return RunWorkflowOnGitHub("", false, "", "", false, false, false, false) }, true, "RunWorkflowOnGitHub"},       // Should error with empty workflow name
 		{func() error { return RunWorkflowsOnGitHub([]string{}, 0, false, "", "", false, false, false) }, true, "RunWorkflowsOnGitHub"}, // Should error with empty workflow list
 	}
 
