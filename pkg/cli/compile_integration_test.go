@@ -66,6 +66,13 @@ func TestMain(m *testing.M) {
 		os.RemoveAll(filepath.Dir(globalBinaryPath))
 	}
 
+	// Clean up any action cache files created during tests
+	// Tests may create .github/aw/actions-lock.json in the pkg/cli directory
+	actionCacheDir := filepath.Join(wd, ".github")
+	if _, err := os.Stat(actionCacheDir); err == nil {
+		_ = os.RemoveAll(actionCacheDir)
+	}
+
 	os.Exit(code)
 }
 
