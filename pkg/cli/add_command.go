@@ -60,7 +60,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
 			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopTime, _ := cmd.Flags().GetBool("no-stop-time")
+			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+			stopAfter, _ := cmd.Flags().GetString("stop-after")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -69,12 +70,12 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir, noStopTime); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir, noStopAfter, stopAfter); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir, noStopTime); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir, noStopAfter, stopAfter); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
@@ -109,16 +110,19 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add workflow directory flag to add command
 	cmd.Flags().StringP("dir", "d", "", "Specify subdirectory under .github/workflows/ (e.g., 'shared' for .github/workflows/shared/)")
 
-	// Add no-stop-time flag to add command
-	cmd.Flags().Bool("no-stop-time", false, "Remove any stop-after field from the added workflow")
+	// Add no-stop-after flag to add command
+	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the added workflow")
+
+	// Add stop-after flag to add command
+	cmd.Flags().String("stop-after", "", "Override stop-after value in the added workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	return cmd
 }
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool, workflowDir string, noStopTime bool) error {
-	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, workflowDir=%s, noStopTime=%v", len(workflows), engineOverride, createPR, noGitattributes, workflowDir, noStopTime)
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, workflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflows), engineOverride, createPR, noGitattributes, workflowDir, noStopAfter, stopAfter)
 
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
@@ -231,12 +235,12 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	// Handle PR creation workflow
 	if createPR {
 		addLog.Print("Creating workflow with PR")
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopTime)
+		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
 	}
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopTime)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
 }
 
 // handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
@@ -337,7 +341,7 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopTime bool) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -378,7 +382,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			currentName = name
 		}
 
-		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard, workflowDir, noStopTime); err != nil {
+		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
@@ -391,7 +395,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopTime bool) error {
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -420,7 +424,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard, workflowDir, noStopTime); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -499,7 +503,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool, workflowDir string, noStopTime bool) error {
+func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
@@ -673,8 +677,9 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			}
 		}
 
-		// Remove stop-after field if requested
-		if noStopTime {
+		// Handle stop-after field modifications
+		if noStopAfter {
+			// Remove stop-after field if requested
 			cleanedContent, err := RemoveFieldFromOnTrigger(content, "stop-after")
 			if err != nil {
 				if verbose {
@@ -684,6 +689,19 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 				content = cleanedContent
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
+				}
+			}
+		} else if stopAfter != "" {
+			// Set custom stop-after value if provided
+			updatedContent, err := SetFieldInOnTrigger(content, "stop-after", stopAfter)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
+				}
+			} else {
+				content = updatedContent
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", stopAfter)))
 				}
 			}
 		}

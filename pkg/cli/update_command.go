@@ -45,14 +45,15 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			prFlag, _ := cmd.Flags().GetBool("pr")
 			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopTime, _ := cmd.Flags().GetBool("no-stop-time")
+			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+			stopAfter, _ := cmd.Flags().GetString("stop-after")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
-			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopTime); err != nil {
+			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -64,7 +65,8 @@ Examples:
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
-	cmd.Flags().Bool("no-stop-time", false, "Remove any stop-after field from the updated workflow")
+	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the updated workflow")
+	cmd.Flags().String("stop-after", "", "Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	return cmd
 }
@@ -114,7 +116,7 @@ func checkExtensionUpdate(verbose bool) error {
 // 1. Check for gh-aw extension updates
 // 2. Update workflows from source repositories (compiles each workflow after update)
 // 3. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopTime bool) error {
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string) error {
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
 		return fmt.Errorf("extension update check failed: %w", err)
@@ -122,7 +124,7 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 
 	// Step 2: Update workflows from source repositories
 	// Note: Each workflow is compiled immediately after update
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopTime); err != nil {
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
@@ -220,7 +222,7 @@ func createUpdatePR(verbose bool) error {
 }
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopTime bool) error {
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string) error {
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
@@ -247,7 +249,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	// Update each workflow
 	for _, wf := range workflows {
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopTime); err != nil {
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter); err != nil {
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
 				Error: err.Error(),
@@ -542,7 +544,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopTime bool) error {
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source: %s", wf.SourceSpec)))
@@ -633,8 +635,9 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return fmt.Errorf("failed to merge workflow content: %w", err)
 	}
 
-	// Remove stop-after field if requested
-	if noStopTime {
+	// Handle stop-after field modifications
+	if noStopAfter {
+		// Remove stop-after field if requested
 		cleanedContent, err := RemoveFieldFromOnTrigger(mergedContent, "stop-after")
 		if err != nil {
 			if verbose {
@@ -644,6 +647,19 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 			mergedContent = cleanedContent
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
+			}
+		}
+	} else if stopAfter != "" {
+		// Set custom stop-after value if provided
+		updatedContent, err := SetFieldInOnTrigger(mergedContent, "stop-after", stopAfter)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
+			}
+		} else {
+			mergedContent = updatedContent
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", stopAfter)))
 			}
 		}
 	}
@@ -713,10 +729,16 @@ func normalizeWhitespace(content string) string {
 
 // hasLocalModifications checks if the local workflow file has been modified from its source
 // It resolves the source field and imports on the remote content, then compares with local
+// Note: stop-after field is ignored during comparison as it's a deployment-specific setting
 func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
 	// Normalize both contents
 	sourceNormalized := normalizeWhitespace(sourceContent)
 	localNormalized := normalizeWhitespace(localContent)
+
+	// Remove stop-after field from both contents for comparison
+	// This field is deployment-specific and should not trigger "local modifications" warnings
+	sourceNormalized, _ = RemoveFieldFromOnTrigger(sourceNormalized, "stop-after")
+	localNormalized, _ = RemoveFieldFromOnTrigger(localNormalized, "stop-after")
 
 	// Parse the source spec to get repo and ref information
 	parsedSourceSpec, err := parseSourceSpec(sourceSpec)

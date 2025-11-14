@@ -113,3 +113,100 @@ permissions:
 		})
 	}
 }
+
+func TestSetFieldInOnTrigger(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		fieldName   string
+		fieldValue  string
+		shouldMatch string
+		expectError bool
+	}{
+		{
+			name: "set stop-after in existing on trigger",
+			content: `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+---
+
+# Test Workflow`,
+			fieldName:   "stop-after",
+			fieldValue:  "+48h",
+			shouldMatch: "stop-after:",
+			expectError: false,
+		},
+		{
+			name: "set stop-after with no on field",
+			content: `---
+permissions:
+  contents: read
+---
+
+# Test Workflow`,
+			fieldName:   "stop-after",
+			fieldValue:  "+72h",
+			shouldMatch: "stop-after:",
+			expectError: false,
+		},
+		{
+			name: "override existing stop-after value",
+			content: `---
+on:
+  issues:
+    types: [opened]
+  stop-after: "+24h"
+permissions:
+  contents: read
+---
+
+# Test Workflow`,
+			fieldName:   "stop-after",
+			fieldValue:  "+96h",
+			shouldMatch: "stop-after:",
+			expectError: false,
+		},
+		{
+			name: "on field is a string not a map - error case",
+			content: `---
+on: push
+permissions:
+  contents: read
+---
+
+# Test Workflow`,
+			fieldName:   "stop-after",
+			fieldValue:  "+48h",
+			shouldMatch: "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := SetFieldInOnTrigger(tt.content, tt.fieldName, tt.fieldValue)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if !tt.expectError {
+				// Check that field is present
+				if !strings.Contains(result, tt.shouldMatch) {
+					t.Errorf("Result doesn't contain expected string '%s':\n%s", tt.shouldMatch, result)
+				}
+
+				// Check that field has the value we set (approximately)
+				if !strings.Contains(result, tt.fieldValue) {
+					t.Errorf("Result doesn't contain expected value '%s':\n%s", tt.fieldValue, result)
+				}
+			}
+		})
+	}
+}
