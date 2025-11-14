@@ -120,52 +120,41 @@ func AutoMergePullRequestsLegacy(repoSlug string, verbose bool) error {
 func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbose bool) error {
 	prAutomergeLog.Printf("Waiting for workflow completion: repo=%s, runID=%s, timeout=%d minutes", repoSlug, runID, timeoutMinutes)
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Waiting for workflow completion (timeout: %d minutes)", timeoutMinutes)))
-	}
-
-	// Use the repository slug directly
-	fullRepoName := repoSlug
-
 	timeout := time.Duration(timeoutMinutes) * time.Minute
-	start := time.Now()
 
-	for {
-		// Check if timeout exceeded
-		if time.Since(start) > timeout {
-			return fmt.Errorf("workflow execution timed out after %d minutes", timeoutMinutes)
-		}
+	return PollWithSignalHandling(PollOptions{
+		PollInterval: 10 * time.Second,
+		Timeout:      timeout,
+		PollFunc: func() (PollResult, error) {
+			// Check workflow status
+			cmd := exec.Command("gh", "run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
+			output, err := cmd.Output()
 
-		// Check workflow status
-		cmd := exec.Command("gh", "run", "view", runID, "--repo", fullRepoName, "--json", "status,conclusion")
-		output, err := cmd.Output()
-
-		if err != nil {
-			return fmt.Errorf("failed to check workflow status: %w", err)
-		}
-
-		status := string(output)
-
-		// Check if completed
-		if strings.Contains(status, `"status":"completed"`) {
-			if strings.Contains(status, `"conclusion":"success"`) {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow completed successfully"))
-				}
-				return nil
-			} else if strings.Contains(status, `"conclusion":"failure"`) {
-				return fmt.Errorf("workflow failed")
-			} else if strings.Contains(status, `"conclusion":"cancelled"`) {
-				return fmt.Errorf("workflow was cancelled")
-			} else {
-				return fmt.Errorf("workflow completed with unknown conclusion")
+			if err != nil {
+				return PollFailure, fmt.Errorf("failed to check workflow status: %w", err)
 			}
-		}
 
-		// Still running, wait before checking again
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Workflow still running..."))
-		}
-		time.Sleep(10 * time.Second)
-	}
+			status := string(output)
+
+			// Check if completed
+			if strings.Contains(status, `"status":"completed"`) {
+				if strings.Contains(status, `"conclusion":"success"`) {
+					return PollSuccess, nil
+				} else if strings.Contains(status, `"conclusion":"failure"`) {
+					return PollFailure, fmt.Errorf("workflow failed")
+				} else if strings.Contains(status, `"conclusion":"cancelled"`) {
+					return PollFailure, fmt.Errorf("workflow was cancelled")
+				} else {
+					return PollFailure, fmt.Errorf("workflow completed with unknown conclusion")
+				}
+			}
+
+			// Still running, continue polling
+			return PollContinue, nil
+		},
+		StartMessage:    fmt.Sprintf("Waiting for workflow completion (timeout: %d minutes)", timeoutMinutes),
+		ProgressMessage: "Workflow still running...",
+		SuccessMessage:  "Workflow completed successfully",
+		Verbose:         verbose,
+	})
 }

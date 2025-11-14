@@ -711,6 +711,16 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
+		// Check if the error is because the repository already exists
+		outputStr := string(output)
+		if strings.Contains(outputStr, "name already exists") {
+			// Repository exists but gh repo view failed earlier - this is okay, reuse it
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repository already exists (detected via create error): %s", repoSlug)))
+			}
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing host repository: https://github.com/%s", repoSlug)))
+			return nil
+		}
 		return fmt.Errorf("failed to create host repository: %w (output: %s)", err, string(output))
 	}
 
