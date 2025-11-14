@@ -149,6 +149,7 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	// If "*" wildcard is present, skip fork filtering (allow all forks)
 	for _, pattern := range allowedForks {
 		if pattern == "*" {
+			filtersLog.Print("Wildcard fork pattern detected, allowing all forks")
 			return // No fork filtering needed
 		}
 	}
@@ -368,6 +369,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 
 	// If we have label conditions, combine them and apply to the workflow
 	if len(labelConditions) > 0 {
+		filtersLog.Printf("Applying label name filters: %d conditions found", len(labelConditions))
 		var finalCondition ConditionNode
 		if len(labelConditions) == 1 {
 			finalCondition = labelConditions[0]
