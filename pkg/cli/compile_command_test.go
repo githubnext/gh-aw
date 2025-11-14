@@ -161,7 +161,7 @@ func TestCompileWorkflows_DependabotValidation(t *testing.T) {
 				WorkflowDir: "custom/workflows",
 			},
 			expectError: true,
-			errorMsg:    "cannot be used with custom --workflows-dir",
+			errorMsg:    "cannot be used with custom --dir",
 		},
 		{
 			name: "dependabot with default settings",
