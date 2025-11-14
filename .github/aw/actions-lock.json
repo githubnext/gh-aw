@@ -35,11 +35,6 @@
       "version": "v5",
       "sha": "d35c59abb061a4a6fb18e82ac0862c26744d6ab5"
     },
-    "actions/setup-go@v6": {
-      "repo": "actions/setup-go",
-      "version": "v6",
-      "sha": "44694675825211faa026b3c33043df3e48a5fa00"
-    },
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
       "version": "v6",
@@ -64,11 +59,6 @@
       "repo": "astral-sh/setup-uv",
       "version": "v5",
       "sha": "e58605a9b6da7c637471fab8847a5e5a6b8df081"
-    },
-    "super-linter/super-linter/slim@v8": {
-      "repo": "super-linter/super-linter/slim",
-      "version": "v8",
-      "sha": "f6d06a003575dde14f917e642302cf1251f28f4a"
     },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",
