@@ -13,9 +13,11 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
+	"github.com/spf13/cobra"
 )
 
 var compileLog = logger.New("cli:compile_command")
@@ -1074,4 +1076,118 @@ func printCompilationSummary(stats *CompilationStats) {
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
+}
+
+// NewCompileCommand creates the compile command
+func NewCompileCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "compile [markdown-file]...",
+		Short: "Compile Markdown to YAML workflows",
+		Long: `Compile one or more Markdown workflow files to YAML workflows.
+
+If no files are specified, all Markdown files in .github/workflows will be compiled.
+
+The --dependabot flag generates dependency manifests when dependencies are detected:
+  - For npm: Creates package.json and package-lock.json (requires npm in PATH)
+  - For Python: Creates requirements.txt for pip packages
+  - For Go: Creates go.mod for go install/get packages
+  - Creates .github/dependabot.yml with all detected ecosystems
+  - Use --force to overwrite existing dependabot.yml
+  - Cannot be used with specific workflow files or custom --dir
+  - Only processes workflows in the default .github/workflows directory
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` compile                    # Compile all Markdown files
+  ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
+  ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
+  ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
+  ` + constants.CLIExtensionPrefix + ` compile --dir custom/workflows  # Compile from custom directory
+  ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
+  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
+		Run: func(cmd *cobra.Command, args []string) {
+			engineOverride, _ := cmd.Flags().GetString("engine")
+			validate, _ := cmd.Flags().GetBool("validate")
+			watch, _ := cmd.Flags().GetBool("watch")
+			dir, _ := cmd.Flags().GetString("dir")
+			workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
+			noEmit, _ := cmd.Flags().GetBool("no-emit")
+			purge, _ := cmd.Flags().GetBool("purge")
+			strict, _ := cmd.Flags().GetBool("strict")
+			trial, _ := cmd.Flags().GetBool("trial")
+			logicalRepo, _ := cmd.Flags().GetString("logical-repo")
+			dependabot, _ := cmd.Flags().GetBool("dependabot")
+			forceOverwrite, _ := cmd.Flags().GetBool("force")
+			zizmor, _ := cmd.Flags().GetBool("zizmor")
+			poutine, _ := cmd.Flags().GetBool("poutine")
+			actionlint, _ := cmd.Flags().GetBool("actionlint")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			if err := ValidateEngine(engineOverride); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+
+			// Handle --workflows-dir deprecation
+			workflowDir := dir
+			if workflowsDir != "" {
+				if dir != "" {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage("cannot use both --dir and --workflows-dir flags"))
+					os.Exit(1)
+				}
+				workflowDir = workflowsDir
+			}
+			config := CompileConfig{
+				MarkdownFiles:        args,
+				Verbose:              verbose,
+				EngineOverride:       engineOverride,
+				Validate:             validate,
+				Watch:                watch,
+				WorkflowDir:          workflowDir,
+				SkipInstructions:     false, // Deprecated field, kept for backward compatibility
+				NoEmit:               noEmit,
+				Purge:                purge,
+				TrialMode:            trial,
+				TrialLogicalRepoSlug: logicalRepo,
+				Strict:               strict,
+				Dependabot:           dependabot,
+				ForceOverwrite:       forceOverwrite,
+				Zizmor:               zizmor,
+				Poutine:              poutine,
+				Actionlint:           actionlint,
+				JSONOutput:           jsonOutput,
+			}
+			if _, err := CompileWorkflows(config); err != nil {
+				errMsg := err.Error()
+				// Check if error is already formatted (contains suggestions or starts with ✗)
+				if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
+					fmt.Fprintln(os.Stderr, errMsg)
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				}
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
+	cmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
+	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	cmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
+	_ = cmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
+	cmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	cmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
+	cmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
+	cmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
+	cmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	cmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
+	cmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
+	cmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
+	cmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
+	cmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
+	cmd.Flags().Bool("json", false, "Output validation results as JSON")
+
+	return cmd
 }

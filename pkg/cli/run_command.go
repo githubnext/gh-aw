@@ -16,6 +16,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/spf13/cobra"
 )
 
 var runLog = logger.New("cli:run_command")
@@ -703,4 +704,57 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 		fmt.Sprintf("workflow '%s' not found in repository '%s'", lockFileName, repoOverride),
 		suggestions,
 	))
+}
+
+// NewRunCommand creates the run command
+func NewRunCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "run <workflow-id>...",
+		Short: "Run one or more agentic workflows on GitHub Actions",
+		Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
+
+This command accepts one or more workflow IDs.
+The workflows must have been added as actions and compiled.
+
+This command only works with workflows that have workflow_dispatch triggers.
+It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
+
+Examples:
+  gh aw run daily-perf-improver
+  gh aw run daily-perf-improver --repeat 3  # Run 3 times total
+  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
+  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
+		Args: cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			repeatCount, _ := cmd.Flags().GetInt("repeat")
+			enable, _ := cmd.Flags().GetBool("enable-if-needed")
+			engineOverride, _ := cmd.Flags().GetString("engine")
+			repoOverride, _ := cmd.Flags().GetString("repo")
+			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
+			pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+
+			if err := ValidateEngine(engineOverride); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+
+			if err := RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, verbose); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+					Type:    "error",
+					Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
+				}))
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
+	cmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().StringP("repo", "r", "", "Repository to run the workflow in (owner/repo format)")
+	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
+	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
+
+	return cmd
 }

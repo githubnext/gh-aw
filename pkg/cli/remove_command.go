@@ -10,7 +10,31 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/spf13/cobra"
 )
+
+// NewRemoveCommand creates the remove command
+func NewRemoveCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "remove [pattern]",
+		Short: "Remove workflow files matching the given name prefix",
+		Run: func(cmd *cobra.Command, args []string) {
+			var pattern string
+			if len(args) > 0 {
+				pattern = args[0]
+			}
+			keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
+			if err := RemoveWorkflows(pattern, keepOrphans); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+
+	return cmd
+}
 
 // RemoveWorkflows removes workflows matching a pattern
 func RemoveWorkflows(pattern string, keepOrphans bool) error {
