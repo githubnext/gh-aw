@@ -155,7 +155,6 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	createPRLog.Print("Parsing create-pull-request configuration")
 	configData := outputMap["create-pull-request"]
 	pullRequestsConfig := &CreatePullRequestsConfig{}
-	pullRequestsConfig.Max = 1 // Always max 1 for pull requests
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse title-prefix using shared helper
@@ -195,23 +194,30 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			}
 		}
 
-		// Parse target-repo using shared helper
-		targetRepoSlug := parseTargetRepoFromConfig(configMap)
-		// Validate that target-repo is not "*" - only definite strings are allowed
-		if targetRepoSlug == "*" {
+		// Parse target-repo using shared helper with validation
+		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+		if isInvalid {
 			return nil // Invalid configuration, return nil to cause validation error
 		}
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
-		// Parse github-token (max is always 1 for pull requests)
+		// Parse github-token (Note: max is always 1 for pull requests and set by parseBaseSafeOutputConfig)
 		if githubToken, exists := configMap["github-token"]; exists {
 			if githubTokenStr, ok := githubToken.(string); ok {
 				pullRequestsConfig.GitHubToken = githubTokenStr
 			}
 		}
 
+		// Parse common base fields with default max of 1 (always max 1 for pull requests)
+		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, 1)
+
 		// Note: max parameter is not supported for pull requests (always limited to 1)
-		// If max is specified, it will be ignored as pull requests are singular only
+		// If max is specified, it will be overridden to 1
+		pullRequestsConfig.Max = 1
+	} else {
+		// If configData is nil or not a map (e.g., "create-pull-request:" with no value),
+		// still set the default max (always 1 for pull requests)
+		pullRequestsConfig.Max = 1
 	}
 
 	return pullRequestsConfig

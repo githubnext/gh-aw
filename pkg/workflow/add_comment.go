@@ -120,12 +120,8 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	if configData, exists := outputMap["add-comment"]; exists {
 		addCommentLog.Print("Parsing add-comment configuration")
 		commentsConfig := &AddCommentsConfig{}
-		commentsConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &commentsConfig.BaseSafeOutputConfig)
-
 			// Parse target
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
@@ -133,10 +129,9 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 				}
 			}
 
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			// Validate that target-repo is not "*" - only definite strings are allowed
-			if targetRepoSlug == "*" {
+			// Parse target-repo using shared helper with validation
+			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			if isInvalid {
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			commentsConfig.TargetRepoSlug = targetRepoSlug
@@ -151,6 +146,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 					commentsConfig.Discussion = &discussionBool
 				}
 			}
+
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &commentsConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "add-comment:" with no value),
+			// still set the default max
+			commentsConfig.Max = 1
 		}
 
 		return commentsConfig
