@@ -50,8 +50,22 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 		lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
-		if existingStopTime != "" {
-			// Preserve existing stop time during recompilation
+		// If refresh flag is set, always regenerate the stop time
+		if c.refreshStopTime {
+			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
+			if err != nil {
+				return fmt.Errorf("invalid stop-after format: %w", err)
+			}
+			originalStopTime := stopAfter
+			workflowData.StopTime = resolvedStopTime
+
+			if c.verbose && isRelativeStopTime(originalStopTime) {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Refreshed relative stop-after to: %s", resolvedStopTime)))
+			} else if c.verbose && originalStopTime != resolvedStopTime {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Refreshed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+			}
+		} else if existingStopTime != "" {
+			// Preserve existing stop time during recompilation (default behavior)
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
@@ -112,10 +126,17 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 		return ""
 	}
 
-	// Look for the STOP_TIME line in the safety checks section
-	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
+		// Look for the comment pattern: # Effective stop-time: YYYY-MM-DD HH:MM:SS
+		if strings.Contains(line, "# Effective stop-time:") {
+			// Extract the timestamp after the colon
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1])
+			}
+		}
+		// Also support the old pattern for backward compatibility: STOP_TIME="YYYY-MM-DD HH:MM:SS"
 		if strings.Contains(line, "STOP_TIME=") {
 			// Extract the value between quotes
 			start := strings.Index(line, `"`) + 1
