@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -61,7 +62,7 @@ func (c *ActionCache) Load() error {
 	return nil
 }
 
-// Save saves the cache to disk
+// Save saves the cache to disk with sorted entries
 func (c *ActionCache) Save() error {
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
 
@@ -72,7 +73,8 @@ func (c *ActionCache) Save() error {
 		return err
 	}
 
-	data, err := json.MarshalIndent(c, "", "  ")
+	// Marshal with sorted entries
+	data, err := c.marshalSorted()
 	if err != nil {
 		actionCacheLog.Printf("Failed to marshal cache data: %v", err)
 		return err
@@ -88,6 +90,43 @@ func (c *ActionCache) Save() error {
 
 	actionCacheLog.Print("Successfully saved action cache")
 	return nil
+}
+
+// marshalSorted marshals the cache with entries sorted by key
+func (c *ActionCache) marshalSorted() ([]byte, error) {
+	// Extract and sort the keys
+	keys := make([]string, 0, len(c.Entries))
+	for key := range c.Entries {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	// Manually construct JSON with sorted keys
+	var result []byte
+	result = append(result, []byte("{\n  \"entries\": {\n")...)
+
+	for i, key := range keys {
+		entry := c.Entries[key]
+
+		// Marshal the entry
+		entryJSON, err := json.MarshalIndent(entry, "    ", "  ")
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the key and entry
+		result = append(result, []byte("    \""+key+"\": ")...)
+		result = append(result, entryJSON...)
+
+		// Add comma if not the last entry
+		if i < len(keys)-1 {
+			result = append(result, ',')
+		}
+		result = append(result, '\n')
+	}
+
+	result = append(result, []byte("  }\n}")...)
+	return result, nil
 }
 
 // Get retrieves a cached entry if it exists
