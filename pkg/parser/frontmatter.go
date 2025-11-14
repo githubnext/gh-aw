@@ -887,6 +887,11 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 		// Only resolve SHA if we're using the cache
 		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
 		if err != nil {
+			// If the error is an authentication error, propagate it immediately
+			lowerErr := strings.ToLower(err.Error())
+			if strings.Contains(lowerErr, "auth") || strings.Contains(lowerErr, "unauthoriz") || strings.Contains(lowerErr, "forbidden") || strings.Contains(lowerErr, "token") || strings.Contains(lowerErr, "permission denied") {
+				return "", fmt.Errorf("failed to resolve ref to SHA due to authentication error: %w", err)
+			}
 			log.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
 			// Continue without caching if SHA resolution fails
 		} else {
