@@ -101,14 +101,6 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 	}
 	sort.Strings(keys)
 
-	// Build a sorted map representation
-	type sortedCache struct {
-		Entries []struct {
-			Key   string           `json:"-"`
-			Entry ActionCacheEntry `json:"-"`
-		} `json:"-"`
-	}
-
 	// Manually construct JSON with sorted keys
 	var result []byte
 	result = append(result, []byte("{\n  \"entries\": {\n")...)
