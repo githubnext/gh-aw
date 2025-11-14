@@ -21,7 +21,7 @@ type ErrorPosition struct {
 // CompilerError represents a structured compiler error with position information
 type CompilerError struct {
 	Position    ErrorPosition
-	Type        string   // "error", "warning", "info"
+	Type        string // "error", "warning", "info"
 	Message     string
 	Context     []string // Source code lines for context
 	Hint        string   // Optional hint for fixing the error (deprecated, use Suggestions instead)

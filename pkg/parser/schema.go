@@ -982,7 +982,7 @@ func generateSuggestionsAsList(schemaJSON, errorMessage, jsonPath string) []stri
 		if len(matches) > 1 {
 			fieldName := matches[1]
 			suggestions = append(suggestions, fmt.Sprintf("Add the required field '%s' to your workflow frontmatter", fieldName))
-			
+
 			// Add specific examples for common required fields
 			if fieldName == "on" {
 				suggestions = append(suggestions, "Example triggers:")
