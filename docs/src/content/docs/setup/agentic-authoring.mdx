@@ -21,7 +21,6 @@ gh aw init
 This creates:
 - `.github/instructions/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
 - `.github/agents/create-agentic-workflow.md` - Custom agent for the `/agent` command in Copilot Chat
-- `.github/agents/create-shared-agentic-workflow.md` - Custom agent for creating reusable workflow components
 
 :::tip[VS Code integration]
 Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
@@ -37,31 +36,15 @@ Use the custom agent when you want to:
 
 The custom agent contains specialized instructions and toolset to enable efficient workflow authoring.
 
-To get this file in your repository, run the init command:
-
-```bash wrap
-gh aw init
-```
-
 ## How to use the `create-agentic-workflow` custom agent
 
-### GitHub Copilot Chat in Visual Studio Code
-
-In Visual Studio Code with GitHub Copilot Chat, use the `/agent` command and select `create-agentic-workflow` from the list:
+In Visual Studio Code with GitHub Copilot Chat or in Copilot CLI, enter the `/agent` command and select `create-agentic-workflow` from the list:
 
 ```sh wrap
 /agent
 ```
 
 Then select `create-agentic-workflow` from the available custom agents. This will start the agentic workflow authoring process with interactive guidance.
-
-### GitHub Copilot CLI
-
-Assuming you have the GitHub Copilot CLI installed, you can reference the custom agent file using the `--agent` flag:
-
-```bash wrap
-copilot --agent .github/agents/create-agentic-workflow.md
-```
 
 ## Other Agents and Chats
 
