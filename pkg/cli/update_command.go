@@ -11,7 +11,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -103,28 +102,6 @@ func checkExtensionUpdate(verbose bool) error {
 		}
 	}
 
-	return nil
-}
-
-// runCompileWorkflows runs the compile command to recompile all workflows
-func runCompileWorkflows(verbose bool, engineOverride string) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Compiling workflows..."))
-	}
-
-	// Create a compiler instance similar to how compile command does it
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-
-	// Compile all workflows in the workflows directory
-	workflowsDir := getWorkflowsDir()
-	_, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to compile workflows: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully compiled all workflows"))
-	}
 	return nil
 }
 
@@ -300,22 +277,22 @@ type workflowWithSource struct {
 
 // updateResult represents the result of updating a single workflow
 type updateResult struct {
-	Name          string
-	Status        string // "success", "conflicts", "failed", "up-to-date"
-	Error         error
-	FromRef       string
-	ToRef         string
-	WasCompiled   bool
+	Name        string
+	Status      string // "success", "conflicts", "failed", "up-to-date"
+	Error       error
+	FromRef     string
+	ToRef       string
+	WasCompiled bool
 }
 
 // updateSummary tracks the results of all workflow updates
 type updateSummary struct {
-	Total           int
-	UpToDate        int
-	Updated         int
-	Conflicts       int
-	Failed          int
-	Results         []updateResult
+	Total     int
+	UpToDate  int
+	Updated   int
+	Conflicts int
+	Failed    int
+	Results   []updateResult
 }
 
 // printUpdateSummary prints a detailed summary of workflow updates
@@ -323,7 +300,7 @@ func printUpdateSummary(summary *updateSummary) {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Update Summary ==="))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Total workflows: %d", summary.Total)))
-	
+
 	if summary.Updated > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Successfully updated and compiled: %d", summary.Updated)))
 		for _, result := range summary.Results {
@@ -332,7 +309,7 @@ func printUpdateSummary(summary *updateSummary) {
 			}
 		}
 	}
-	
+
 	if summary.UpToDate > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("• Already up to date: %d", summary.UpToDate)))
 		for _, result := range summary.Results {
@@ -341,7 +318,7 @@ func printUpdateSummary(summary *updateSummary) {
 			}
 		}
 	}
-	
+
 	if summary.Conflicts > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Updated with merge conflicts (needs manual review): %d", summary.Conflicts)))
 		for _, result := range summary.Results {
@@ -350,7 +327,7 @@ func printUpdateSummary(summary *updateSummary) {
 			}
 		}
 	}
-	
+
 	if summary.Failed > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to update: %d", summary.Failed)))
 		for _, result := range summary.Results {

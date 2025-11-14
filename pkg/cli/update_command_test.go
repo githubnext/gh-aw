@@ -292,11 +292,11 @@ source: old/repo/workflow.md@v1.0.0
 // TestPrintUpdateSummary tests the update summary display
 func TestPrintUpdateSummary(t *testing.T) {
 	summary := &updateSummary{
-		Total:      5,
-		Updated:    2,
-		UpToDate:   1,
-		Conflicts:  1,
-		Failed:     1,
+		Total:     5,
+		Updated:   2,
+		UpToDate:  1,
+		Conflicts: 1,
+		Failed:    1,
 		Results: []updateResult{
 			{Name: "workflow1", Status: "success", FromRef: "v1.0.0", ToRef: "v1.1.0", WasCompiled: true},
 			{Name: "workflow2", Status: "success", FromRef: "v1.2.0", ToRef: "v1.3.0", WasCompiled: true},
