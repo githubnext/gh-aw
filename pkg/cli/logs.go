@@ -450,7 +450,7 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex, copilot)")
+	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by agentic engine type (claude, codex, copilot)")
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
