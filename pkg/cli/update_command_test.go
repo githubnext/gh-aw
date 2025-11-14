@@ -355,3 +355,105 @@ Base content with upstream notes.`
 		t.Error("Expected both local and upstream permission changes to be merged")
 	}
 }
+
+// TestFindWorkflowsWithSource_CustomDirectory tests that findWorkflowsWithSource works with custom directories
+func TestFindWorkflowsWithSource_CustomDirectory(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
+	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom workflow directory: %v", err)
+	}
+
+	// Create a workflow file with source field
+	workflowContent := `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`
+
+	workflowPath := filepath.Join(customWorkflowDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Create a workflow file without source field
+	workflowWithoutSource := `---
+on: push
+engine: claude
+---
+
+# Another Workflow
+
+No source field.`
+
+	workflowPath2 := filepath.Join(customWorkflowDir, "no-source.md")
+	if err := os.WriteFile(workflowPath2, []byte(workflowWithoutSource), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Test findWorkflowsWithSource with custom directory
+	workflows, err := findWorkflowsWithSource(customWorkflowDir, nil, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Should find only one workflow (the one with source field)
+	if len(workflows) != 1 {
+		t.Errorf("Expected to find 1 workflow with source field, got %d", len(workflows))
+	}
+
+	if len(workflows) > 0 {
+		if workflows[0].Name != "test-workflow" {
+			t.Errorf("Expected workflow name 'test-workflow', got '%s'", workflows[0].Name)
+		}
+		if workflows[0].SourceSpec != "test/repo/workflow.md@v1.0.0" {
+			t.Errorf("Expected source spec 'test/repo/workflow.md@v1.0.0', got '%s'", workflows[0].SourceSpec)
+		}
+	}
+}
+
+// TestUpdateWorkflows_CustomDirectory tests that UpdateWorkflows respects custom directory parameter
+func TestUpdateWorkflows_CustomDirectory(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
+	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom workflow directory: %v", err)
+	}
+
+	// Create a workflow file with source field
+	workflowContent := `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+---
+
+# Test Workflow
+
+Test content.`
+
+	workflowPath := filepath.Join(customWorkflowDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Test that findWorkflowsWithSource can find workflows in custom directory
+	workflows, err := findWorkflowsWithSource(customWorkflowDir, nil, false)
+	if err != nil {
+		t.Fatalf("Expected no error finding workflows, got: %v", err)
+	}
+
+	if len(workflows) == 0 {
+		t.Fatal("Expected to find at least one workflow")
+	}
+
+	// Verify the workflow was found in the custom directory
+	if !strings.Contains(workflows[0].Path, customWorkflowDir) {
+		t.Errorf("Expected workflow path to contain custom directory '%s', got '%s'", customWorkflowDir, workflows[0].Path)
+	}
+}

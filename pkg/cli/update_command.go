@@ -37,20 +37,22 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
-  ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes`,
+  ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
+  ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory`,
 		Run: func(cmd *cobra.Command, args []string) {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			prFlag, _ := cmd.Flags().GetBool("pr")
+			workflowDir, _ := cmd.Flags().GetString("dir")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
-			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag); err != nil {
+			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -61,6 +63,7 @@ Examples:
 	cmd.Flags().Bool("force", false, "Force update even if no changes detected")
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
+	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
 
 	return cmd
 }
@@ -107,7 +110,7 @@ func checkExtensionUpdate(verbose bool) error {
 }
 
 // runCompileWorkflows runs the compile command to recompile all workflows
-func runCompileWorkflows(verbose bool, engineOverride string) error {
+func runCompileWorkflows(verbose bool, engineOverride string, workflowsDir string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Compiling workflows..."))
 	}
@@ -115,8 +118,12 @@ func runCompileWorkflows(verbose bool, engineOverride string) error {
 	// Create a compiler instance similar to how compile command does it
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 
+	// Use provided workflows directory or default
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
 	// Compile all workflows in the workflows directory
-	workflowsDir := getWorkflowsDir()
 	_, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to compile workflows: %w", err)
@@ -133,19 +140,19 @@ func runCompileWorkflows(verbose bool, engineOverride string) error {
 // 2. Update workflows from source repositories
 // 3. Compile all workflows
 // 4. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool) error {
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string) error {
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
 		return fmt.Errorf("extension update check failed: %w", err)
 	}
 
 	// Step 2: Update workflows from source repositories
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride); err != nil {
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
 	// Step 3: Compile all workflows
-	if err := runCompileWorkflows(verbose, engineOverride); err != nil {
+	if err := runCompileWorkflows(verbose, engineOverride, workflowsDir); err != nil {
 		return fmt.Errorf("compile failed: %w", err)
 	}
 
@@ -243,8 +250,11 @@ func createUpdatePR(verbose bool) error {
 }
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string) error {
-	workflowsDir := getWorkflowsDir()
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string) error {
+	// Use provided workflows directory or default
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
 
 	// Find all workflows with source field
 	workflows, err := findWorkflowsWithSource(workflowsDir, workflowNames, verbose)
