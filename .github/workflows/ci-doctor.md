@@ -8,7 +8,6 @@ on:
       - main
     # This will trigger only when the CI workflow completes with failure
     # The condition is handled in the workflow body
-  stop-after: +48h
 
 # Only trigger for failures - check in the workflow body
 if: ${{ github.event.workflow_run.conclusion == 'failure' }}

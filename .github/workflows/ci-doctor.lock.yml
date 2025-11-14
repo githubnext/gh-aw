@@ -5,8 +5,6 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@09e77ed2e49f0612e258db12839e86e8e2a6c692
 #
-# Effective stop-time: 2025-11-16 12:42:25
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -16,8 +14,6 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   pre_activation["pre_activation"]
-#   pre_activation --> activation
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
@@ -63,10 +59,8 @@ run-name: "CI Failure Doctor"
 
 jobs:
   activation:
-    needs: pre_activation
     if: >
-      ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.conclusion == 'failure')) &&
-      ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
+      (github.event.workflow_run.conclusion == 'failure') && ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4903,47 +4897,4 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  pre_activation:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
-    steps:
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_STOP_TIME: 2025-11-16 12:42:25
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-        with:
-          script: |
-            async function main() {
-              const stopTime = process.env.GH_AW_STOP_TIME;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
-              if (!stopTime) {
-                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
-                return;
-              }
-              if (!workflowName) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
-                return;
-              }
-              core.info(`Checking stop-time limit: ${stopTime}`);
-              const stopTimeDate = new Date(stopTime);
-              if (isNaN(stopTimeDate.getTime())) {
-                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                return;
-              }
-              const currentTime = new Date();
-              core.info(`Current time: ${currentTime.toISOString()}`);
-              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
-              if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
-                core.setOutput("stop_time_ok", "false");
-                return;
-              }
-              core.setOutput("stop_time_ok", "true");
-            }
-            await main();
 
