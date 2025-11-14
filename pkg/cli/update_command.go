@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/ghhelper"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
@@ -428,7 +429,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	// Use gh CLI to get releases
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
@@ -485,7 +486,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 // isBranchRef checks if a ref is a branch in the repository
 func isBranchRef(repo, ref string) (bool, error) {
 	// Use gh CLI to list branches
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
@@ -508,7 +509,7 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 	}
 
 	// Use gh CLI to get branch info
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch branch info: %w", err)
@@ -529,7 +530,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	}
 
 	// First get the default branch name
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch repository info: %w", err)
@@ -691,7 +692,7 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	}
 
 	// Use gh CLI to download the file
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
+	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch file content: %w", err)

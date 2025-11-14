@@ -14,13 +14,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/ghhelper"
 )
 
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
@@ -97,9 +97,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 
 	// Use gh api to download the logs zip file
 	// The endpoint returns a 302 redirect to the actual zip file
-	args := []string{"api", "repos/{owner}/{repo}/actions/runs/" + strconv.FormatInt(runID, 10) + "/logs"}
-
-	cmd := exec.Command("gh", args...)
+	cmd := ghhelper.ExecGH("api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
 	output, err := cmd.Output()
 	if err != nil {
 		// Check for authentication errors
@@ -260,10 +258,8 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Created output directory %s", outputDir)))
 	}
 
-	args := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
-
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Executing: gh run download %s --dir %s", strconv.FormatInt(runID, 10), outputDir)))
 	}
 
 	// Start spinner for network operation
@@ -272,7 +268,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		spinner.Start()
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := ghhelper.ExecGH("run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir)
 	output, err := cmd.CombinedOutput()
 
 	// Stop spinner
