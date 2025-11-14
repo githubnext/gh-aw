@@ -169,7 +169,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Download super-linter log
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -620,9 +620,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_branch",
-                          message: "No branch found in safe outputs"
+                          message: "No branch found in safe outputs",
                         }),
                       },
                     ],
@@ -638,9 +638,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_branch",
-                          message: `Branch ${branchName} does not exist`
+                          message: `Branch ${branchName} does not exist`,
                         }),
                       },
                     ],
@@ -659,9 +659,9 @@ jobs:
                     debug(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
                   }
                   try {
-                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, { 
-                      cwd, 
-                      encoding: "utf8" 
+                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, {
+                      cwd,
+                      encoding: "utf8",
                     }).trim();
                     debug(`Using merge-base as base: ${baseRef}`);
                   } catch (mergeBaseError) {
@@ -670,9 +670,9 @@ jobs:
                 }
                 let commitCount = 0;
                 try {
-                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, { 
-                    cwd, 
-                    encoding: "utf8" 
+                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, {
+                    cwd,
+                    encoding: "utf8",
                   }).trim();
                   commitCount = parseInt(countOutput, 10);
                   debug(`Number of commits to include: ${commitCount}`);
@@ -680,10 +680,10 @@ jobs:
                   debug(`Failed to count commits: ${countError instanceof Error ? countError.message : String(countError)}`);
                 }
                 debug(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
-                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, { 
-                  cwd, 
+                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, {
+                  cwd,
                   encoding: "utf8",
-                  maxBuffer: 10 * 1024 * 1024 
+                  maxBuffer: 10 * 1024 * 1024, 
                 });
                 if (!patchContent || !patchContent.trim()) {
                   debug("Generated patch is empty - no changes between base and branch");
@@ -691,9 +691,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_changes",
-                          message: "No changes to create patch - branch is up to date with base"
+                          message: "No changes to create patch - branch is up to date with base",
                         }),
                       },
                     ],
@@ -712,14 +712,14 @@ jobs:
                   content: [
                     {
                       type: "text",
-                      text: JSON.stringify({ 
+                      text: JSON.stringify({
                         result: "success",
                         path: patchPath,
                         branch: branchName,
                         base: baseRef,
                         size_kb: patchSizeKB,
                         lines: patchLines,
-                        commits: commitCount
+                        commits: commitCount,
                       }),
                     },
                   ],
@@ -1017,7 +1017,8 @@ jobs:
               },
               {
                 name: "generate_git_patch",
-                description: "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
+                description:
+                  "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
                 inputSchema: {
                   type: "object",
                   properties: {},
@@ -4703,7 +4704,7 @@ jobs:
           persist-credentials: false
       - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter@v8.2.1
+        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 # v8.2.1
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
@@ -4725,7 +4726,7 @@ jobs:
           fi
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: super-linter-log
           path: super-linter.log

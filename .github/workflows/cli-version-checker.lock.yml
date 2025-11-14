@@ -619,9 +619,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_branch",
-                          message: "No branch found in safe outputs"
+                          message: "No branch found in safe outputs",
                         }),
                       },
                     ],
@@ -637,9 +637,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_branch",
-                          message: `Branch ${branchName} does not exist`
+                          message: `Branch ${branchName} does not exist`,
                         }),
                       },
                     ],
@@ -658,9 +658,9 @@ jobs:
                     debug(`Failed to fetch ${defaultBranch}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
                   }
                   try {
-                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, { 
-                      cwd, 
-                      encoding: "utf8" 
+                    baseRef = execSync(`git merge-base "origin/${defaultBranch}" "${branchName}"`, {
+                      cwd,
+                      encoding: "utf8",
                     }).trim();
                     debug(`Using merge-base as base: ${baseRef}`);
                   } catch (mergeBaseError) {
@@ -669,9 +669,9 @@ jobs:
                 }
                 let commitCount = 0;
                 try {
-                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, { 
-                    cwd, 
-                    encoding: "utf8" 
+                  const countOutput = execSync(`git rev-list --count "${baseRef}..${branchName}"`, {
+                    cwd,
+                    encoding: "utf8",
                   }).trim();
                   commitCount = parseInt(countOutput, 10);
                   debug(`Number of commits to include: ${commitCount}`);
@@ -679,10 +679,10 @@ jobs:
                   debug(`Failed to count commits: ${countError instanceof Error ? countError.message : String(countError)}`);
                 }
                 debug(`Generating patch: git format-patch ${baseRef}..${branchName} --stdout`);
-                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, { 
-                  cwd, 
+                const patchContent = execSync(`git format-patch "${baseRef}..${branchName}" --stdout`, {
+                  cwd,
                   encoding: "utf8",
-                  maxBuffer: 10 * 1024 * 1024 
+                  maxBuffer: 10 * 1024 * 1024, 
                 });
                 if (!patchContent || !patchContent.trim()) {
                   debug("Generated patch is empty - no changes between base and branch");
@@ -690,9 +690,9 @@ jobs:
                     content: [
                       {
                         type: "text",
-                        text: JSON.stringify({ 
+                        text: JSON.stringify({
                           result: "no_changes",
-                          message: "No changes to create patch - branch is up to date with base"
+                          message: "No changes to create patch - branch is up to date with base",
                         }),
                       },
                     ],
@@ -711,14 +711,14 @@ jobs:
                   content: [
                     {
                       type: "text",
-                      text: JSON.stringify({ 
+                      text: JSON.stringify({
                         result: "success",
                         path: patchPath,
                         branch: branchName,
                         base: baseRef,
                         size_kb: patchSizeKB,
                         lines: patchLines,
-                        commits: commitCount
+                        commits: commitCount,
                       }),
                     },
                   ],
@@ -1016,7 +1016,8 @@ jobs:
               },
               {
                 name: "generate_git_patch",
-                description: "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
+                description:
+                  "Generate a git patch file from branch changes. This tool reads the branch name from safe outputs and creates a patch file at /tmp/gh-aw/aw.patch. Returns success with patch info, no_branch if no branch found, or no_changes if branch has no changes.",
                 inputSchema: {
                   type: "object",
                   properties: {},
