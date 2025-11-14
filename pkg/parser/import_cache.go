@@ -86,7 +86,7 @@ func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 
 // Set stores a new cache entry by saving the content to the cache directory
 // sha parameter should be the resolved commit SHA
-func (c *ImportCache) Set(owner, repo, path, sha, _ string, content []byte) (string, error) {
+func (c *ImportCache) Set(owner, repo, path, sha string, content []byte) (string, error) {
 	// Validate file size (max 10MB)
 	const maxFileSize = 10 * 1024 * 1024
 	if len(content) > maxFileSize {

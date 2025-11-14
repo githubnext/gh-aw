@@ -912,7 +912,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 
 	// If cache is available and we have a SHA, store in cache
 	if cache != nil && sha != "" {
-		cachedPath, err := cache.Set(owner, repo, filePath, sha, sha, content)
+		cachedPath, err := cache.Set(owner, repo, filePath, sha, content)
 		if err != nil {
 			log.Printf("Failed to cache import: %v", err)
 			// Don't fail the compilation, fall back to temp file
@@ -941,7 +941,6 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	return tempFile.Name(), nil
 }
 
-// downloadFileFromGitHub downloads a file from GitHub using gh CLI
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
