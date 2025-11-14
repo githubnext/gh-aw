@@ -858,6 +858,37 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	}
 }
 
+// compileSingleFile compiles a single markdown workflow file and updates compilation statistics
+// If checkExists is true, the function will check if the file exists before compiling
+// Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
+func compileSingleFile(compiler *workflow.Compiler, file string, stats *CompilationStats, verbose bool, checkExists bool) bool {
+	// Check if file exists if requested (for watch mode)
+	if checkExists {
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			compileLog.Printf("File %s was deleted, skipping compilation", file)
+			return false
+		}
+	}
+
+	stats.Total++
+
+	compileLog.Printf("Compiling: %s", file)
+	if verbose {
+		fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
+	}
+
+	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
+		// Always show compilation errors on new line
+		fmt.Fprintln(os.Stderr, err.Error())
+		stats.Errors++
+		stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+	} else {
+		compileLog.Printf("Successfully compiled: %s", file)
+	}
+
+	return true
+}
+
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
 func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
 	compileLog.Printf("Compiling all workflow files in directory: %s", workflowsDir)
@@ -885,20 +916,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 
 	// Compile each file
 	for _, file := range mdFiles {
-		stats.Total++
-
-		compileLog.Printf("Compiling: %s", file)
-		if verbose {
-			fmt.Printf("🔨 Compiling: %s\n", file)
-		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
-			// Always show compilation errors on new line
-			fmt.Fprintln(os.Stderr, err.Error())
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else {
-			compileLog.Printf("Successfully compiled: %s", file)
-		}
+		compileSingleFile(compiler, file, stats, verbose, false)
 	}
 
 	// Get warning count from compiler
@@ -935,27 +953,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	stats := &CompilationStats{}
 
 	for _, file := range files {
-		// Check if file still exists (might have been deleted between detection and compilation)
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			compileLog.Printf("File %s was deleted, skipping compilation", file)
-			continue
-		}
-
-		stats.Total++
-
-		compileLog.Printf("Compiling: %s", file)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
-		}
-
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
-			// Always show compilation errors on new line
-			fmt.Fprintln(os.Stderr, err.Error())
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else {
-			compileLog.Printf("Successfully compiled: %s", file)
-		}
+		compileSingleFile(compiler, file, stats, verbose, true)
 	}
 
 	// Get warning count from compiler
