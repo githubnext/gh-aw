@@ -66,7 +66,7 @@ func ExecGH(args ...string) *exec.Cmd {
 func ExecGHWithRESTFallback(args ...string) ([]byte, bool, error) {
 	// First try with gh CLI
 	cmd := ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	
 	if err == nil {
 		ghHelperLog.Printf("gh CLI succeeded")
@@ -89,16 +89,23 @@ func ExecGHWithRESTFallback(args ...string) ([]byte, bool, error) {
 	// Common authentication error exit codes:
 	// - exit status 4: authentication error in gh CLI
 	// - exit status 1: general error (could be auth-related)
+	// Check both combined output and stderr for error messages
+	combinedOutput := string(output)
 	stderr := string(exitErr.Stderr)
 	isAuthError := exitErr.ExitCode() == 4 ||
+		strings.Contains(combinedOutput, "GH_TOKEN") ||
+		strings.Contains(combinedOutput, "authentication") ||
 		strings.Contains(stderr, "authentication") ||
+		strings.Contains(combinedOutput, "HTTP 401") ||
 		strings.Contains(stderr, "HTTP 401") ||
+		strings.Contains(combinedOutput, "HTTP 403") ||
 		strings.Contains(stderr, "HTTP 403") ||
+		strings.Contains(strings.ToLower(combinedOutput), "unauthorized") ||
 		strings.Contains(strings.ToLower(stderr), "unauthorized")
 
 	if !isAuthError {
-		ghHelperLog.Printf("Error is not authentication-related, returning original error: %v", stderr)
-		return nil, false, err
+		ghHelperLog.Printf("Error is not authentication-related, returning original error: %v", combinedOutput)
+		return nil, false, exitErr
 	}
 
 	ghHelperLog.Printf("Authentication error detected, attempting REST API fallback")
