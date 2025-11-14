@@ -101,6 +101,7 @@ func (jm *JobManager) ValidateDependencies() error {
 
 // detectCycles uses DFS to detect cycles in the job dependency graph
 func (jm *JobManager) detectCycles() error {
+	jobLog.Print("Detecting cycles in job dependency graph")
 	// Track visit states: 0=unvisited, 1=visiting, 2=visited
 	visitState := make(map[string]int)
 
@@ -118,6 +119,7 @@ func (jm *JobManager) detectCycles() error {
 		}
 	}
 
+	jobLog.Print("No cycles detected in job dependencies")
 	return nil
 }
 
@@ -145,6 +147,7 @@ func (jm *JobManager) dfsVisit(jobName string, visitState map[string]int) error 
 
 // RenderToYAML generates the jobs section of a GitHub Actions workflow
 func (jm *JobManager) RenderToYAML() string {
+	jobLog.Printf("Rendering %d jobs to YAML", len(jm.jobs))
 	if len(jm.jobs) == 0 {
 		return "jobs:\n"
 	}
@@ -341,6 +344,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 // GetTopologicalOrder returns jobs in topological order (dependencies before dependents)
 func (jm *JobManager) GetTopologicalOrder() ([]string, error) {
+	jobLog.Printf("Computing topological order for %d jobs", len(jm.jobs))
 	// First validate dependencies to ensure no cycles
 	if err := jm.ValidateDependencies(); err != nil {
 		return nil, err

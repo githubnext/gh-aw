@@ -571,6 +571,30 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Check if update is needed
 	if !force && currentRef == latestRef {
+		// Download the source content to check if local file has been modified
+		sourceContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		if err != nil {
+			// If we can't download for comparison, just show the up-to-date message
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download source for comparison: %v", err)))
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			return nil
+		}
+
+		// Read current workflow content
+		currentContent, err := os.ReadFile(wf.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read current workflow: %w", err)
+		}
+
+		// Check if local file differs from source
+		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
+			return nil
+		}
+
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
 		return nil
 	}
@@ -668,6 +692,64 @@ func normalizeWhitespace(content string) string {
 	}
 
 	return normalized
+}
+
+// hasLocalModifications checks if the local workflow file has been modified from its source
+// It resolves the source field and imports on the remote content, then compares with local
+func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
+	// Normalize both contents
+	sourceNormalized := normalizeWhitespace(sourceContent)
+	localNormalized := normalizeWhitespace(localContent)
+
+	// Parse the source spec to get repo and ref information
+	parsedSourceSpec, err := parseSourceSpec(sourceSpec)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse source spec: %v", err)))
+		}
+		// Fall back to simple comparison
+		return sourceNormalized != localNormalized
+	}
+
+	// Add the source field to the remote content
+	sourceWithSource, err := UpdateFieldInFrontmatter(sourceNormalized, "source", sourceSpec)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to add source field to remote content: %v", err)))
+		}
+		// Fall back to simple comparison
+		return sourceNormalized != localNormalized
+	}
+
+	// Resolve imports on the remote content
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: parsedSourceSpec.Repo,
+			Version:  parsedSourceSpec.Ref,
+		},
+		WorkflowPath: parsedSourceSpec.Path,
+	}
+
+	sourceResolved, err := processIncludesInContent(sourceWithSource, workflow, parsedSourceSpec.Ref, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to process imports on remote content: %v", err)))
+		}
+		// Use the version with source field but without resolved imports
+		sourceResolved = sourceWithSource
+	}
+
+	// Normalize again after processing
+	sourceResolvedNormalized := normalizeWhitespace(sourceResolved)
+
+	// Compare the normalized contents
+	hasModifications := sourceResolvedNormalized != localNormalized
+
+	if verbose && hasModifications {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Local modifications detected"))
+	}
+
+	return hasModifications
 }
 
 // MergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
