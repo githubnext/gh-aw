@@ -951,7 +951,7 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 
 	// Use gh CLI to get the commit SHA for the ref
 	// This works for branches, tags, and short SHAs
-	cmd := ghhelper.ExecGH("api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
+	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -977,6 +977,9 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 
 // isHexString checks if a string contains only hexadecimal characters
 func isHexString(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
 	for _, c := range s {
 		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
 			return false
