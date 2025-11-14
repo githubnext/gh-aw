@@ -44,6 +44,10 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig, 1)
+		} else {
+			// If configData is nil or not a map (e.g., "create-discussion:" with no value),
+			// still set the default max
+			discussionsConfig.Max = 1
 		}
 
 		return discussionsConfig
