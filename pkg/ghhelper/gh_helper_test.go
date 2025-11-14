@@ -47,11 +47,19 @@ func TestExecGH(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original environment
-			originalGHToken := os.Getenv("GH_TOKEN")
-			originalGitHubToken := os.Getenv("GITHUB_TOKEN")
+			originalGHToken, ghTokenWasSet := os.LookupEnv("GH_TOKEN")
+			originalGitHubToken, githubTokenWasSet := os.LookupEnv("GITHUB_TOKEN")
 			defer func() {
-				os.Setenv("GH_TOKEN", originalGHToken)
-				os.Setenv("GITHUB_TOKEN", originalGitHubToken)
+				if ghTokenWasSet {
+					os.Setenv("GH_TOKEN", originalGHToken)
+				} else {
+					os.Unsetenv("GH_TOKEN")
+				}
+				if githubTokenWasSet {
+					os.Setenv("GITHUB_TOKEN", originalGitHubToken)
+				} else {
+					os.Unsetenv("GITHUB_TOKEN")
+				}
 			}()
 
 			// Set up test environment
