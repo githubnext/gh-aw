@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,53 +29,30 @@ func NewCopilotAgentDetector(runDir string, verbose bool) *CopilotAgentDetector 
 }
 
 // IsGitHubCopilotAgent uses heuristics to determine if this run was executed by GitHub Copilot agent
-// (not the Copilot CLI engine)
+// (not the Copilot CLI engine or agentic workflows)
 func (d *CopilotAgentDetector) IsGitHubCopilotAgent() bool {
 	copilotAgentLog.Printf("Detecting if run is GitHub Copilot agent: %s", d.runDir)
 
-	// Heuristic 1: Check for specific workflow file patterns
-	if d.hasAgentWorkflowPattern() {
-		copilotAgentLog.Print("Detected agent workflow pattern")
-		return true
+	// If aw_info.json exists, this is an agentic workflow, NOT a GitHub Copilot agent run
+	awInfoPath := filepath.Join(d.runDir, "aw_info.json")
+	if _, err := os.Stat(awInfoPath); err == nil {
+		copilotAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot agent")
+		return false
 	}
 
-	// Heuristic 2: Check for agent-specific log patterns
+	// Heuristic 1: Check for agent-specific log patterns
 	if d.hasAgentLogPatterns() {
 		copilotAgentLog.Print("Detected agent log patterns")
 		return true
 	}
 
-	// Heuristic 3: Check for agent-specific artifacts
+	// Heuristic 2: Check for agent-specific artifacts
 	if d.hasAgentArtifacts() {
 		copilotAgentLog.Print("Detected agent artifacts")
 		return true
 	}
 
 	copilotAgentLog.Print("No GitHub Copilot agent indicators found")
-	return false
-}
-
-// hasAgentWorkflowPattern checks if the workflow file name or metadata indicates a Copilot agent run
-func (d *CopilotAgentDetector) hasAgentWorkflowPattern() bool {
-	// Check aw_info.json for workflow metadata
-	awInfoPath := filepath.Join(d.runDir, "aw_info.json")
-	if data, err := os.ReadFile(awInfoPath); err == nil {
-		var info struct {
-			WorkflowFile string `json:"workflow_file"`
-			WorkflowName string `json:"workflow_name"`
-		}
-		if err := json.Unmarshal(data, &info); err == nil {
-			// Check if workflow file or name contains agent indicators
-			workflowInfo := strings.ToLower(info.WorkflowFile + " " + info.WorkflowName)
-			if strings.Contains(workflowInfo, "copilot-swe-agent") ||
-				strings.Contains(workflowInfo, "copilot_swe_agent") ||
-				strings.Contains(workflowInfo, "github-copilot-agent") ||
-				strings.Contains(workflowInfo, "copilot-agent-task") {
-				return true
-			}
-		}
-	}
-
 	return false
 }
 

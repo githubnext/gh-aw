@@ -16,39 +16,23 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 		expectedResult bool
 	}{
 		{
-			name: "detects copilot-swe-agent in workflow name",
+			name: "aw_info.json present means agentic workflow, not copilot agent",
 			setupFunc: func(dir string) error {
 				awInfo := `{"workflow_name": "copilot-swe-agent-task", "workflow_file": "test.yml"}`
-				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
-			},
-			expectedResult: true,
-		},
-		{
-			name: "detects copilot_swe_agent in workflow file",
-			setupFunc: func(dir string) error {
-				awInfo := `{"workflow_name": "test", "workflow_file": "copilot_swe_agent.yml"}`
-				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
-			},
-			expectedResult: true,
-		},
-		{
-			name: "detects github-copilot-agent in workflow name",
-			setupFunc: func(dir string) error {
-				awInfo := `{"workflow_name": "github-copilot-agent-build", "workflow_file": "test.yml"}`
-				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
-			},
-			expectedResult: true,
-		},
-		{
-			name: "does not detect regular copilot cli workflow",
-			setupFunc: func(dir string) error {
-				awInfo := `{"workflow_name": "regular-workflow", "workflow_file": "workflow.yml"}`
 				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
 			},
 			expectedResult: false,
 		},
 		{
-			name: "detects agent pattern in log file",
+			name: "aw_info.json present with any workflow name means agentic workflow",
+			setupFunc: func(dir string) error {
+				awInfo := `{"workflow_name": "test", "workflow_file": "copilot_swe_agent.yml"}`
+				return os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0644)
+			},
+			expectedResult: false,
+		},
+		{
+			name: "detects agent pattern in log file without aw_info.json",
 			setupFunc: func(dir string) error {
 				logContent := `
 2024-01-15 10:00:00 Starting GitHub Copilot Agent v1.2.3
@@ -60,7 +44,7 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name: "detects copilot-swe-agent in log",
+			name: "detects copilot-swe-agent in log without aw_info.json",
 			setupFunc: func(dir string) error {
 				logContent := `Using @github/copilot-swe-agent for task execution`
 				return os.WriteFile(filepath.Join(dir, "execution.log"), []byte(logContent), 0644)
@@ -68,7 +52,7 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name: "detects agent artifact",
+			name: "detects agent artifact without aw_info.json",
 			setupFunc: func(dir string) error {
 				return os.Mkdir(filepath.Join(dir, "copilot-agent-output"), 0755)
 			},
@@ -277,23 +261,14 @@ func TestExtractErrorMessage(t *testing.T) {
 
 func TestIntegration_CopilotAgentWithAudit(t *testing.T) {
 	// Create a temporary directory that simulates a GitHub Copilot agent run
+	// NOTE: GitHub Copilot agent runs do NOT have aw_info.json (that's for agentic workflows)
 	tmpDir, err := os.MkdirTemp("", "copilot-agent-integration-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Setup: Create aw_info.json with copilot-swe-agent indicator
-	awInfo := `{
-		"workflow_name": "copilot-swe-agent-task-123",
-		"workflow_file": "agent.yml",
-		"engine_id": "copilot"
-	}`
-	if err := os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(awInfo), 0644); err != nil {
-		t.Fatalf("Failed to write aw_info.json: %v", err)
-	}
-
-	// Create a sample agent log
+	// Create a sample agent log with agent-specific patterns
 	agentLog := `
 2024-01-15T10:00:00.000Z Starting GitHub Copilot Agent
 Task iteration 1: Analyzing codebase
@@ -307,6 +282,12 @@ Tool call: github_create_pr
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(agentLog), 0644); err != nil {
 		t.Fatalf("Failed to write log file: %v", err)
+	}
+
+	// Verify detector recognizes this as a GitHub Copilot agent run (no aw_info.json)
+	detector := NewCopilotAgentDetector(tmpDir, false)
+	if !detector.IsGitHubCopilotAgent() {
+		t.Error("Expected GitHub Copilot agent to be detected from log patterns")
 	}
 
 	// Test: Extract metrics using the system that would be used by audit
