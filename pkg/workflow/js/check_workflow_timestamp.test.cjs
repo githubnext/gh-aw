@@ -113,7 +113,7 @@ describe("check_workflow_timestamp.cjs", () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       // Mock source file not found (404)
-      mockGithub.rest.repos.getContent.mockImplementation((params) => {
+      mockGithub.rest.repos.getContent.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           const error = new Error("Not Found");
           error.status = 404;
@@ -134,7 +134,7 @@ describe("check_workflow_timestamp.cjs", () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       // Mock lock file not found (404)
-      mockGithub.rest.repos.getContent.mockImplementation((params) => {
+      mockGithub.rest.repos.getContent.mockImplementation(params => {
         if (params.path === ".github/workflows/test.lock.yml") {
           const error = new Error("Not Found");
           error.status = 404;
@@ -180,7 +180,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           return Promise.resolve({
             data: [
@@ -254,7 +254,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           return Promise.resolve({
             data: [
@@ -300,7 +300,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/my-workflow.md") {
           return Promise.resolve({
             data: [
@@ -342,7 +342,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           return Promise.resolve({
             data: [
@@ -386,7 +386,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           return Promise.resolve({
             data: [
@@ -429,7 +429,7 @@ describe("check_workflow_timestamp.cjs", () => {
       const oldDate = new Date("2024-01-01T10:00:00Z");
       const newDate = new Date("2024-01-02T10:00:00Z");
 
-      mockGithub.rest.repos.listCommits.mockImplementation((params) => {
+      mockGithub.rest.repos.listCommits.mockImplementation(params => {
         if (params.path === ".github/workflows/test.md") {
           return Promise.resolve({
             data: [
