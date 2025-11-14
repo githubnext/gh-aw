@@ -128,7 +128,16 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
-		// Look for the comment pattern: # Effective stop-time: YYYY-MM-DD HH:MM:SS
+		// Look for the most stable pattern: GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
+		// This is in the env section of the stop time check job
+		if strings.Contains(line, "GH_AW_STOP_TIME:") {
+			// Extract the timestamp after the colon
+			prefix := "GH_AW_STOP_TIME:"
+			if idx := strings.Index(line, prefix); idx != -1 {
+				return strings.TrimSpace(line[idx+len(prefix):])
+			}
+		}
+		// Also support the comment pattern: # Effective stop-time: YYYY-MM-DD HH:MM:SS
 		if strings.Contains(line, "# Effective stop-time:") {
 			// Extract the timestamp after the known prefix
 			prefix := "# Effective stop-time:"
