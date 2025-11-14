@@ -571,6 +571,30 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Check if update is needed
 	if !force && currentRef == latestRef {
+		// Download the source content to check if local file has been modified
+		sourceContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		if err != nil {
+			// If we can't download for comparison, just show the up-to-date message
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download source for comparison: %v", err)))
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			return nil
+		}
+
+		// Read current workflow content
+		currentContent, err := os.ReadFile(wf.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read current workflow: %w", err)
+		}
+
+		// Check if local file differs from source
+		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
+			return nil
+		}
+
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
 		return nil
 	}
@@ -668,6 +692,81 @@ func normalizeWhitespace(content string) string {
 	}
 
 	return normalized
+}
+
+// hasLocalModifications checks if the local workflow file has been modified from its source
+// It normalizes both files and compares them, taking into account that the source field
+// might not be present in the remote source but is expected to be in the local file
+func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
+	// Normalize both contents
+	sourceNormalized := normalizeWhitespace(sourceContent)
+	localNormalized := normalizeWhitespace(localContent)
+
+	// Remove the source field from local content for comparison
+	localWithoutSource, err := removeFieldFromFrontmatter(localNormalized, "source")
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to remove source field from local content: %v", err)))
+		}
+		// Fall back to simple comparison
+		return sourceNormalized != localNormalized
+	}
+
+	// Normalize again after removing the source field
+	localWithoutSourceNormalized := normalizeWhitespace(localWithoutSource)
+
+	// Compare the normalized contents
+	hasModifications := sourceNormalized != localWithoutSourceNormalized
+
+	if verbose && hasModifications {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Local modifications detected"))
+	}
+
+	return hasModifications
+}
+
+// removeFieldFromFrontmatter removes a field from the frontmatter while preserving formatting
+func removeFieldFromFrontmatter(content, fieldName string) (string, error) {
+	// Parse frontmatter using parser package
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Try to preserve original frontmatter formatting by manually removing the field
+	if len(result.FrontmatterLines) > 0 {
+		frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+		
+		// Filter out the field line
+		for _, line := range result.FrontmatterLines {
+			trimmedLine := strings.TrimSpace(line)
+			// Skip lines that contain our field
+			if !strings.HasPrefix(trimmedLine, fieldName+":") {
+				frontmatterLines = append(frontmatterLines, line)
+			}
+		}
+
+		// Reconstruct the file with preserved formatting
+		var lines []string
+		lines = append(lines, "---")
+		lines = append(lines, frontmatterLines...)
+		lines = append(lines, "---")
+		
+		// The parser's Markdown field doesn't include the blank line after ---
+		// We need to add it back to match the original format
+		content := strings.Join(lines, "\n")
+		if result.Markdown != "" {
+			// Add empty line after --- and then the markdown content
+			content += "\n\n" + result.Markdown
+		} else {
+			content += "\n"
+		}
+
+		return content, nil
+	}
+
+	// Fallback: return original if no raw lines available
+	return content, nil
 }
 
 // MergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
