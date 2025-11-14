@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,37 @@ const (
 	// ImportCacheDir is the directory where cached imports are stored
 	ImportCacheDir = ".github/aw/imports"
 )
+
+// sanitizePath converts a file path to a safe filename by using filepath.Clean
+// and replacing directory separators with underscores
+func sanitizePath(path string) string {
+	// Clean the path to remove any ".." or other suspicious elements
+	cleaned := filepath.Clean(path)
+	// Replace directory separators with underscores to create a flat filename
+	// This prevents directory traversal while preserving path uniqueness
+	sanitized := strings.ReplaceAll(cleaned, string(filepath.Separator), "_")
+	return sanitized
+}
+
+// validatePathComponents validates that path components don't contain malicious sequences
+func validatePathComponents(owner, repo, path, sha string) error {
+	components := []string{owner, repo, path, sha}
+	for _, comp := range components {
+		// Check for empty components
+		if comp == "" {
+			return fmt.Errorf("empty component in path")
+		}
+		// Check for path traversal attempts
+		if strings.Contains(comp, "..") {
+			return fmt.Errorf("component contains '..' sequence: %s", comp)
+		}
+		// Check for absolute paths
+		if filepath.IsAbs(comp) {
+			return fmt.Errorf("component is absolute path: %s", comp)
+		}
+	}
+	return nil
+}
 
 // ImportCache manages cached imported workflow files
 type ImportCache struct {
@@ -33,13 +65,18 @@ func NewImportCache(repoRoot string) *ImportCache {
 func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 	// Use SHA-based approach: cache files are stored by commit SHA
 	// Cache path: .github/aw/imports/owner/repo/sha/sanitized_path.md
-	sanitizedPath := strings.ReplaceAll(path, "/", "_")
+	sanitizedPath := sanitizePath(path)
 	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 
 	// Check if the cached file exists
-	if _, err := os.Stat(fullCachePath); os.IsNotExist(err) {
-		importCacheLog.Printf("Cache miss: %s/%s/%s@%s", owner, repo, path, sha)
+	if _, err := os.Stat(fullCachePath); err != nil {
+		if os.IsNotExist(err) {
+			importCacheLog.Printf("Cache miss: %s/%s/%s@%s", owner, repo, path, sha)
+		} else {
+			// Log other types of errors (permissions, I/O issues, etc.)
+			importCacheLog.Printf("Cache access error for %s/%s/%s@%s: %v", owner, repo, path, sha, err)
+		}
 		return "", false
 	}
 
@@ -50,9 +87,20 @@ func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 // Set stores a new cache entry by saving the content to the cache directory
 // sha parameter should be the resolved commit SHA
 func (c *ImportCache) Set(owner, repo, path, sha, _ string, content []byte) (string, error) {
+	// Validate file size (max 10MB)
+	const maxFileSize = 10 * 1024 * 1024
+	if len(content) > maxFileSize {
+		return "", fmt.Errorf("file size (%d bytes) exceeds maximum allowed size (%d bytes)", len(content), maxFileSize)
+	}
+
+	// Validate path components to prevent path traversal
+	if err := validatePathComponents(owner, repo, path, sha); err != nil {
+		return "", fmt.Errorf("invalid path components: %w", err)
+	}
+
 	// Use SHA in path for consistent caching
 	// This ensures that different refs pointing to the same commit reuse the same cache
-	sanitizedPath := strings.ReplaceAll(path, "/", "_")
+	sanitizedPath := sanitizePath(path)
 	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 
