@@ -315,6 +315,13 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		dateTimeID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), time.Now().UnixNano()%1000000)
 		trialLog.Printf("Starting trial run: dateTimeID=%s", dateTimeID)
 
+		// Determine target repo slug for filenames once
+		// In direct trial mode, use hostRepoSlug; otherwise use logicalRepoSlug
+		targetRepoForFilename := logicalRepoSlug
+		if directTrialMode {
+			targetRepoForFilename = hostRepoSlug
+		}
+
 		// Step 3: Clone host repository to local temp directory
 		trialLog.Printf("Cloning trial host repository: %s", hostRepoSlug)
 		tempDir, err := cloneTrialHostRepository(hostRepoSlug, verbose)
@@ -392,7 +399,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			workflowResults = append(workflowResults, result)
 
 			// Save individual trial file
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(logicalRepoSlug)
+			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
 			individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 			if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
@@ -429,7 +436,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 				workflowNames[i] = spec.WorkflowName
 			}
 			workflowNamesStr := strings.Join(workflowNames, "-")
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(logicalRepoSlug)
+			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
 			combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 			combinedResult := CombinedTrialResult{
 				WorkflowNames: workflowNames,
@@ -447,7 +454,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		for i, spec := range parsedSpecs {
 			workflowNames[i] = spec.WorkflowName
 		}
-		if err := copyTrialResultsToHostRepo(tempDir, dateTimeID, workflowNames, logicalRepoSlug, verbose); err != nil {
+		if err := copyTrialResultsToHostRepo(tempDir, dateTimeID, workflowNames, targetRepoForFilename, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 		}
 
@@ -1521,7 +1528,7 @@ func saveTrialResult(filename string, result interface{}, verbose bool) error {
 }
 
 // copyTrialResultsToHostRepo copies trial result files to the host repository and commits them
-func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []string, logicalRepoSlug string, verbose bool) error {
+func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []string, targetRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Copying trial results to host repository"))
 	}
@@ -1533,7 +1540,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	}
 
 	// Copy individual workflow result files
-	sanitizedTargetRepo := sanitizeRepoSlugForFilename(logicalRepoSlug)
+	sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoSlug)
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
