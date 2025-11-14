@@ -148,7 +148,7 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 #### `trial`
 
-Test workflows safely in temporary private repositories.
+Test workflows safely in temporary private repositories or run directly in a specified repository.
 
 ```bash wrap
 gh aw trial githubnext/agentics/ci-doctor          # Test remote workflow
@@ -156,6 +156,7 @@ gh aw trial ./workflow.md                          # Test local workflow
 gh aw trial ./workflow.md --use-local-secrets      # Test with local API keys
 gh aw trial ./workflow.md --logical-repo owner/repo # Act as different repo
 gh aw trial ./issue-workflow.md --trigger-context "#123" # With issue context
+gh aw trial ./workflow.md --repo owner/repo        # Run directly in repository
 ```
 
 **Key Options:**
@@ -170,8 +171,13 @@ gh aw trial ./issue-workflow.md --trigger-context "#123" # With issue context
 | `--logical-repo owner/repo` | Access issues/PRs from specific repository |
 | `--clone-repo owner/repo` | Use different codebase for testing |
 | `--trigger-context "#123"` | Provide issue/PR context |
+| `--repo owner/repo` | Install and run workflow directly in specified repository |
 
-Creates temporary private repository, executes workflow in isolated environment, and saves results to `trials/` directory.
+**Trial Modes:**
+- **Default mode**: Creates temporary private repository for safe testing
+- **Direct repository mode** (`--repo`): Installs workflow in specified repository and executes immediately without waiting for completion
+
+Results are saved to `trials/` directory.
 
 #### `run`
 
@@ -239,6 +245,8 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 Provides detailed analysis including overview, execution metrics, tool usage patterns, MCP server failures, firewall analysis, and artifact information. Accepts run IDs or URLs from any repository and GitHub instance.
 
+**GitHub Copilot Agent Detection:** Automatically detects GitHub Copilot agent runs and uses specialized log parsing to extract agent-specific metrics including turns, tool calls, errors, and token usage. Detection is based on workflow path (`copilot-swe-agent`) and agent-specific log patterns.
+
 ### Management
 
 #### `enable`
@@ -283,6 +291,7 @@ Update workflows to their latest versions.
 gh aw update                              # Update all workflows with source field
 gh aw update ci-doctor                    # Update specific workflow
 gh aw update ci-doctor --major --force    # Allow major version updates
+gh aw update --dir custom/workflows       # Update workflows in custom directory
 ```
 
 **What it does:**
@@ -291,6 +300,7 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 - Semantic version tags update within the same major version
 
 **Options:**
+- `--dir`: Specify workflow directory (defaults to `.github/workflows`)
 - `--major`: Allow major version updates (breaking changes)
 - `--force`: Force update even with conflicts
 
