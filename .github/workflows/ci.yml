@@ -95,6 +95,8 @@ jobs:
 
       - name: Rebuild lock files
         run: make recompile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
     runs-on: ubuntu-latest
     permissions:
