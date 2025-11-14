@@ -61,7 +61,7 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	output, fromREST, err := ExecGHWithRESTFallback("api", apiPath, "--jq", ".object.sha")
+	output, fromREST, err := ExecGHAPIWithRESTFallback(apiPath, ".object.sha")
 	if err != nil {
 		// Try without "refs/tags/" prefix in case version is already a ref
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)

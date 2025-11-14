@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestExecGHWithRESTFallback_RealAPI(t *testing.T) {
+func TestExecGHAPIWithRESTFallback_RealAPI(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
 	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
@@ -24,10 +24,9 @@ func TestExecGHWithRESTFallback_RealAPI(t *testing.T) {
 
 	t.Run("fallback to REST API for public repository tag", func(t *testing.T) {
 		// Test with a known public repository and tag
-		output, fromREST, err := ExecGHWithRESTFallback(
-			"api",
+		output, fromREST, err := ExecGHAPIWithRESTFallback(
 			"/repos/actions/checkout/git/ref/tags/v4",
-			"--jq", ".object.sha",
+			".object.sha",
 		)
 
 		if err != nil {
@@ -59,10 +58,9 @@ func TestExecGHWithRESTFallback_RealAPI(t *testing.T) {
 
 	t.Run("fallback handles nested field extraction", func(t *testing.T) {
 		// Test with a repository info endpoint
-		output, fromREST, err := ExecGHWithRESTFallback(
-			"api",
+		output, fromREST, err := ExecGHAPIWithRESTFallback(
 			"/repos/actions/checkout",
-			"--jq", ".name",
+			".name",
 		)
 
 		if err != nil {
@@ -78,10 +76,9 @@ func TestExecGHWithRESTFallback_RealAPI(t *testing.T) {
 	})
 
 	t.Run("fallback returns error for non-existent repository", func(t *testing.T) {
-		output, fromREST, err := ExecGHWithRESTFallback(
-			"api",
+		output, fromREST, err := ExecGHAPIWithRESTFallback(
 			"/repos/nonexistent-owner-12345/nonexistent-repo-67890/git/ref/tags/v1.0",
-			"--jq", ".object.sha",
+			".object.sha",
 		)
 
 		// This should fail (either gh CLI or REST API)

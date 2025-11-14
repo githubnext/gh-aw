@@ -46,14 +46,15 @@ func ExecGH(args ...string) *exec.Cmd {
 	return cmd
 }
 
-// ExecGHWithRESTFallback executes a gh CLI command with fallback to unauthenticated REST API.
-// It is specifically designed for "gh api" commands.
+// ExecGHAPIWithRESTFallback executes a "gh api" command with fallback to unauthenticated REST API.
+// This function is specialized for GitHub API calls only.
 //
 // When gh CLI fails due to missing/invalid authentication, this function will attempt
 // to make the same API call using direct HTTP REST API without authentication.
 //
 // Args:
-//   - args: Command arguments (e.g., "api", "/repos/owner/repo/git/ref/tags/v1.0", "--jq", ".object.sha")
+//   - apiPath: GitHub API path (e.g., "/repos/owner/repo/git/ref/tags/v1.0")
+//   - jqFilter: Optional jq filter for JSON extraction (e.g., ".object.sha"), empty string if not needed
 //
 // Returns:
 //   - output: The command output (either from gh CLI or REST API)
@@ -62,21 +63,21 @@ func ExecGH(args ...string) *exec.Cmd {
 //
 // Usage:
 //
-//	output, fromREST, err := ExecGHWithRESTFallback("api", "/repos/actions/checkout/git/ref/tags/v4", "--jq", ".object.sha")
-func ExecGHWithRESTFallback(args ...string) ([]byte, bool, error) {
+//	output, fromREST, err := ExecGHAPIWithRESTFallback("/repos/actions/checkout/git/ref/tags/v4", ".object.sha")
+func ExecGHAPIWithRESTFallback(apiPath, jqFilter string) ([]byte, bool, error) {
+	// Build gh api command arguments
+	args := []string{"api", apiPath}
+	if jqFilter != "" {
+		args = append(args, "--jq", jqFilter)
+	}
+
 	// First try with gh CLI
 	cmd := ExecGH(args...)
 	output, err := cmd.CombinedOutput()
 	
 	if err == nil {
-		ghHelperLog.Printf("gh CLI succeeded")
+		ghHelperLog.Printf("gh api succeeded")
 		return output, false, nil
-	}
-
-	// Check if this is a gh api command that failed due to authentication
-	if len(args) < 2 || args[0] != "api" {
-		ghHelperLog.Printf("Not a gh api command or insufficient args, returning original error")
-		return nil, false, err
 	}
 
 	// Check if error is authentication-related
@@ -109,16 +110,6 @@ func ExecGHWithRESTFallback(args ...string) ([]byte, bool, error) {
 	}
 
 	ghHelperLog.Printf("Authentication error detected, attempting REST API fallback")
-
-	// Extract API path and jq filter
-	apiPath := args[1]
-	var jqFilter string
-	for i := 2; i < len(args); i++ {
-		if args[i] == "--jq" && i+1 < len(args) {
-			jqFilter = args[i+1]
-			break
-		}
-	}
 
 	// Attempt REST API call
 	restOutput, err := callGitHubRESTAPI(apiPath, jqFilter)

@@ -243,7 +243,7 @@ func TestCallGitHubRESTAPI(t *testing.T) {
 	})
 }
 
-func TestExecGHWithRESTFallback_NonAPICommand(t *testing.T) {
+func TestExecGHAPIWithRESTFallback_BasicFunctionality(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
 	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
@@ -256,47 +256,30 @@ func TestExecGHWithRESTFallback_NonAPICommand(t *testing.T) {
 	os.Unsetenv("GH_TOKEN")
 	os.Unsetenv("GITHUB_TOKEN")
 
-	t.Run("non-api command should not trigger REST fallback", func(t *testing.T) {
-		// This should fail with the original error, not attempt REST fallback
-		_, fromREST, err := ExecGHWithRESTFallback("repo", "view")
+	t.Run("function accepts API path and jq filter", func(t *testing.T) {
+		// The function should accept the proper parameters
+		// Network will likely fail in test environment, but we're testing the signature
+		_, fromREST, err := ExecGHAPIWithRESTFallback("/repos/actions/checkout", ".name")
 		
 		if err == nil {
-			t.Logf("Command succeeded (gh is configured), skipping fallback test")
+			t.Logf("Command succeeded (gh is configured or network is available)")
 			return
 		}
 
-		// Should not have used REST fallback for non-api commands
-		if fromREST {
-			t.Errorf("Expected fromREST to be false for non-api commands, got true")
-		}
+		// We expect either gh CLI error or REST API error, but the function call should work
+		t.Logf("Expected error in test environment (fromREST: %v): %v", fromREST, err)
 	})
-}
 
-func TestExecGHWithRESTFallback_InsufficientArgs(t *testing.T) {
-	// Save original environment
-	originalGHToken := os.Getenv("GH_TOKEN")
-	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
-	defer func() {
-		os.Setenv("GH_TOKEN", originalGHToken)
-		os.Setenv("GITHUB_TOKEN", originalGitHubToken)
-	}()
-
-	// Clear tokens to ensure gh CLI will fail
-	os.Unsetenv("GH_TOKEN")
-	os.Unsetenv("GITHUB_TOKEN")
-
-	t.Run("api command with insufficient args should not trigger REST fallback", func(t *testing.T) {
-		// This should fail with the original error
-		_, fromREST, err := ExecGHWithRESTFallback("api")
+	t.Run("function works without jq filter", func(t *testing.T) {
+		// Test with empty jq filter
+		_, fromREST, err := ExecGHAPIWithRESTFallback("/repos/actions/checkout", "")
 		
 		if err == nil {
-			t.Logf("Command succeeded unexpectedly")
+			t.Logf("Command succeeded (gh is configured or network is available)")
 			return
 		}
 
-		// Should not have used REST fallback
-		if fromREST {
-			t.Errorf("Expected fromREST to be false for insufficient args, got true")
-		}
+		// We expect either gh CLI error or REST API error
+		t.Logf("Expected error in test environment (fromREST: %v): %v", fromREST, err)
 	})
 }
