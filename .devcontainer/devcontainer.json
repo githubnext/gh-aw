@@ -11,7 +11,8 @@
 				"GitHub.copilot-chat",
 				"GitHub.copilot",
 				"github.vscode-github-actions",
-				"astro-build.astro-vscode"
+				"astro-build.astro-vscode",
+				"DavidAnson.vscode-markdownlint"
 			]
 		},
 		"codespaces": {
