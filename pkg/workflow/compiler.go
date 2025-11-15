@@ -65,6 +65,8 @@ type Compiler struct {
 	actionCache          *ActionCache        // Shared cache for action pin resolutions across all workflows
 	actionResolver       *ActionResolver     // Shared resolver for action pins across all workflows
 	importCache          *parser.ImportCache // Shared cache for imported workflow files
+	validationResults    *console.ValidationResults // Accumulated validation errors and warnings
+	collectErrors        bool                // If true, collect all validation errors instead of failing on first error
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -131,6 +133,60 @@ func (c *Compiler) GetWarningCount() int {
 func (c *Compiler) ResetWarningCount() {
 	c.warningCount = 0
 }
+
+// SetCollectErrors configures whether to collect all validation errors
+func (c *Compiler) SetCollectErrors(collect bool) {
+	c.collectErrors = collect
+}
+
+// GetValidationResults returns the accumulated validation results
+func (c *Compiler) GetValidationResults() *console.ValidationResults {
+	return c.validationResults
+}
+
+// ResetValidationResults resets the validation results for a new compilation
+func (c *Compiler) ResetValidationResults() {
+	c.validationResults = &console.ValidationResults{
+		Errors:   []console.ValidationError{},
+		Warnings: []console.ValidationError{},
+	}
+}
+
+// AddValidationError adds a validation error to the results
+func (c *Compiler) AddValidationError(category, severity, message, file string, line int, hint string) {
+	if c.validationResults == nil {
+		c.ResetValidationResults()
+	}
+	c.validationResults.Errors = append(c.validationResults.Errors, console.ValidationError{
+		Category: category,
+		Severity: severity,
+		Message:  message,
+		File:     file,
+		Line:     line,
+		Hint:     hint,
+	})
+}
+
+// AddValidationWarning adds a validation warning to the results
+func (c *Compiler) AddValidationWarning(category, severity, message, file string, line int, hint string) {
+	if c.validationResults == nil {
+		c.ResetValidationResults()
+	}
+	c.validationResults.Warnings = append(c.validationResults.Warnings, console.ValidationError{
+		Category: category,
+		Severity: severity,
+		Message:  message,
+		File:     file,
+		Line:     line,
+		Hint:     hint,
+	})
+}
+
+// HasValidationErrors returns true if there are validation errors
+func (c *Compiler) HasValidationErrors() bool {
+	return c.validationResults != nil && len(c.validationResults.Errors) > 0
+}
+
 
 // getSharedActionResolver returns the shared action resolver, initializing it on first use
 // This ensures all workflows compiled by this compiler instance share the same in-memory cache

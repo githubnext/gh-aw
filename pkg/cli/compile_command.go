@@ -264,6 +264,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compileLog.Print("Created compiler instance")
 
+	// Enable error collection for better multi-error reporting
+	compiler.SetCollectErrors(true)
+	compiler.ResetValidationResults()
+
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!validate)
 	compileLog.Printf("Validation enabled: %v", validate)
@@ -464,6 +468,15 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		} else {
 			// Print summary for text output
 			printCompilationSummary(stats)
+
+			// Display validation error summary if there are errors
+			if compiler.HasValidationErrors() {
+				results := compiler.GetValidationResults()
+				summary := console.FormatValidationSummary(results, verbose)
+				if summary != "" {
+					fmt.Fprintln(os.Stderr, summary)
+				}
+			}
 		}
 
 		// Save the action cache after all compilations
@@ -690,6 +703,15 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	} else {
 		// Print summary for text output
 		printCompilationSummary(stats)
+
+		// Display validation error summary if there are errors
+		if compiler.HasValidationErrors() {
+			results := compiler.GetValidationResults()
+			summary := console.FormatValidationSummary(results, verbose)
+			if summary != "" {
+				fmt.Fprintln(os.Stderr, summary)
+			}
+		}
 	}
 
 	// Save the action cache after all compilations
