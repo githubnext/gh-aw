@@ -41,7 +41,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "issues write permission is refused",
@@ -52,7 +52,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'issues: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "pull-requests write permission is refused",
@@ -63,7 +63,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'pull-requests: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'pull-requests: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "multiple write permissions fail on first one",
@@ -89,7 +89,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'issues: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "other write permissions are allowed (not in sensitive scopes)",
@@ -117,7 +117,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				"permissions": "write",
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "shorthand write-all is refused",
@@ -126,7 +126,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				"permissions": "write-all",
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
 		},
 		{
 			name: "empty permissions map is allowed",
@@ -176,7 +176,7 @@ func TestValidateStrictNetwork(t *testing.T) {
 			name:               "nil network permissions is refused",
 			networkPermissions: nil,
 			expectError:        true,
-			errorMsg:           "strict mode: 'network' configuration is required",
+			errorMsg:           "strict mode: 'network' configuration is required to prevent unrestricted network access",
 		},
 		{
 			name: "defaults mode is allowed",
@@ -200,7 +200,7 @@ func TestValidateStrictNetwork(t *testing.T) {
 				Allowed: []string{"*"},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains",
+			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access",
 		},
 		{
 			name: "wildcard among other domains is refused",
@@ -209,7 +209,7 @@ func TestValidateStrictNetwork(t *testing.T) {
 				Allowed: []string{"api.example.com", "*", "github.com"},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains",
+			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access",
 		},
 		{
 			name: "empty allowed list is allowed",
@@ -306,7 +306,7 @@ func TestValidateStrictMode(t *testing.T) {
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
 		},
 		{
 			name:       "strict mode fails on missing network config",
@@ -319,7 +319,7 @@ func TestValidateStrictMode(t *testing.T) {
 			},
 			networkPermissions: nil,
 			expectError:        true,
-			errorMsg:           "strict mode: 'network' configuration is required",
+			errorMsg:           "strict mode: 'network' configuration is required to prevent unrestricted network access",
 		},
 		{
 			name:       "strict mode fails on wildcard network",
@@ -335,7 +335,7 @@ func TestValidateStrictMode(t *testing.T) {
 				Allowed: []string{"*"},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains",
+			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access",
 		},
 		{
 			name:       "strict mode with container MCP requiring network",
@@ -356,7 +356,7 @@ func TestValidateStrictMode(t *testing.T) {
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: custom MCP server 'my-server' with container must have network configuration",
+			errorMsg:    "strict mode: custom MCP server 'my-server' with container must have network configuration for security",
 		},
 		{
 			name:       "strict mode with container MCP and network config",
