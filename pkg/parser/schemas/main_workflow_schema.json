@@ -1744,7 +1744,7 @@
       ]
     },
     "engine": {
-      "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'copilot'.",
+      "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'copilot'. See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for a comprehensive feature compatibility matrix.",
       "default": "copilot",
       "$ref": "#/$defs/engine_config"
     },
@@ -3258,7 +3258,7 @@
     }
   ],
   "$defs": {
-    "engine_config": {
+     "engine_config": {
       "examples": [
         "claude",
         "copilot",
@@ -3283,16 +3283,16 @@
         {
           "type": "string",
           "enum": ["claude", "codex", "copilot", "custom"],
-          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps). See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for feature support by engine."
         },
         {
           "type": "object",
-          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps",
+          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps. See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for engine-specific feature support.",
           "properties": {
             "id": {
               "type": "string",
               "enum": ["claude", "codex", "custom", "copilot"],
-              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps). See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for feature compatibility."
             },
             "version": {
               "type": "string",
@@ -3304,7 +3304,7 @@
             },
             "max-turns": {
               "type": "integer",
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude and custom engines. See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for full compatibility details."
             },
             "concurrency": {
               "oneOf": [

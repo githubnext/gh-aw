@@ -5,7 +5,7 @@
     "type": {
       "type": "string",
       "enum": ["stdio", "http", "local"],
-      "description": "MCP connection type (local is an alias for stdio)"
+      "description": "MCP connection type (local is an alias for stdio). HTTP type is supported by copilot, claude, and codex engines. See https://githubnext.github.io/gh-aw/reference/engine-compatibility/ for engine compatibility."
     },
     "registry": {
       "type": "string",

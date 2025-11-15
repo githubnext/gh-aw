@@ -128,6 +128,7 @@ export default defineConfig({
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Permissions', link: '/reference/permissions/' },
 						{ label: 'AI Engines', link: '/reference/engines/' },
+						{ label: 'Engine Compatibility', link: '/reference/engine-compatibility/' },
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
