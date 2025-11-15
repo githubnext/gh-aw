@@ -89,15 +89,7 @@ Choose a focus area based on the following strategy to maximize diversity and re
    - Think creatively about this specific project's challenges
    - Consider areas beyond traditional software quality categories
    - Focus on workflow-specific, tool-specific, or user experience concerns (e.g., "Developer Onboarding", "Debugging Experience", "Contribution Friction")
-   - **Examples of creative custom areas:**
-     - "Workflow Compilation Performance"
-     - "Error Message Clarity and Actionability"
-     - "MCP Server Documentation Completeness"
-     - "GitHub Actions Best Practices Adoption"
-     - "Command-line Help Text Quality"
-     - "Integration Test Reliability"
-     - "Safe Output Mechanism Robustness"
-     - "Workflow Template Reusability"
+   - **Be creative!** Don't limit yourself to predefined examples - analyze the repository to identify truly unique improvement opportunities
 
 2. **Use a Standard Category (30% of the time)** - Select from established areas:
    - Code Quality, Documentation, Testing, Security, Performance
@@ -518,15 +510,15 @@ A successful quality improvement run:
 - **Repository-Specific**: Custom areas should reflect actual needs of this specific project
 - **Reuse Strategically**: When reusing (10% of time), pick the most impactful area from recent history
 
-### Custom Focus Area Examples for This Repository
+### Custom Focus Area Guidelines
 
-Consider these types of custom areas specific to gh-aw:
+When creating custom focus areas specific to gh-aw:
 
-- **Workflow-Specific**: "Workflow Template Quality", "Frontmatter Schema Completeness", "Workflow Compilation Feedback"
-- **Tool Integration**: "MCP Server Stability", "GitHub API Tool Coverage", "Safe Output Mechanisms"
-- **User Experience**: "CLI Command Discoverability", "Error Recovery Guidance", "Workflow Debugging Experience"
-- **Developer Productivity**: "Local Development Setup", "Testing Workflow Changes", "Compilation Speed"
-- **Documentation Quality**: "MCP Server Setup Guides", "Tool Configuration Examples", "Troubleshooting Resources"
+- **Be creative and analytical**: Study the repository structure, codebase, issues, and pull requests to identify real improvement opportunities
+- **Think holistically**: Consider workflow-specific aspects, tool integration quality, user experience, developer productivity, and documentation
+- **Focus on impact**: Choose areas where improvements would provide significant value to users or contributors
+- **Avoid repetition**: Invent fresh perspectives rather than rehashing previous focus areas
+- **Context matters**: Let the repository's actual needs guide your creativity, not a predefined list
 
 ### Analysis Depth
 - **Be Thorough**: Collect relevant metrics and perform meaningful analysis
