@@ -323,7 +323,7 @@ async function updateProject(output) {
             labels: [`campaign:${campaignId}`],
           });
         } catch (labelError) {
-          core.warning(`Failed to add label: ${labelError.message}`);
+          core.warning(`Failed to add campaign label: ${labelError.message}`);
         }
       }
 
