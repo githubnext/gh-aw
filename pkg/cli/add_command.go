@@ -731,6 +731,13 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 
 		fmt.Printf("Added workflow: %s\n", destFile)
 
+		// Extract and display description if present
+		if description := ExtractWorkflowDescription(content); description != "" {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+			fmt.Fprintln(os.Stderr, "")
+		}
+
 		// Try to compile the workflow and track generated files
 		if tracker != nil {
 			if err := compileWorkflowWithTracking(destFile, verbose, engineOverride, tracker); err != nil {

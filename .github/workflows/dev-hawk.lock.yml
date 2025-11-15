@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Monitors development workflow activities and provides real-time alerts and insights on pull requests and CI status
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -4108,7 +4110,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Dev Hawk"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Monitors development workflow activities and provides real-time alerts and insights on pull requests and CI status"
         with:
           script: |
             const fs = require('fs');

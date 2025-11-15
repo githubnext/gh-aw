@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
@@ -4371,7 +4373,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends"
         with:
           script: |
             const fs = require('fs');

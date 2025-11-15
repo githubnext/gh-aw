@@ -1,4 +1,5 @@
 ---
+description: Generates ASCII tree map visualization of repository file structure weekly
 on:
   schedule:
     - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC

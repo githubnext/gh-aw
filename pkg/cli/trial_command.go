@@ -391,6 +391,14 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
+			// Display workflow description if present
+			workflowPath := filepath.Join(tempDir, ".github/workflows", parsedSpec.WorkflowName+".md")
+			if description := ExtractWorkflowDescriptionFromFile(workflowPath); description != "" {
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+				fmt.Fprintln(os.Stderr, "")
+			}
+
 			// Add user's PAT as repository secret (only once)
 			if i == 0 && pushSecrets {
 				if err := addGitHubTokenSecret(hostRepoSlug, secretTracker, verbose); err != nil {

@@ -1,5 +1,6 @@
 ---
 name: Security Fix PR
+description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
   workflow_dispatch:
 permissions:

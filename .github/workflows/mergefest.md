@@ -1,5 +1,6 @@
 ---
 name: Mergefest
+description: Automatically merges the main branch into pull request branches when invoked with /mergefest command
 on:
   command:
     name: mergefest

@@ -1,5 +1,6 @@
 ---
 name: Changeset Generator
+description: Automatically creates changeset files when PRs are labeled with 'changeset' or 'smoke' to document changes for release notes
 on:
   pull_request:
     types: [labeled]

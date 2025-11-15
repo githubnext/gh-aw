@@ -1,4 +1,5 @@
 ---
+description: Test workflow for validating post-steps functionality and proper compilation
 # Test workflow for post-steps functionality
 # This workflow validates that post-steps compile correctly and are properly indented
 

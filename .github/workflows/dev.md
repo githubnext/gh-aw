@@ -5,6 +5,7 @@ concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
 name: Dev
+description: Test workflow for development and experimentation purposes
 engine: copilot
 permissions:
   contents: read

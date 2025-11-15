@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
@@ -4251,7 +4253,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent PR Analysis"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior"
         with:
           script: |
             const fs = require('fs');

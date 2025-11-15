@@ -1,4 +1,5 @@
 ---
+description: Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
 on:
   command: "nit"
 permissions:

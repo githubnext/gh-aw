@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Test workflow for validating post-steps functionality and proper compilation
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

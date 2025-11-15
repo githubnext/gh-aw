@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
@@ -5177,7 +5179,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Session Insights"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics"
         with:
           script: |
             const fs = require('fs');

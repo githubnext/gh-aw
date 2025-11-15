@@ -1,4 +1,5 @@
 ---
+description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 on:
   schedule:
     - cron: "0 3 * * *"  # Daily at 3am UTC

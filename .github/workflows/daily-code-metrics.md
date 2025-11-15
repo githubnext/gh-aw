@@ -1,4 +1,5 @@
 ---
+description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 on:
   schedule:
     - cron: "0 8 * * *"  # Daily at 8 AM UTC

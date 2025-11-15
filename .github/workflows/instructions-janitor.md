@@ -1,5 +1,6 @@
 ---
 name: Instructions Janitor
+description: Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 on:
   schedule:
     # Every day at 9am UTC

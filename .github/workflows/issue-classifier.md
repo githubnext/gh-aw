@@ -1,5 +1,6 @@
 ---
 name: Issue Classifier
+description: Automatically classifies and labels issues based on content analysis and predefined categories
 on:
   issues:
     types: [opened]

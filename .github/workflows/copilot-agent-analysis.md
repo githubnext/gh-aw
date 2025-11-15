@@ -1,5 +1,6 @@
 ---
 name: Copilot Agent PR Analysis
+description: Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
 on:
   schedule:
     # Every day at 6pm UTC

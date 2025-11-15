@@ -1,5 +1,6 @@
 ---
 name: Test Svelte MCP
+description: Test workflow for validating Svelte MCP server integration and documentation tools
 on:
   workflow_dispatch:
 permissions:

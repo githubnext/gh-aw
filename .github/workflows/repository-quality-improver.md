@@ -1,4 +1,5 @@
 ---
+description: Daily analysis and improvement of repository quality focusing on different software development lifecycle areas
 on:
   schedule:
     - cron: "0 13 * * 1-5"  # Daily at 1 PM UTC, weekdays only

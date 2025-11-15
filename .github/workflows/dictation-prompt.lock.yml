@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Generates optimized prompts for voice dictation and speech-to-text workflows
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
@@ -4488,7 +4490,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Dictation Prompt Generator"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Generates optimized prompts for voice dictation and speech-to-text workflows"
         with:
           script: |
             const fs = require('fs');
