@@ -578,7 +578,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			if lockFileInfo.Size() > MaxLockFileSize {
 				lockSize := console.FormatFileSize(lockFileInfo.Size())
 				maxSize := console.FormatFileSize(MaxLockFileSize)
-				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
+				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s). This usually happens when the workflow has too much content in the markdown body or too many tools/steps. Try reducing the workflow complexity or splitting it into multiple workflows. Example of a more concise workflow:\n---\non: issues\ntools:\n  github:\n    allowed: [list_issues]\n---\n\n# Brief workflow\n\nConcise instructions.", lockSize, maxSize)
 				formattedErr := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
 						File:   lockFile,
@@ -633,11 +633,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	if len(result.Frontmatter) == 0 {
-		return nil, fmt.Errorf("no frontmatter found")
+		return nil, fmt.Errorf("no frontmatter found. Workflow files must start with YAML frontmatter between --- delimiters. Example:\n---\non: issues\npermissions:\n  contents: read\n---\n\n# Your workflow title\n\nWorkflow instructions here.")
 	}
 
 	if result.Markdown == "" {
-		return nil, fmt.Errorf("no markdown content found")
+		return nil, fmt.Errorf("no markdown content found. Workflow files must include markdown content after the frontmatter. Example:\n---\non: issues\n---\n\n# Your workflow title\n\nWorkflow instructions here.")
 	}
 
 	// Validate main workflow frontmatter contains only expected entries
