@@ -760,8 +760,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 // If forceDeleteHostRepo is true, deletes the repository if it exists before creating it
 func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHostRepo bool, verbose bool) error {
 	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid repository slug format: %s (expected user/repo)", repoSlug)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return fmt.Errorf("invalid repository slug format: %s. Expected format: owner/repo. Example: githubnext/gh-aw", repoSlug)
 	}
 
 	// Check if repository already exists
