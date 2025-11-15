@@ -38,6 +38,26 @@ steps:
 
 By passing the value through an environment variable, the content is treated as data, not executable code.
 
+### Data Flow Comparison
+
+```mermaid
+graph TB
+    subgraph "Unsafe Pattern"
+        A1[Untrusted Input] --> B1["Template Expression<br/>${{ ... }}"]
+        B1 --> C1[Direct Interpolation<br/>into Shell Command]
+        C1 --> D1[Code Execution Risk]
+        style D1 fill:#f88,stroke:#f00
+    end
+
+    subgraph "Safe Pattern"
+        A2[Untrusted Input] --> B2["Template Expression<br/>${{ ... }}"]
+        B2 --> C2[Environment Variable<br/>Assignment]
+        C2 --> D2[Shell Receives<br/>Data Only]
+        D2 --> E2[No Code Execution]
+        style E2 fill:#8f8,stroke:#0f0
+    end
+```
+
 ## Changes Made
 
 ### copilot-session-insights.md
