@@ -96,6 +96,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 	// Check for safe-outputs configuration first (built-in MCP)
 	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
+		mcpLog.Print("Found safe-outputs configuration")
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
@@ -142,6 +143,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 	// Check for top-level safe-jobs configuration
 	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
+		mcpLog.Print("Found safe-jobs configuration")
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
 			// Find existing safe-outputs config or create new one
@@ -176,6 +178,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	// Get mcp-servers section from frontmatter
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
+		mcpLog.Print("No mcp-servers section found, checking for built-in tools")
 		// Also check tools section for built-in MCP tools (github, playwright)
 		toolsSection, hasTools := frontmatter["tools"]
 		if hasTools {
@@ -188,12 +191,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 							return nil, err
 						}
 						if config != nil {
+							mcpLog.Printf("Added built-in MCP tool: %s", toolName)
 							configs = append(configs, *config)
 						}
 					}
 				}
 			}
 		}
+		mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 		return configs, nil // No mcp-servers configured, but we might have safe-outputs and built-in tools
 	}
 
@@ -222,6 +227,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	}
 
 	// Process custom MCP servers from mcp-servers section
+	mcpLog.Printf("Processing %d custom MCP servers", len(mcpServers))
 	for serverName, serverValue := range mcpServers {
 		// Apply server filter if specified
 		if serverFilter != "" && !strings.Contains(strings.ToLower(serverName), strings.ToLower(serverFilter)) {
@@ -239,9 +245,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			return nil, fmt.Errorf("failed to parse MCP config for %s: %w", serverName, err)
 		}
 
+		mcpLog.Printf("Parsed custom MCP server: %s (type=%s)", serverName, config.Type)
 		configs = append(configs, config)
 	}
 
+	mcpLog.Printf("Extracted %d MCP configurations total", len(configs))
 	return configs, nil
 }
 
@@ -512,10 +520,13 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		// Infer type from presence of fields
 		if _, hasURL := mcpConfig["url"]; hasURL {
 			config.Type = "http"
+			mcpLog.Printf("Inferred MCP type 'http' for tool %s based on url field", toolName)
 		} else if _, hasCommand := mcpConfig["command"]; hasCommand {
 			config.Type = "stdio"
+			mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on command field", toolName)
 		} else if _, hasContainer := mcpConfig["container"]; hasContainer {
 			config.Type = "stdio"
+			mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on container field", toolName)
 		} else {
 			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 		}
@@ -531,11 +542,13 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 	}
 
 	// Extract configuration based on type
+	mcpLog.Printf("Extracting %s configuration for tool: %s", config.Type, toolName)
 	switch config.Type {
 	case "stdio":
 		// Handle container field (simplified Docker run)
 		if container, hasContainer := mcpConfig["container"]; hasContainer {
 			if containerStr, ok := container.(string); ok {
+				mcpLog.Printf("Tool %s uses container: %s", toolName, containerStr)
 				config.Container = containerStr
 				config.Command = "docker"
 				config.Args = []string{"run", "--rm", "-i"}
