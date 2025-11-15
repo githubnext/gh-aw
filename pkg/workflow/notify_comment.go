@@ -92,8 +92,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// 2. agent was activated (not skipped)
 	// 3. comment_id exists (comment was created in activation)
 	// 4. NOT contains(output_types, 'add_comment')
-	// 5. NOT contains(output_types, 'create_pull_request')
-	// 6. NOT contains(output_types, 'push_to_pull_request_branch')
+	//
+	// Note: The job should run even when create_pull_request or push_to_pull_request_branch
+	// output types are present, as those don't update the activation comment.
 
 	alwaysFunc := BuildFunctionCall("always")
 
@@ -107,6 +108,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	commentIdExists := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.comment_id", constants.ActivationJobName))
 
 	// Check that output_types doesn't contain add_comment
+	// (if add_comment was used, it already updated the comment)
 	noAddComment := &NotNode{
 		Child: BuildFunctionCall("contains",
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
@@ -114,35 +116,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		),
 	}
 
-	// Check that output_types doesn't contain create_pull_request
-	noCreatePR := &NotNode{
-		Child: BuildFunctionCall("contains",
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
-			BuildStringLiteral("create_pull_request"),
-		),
-	}
-
-	// Check that output_types doesn't contain push_to_pull_request_branch
-	noPushToBranch := &NotNode{
-		Child: BuildFunctionCall("contains",
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
-			BuildStringLiteral("push_to_pull_request_branch"),
-		),
-	}
-
 	// Combine all conditions with AND
 	condition := buildAnd(
 		buildAnd(
-			buildAnd(
-				buildAnd(
-					buildAnd(alwaysFunc, agentNotSkipped),
-					commentIdExists,
-				),
-				noAddComment,
-			),
-			noCreatePR,
+			buildAnd(alwaysFunc, agentNotSkipped),
+			commentIdExists,
 		),
-		noPushToBranch,
+		noAddComment,
 	)
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last

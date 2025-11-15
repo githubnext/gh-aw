@@ -4395,8 +4395,8 @@ jobs:
       - push_to_pull_request_branch
       - missing_tool
     if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+      (((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) &&
+      (!contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-slim
     permissions:
       contents: read

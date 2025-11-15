@@ -30,8 +30,6 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
@@ -47,8 +45,6 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
@@ -88,8 +84,6 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
 		},
@@ -105,8 +99,6 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "push_to_pull_request_branch", "missing_tool"},
 		},
@@ -270,12 +262,6 @@ func TestConclusionJobIntegration(t *testing.T) {
 	}
 	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'add_comment'))") {
 		t.Error("Expected NOT contains add_comment check in conclusion condition")
-	}
-	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
-		t.Error("Expected NOT contains create_pull_request check in conclusion condition")
-	}
-	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
-		t.Error("Expected NOT contains push_to_pull_request_branch check in conclusion condition")
 	}
 
 	// Verify job depends on the safe output jobs
