@@ -83,13 +83,13 @@ func TestCheckErrorQuality(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			issue := checkErrorQuality(tt.message, 1)
 			passed := (issue == nil)
-			
+
 			if passed != tt.shouldPass {
 				if tt.shouldPass {
-					t.Errorf("Expected message to pass quality check but failed: %s\nMessage: %q\nIssue: %v", 
+					t.Errorf("Expected message to pass quality check but failed: %s\nMessage: %q\nIssue: %v",
 						tt.description, tt.message, issue)
 				} else {
-					t.Errorf("Expected message to fail quality check but passed: %s\nMessage: %q", 
+					t.Errorf("Expected message to fail quality check but passed: %s\nMessage: %q",
 						tt.description, tt.message)
 				}
 			}
@@ -228,7 +228,7 @@ func TestPatternMatching(t *testing.T) {
 			case "validation":
 				result = isValidationError.MatchString(tt.message)
 			}
-			
+
 			if result != tt.want {
 				t.Errorf("Pattern %q match on %q = %v, want %v", tt.pattern, tt.message, result, tt.want)
 			}
