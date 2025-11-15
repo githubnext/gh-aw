@@ -592,7 +592,8 @@ func BuildStandardEngineCleanupSteps(cleanupPaths []string) []GitHubActionStep {
 	stepLines = append(stepLines, "        if: always()")
 	stepLines = append(stepLines, "        run: |")
 	for _, path := range sortedPaths {
-		stepLines = append(stepLines, fmt.Sprintf("          rm -rf %s", path))
+		// Add || true to ensure cleanup never fails
+		stepLines = append(stepLines, fmt.Sprintf("          rm -rf %s || true", path))
 	}
 
 	return []GitHubActionStep{stepLines}

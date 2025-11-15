@@ -595,3 +595,24 @@ func TestBuildStandardEngineCleanupSteps_AlwaysCondition(t *testing.T) {
 		t.Error("Cleanup step should have 'if: always()' condition")
 	}
 }
+
+// TestBuildStandardEngineCleanupSteps_ErrorHandling tests that cleanup commands have || true
+func TestBuildStandardEngineCleanupSteps_ErrorHandling(t *testing.T) {
+	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test1", "/tmp/test2"})
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Convert to single string
+	allText := strings.Join(steps[0], "\n")
+
+	// Verify that || true is present for each rm command
+	if !strings.Contains(allText, "rm -rf /tmp/test1 || true") {
+		t.Error("Cleanup commands should have '|| true' suffix to prevent failures")
+	}
+
+	if !strings.Contains(allText, "rm -rf /tmp/test2 || true") {
+		t.Error("Cleanup commands should have '|| true' suffix to prevent failures")
+	}
+}
