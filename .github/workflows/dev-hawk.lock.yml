@@ -4481,7 +4481,7 @@ jobs:
                 }
                 core.info(`Event ${eventName} requires validation (write role not allowed)`);
               }
-              const safeEvents = ["workflow_run", "schedule"];
+              const safeEvents = ["schedule"];
               if (safeEvents.includes(eventName)) {
                 core.info(`✅ Event ${eventName} does not require validation`);
                 core.setOutput("is_team_member", "true");

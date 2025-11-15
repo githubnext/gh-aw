@@ -690,7 +690,7 @@ async function main() {
   const { eventName } = context;
   
   // skip check for safe events
-  const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+  const safeEvents = ["workflow_dispatch", "schedule"];
   if (safeEvents.includes(eventName)) {
     core.info('Event does not require validation');
     return;
