@@ -141,7 +141,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 			if len(validFields) < maxFields {
 				maxFields = len(validFields)
 			}
-			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s. Example: tools:\n  my-tool:\n    command: \"node server.js\"", field, strings.Join(validFields[:maxFields], ", ")) // Show up to 10 to keep message reasonable
+			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s. Example:\nmcp-servers:\n  my-tool:\n    command: \"node server.js\"\n    args: [\"--verbose\"]", field, strings.Join(validFields[:maxFields], ", ")) // Show up to 10 to keep message reasonable
 		}
 	}
 
@@ -176,10 +176,10 @@ func getTypeString(value any) string {
 // validateStringProperty validates that a property is a string and returns appropriate error message
 func validateStringProperty(toolName, propertyName string, value any, exists bool) error {
 	if !exists {
-		return fmt.Errorf("tool '%s' mcp configuration missing required property '%s'. Example: tools:\n  %s:\n    %s: \"value\"", toolName, propertyName, toolName, propertyName)
+		return fmt.Errorf("tool '%s' mcp configuration missing required property '%s'. Example:\nmcp-servers:\n  %s:\n    %s: \"value\"", toolName, propertyName, toolName, propertyName)
 	}
 	if _, ok := value.(string); !ok {
-		return fmt.Errorf("tool '%s' mcp configuration property '%s' must be a string, got %T. Example: %s: \"value\"", toolName, propertyName, value, propertyName)
+		return fmt.Errorf("tool '%s' mcp configuration property '%s' must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    %s: \"my-value\"", toolName, propertyName, value, toolName, propertyName)
 	}
 	return nil
 }
@@ -191,15 +191,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	var typeStr string
 
 	if hasType {
-		// Explicit type provided
-		if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
-			return err
+		// Explicit type provided - validate it's a string
+		if _, ok := mcpType.(string); !ok {
+			return fmt.Errorf("tool '%s' mcp configuration 'type' must be a string, got %T. Valid types: stdio, http, local. Example:\nmcp-servers:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"", toolName, mcpType, toolName)
 		}
-		var ok bool
-		typeStr, ok = mcpType.(string)
-		if !ok {
-			return fmt.Errorf("tool '%s' mcp configuration 'type' must be a string, got %T. Valid types: stdio, http, local. Example: type: \"stdio\"", toolName, mcpType)
-		}
+		typeStr = mcpType.(string)
 	} else {
 		// Infer type from presence of fields
 		if _, hasURL := mcpConfig["url"]; hasURL {
@@ -209,7 +205,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		} else if _, hasContainer := mcpConfig["container"]; hasContainer {
 			typeStr = "stdio"
 		} else {
-			return fmt.Errorf("tool '%s' unable to determine MCP type: missing type, url, command, or container. Example:\ntools:\n  %s:\n    command: \"node server.js\"", toolName, toolName)
+			return fmt.Errorf("tool '%s' unable to determine MCP type: missing type, url, command, or container. Example:\nmcp-servers:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]", toolName, toolName)
 		}
 	}
 
@@ -220,7 +216,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
-		return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http, local. Got: %s. Example: type: \"stdio\"", toolName, typeStr)
+		return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http, local. Got: %s. Example:\nmcp-servers:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"", toolName, typeStr, toolName)
 	}
 
 	// Validate type-specific requirements
@@ -231,7 +227,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 		// HTTP type cannot use container field
 		if _, hasContainer := mcpConfig["container"]; hasContainer {
-			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'container' field. Example:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com\"", toolName, toolName)
+			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'container' field. HTTP MCP uses URL endpoints, not containers. Example:\nmcp-servers:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"", toolName, toolName)
 		}
 
 		return validateStringProperty(toolName, "url", url, hasURL)
@@ -242,7 +238,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		container, hasContainer := mcpConfig["container"]
 
 		if hasCommand && hasContainer {
-			return fmt.Errorf("tool '%s' mcp configuration cannot specify both 'container' and 'command'. Choose one. Example:\ntools:\n  %s:\n    command: \"node server.js\"", toolName, toolName)
+			return fmt.Errorf("tool '%s' mcp configuration cannot specify both 'container' and 'command'. Choose one. Example:\nmcp-servers:\n  %s:\n    command: \"node server.js\"\nOr use container:\nmcp-servers:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"", toolName, toolName, toolName)
 		}
 
 		if hasCommand {
@@ -254,7 +250,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 				return err
 			}
 		} else {
-			return fmt.Errorf("tool '%s' mcp configuration must specify either 'command' or 'container'. Example:\ntools:\n  %s:\n    command: \"node server.js\"", toolName, toolName)
+			return fmt.Errorf("tool '%s' mcp configuration must specify either 'command' or 'container'. Example:\nmcp-servers:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\nOr use container:\nmcp-servers:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"", toolName, toolName, toolName)
 		}
 	}
 

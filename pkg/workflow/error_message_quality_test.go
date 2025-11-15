@@ -323,6 +323,62 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 				"Example:",
 			},
 		},
+		{
+			name: "type field wrong type",
+			tools: map[string]any{
+				"bad-type": map[string]any{
+					"type":    123, // Should be string
+					"command": "test",
+				},
+			},
+			errorContains: []string{
+				"type",
+				"must be a string",
+				"got int",
+				"Valid types:",
+				"stdio",
+				"http",
+				"Example:",
+				"mcp-servers:",
+			},
+		},
+		{
+			name: "both command and container specified",
+			tools: map[string]any{
+				"conflict-tool": map[string]any{
+					"type":      "stdio",
+					"command":   "node",
+					"container": "my-image",
+				},
+			},
+			errorContains: []string{
+				"cannot specify both",
+				"command",
+				"container",
+				"Choose one",
+				"Example:",
+				"mcp-servers:",
+			},
+		},
+		{
+			name: "invalid type value",
+			tools: map[string]any{
+				"bad-type-value": map[string]any{
+					"type":    "websocket",
+					"command": "test",
+				},
+			},
+			errorContains: []string{
+				"type",
+				"must be one of:",
+				"stdio",
+				"http",
+				"local",
+				"websocket",
+				"Example:",
+				"mcp-servers:",
+			},
+		},
 	}
 
 	for _, tt := range tests {
