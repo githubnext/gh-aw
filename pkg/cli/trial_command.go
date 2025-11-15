@@ -344,15 +344,15 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		if err := os.Chdir(tempDirForDisable); err != nil {
 			return fmt.Errorf("failed to change to temp directory: %w", err)
 		}
+		// Always attempt to change back to the original directory
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				trialLog.Printf("Failed to change back to original directory: %v", err)
+			}
+		}()
 
 		// Disable workflows (pass empty string for repoSlug since we're working locally)
 		disableErr := DisableAllWorkflowsExcept("", workflowsToKeep, verbose)
-
-		// Change back to original directory
-		if err := os.Chdir(originalDir); err != nil {
-			return fmt.Errorf("failed to change back to original directory: %w", err)
-		}
-
 		// Check for disable errors after changing back
 		if disableErr != nil {
 			// Log warning but don't fail the trial - workflow disabling is not critical
