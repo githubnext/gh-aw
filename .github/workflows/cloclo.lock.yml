@@ -63,7 +63,7 @@
 #   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Claude Command & Label Processor - `/cloclo` ✨"
+name: "Claude Command Processor - /cloclo"
 "on":
   discussion:
     types:
@@ -100,9 +100,10 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}-cloclo
 
-run-name: "Claude Command & Label Processor - `/cloclo` ✨"
+run-name: "Claude Command Processor - /cloclo"
 
 jobs:
   activation:
@@ -456,7 +457,7 @@ jobs:
         env:
           GH_AW_REACTION: eyes
           GH_AW_COMMAND: cloclo
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           script: |
             async function main() {
@@ -826,7 +827,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2414,7 +2415,7 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          # Claude Command & Label Processor - `/cloclo` ✨
+          # Claude Command Processor - /cloclo
           
           You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
           
@@ -2881,7 +2882,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "2.0.41",
-              workflow_name: "Claude Command & Label Processor - `/cloclo` ✨",
+              workflow_name: "Claude Command Processor - /cloclo",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -4998,7 +4999,7 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5589,7 +5590,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          WORKFLOW_NAME: "Claude Command Processor - /cloclo"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5834,7 +5835,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6148,7 +6149,7 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6638,7 +6639,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
