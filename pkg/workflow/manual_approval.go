@@ -29,12 +29,12 @@ func (c *Compiler) extractManualApprovalFromOn(frontmatter map[string]any) (stri
 				manualApprovalLog.Printf("Found manual-approval configuration: %s", str)
 				return str, nil
 			}
-			return "", fmt.Errorf("manual-approval value must be a string")
+			return "", fmt.Errorf("manual-approval value must be a string, got %T. Example: manual-approval: \"production\"", manualApproval)
 		}
 		manualApprovalLog.Print("on: section is object format but no manual-approval field found")
 		return "", nil
 	default:
-		return "", fmt.Errorf("invalid on: section format")
+		return "", fmt.Errorf("invalid on: section format, got %T. Expected string or object. Example: on: push or on:\n  push:\n    branches: [main]", onSection)
 	}
 }
 

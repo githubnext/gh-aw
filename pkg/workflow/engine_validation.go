@@ -60,10 +60,12 @@ func (c *Compiler) validateEngine(engineID string) error {
 	engine, err := c.engineRegistry.GetEngineByPrefix(engineID)
 	if err == nil {
 		engineValidationLog.Printf("Engine ID %s matched by prefix to: %s", engineID, engine.GetID())
-	} else {
-		engineValidationLog.Printf("Engine ID %s not found: %v", engineID, err)
+		return nil
 	}
-	return err
+	
+	engineValidationLog.Printf("Engine ID %s not found: %v", engineID, err)
+	// Provide helpful error with valid options
+	return fmt.Errorf("invalid engine: %s. Valid engines are: copilot, claude, codex, custom. Example: engine: copilot", engineID)
 }
 
 // validateSingleEngineSpecification validates that only one engine field exists across all files
@@ -88,7 +90,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	if len(allEngines) > 1 {
-		return "", fmt.Errorf("multiple engine fields found. Only one engine field is allowed across the main workflow and all included files. Remove engine specifications to have only one")
+		return "", fmt.Errorf("multiple engine fields found. Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one. Example: engine: copilot")
 	}
 
 	// Exactly one engine found - parse and return it
@@ -99,7 +101,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	// Must be from included file
 	var firstEngine any
 	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
-		return "", fmt.Errorf("failed to parse included engine configuration: %w", err)
+		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected format: engine: copilot or engine:\n  id: copilot", err)
 	}
 
 	// Handle string format
@@ -114,5 +116,5 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		}
 	}
 
-	return "", fmt.Errorf("invalid engine configuration in included file")
+	return "", fmt.Errorf("invalid engine configuration in included file. Expected format: engine: copilot or engine:\n  id: copilot\n  model: gpt-4")
 }

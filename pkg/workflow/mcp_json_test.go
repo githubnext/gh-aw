@@ -249,7 +249,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "missing property 'url'",
+			errMsg:  "missing required property 'url'",
 		},
 		{
 			name: "new format: stdio missing command and container",
@@ -301,7 +301,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "value must be one of: stdio, http, local",
+			errMsg:  "'type' must be one of",
 		},
 
 		{
@@ -314,7 +314,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "value must be one of",
+			errMsg:  "'type' must be one of",
 		},
 		{
 			name: "non-string type in MCP config",
@@ -326,7 +326,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "got number, want string",
+			errMsg:  "must be a string",
 		},
 		{
 			name: "http type missing URL",
@@ -337,7 +337,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "missing property 'url'",
+			errMsg:  "missing required property 'url'",
 		},
 		{
 			name: "stdio type missing command",
@@ -360,7 +360,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "got number, want string",
+			errMsg:  "must be a string",
 		},
 		{
 			name: "stdio type with non-string command",
@@ -372,7 +372,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "got array, want string",
+			errMsg:  "must be a string",
 		},
 		{
 			name: "valid tools without MCP",
@@ -403,7 +403,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "missing property 'url'",
+			errMsg:  "missing required property 'url'",
 		},
 		{
 			name: "network field in tool config should fail (no longer supported)",
