@@ -137,7 +137,11 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 				validFields = append(validFields, k)
 			}
 			sort.Strings(validFields)
-			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s. Example: tools:\n  my-tool:\n    command: \"node server.js\"", field, strings.Join(validFields[:10], ", ")) // Show first 10 to keep message reasonable
+			maxFields := 10
+			if len(validFields) < maxFields {
+				maxFields = len(validFields)
+			}
+			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s. Example: tools:\n  my-tool:\n    command: \"node server.js\"", field, strings.Join(validFields[:maxFields], ", ")) // Show up to 10 to keep message reasonable
 		}
 	}
 

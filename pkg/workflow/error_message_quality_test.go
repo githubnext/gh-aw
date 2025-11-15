@@ -14,9 +14,9 @@ import (
 // 3. Example of correct usage
 func TestErrorMessageQuality(t *testing.T) {
 	tests := []struct {
-		name            string
-		testFunc        func() error
-		shouldContain   []string
+		name             string
+		testFunc         func() error
+		shouldContain    []string
 		shouldNotBeVague bool
 	}{
 		{
@@ -257,7 +257,7 @@ func TestMCPValidationErrorQuality(t *testing.T) {
 			name: "unknown property in tool config",
 			tools: map[string]any{
 				"typo-tool": map[string]any{
-					"typ": "stdio", // Typo: should be "type"
+					"typ":     "stdio", // Typo: should be "type"
 					"command": "test",
 				},
 			},

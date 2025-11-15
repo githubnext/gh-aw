@@ -62,7 +62,7 @@ func (c *Compiler) validateEngine(engineID string) error {
 		engineValidationLog.Printf("Engine ID %s matched by prefix to: %s", engineID, engine.GetID())
 		return nil
 	}
-	
+
 	engineValidationLog.Printf("Engine ID %s not found: %v", engineID, err)
 	// Provide helpful error with valid options
 	return fmt.Errorf("invalid engine: %s. Valid engines are: copilot, claude, codex, custom. Example: engine: copilot", engineID)
