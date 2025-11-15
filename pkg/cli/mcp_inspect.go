@@ -151,7 +151,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	// Process imports from frontmatter to merge imported MCP servers
 	markdownDir := filepath.Dir(workflowPath)
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir, nil)
 	if err != nil {
 		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
@@ -295,7 +295,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 		// Process imports from frontmatter to merge imported MCP servers
 		markdownDir := filepath.Dir(workflowPath)
-		importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir)
+		importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir, nil)
 		if err != nil {
 			return fmt.Errorf("failed to process imports from frontmatter: %w", err)
 		}
