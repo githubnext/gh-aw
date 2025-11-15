@@ -7,6 +7,10 @@ sidebar:
 
 GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
+:::tip[Feature Compatibility]
+For a complete feature comparison across all engines, see the [Engine Feature Compatibility Matrix](/gh-aw/reference/engine-compatibility/).
+:::
+
 ### GitHub Copilot (Default)
 
 GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
