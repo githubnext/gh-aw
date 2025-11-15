@@ -31,7 +31,7 @@ func TestShellEscapeArg(t *testing.T) {
 		{
 			name:     "argument with single quote",
 			input:    "don't",
-			expected: "'don'\"'\"'t'",
+			expected: "'don'\\''t'",
 		},
 		{
 			name:     "argument with asterisk",
@@ -67,6 +67,26 @@ func TestShellEscapeArg(t *testing.T) {
 			name:     "empty double quotes should not be escaped",
 			input:    "\"\"",
 			expected: "\"\"",
+		},
+		{
+			name:     "backslash-b sequence should be preserved",
+			input:    "grep -r '\\bany\\b' pkg",
+			expected: "'grep -r '\\''\\bany\\b'\\'' pkg'",
+		},
+		{
+			name:     "backslash-n sequence should be preserved",
+			input:    "echo '\\n'",
+			expected: "'echo '\\''\\n'\\'''",
+		},
+		{
+			name:     "backslash-t sequence should be preserved",
+			input:    "echo '\\t'",
+			expected: "'echo '\\''\\t'\\'''",
+		},
+		{
+			name:     "literal backslash should be preserved",
+			input:    "path\\to\\file",
+			expected: "'path\\to\\file'",
 		},
 	}
 

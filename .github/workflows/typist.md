@@ -33,7 +33,7 @@ tools:
     - "wc -l pkg/**/*.go"
     - "grep -r 'type ' pkg --include='*.go'"
     - "grep -r 'interface{}' pkg --include='*.go'"
-    - "grep -r '\bany\b' pkg --include='*.go'"
+    - "grep -r '\\bany\\b' pkg --include='*.go'"
     - "cat pkg/**/*.go"
 
 timeout-minutes: 20
