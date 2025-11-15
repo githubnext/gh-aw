@@ -1,4 +1,5 @@
 ---
+description: Generates a daily news digest of repository activity including issues, PRs, discussions, and workflow runs
 on:
   schedule:
     # Every day at 9am UTC, all days except Saturday and Sunday

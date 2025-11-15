@@ -5,7 +5,11 @@ async function main() {
   const { eventName } = context;
 
   // skip check for safe events
-  const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+  // workflow_run is intentionally excluded due to HIGH security risks:
+  // - Privilege escalation (inherits permissions from triggering workflow)
+  // - Branch protection bypass (can execute on protected branches)
+  // - Secret exposure (secrets available from untrusted code)
+  const safeEvents = ["workflow_dispatch", "schedule"];
   if (safeEvents.includes(eventName)) {
     core.info(`✅ Event ${eventName} does not require validation`);
     return;

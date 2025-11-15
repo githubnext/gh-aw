@@ -46,6 +46,8 @@ imports:
 
 During `gh aw add`, imports are expanded to track source repository (e.g., `shared/common-tools.md` becomes `githubnext/agentics/shared/common-tools.md@abc123def`).
 
+Remote imports are automatically cached in `.github/aw/imports/` by commit SHA. This enables offline workflow compilation once imports have been downloaded. The cache is shared across different refs pointing to the same commit, reducing redundant downloads.
+
 ## Example: Modular Workflow with Imports
 
 Create a shared MCP server configuration in `.github/workflows/shared/mcp/tavily.md`:

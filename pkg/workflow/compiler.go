@@ -49,21 +49,22 @@ type FileTracker interface {
 type Compiler struct {
 	verbose              bool
 	engineOverride       string
-	customOutput         string            // If set, output will be written to this path instead of default location
-	version              string            // Version of the extension
-	skipValidation       bool              // If true, skip schema validation
-	noEmit               bool              // If true, validate without generating lock files
-	strictMode           bool              // If true, enforce strict validation requirements
-	trialMode            bool              // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug string            // If set in trial mode, the logical repository to checkout
-	refreshStopTime      bool              // If true, regenerate stop-after times instead of preserving existing ones
-	jobManager           *JobManager       // Manages jobs and dependencies
-	engineRegistry       *EngineRegistry   // Registry of available agentic engines
-	fileTracker          FileTracker       // Optional file tracker for tracking created files
-	warningCount         int               // Number of warnings encountered during compilation
-	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
-	actionCache          *ActionCache      // Shared cache for action pin resolutions across all workflows
-	actionResolver       *ActionResolver   // Shared resolver for action pins across all workflows
+	customOutput         string              // If set, output will be written to this path instead of default location
+	version              string              // Version of the extension
+	skipValidation       bool                // If true, skip schema validation
+	noEmit               bool                // If true, validate without generating lock files
+	strictMode           bool                // If true, enforce strict validation requirements
+	trialMode            bool                // If true, suppress safe outputs for trial mode execution
+	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
+	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	jobManager           *JobManager         // Manages jobs and dependencies
+	engineRegistry       *EngineRegistry     // Registry of available agentic engines
+	fileTracker          FileTracker         // Optional file tracker for tracking created files
+	warningCount         int                 // Number of warnings encountered during compilation
+	stepOrderTracker     *StepOrderTracker   // Tracks step ordering for validation
+	actionCache          *ActionCache        // Shared cache for action pin resolutions across all workflows
+	actionResolver       *ActionResolver     // Shared resolver for action pins across all workflows
+	importCache          *parser.ImportCache // Shared cache for imported workflow files
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -146,6 +147,21 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 		log.Print("Initialized shared action cache and resolver for compiler")
 	}
 	return c.actionCache, c.actionResolver
+}
+
+// getSharedImportCache returns the shared import cache, initializing it on first use
+// This ensures all workflows compiled by this compiler instance share the same import cache
+func (c *Compiler) getSharedImportCache() *parser.ImportCache {
+	if c.importCache == nil {
+		// Initialize cache on first use
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = "."
+		}
+		c.importCache = parser.NewImportCache(cwd)
+		log.Print("Initialized shared import cache for compiler")
+	}
+	return c.importCache
 }
 
 // GetSharedActionCache returns the shared action cache used by this compiler instance.
@@ -691,7 +707,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Process imports from frontmatter first (before @include directives)
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
+	importCache := c.getSharedImportCache()
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir, importCache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}

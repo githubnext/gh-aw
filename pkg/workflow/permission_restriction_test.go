@@ -147,7 +147,7 @@ Test workflow content.`,
 			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
-			name: "workflow with workflow_run only should NOT include permission check (safe event)",
+			name: "workflow with workflow_run should INCLUDE permission check (unsafe event)",
 			frontmatter: `---
 on:
   workflow_run:
@@ -161,7 +161,7 @@ tools:
 # Workflow Run Trigger
 Test workflow content.`,
 			filename:              "workflow-run-workflow.md",
-			expectPermissionCheck: false,
+			expectPermissionCheck: true,
 			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{

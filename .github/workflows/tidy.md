@@ -1,5 +1,6 @@
 ---
 name: Tidy
+description: Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 on:
   workflow_dispatch:
   command:

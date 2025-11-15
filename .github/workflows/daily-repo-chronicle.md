@@ -1,4 +1,5 @@
 ---
+description: Creates a narrative chronicle of daily repository activity including commits, PRs, issues, and discussions
 on:
   schedule:
     - cron: "0 16 * * 1-5"  # 8 AM PST (4 PM UTC), weekdays only

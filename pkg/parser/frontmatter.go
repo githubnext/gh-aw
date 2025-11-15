@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -370,7 +371,7 @@ func ExtractMarkdown(filePath string) (string, error) {
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
+	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -388,7 +389,7 @@ type importQueueItem struct {
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
 // Returns result containing merged tools, engines, markdown content, and list of imported files
 // Uses BFS traversal with queues for deterministic ordering and cycle detection
-func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (*ImportsResult, error) {
+func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string, cache *ImportCache) (*ImportsResult, error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
@@ -450,7 +451,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 
 		// Resolve import path (supports workflowspec format)
-		fullPath, err := resolveIncludePath(filePath, baseDir)
+		fullPath, err := resolveIncludePath(filePath, baseDir, cache)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
@@ -557,7 +558,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 					}
 
 					// Resolve nested import path relative to the workflows directory, not the nested file's directory
-					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir)
+					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir, cache)
 					if err != nil {
 						return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
 					}
@@ -723,7 +724,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			}
 
 			// Resolve file path first to get the canonical path
-			fullPath, err := resolveIncludePath(filePath, baseDir)
+			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, show a friendly informational message to stdout
@@ -795,12 +796,12 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 }
 
 // resolveIncludePath resolves include path based on workflowspec format or relative path
-func resolveIncludePath(filePath, baseDir string) (string, error) {
+func resolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	// Check if this is a workflowspec (contains owner/repo/path format)
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 	if isWorkflowSpec(filePath) {
-		// Download from GitHub using workflowspec
-		return downloadIncludeFromWorkflowSpec(filePath)
+		// Download from GitHub using workflowspec (with cache support)
+		return downloadIncludeFromWorkflowSpec(filePath, cache)
 	}
 
 	// Regular path, resolve relative to base directory
@@ -849,7 +850,8 @@ func isWorkflowSpec(path string) bool {
 }
 
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec
-func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
+// It first checks the cache, and only downloads if not cached
+func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
 	// Parse the workflowspec
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 
@@ -879,13 +881,47 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 	repo := slashParts[1]
 	filePath := strings.Join(slashParts[2:], "/")
 
+	// Resolve ref to SHA for cache lookup
+	var sha string
+	if cache != nil {
+		// Only resolve SHA if we're using the cache
+		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
+		if err != nil {
+			// If the error is an authentication error, propagate it immediately
+			lowerErr := strings.ToLower(err.Error())
+			if strings.Contains(lowerErr, "auth") || strings.Contains(lowerErr, "unauthoriz") || strings.Contains(lowerErr, "forbidden") || strings.Contains(lowerErr, "token") || strings.Contains(lowerErr, "permission denied") {
+				return "", fmt.Errorf("failed to resolve ref to SHA due to authentication error: %w", err)
+			}
+			log.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
+			// Continue without caching if SHA resolution fails
+		} else {
+			sha = resolvedSHA
+			// Check cache using SHA
+			if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
+				log.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
+				return cachedPath, nil
+			}
+		}
+	}
+
 	// Download the file content from GitHub
 	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
 
-	// Create a temporary file to store the downloaded content
+	// If cache is available and we have a SHA, store in cache
+	if cache != nil && sha != "" {
+		cachedPath, err := cache.Set(owner, repo, filePath, sha, content)
+		if err != nil {
+			log.Printf("Failed to cache import: %v", err)
+			// Don't fail the compilation, fall back to temp file
+		} else {
+			return cachedPath, nil
+		}
+	}
+
+	// Fallback: Create a temporary file to store the downloaded content
 	tempFile, err := os.CreateTemp("", "gh-aw-include-*.md")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
@@ -905,40 +941,74 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 	return tempFile.Name(), nil
 }
 
-// downloadFileFromGitHub downloads a file from GitHub using gh CLI
-func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
-	// Use gh CLI to download the file
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
-
-	// Set up environment for gh command
-	// gh CLI looks for GH_TOKEN or GITHUB_TOKEN in the environment
-	// If neither is set and gh is not authenticated, it will fail
-	cmd.Env = os.Environ()
-
-	// If GITHUB_TOKEN is set but GH_TOKEN is not, set GH_TOKEN for gh CLI
-	if os.Getenv("GH_TOKEN") == "" && os.Getenv("GITHUB_TOKEN") != "" {
-		cmd.Env = append(cmd.Env, "GH_TOKEN="+os.Getenv("GITHUB_TOKEN"))
+// resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
+func resolveRefToSHA(owner, repo, ref string) (string, error) {
+	// If ref is already a full SHA (40 hex characters), return it as-is
+	if len(ref) == 40 && isHexString(ref) {
+		return ref, nil
 	}
+
+	// Use gh CLI to get the commit SHA for the ref
+	// This works for branches, tags, and short SHAs
+	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Check if this is an authentication error
 		outputStr := string(output)
 		if strings.Contains(outputStr, "GH_TOKEN") || strings.Contains(outputStr, "authentication") || strings.Contains(outputStr, "not logged into") {
+			return "", fmt.Errorf("failed to resolve ref to SHA: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+		}
+		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
+	}
+
+	sha := strings.TrimSpace(string(output))
+	if sha == "" {
+		return "", fmt.Errorf("empty SHA returned for ref %s in %s/%s", ref, owner, repo)
+	}
+
+	// Validate it's a valid SHA (40 hex characters)
+	if len(sha) != 40 || !isHexString(sha) {
+		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
+	}
+
+	return sha, nil
+}
+
+// isHexString checks if a string contains only hexadecimal characters
+func isHexString(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
+	// Use go-gh/v2 to download the file
+	stdout, stderr, err := gh.Exec("api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
+
+	if err != nil {
+		// Check if this is an authentication error
+		stderrStr := stderr.String()
+		if strings.Contains(stderrStr, "GH_TOKEN") || strings.Contains(stderrStr, "authentication") || strings.Contains(stderrStr, "not logged into") {
 			return nil, fmt.Errorf("failed to fetch file content: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
 		}
-		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(outputStr), err)
+		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(stderrStr), err)
 	}
 
 	// The content is base64 encoded, decode it
-	contentBase64 := strings.TrimSpace(string(output))
+	contentBase64 := strings.TrimSpace(stdout.String())
 	if contentBase64 == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API for %s/%s/%s@%s", owner, repo, path, ref)
 	}
 
-	cmd = exec.Command("base64", "-d")
-	cmd.Stdin = strings.NewReader(contentBase64)
-	content, err := cmd.Output()
+	decodeCmd := exec.Command("base64", "-d")
+	decodeCmd.Stdin = strings.NewReader(contentBase64)
+	content, err := decodeCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}
@@ -1331,7 +1401,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 			}
 
 			// Resolve file path
-			fullPath, err := resolveIncludePath(filePath, baseDir)
+			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, skip extraction

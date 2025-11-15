@@ -36,7 +36,8 @@ func TestSafeWorkflowEvents(t *testing.T) {
 		t.Error("SafeWorkflowEvents should not be empty")
 	}
 
-	expectedEvents := []string{"workflow_dispatch", "workflow_run", "schedule"}
+	// workflow_run is intentionally excluded due to HIGH security risks
+	expectedEvents := []string{"workflow_dispatch", "schedule"}
 	if len(SafeWorkflowEvents) != len(expectedEvents) {
 		t.Errorf("SafeWorkflowEvents length = %d, want %d", len(SafeWorkflowEvents), len(expectedEvents))
 	}

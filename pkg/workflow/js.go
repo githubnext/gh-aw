@@ -70,6 +70,9 @@ var stagedPreviewScript string
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
 
+//go:embed js/log_parser_shared.cjs
+var logParserSharedScript string
+
 //go:embed js/update_activation_comment.cjs
 var updateActivationCommentScript string
 
@@ -117,6 +120,7 @@ func GetJavaScriptSources() map[string]string {
 		"staged_preview.cjs":            stagedPreviewScript,
 		"is_truthy.cjs":                 isTruthyScript,
 		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
+		"log_parser_shared.cjs":         logParserSharedScript,
 		"update_activation_comment.cjs": updateActivationCommentScript,
 		"generate_footer.cjs":           generateFooterScript,
 		"get_campaign.cjs":              getCampaignScript,

@@ -1,5 +1,6 @@
 ---
 name: Copilot Agent Prompt Clustering Analysis
+description: Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
 on:
   schedule:
     # Every day at 7pm UTC (1 hour after copilot-agent-analysis)

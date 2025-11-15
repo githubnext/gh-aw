@@ -1,4 +1,5 @@
 ---
+description: Creates issue summaries and syncs them to Notion for project management and tracking
 on:
   workflow_dispatch:
     inputs:

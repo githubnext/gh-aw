@@ -303,16 +303,10 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
 
-  it("should skip validation for workflow_run events", async () => {
-    process.env.GH_AW_REQUIRED_ROLES = "admin";
-    global.context.eventName = "workflow_run";
-
-    // Execute the script
-    await eval(`(async () => { ${checkPermissionsScript} })()`);
-
-    expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_run does not require validation");
-    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
-  });
+  // workflow_run is no longer a safe event due to HIGH security risks:
+  // - Privilege escalation (inherits permissions from triggering workflow)
+  // - Branch protection bypass (can execute on protected branches)
+  // - Secret exposure (secrets available from untrusted code)
 
   it("should skip validation for schedule events", async () => {
     process.env.GH_AW_REQUIRED_ROLES = "admin";

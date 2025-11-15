@@ -1,5 +1,6 @@
 ---
 name: Multi-Device Docs Tester
+description: Tests documentation site functionality and responsive design across multiple device form factors
 on:
   schedule:
     - cron: '0 9 * * *'  # Daily at 9 AM UTC
@@ -12,6 +13,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: claude
   max-turns: 30  # Prevent runaway token usage

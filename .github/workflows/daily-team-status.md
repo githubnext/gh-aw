@@ -1,4 +1,5 @@
 ---
+description: Provides daily team status updates summarizing activity, progress, and blockers across the team
 on:
   schedule:
     # Every day at 9am UTC, all days except Saturday and Sunday

@@ -1,4 +1,5 @@
 ---
+description: Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content
 on:
   workflow_dispatch:
   schedule:

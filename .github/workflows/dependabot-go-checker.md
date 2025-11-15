@@ -1,4 +1,5 @@
 ---
+description: Checks for Go module dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 on:
   schedule:
     # Run every other business day: Monday, Wednesday, Friday at 9 AM UTC

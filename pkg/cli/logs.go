@@ -133,13 +133,12 @@ type RunSummary struct {
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 	logsLog.Printf("Fetching job statuses: runID=%d", runID)
-	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}"}
 
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
@@ -181,13 +180,11 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 
 // fetchJobDetails gets detailed job information including durations for a workflow run
 func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
-	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}"}
-
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH("api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if verbose {
@@ -342,7 +339,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
   ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate markdown reports
   ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
-  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both markdown and JSON`,
+  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both markdown and JSON
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
@@ -390,6 +388,7 @@ Examples:
 			parse, _ := cmd.Flags().GetBool("parse")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			timeout, _ := cmd.Flags().GetInt("timeout")
+			repoOverride, _ := cmd.Flags().GetString("repo")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -438,7 +437,7 @@ Examples:
 				os.Exit(1)
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -453,10 +452,11 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex, copilot)")
+	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by agentic engine type (claude, codex, copilot)")
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
+	logsCmd.Flags().StringP("repo", "r", "", "Repository to download logs from (owner/repo format)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
@@ -469,7 +469,7 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int) error {
 	logsLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s", workflowName, count, startDate, endDate, outputDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
@@ -546,7 +546,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, len(processedRuns), count, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose)
 		if err != nil {
 			return err
 		}
@@ -1035,7 +1035,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 // not the total number of matching runs the user wants to find.
 //
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
-func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
+func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -1058,6 +1058,10 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	// Add branch filter
 	if branch != "" {
 		args = append(args, "--branch", branch)
+	}
+	// Add repo filter
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
 	}
 
 	if verbose {

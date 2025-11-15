@@ -731,6 +731,13 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 
 		fmt.Printf("Added workflow: %s\n", destFile)
 
+		// Extract and display description if present
+		if description := ExtractWorkflowDescription(content); description != "" {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+			fmt.Fprintln(os.Stderr, "")
+		}
+
 		// Try to compile the workflow and track generated files
 		if tracker != nil {
 			if err := compileWorkflowWithTracking(destFile, verbose, engineOverride, tracker); err != nil {
@@ -769,8 +776,13 @@ func updateWorkflowTitle(content string, number int) string {
 }
 
 func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
+	return compileWorkflowWithRefresh(filePath, verbose, engineOverride, false)
+}
+
+func compileWorkflowWithRefresh(filePath string, verbose bool, engineOverride string, refreshStopTime bool) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	compiler.SetRefreshStopTime(refreshStopTime)
 	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}
@@ -790,6 +802,10 @@ func compileWorkflow(filePath string, verbose bool, engineOverride string) error
 
 // compileWorkflowWithTracking compiles a workflow and tracks generated files
 func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride string, tracker *FileTracker) error {
+	return compileWorkflowWithTrackingAndRefresh(filePath, verbose, engineOverride, tracker, false)
+}
+
+func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, engineOverride string, tracker *FileTracker, refreshStopTime bool) error {
 	// Generate the expected lock file path
 	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
 
@@ -827,6 +843,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
+	compiler.SetRefreshStopTime(refreshStopTime)
 	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}

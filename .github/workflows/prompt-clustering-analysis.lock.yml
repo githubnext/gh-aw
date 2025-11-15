@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
@@ -304,7 +306,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.37
+        run: npm install -g @anthropic-ai/claude-code@2.0.41
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2190,7 +2192,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.37",
+              agent_version: "2.0.41",
               workflow_name: "Copilot Agent Prompt Clustering Analysis",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3406,6 +3408,43 @@ jobs:
                 runLogParser,
               };
             }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 300;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
             function main() {
               runLogParser({
                 parseLog: parseClaudeLog,
@@ -3651,23 +3690,6 @@ jobs:
               }
               return { markdown, mcpFailures };
             }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function formatDuration(ms) {
-              if (!ms || ms <= 0) return "";
-              const seconds = Math.round(ms / 1000);
-              if (seconds < 60) {
-                return `${seconds}s`;
-              }
-              const minutes = Math.floor(seconds / 60);
-              const remainingSeconds = seconds % 60;
-              if (remainingSeconds === 0) {
-                return `${minutes}m`;
-              }
-              return `${minutes}m ${remainingSeconds}s`;
-            }
             function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
@@ -3784,26 +3806,6 @@ jobs:
                 paramStrs.push("...");
               }
               return paramStrs.join(", ");
-            }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 300;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
@@ -4371,7 +4373,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends"
         with:
           script: |
             const fs = require('fs');
@@ -4499,7 +4501,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.37
+        run: npm install -g @anthropic-ai/claude-code@2.0.41
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

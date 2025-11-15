@@ -23,7 +23,11 @@ async function main() {
   }
 
   // skip check for other safe events
-  const safeEvents = ["workflow_run", "schedule"];
+  // workflow_run is intentionally excluded due to HIGH security risks:
+  // - Privilege escalation (inherits permissions from triggering workflow)
+  // - Branch protection bypass (can execute on protected branches)
+  // - Secret exposure (secrets available from untrusted code)
+  const safeEvents = ["schedule"];
   if (safeEvents.includes(eventName)) {
     core.info(`✅ Event ${eventName} does not require validation`);
     core.setOutput("is_team_member", "true");

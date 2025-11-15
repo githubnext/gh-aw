@@ -1,4 +1,5 @@
 ---
+description: Performs web searches using Brave search engine when invoked with /brave command in issues or PRs
 on:
   command:
     name: brave

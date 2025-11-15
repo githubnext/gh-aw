@@ -57,8 +57,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 				}
 			}
 
-			// Parse common base fields
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig)
+			// Parse common base fields with default max of 0 (no limit)
+			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
 		} else if configData == nil {
 			// Handle null case: create config with defaults
 			return config

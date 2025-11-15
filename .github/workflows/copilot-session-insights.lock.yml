@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
@@ -204,10 +206,11 @@ jobs:
         run: "echo \"::group::Install gh agent-task Extension\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is already installed\nif gh extension list | grep -q \"github/agent-task\"; then\n  echo \"✓ gh agent-task extension is already installed\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"::endgroup::\"\n  exit 0\nfi\n\n# Attempt to install the extension\necho \"Installing gh agent-task extension...\"\nif gh extension install github/agent-task; then\n  echo \"✓ gh agent-task extension installed successfully\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"::warning::Failed to install gh agent-task extension\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"::warning::The extension may not be available for this account\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"::endgroup::\"\n"
       - continue-on-error: true
         env:
+          EXTENSION_INSTALLED: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
         id: download-sessions
         name: List and download Copilot agent sessions
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  echo \"::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ -n \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  # Security: Use environment variable instead of template expression in bash script\n  echo \"::warning::Extension installation status from previous step: $EXTENSION_INSTALLED\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ -n \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
       - if: steps.download-sessions.outcome == 'failure'
         name: Create fallback session data
         run: "# Create empty session data to prevent downstream errors\nmkdir -p /tmp/gh-aw/agent-sessions/logs\necho '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json\necho \"Created empty session data files for graceful degradation\"\n"
@@ -306,7 +309,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.37
+        run: npm install -g @anthropic-ai/claude-code@2.0.41
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2984,7 +2987,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.37",
+              agent_version: "2.0.41",
               workflow_name: "Copilot Session Insights",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4204,6 +4207,43 @@ jobs:
                 runLogParser,
               };
             }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 300;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
             function main() {
               runLogParser({
                 parseLog: parseClaudeLog,
@@ -4449,23 +4489,6 @@ jobs:
               }
               return { markdown, mcpFailures };
             }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function formatDuration(ms) {
-              if (!ms || ms <= 0) return "";
-              const seconds = Math.round(ms / 1000);
-              if (seconds < 60) {
-                return `${seconds}s`;
-              }
-              const minutes = Math.floor(seconds / 60);
-              const remainingSeconds = seconds % 60;
-              if (remainingSeconds === 0) {
-                return `${minutes}m`;
-              }
-              return `${minutes}m ${remainingSeconds}s`;
-            }
             function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
@@ -4582,26 +4605,6 @@ jobs:
                 paramStrs.push("...");
               }
               return paramStrs.join(", ");
-            }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 300;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
@@ -5176,7 +5179,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Session Insights"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics"
         with:
           script: |
             const fs = require('fs');
@@ -5304,7 +5307,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.37
+        run: npm install -g @anthropic-ai/claude-code@2.0.41
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

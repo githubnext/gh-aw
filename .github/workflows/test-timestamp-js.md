@@ -1,4 +1,5 @@
 ---
+description: Minimal test workflow for verifying JavaScript-based workflow timestamp checks
 on:
   workflow_dispatch:
 permissions:

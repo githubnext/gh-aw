@@ -14,13 +14,13 @@ import (
 )
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
-func EnableWorkflowsByNames(workflowNames []string) error {
-	return toggleWorkflowsByNames(workflowNames, true)
+func EnableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	return toggleWorkflowsByNames(workflowNames, true, repoOverride)
 }
 
 // DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
-func DisableWorkflowsByNames(workflowNames []string) error {
-	return toggleWorkflowsByNames(workflowNames, false)
+func DisableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	return toggleWorkflowsByNames(workflowNames, false, repoOverride)
 }
 
 // Deprecated: Use EnableWorkflowsByNames with specific workflow names instead
@@ -40,7 +40,7 @@ func DisableWorkflows(pattern string) error {
 }
 
 // toggleWorkflowsByNames toggles workflows by specific names, or all if no names provided
-func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
+func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride string) error {
 	action := "enable"
 	if !enable {
 		action = "disable"
@@ -68,7 +68,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		}
 
 		// Recursively call with all workflow names
-		return toggleWorkflowsByNames(allWorkflowNames, enable)
+		return toggleWorkflowsByNames(allWorkflowNames, enable, repoOverride)
 	}
 
 	// Check if gh CLI is available
@@ -202,9 +202,17 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		if enable {
 			// Prefer enabling by ID, otherwise fall back to lock file name
 			if t.ID != 0 {
-				cmd = exec.Command("gh", "workflow", "enable", strconv.FormatInt(t.ID, 10))
+				args := []string{"workflow", "enable", strconv.FormatInt(t.ID, 10)}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			} else {
-				cmd = exec.Command("gh", "workflow", "enable", t.LockFileBase)
+				args := []string{"workflow", "enable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			}
 		} else {
 			// First cancel any running workflows (by ID when available, else by lock file name)
@@ -213,12 +221,20 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
 				// Prefer disabling by lock file name for reliability
-				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
+				args := []string{"workflow", "disable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			} else {
 				if err := cancelWorkflowRunsByLockFile(t.LockFileBase); err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
-				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
+				args := []string{"workflow", "disable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			}
 		}
 
@@ -248,5 +264,107 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		}
 	}
 
+	return nil
+}
+
+// DisableAllWorkflowsExcept disables all workflows except the specified ones
+// Typically used to disable all workflows except the one being trialled
+func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbose bool) error {
+	workflowsDir := ".github/workflows"
+
+	// Check if workflows directory exists
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No .github/workflows directory found, nothing to disable"))
+		}
+		return nil
+	}
+
+	// Get all .yml and .yaml files
+	ymlFiles, _ := filepath.Glob(filepath.Join(workflowsDir, "*.yml"))
+	yamlFiles, _ := filepath.Glob(filepath.Join(workflowsDir, "*.yaml"))
+	allYAMLFiles := append(ymlFiles, yamlFiles...)
+
+	if len(allYAMLFiles) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No YAML workflow files found"))
+		}
+		return nil
+	}
+
+	// Create a set of workflows to keep enabled
+	keepEnabled := make(map[string]bool)
+	for _, workflowName := range exceptWorkflows {
+		// Add both .md and .lock.yml variants
+		keepEnabled[workflowName+".md"] = true
+		keepEnabled[workflowName+".lock.yml"] = true
+		keepEnabled[workflowName] = true // In case the full filename is provided
+	}
+
+	// Filter to find workflows to disable
+	var workflowsToDisable []string
+
+	for _, yamlFile := range allYAMLFiles {
+		base := filepath.Base(yamlFile)
+
+		// Skip if it's in the keep-enabled set
+		if keepEnabled[base] {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
+			}
+			continue
+		}
+
+		// Check if the base name without extension matches
+		nameWithoutExt := strings.TrimSuffix(base, filepath.Ext(base))
+		if keepEnabled[nameWithoutExt] {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Keeping enabled: %s\n", base)
+			}
+			continue
+		}
+
+		workflowsToDisable = append(workflowsToDisable, base)
+	}
+
+	if len(workflowsToDisable) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows to disable"))
+		}
+		return nil
+	}
+
+	// Show what will be disabled
+	fmt.Fprintf(os.Stderr, "Disabling %d workflow(s) in cloned repository:\n", len(workflowsToDisable))
+	for _, workflow := range workflowsToDisable {
+		fmt.Fprintf(os.Stderr, "  %s\n", workflow)
+	}
+
+	// Disable each workflow
+	var failures []string
+	for _, workflow := range workflowsToDisable {
+		args := []string{"workflow", "disable", workflow}
+		if repoSlug != "" {
+			args = append(args, "--repo", repoSlug)
+		}
+
+		cmd := exec.Command("gh", args...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to disable workflow %s: %v\n%s\n", workflow, err, string(output))
+			}
+			failures = append(failures, workflow)
+		} else {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Disabled workflow: %s\n", workflow)
+			}
+		}
+	}
+
+	if len(failures) > 0 {
+		return fmt.Errorf("failed to disable %d workflow(s): %s", len(failures), strings.Join(failures, ", "))
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Disabled %d workflow(s)", len(workflowsToDisable))))
 	return nil
 }

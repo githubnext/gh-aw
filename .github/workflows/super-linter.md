@@ -1,4 +1,5 @@
 ---
+description: Runs comprehensive code quality checks using Super Linter and creates issues for violations
 on:
   workflow_dispatch:
   schedule:
@@ -60,7 +61,7 @@ jobs:
       
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: super-linter-log
           path: super-linter.log

@@ -1,5 +1,6 @@
 ---
 name: Test jqschema
+description: Tests the jqschema utility for extracting JSON structure and type information
 on:
   workflow_dispatch:
 permissions:
