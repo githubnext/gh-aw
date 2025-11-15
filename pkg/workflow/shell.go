@@ -40,7 +40,9 @@ func shellEscapeArg(arg string) string {
 	if strings.ContainsAny(arg, "()[]{}*?$`\"'\\|&;<> \t\n") {
 		shellLog.Print("Argument contains special characters, applying escaping")
 		// Handle single quotes in the argument by escaping them
-		escaped := strings.ReplaceAll(arg, "'", "'\"'\"'")
+		// Use '\'' instead of '\"'\"' to avoid creating double-quoted contexts
+		// that would interpret backslash escape sequences
+		escaped := strings.ReplaceAll(arg, "'", "'\\''")
 		return "'" + escaped + "'"
 	}
 	return arg
