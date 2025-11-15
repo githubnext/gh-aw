@@ -177,12 +177,6 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	)
 }
 
-// renderAgenticWorkflowsMCPConfig generates the Agentic Workflows MCP server configuration
-// This is a shared function used by both Claude and Custom engines
-func renderAgenticWorkflowsMCPConfig(yaml *strings.Builder, isLast bool) {
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, isLast, false)
-}
-
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
 func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
 	envVars := []string{
