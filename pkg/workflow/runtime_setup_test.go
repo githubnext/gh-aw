@@ -505,7 +505,8 @@ func TestUVDetectionAddsPython(t *testing.T) {
 }
 
 func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
-	// Test that runtimes with existing setup actions are filtered out
+	// Test that runtimes are detected even when setup actions already exist
+	// The deduplication happens later in the compiler, not during detection
 	workflowData := &WorkflowData{
 		CustomSteps: `steps:
   - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
@@ -522,7 +523,9 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 
 	requirements := DetectRuntimeRequirements(workflowData)
 
-	// Check that uv and python are detected, but go is filtered out
+	// Check that uv, python, and go are all detected
+	// Go should be detected even though there's an existing setup action
+	// The compiler will deduplicate the setup action from custom steps
 	foundUV := false
 	foundPython := false
 	foundGo := false
@@ -546,7 +549,7 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 		t.Error("Expected python to be auto-added when uv is detected")
 	}
 
-	if foundGo {
-		t.Error("Expected go to be filtered out since it has existing setup action")
+	if !foundGo {
+		t.Error("Expected go to be detected from go build command (deduplication happens in compiler)")
 	}
 }

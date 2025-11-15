@@ -191,9 +191,24 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add automatic runtime setup steps if needed
 	// This detects runtimes from custom steps and MCP configs
-	// Must be added BEFORE custom steps so the runtimes are available
-	// Runtime detection now smartly filters out runtimes that already have setup actions
+	// Runtime steps are added BEFORE custom steps so the runtimes are available
 	runtimeRequirements := DetectRuntimeRequirements(data)
+
+	// Deduplicate runtime setup steps from custom steps
+	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
+	// since we're adding them above. It also preserves user-customized setup actions and
+	// filters those runtimes from requirements so we don't generate duplicates.
+	if len(runtimeRequirements) > 0 && data.CustomSteps != "" {
+		deduplicatedCustomSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(data.CustomSteps, runtimeRequirements)
+		if err != nil {
+			compilerYamlLog.Printf("Warning: failed to deduplicate runtime setup steps: %v", err)
+		} else {
+			data.CustomSteps = deduplicatedCustomSteps
+			runtimeRequirements = filteredRequirements
+		}
+	}
+
+	// Generate runtime setup steps (after filtering out user-customized ones)
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 	for _, step := range runtimeSetupSteps {
