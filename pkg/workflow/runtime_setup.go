@@ -624,7 +624,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	// Parse custom steps YAML
 	var stepsWrapper map[string]any
 	if err := yaml.Unmarshal([]byte(customSteps), &stepsWrapper); err != nil {
-		return customSteps, runtimeRequirements, fmt.Errorf("failed to parse custom steps: %w", err)
+		return customSteps, runtimeRequirements, fmt.Errorf("failed to parse custom workflow steps from frontmatter. Custom steps must be valid GitHub Actions step syntax. Example:\nsteps:\n  - name: Setup\n    run: echo 'hello'\n  - name: Build\n    run: make build\nError: %w", err)
 	}
 
 	stepsVal, hasSteps := stepsWrapper["steps"]
@@ -787,7 +787,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	stepsWrapper["steps"] = filteredSteps
 	deduplicatedYAML, err := yaml.Marshal(stepsWrapper)
 	if err != nil {
-		return customSteps, runtimeRequirements, fmt.Errorf("failed to marshal deduplicated steps: %w", err)
+		return customSteps, runtimeRequirements, fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", err)
 	}
 
 	return string(deduplicatedYAML), filteredRequirements, nil
