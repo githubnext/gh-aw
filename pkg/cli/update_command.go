@@ -302,7 +302,7 @@ func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure
 	if len(successfulUpdates) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully updated and compiled %d workflow(s):", len(successfulUpdates))))
 		for _, name := range successfulUpdates {
-			fmt.Fprintf(os.Stderr, "  ✓ %s\n", name)
+			fmt.Fprintln(os.Stderr, console.FormatListItem(name))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -311,7 +311,7 @@ func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure
 	if len(failedUpdates) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
 		for _, failure := range failedUpdates {
-			fmt.Fprintf(os.Stderr, "  ✗ %s: %s\n", failure.Name, failure.Error)
+			fmt.Fprintf(os.Stderr, "  %s %s: %s\n", console.FormatErrorMessage("✗"), failure.Name, failure.Error)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
