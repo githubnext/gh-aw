@@ -90,10 +90,16 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := NewCopilotEngine()
 			var output strings.Builder
-
-			engine.renderGitHubCopilotMCPConfig(&output, tt.githubTool, tt.isLast)
+			workflowData := &WorkflowData{}
+			// Use unified renderer instead of direct method call
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: true,
+				InlineArgs:           true,
+				Format:               "json",
+				IsLast:               tt.isLast,
+			})
+			renderer.RenderGitHubMCP(&output, tt.githubTool, workflowData)
 			result := output.String()
 
 			// Check expected content
