@@ -100,6 +100,48 @@ mcp-servers:
 
 The imported MCP server configuration is merged into the final workflow, making it available to the AI engine.
 
+## Built-in Shared Imports
+
+The gh-aw repository includes several useful shared imports in `.github/workflows/shared/`:
+
+### GitHub Context Share
+
+Import `shared/github-context.md` to provide comprehensive GitHub invocation context to your workflow:
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/github-context.md
+---
+
+# Your Workflow
+
+The GitHub context information will be available above this section.
+```
+
+This provides a standardized context block including:
+- Repository information (owner, name, server URL)
+- Workflow execution details (run ID, run number, actor)
+- Event-specific context (issue number, PR number, comment ID, etc.)
+- Commit context (before/after SHAs, head commit)
+- Sanitized content access instructions
+
+All context fields are conditionally rendered - only applicable fields for the current event type will be populated. This eliminates the need to manually construct context information in each workflow.
+
+### MCP Server Configurations
+
+The `shared/mcp/` directory contains pre-configured MCP server imports:
+
+- `tavily.md` - Web search capabilities via Tavily API
+- `brave.md` - Web search via Brave Search API
+- `gh-aw.md` - GitHub Agentic Workflows introspection tools
+- `serena.md` - Mermaid diagram generation server
+- And more...
+
+See the [MCPs guide](/gh-aw/guides/mcps/) for complete MCP server documentation.
+
 ## Related Documentation
 
 - [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
