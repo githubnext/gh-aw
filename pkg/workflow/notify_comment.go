@@ -91,7 +91,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// 1. always() - run even if agent fails
 	// 2. agent was activated (not skipped)
 	// 3. comment_id exists (comment was created in activation)
-	// 4. NOT contains(output_types, 'add_comment')
+	// 4. add_comment job either doesn't exist OR hasn't created a comment yet
 	//
 	// Note: The job should run even when create_pull_request or push_to_pull_request_branch
 	// output types are present, as those don't update the activation comment.
@@ -107,23 +107,37 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Check that a comment was created in activation
 	commentIdExists := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.comment_id", constants.ActivationJobName))
 
-	// Check that output_types doesn't contain add_comment
-	// (if add_comment was used, it already updated the comment)
-	noAddComment := &NotNode{
-		Child: BuildFunctionCall("contains",
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
-			BuildStringLiteral("add_comment"),
-		),
+	// Check if add_comment job exists in the safe output jobs
+	hasAddCommentJob := false
+	for _, jobName := range safeOutputJobNames {
+		if jobName == "add_comment" {
+			hasAddCommentJob = true
+			break
+		}
 	}
 
-	// Combine all conditions with AND
-	condition := buildAnd(
-		buildAnd(
+	// Build the condition based on whether add_comment job exists
+	var condition ConditionNode
+	if hasAddCommentJob {
+		// If add_comment job exists, check that it hasn't already created a comment
+		// (i.e., check that needs.add_comment.outputs.comment_id is empty/false)
+		noAddCommentOutput := &NotNode{
+			Child: BuildPropertyAccess("needs.add_comment.outputs.comment_id"),
+		}
+		condition = buildAnd(
+			buildAnd(
+				buildAnd(alwaysFunc, agentNotSkipped),
+				commentIdExists,
+			),
+			noAddCommentOutput,
+		)
+	} else {
+		// If add_comment job doesn't exist, just check the basic conditions
+		condition = buildAnd(
 			buildAnd(alwaysFunc, agentNotSkipped),
 			commentIdExists,
-		),
-		noAddComment,
-	)
+		)
+	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
 	needs := []string{mainJobName, constants.ActivationJobName}
