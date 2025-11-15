@@ -269,8 +269,8 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 
 	// Split repo into owner and name
 	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 {
-		return false, fmt.Errorf("invalid repository format: %s (expected owner/repo)", repo)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false, fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: githubnext/gh-aw", repo)
 	}
 	owner, name := parts[0], parts[1]
 
