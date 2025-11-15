@@ -444,9 +444,23 @@ func TestRenderGitHubMCP_TOML(t *testing.T) {
 
 	output := yaml.String()
 
-	// TOML format doesn't support GitHub MCP yet, should be empty
-	if output != "" {
-		t.Error("Expected empty output for TOML format (not yet supported)")
+	// TOML format should now be supported and generate valid output
+	if output == "" {
+		t.Error("Expected non-empty output for TOML format")
+	}
+
+	// Verify key TOML elements are present
+	expectedElements := []string{
+		"[mcp_servers.github]",
+		"user_agent =",
+		"startup_timeout_sec =",
+		"tool_timeout_sec =",
+	}
+
+	for _, expected := range expectedElements {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nOutput:\n%s", expected, output)
+		}
 	}
 }
 

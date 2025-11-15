@@ -90,7 +90,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		// Extract owner/repo from path
 		pathParts := strings.Split(strings.Trim(repoURL.Path, "/"), "/")
 		if len(pathParts) != 2 || pathParts[0] == "" || pathParts[1] == "" {
-			return nil, fmt.Errorf("invalid GitHub URL: must be https://github.com/owner/repo")
+			return nil, fmt.Errorf("invalid GitHub URL: must be https://github.com/owner/repo. Example: https://github.com/githubnext/gh-aw")
 		}
 
 		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])
@@ -105,7 +105,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		// Validate repository format (org/repo)
 		repoParts := strings.Split(repo, "/")
 		if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-			return nil, fmt.Errorf("repository must be in format 'org/repo' or 'https://github.com/owner/repo'")
+			return nil, fmt.Errorf("repository must be in format 'owner/repo'. Example: githubnext/gh-aw")
 		}
 	}
 
