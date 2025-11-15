@@ -11,12 +11,12 @@ import (
 // the three-part template: what's wrong + what's expected + example
 func TestMCPErrorMessageQuality(t *testing.T) {
 	tests := []struct {
-		name           string
-		toolName       string
-		toolConfig     map[string]any
-		expectError    bool
-		errorContains  []string // All must be present in error message
-		errorShould    string   // Description of what the error should provide
+		name          string
+		toolName      string
+		toolConfig    map[string]any
+		expectError   bool
+		errorContains []string // All must be present in error message
+		errorShould   string   // Description of what the error should provide
 	}{
 		{
 			name:     "unknown property in MCP config",
@@ -108,17 +108,17 @@ func TestMCPErrorMessageQuality(t *testing.T) {
 				errMsg := err.Error()
 				for _, expected := range tt.errorContains {
 					if !strings.Contains(errMsg, expected) {
-						t.Errorf("Error message should contain '%s' (to %s)\nGot: %s", 
+						t.Errorf("Error message should contain '%s' (to %s)\nGot: %s",
 							expected, tt.errorShould, errMsg)
 					}
 				}
 
 				// Verify the error message has all three components
-				hasWhatWrong := strings.Contains(errMsg, tt.toolName) || 
-					strings.Contains(errMsg, "missing") || 
+				hasWhatWrong := strings.Contains(errMsg, tt.toolName) ||
+					strings.Contains(errMsg, "missing") ||
 					strings.Contains(errMsg, "unknown") ||
 					strings.Contains(errMsg, "unsupported")
-				hasExpected := strings.Contains(errMsg, "Valid") || 
+				hasExpected := strings.Contains(errMsg, "Valid") ||
 					strings.Contains(errMsg, "Must specify") ||
 					strings.Contains(errMsg, "must specify")
 				hasExample := strings.Contains(errMsg, "Example:")
@@ -153,10 +153,10 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 		errorShould   string
 	}{
 		{
-			name:       "invalid mcp configuration format - wrong type",
-			toolName:   "my-tool",
-			mcpSection: 12345, // should be map or string
-			toolConfig: map[string]any{},
+			name:        "invalid mcp configuration format - wrong type",
+			toolName:    "my-tool",
+			mcpSection:  12345, // should be map or string
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"mcp configuration must be a map or JSON string",
@@ -175,7 +175,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 				"type":    123, // should be string
 				"command": "npx",
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"type field must be a string",
@@ -193,7 +193,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 				"type": "stdio",
 				"args": []string{"--port", "3000"},
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"stdio MCP tool",
@@ -211,7 +211,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 			mcpSection: map[string]any{
 				"type": "http",
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"http MCP tool",
@@ -231,7 +231,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 				"type": "http",
 				"url":  12345, // should be string
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"url field must be a string",
@@ -247,7 +247,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 			mcpSection: map[string]any{
 				"command": 12345, // should be string
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"command field must be a string",
@@ -264,7 +264,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 				"command":  "npx",
 				"registry": 12345, // should be string
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"registry field must be a string",
@@ -281,7 +281,7 @@ func TestParserMCPErrorMessageQuality(t *testing.T) {
 				"type":    "grpc",
 				"command": "node",
 			},
-			toolConfig: map[string]any{},
+			toolConfig:  map[string]any{},
 			expectError: true,
 			errorContains: []string{
 				"unsupported MCP type",

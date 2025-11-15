@@ -594,7 +594,21 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 					return config, fmt.Errorf("command field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", command, toolName)
 				}
 			} else {
-				return config, fmt.Errorf("stdio MCP tool '%s' must specify either 'command' or 'container' field. Cannot specify both. Example with command:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]\n\nExample with container:\nmcp-servers:\n  %s:\n    container: \"myorg/my-tool:latest\"\n    env:\n      API_KEY: \"${{ secrets.API_KEY }}\"", toolName, toolName, toolName)
+				return config, fmt.Errorf(
+					"stdio MCP tool '%s' must specify either 'command' or 'container' field. Cannot specify both. "+
+						"Example with command:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    command: \"npx @my/tool\"\n"+
+						"    args: [\"--port\", \"3000\"]\n\n"+
+						"Example with container:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    container: \"myorg/my-tool:latest\"\n"+
+						"    env:\n"+
+						"      API_KEY: \"${{ secrets.API_KEY }}\"",
+					toolName, toolName, toolName,
+				)
 			}
 
 			if args, hasArgs := mcpConfig["args"]; hasArgs {
@@ -640,10 +654,28 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			if urlStr, ok := url.(string); ok {
 				config.URL = urlStr
 			} else {
-				return config, fmt.Errorf("url field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"", url, toolName)
+				return config, fmt.Errorf(
+					"url field must be a string, got %T. Example:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    type: http\n"+
+						"    url: \"https://api.example.com/mcp\"\n"+
+						"    headers:\n"+
+						"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+					url, toolName)
 			}
 		} else {
-			return config, fmt.Errorf("http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. Example:\nmcp-servers:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"", toolName, toolName)
+			return config, fmt.Errorf(
+				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
+					"Example:\n"+
+					"mcp-servers:\n"+
+					"  %s:\n"+
+					"    type: http\n"+
+					"    url: \"https://api.example.com/mcp\"\n"+
+					"    headers:\n"+
+					"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+				toolName, toolName,
+			)
 		}
 
 		// Extract headers
