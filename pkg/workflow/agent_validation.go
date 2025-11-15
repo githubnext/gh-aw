@@ -126,7 +126,7 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Cod
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
 			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
-				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s' (only stdio transport is supported)", toolName, engine.GetID())
+				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s'. Only stdio transport is supported. Use a different engine (e.g., copilot) or change the tool to use stdio transport. Example:\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"", toolName, engine.GetID(), toolName)
 			}
 		}
 	}
@@ -149,7 +149,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	// max-turns is specified, check if the engine supports it
 	if !engine.SupportsMaxTurns() {
-		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
+		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature. Use engine: copilot or remove max-turns from your configuration. Example:\nengine:\n  id: copilot\n  max-turns: 5", engine.GetID())
 	}
 
 	// Engine supports max-turns - additional validation could be added here if needed
