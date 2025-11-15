@@ -160,10 +160,15 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yamlBuilder strings.Builder
 
-			// Call the function under test using the Claude engine
-			engine := NewClaudeEngine()
+			// Use unified renderer with Claude-specific options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "json",
+				IsLast:               true,
+			})
 			workflowData := &WorkflowData{}
-			engine.renderGitHubClaudeMCPConfig(&yamlBuilder, tt.githubTool, true, workflowData)
+			renderer.RenderGitHubMCP(&yamlBuilder, tt.githubTool, workflowData)
 
 			result := yamlBuilder.String()
 
@@ -212,10 +217,15 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yamlBuilder strings.Builder
 
-			// Call the function under test using the Claude engine
-			engine := NewClaudeEngine()
+			// Use unified renderer with Claude-specific options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "json",
+				IsLast:               tt.isLast,
+			})
 			workflowData := &WorkflowData{}
-			engine.renderGitHubClaudeMCPConfig(&yamlBuilder, tt.githubTool, tt.isLast, workflowData)
+			renderer.RenderGitHubMCP(&yamlBuilder, tt.githubTool, workflowData)
 
 			result := yamlBuilder.String()
 

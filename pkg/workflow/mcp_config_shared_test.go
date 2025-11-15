@@ -225,18 +225,24 @@ func TestRenderCustomMCPConfigWrapperShared(t *testing.T) {
 
 // TestEngineMethodsDelegateToShared ensures engine methods properly delegate to shared functions
 func TestEngineMethodsDelegateToShared(t *testing.T) {
-	t.Run("Claude engine Playwright delegation", func(t *testing.T) {
-		engine := &ClaudeEngine{}
+	t.Run("Claude engine Playwright delegation via unified renderer", func(t *testing.T) {
+		// Use unified renderer with Claude-specific options
+		renderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
 		var yaml strings.Builder
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
 
-		engine.renderPlaywrightMCPConfig(&yaml, playwrightTool, false)
+		renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 		result := yaml.String()
 
 		if !strings.Contains(result, `"playwright": {`) {
-			t.Error("Claude engine renderPlaywrightMCPConfig should delegate to shared function")
+			t.Error("Claude engine should use unified renderer for Playwright MCP config")
 		}
 	})
 
@@ -256,7 +262,14 @@ func TestEngineMethodsDelegateToShared(t *testing.T) {
 	})
 
 	t.Run("Claude and Custom engines produce identical output", func(t *testing.T) {
-		claudeEngine := &ClaudeEngine{}
+		// Claude engine via unified renderer
+		claudeRenderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
+
 		customEngine := &CustomEngine{}
 
 		playwrightTool := map[string]any{
@@ -264,7 +277,7 @@ func TestEngineMethodsDelegateToShared(t *testing.T) {
 		}
 
 		var claudeYAML strings.Builder
-		claudeEngine.renderPlaywrightMCPConfig(&claudeYAML, playwrightTool, false)
+		claudeRenderer.RenderPlaywrightMCP(&claudeYAML, playwrightTool)
 
 		var customYAML strings.Builder
 		customEngine.renderPlaywrightMCPConfig(&customYAML, playwrightTool, false)
