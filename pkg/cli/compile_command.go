@@ -472,12 +472,12 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			if err := actionCache.Save(); err != nil {
 				compileLog.Printf("Failed to save action cache: %v", err)
 				if verbose {
-					fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
 				}
 			} else {
 				compileLog.Print("Action cache saved successfully")
 				if verbose {
-					fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
 				}
 			}
 		}
@@ -698,12 +698,12 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
 			if verbose {
-				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
 			}
 		} else {
 			compileLog.Print("Action cache saved successfully")
 			if verbose {
-				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
 			}
 		}
 	}
@@ -812,7 +812,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
-			fmt.Fprintf(os.Stderr, "🔨 Initial compilation of %s...\n", markdownFile)
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
 		}
 		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, false, false, false, false, false); err != nil {
 			// Always show initial compilation errors on new line without wrapping
@@ -913,7 +913,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 
 	compileLog.Printf("Compiling: %s", file)
 	if verbose {
-		fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
 	}
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
@@ -967,12 +967,12 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
 			if verbose {
-				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
 			}
 		} else {
 			compileLog.Print("Action cache saved successfully")
 			if verbose {
-				fmt.Fprintf(os.Stderr, "✓ Action cache saved to %s\n", actionCache.GetCachePath())
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
 			}
 		}
 	}
@@ -998,7 +998,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 
 	fmt.Fprintln(os.Stderr, "Watching for file changes")
 	if verbose {
-		fmt.Fprintf(os.Stderr, "🔨 Compiling %d modified file(s)...\n", len(files))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling %d modified file(s)...", len(files))))
 	}
 
 	// Reset warning count before compilation
@@ -1020,7 +1020,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
 			if verbose {
-				fmt.Fprintf(os.Stderr, "⚠️  Failed to save action cache: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
 			}
 		} else {
 			compileLog.Print("Action cache saved successfully")
