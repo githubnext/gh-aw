@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -82,9 +83,9 @@ func TestValidateStrictMCPNetwork_ContainerWithoutNetwork(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for container without network configuration, got nil")
 	}
-	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have network configuration"
-	if err != nil && err.Error() != expectedMsg {
-		t.Errorf("Expected error message %q, got: %q", expectedMsg, err.Error())
+	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have network configuration for security"
+	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("Expected error message to contain %q, got: %q", expectedMsg, err.Error())
 	}
 }
 
