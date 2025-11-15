@@ -39,7 +39,6 @@ var (
 	// Patterns to detect good error messages
 	hasExample  = regexp.MustCompile(`(?i)\bexample:\s`)
 	hasExpected = regexp.MustCompile(`(?i)\b(expected|valid|must be|should be)\b`)
-	hasTypeInfo = regexp.MustCompile(`%[TvdsFfgGeExXbcqpoUq]`)
 
 	// Patterns for error types that MUST have examples
 	isValidationError = regexp.MustCompile(`(?i)\b(invalid|must|cannot|missing|required|unknown|duplicate|unsupported)\b`)
@@ -145,7 +144,11 @@ func main() {
 	// Check threshold
 	threshold := 80
 	if len(os.Args) > 1 {
-		fmt.Sscanf(os.Args[1], "%d", &threshold)
+		_, err := fmt.Sscanf(os.Args[1], "%d", &threshold)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid threshold value '%s', using default 80%%\n", os.Args[1])
+			threshold = 80
+		}
 	}
 
 	compliancePercentage := (totalCompliant * 100) / max(totalMessages, 1)
