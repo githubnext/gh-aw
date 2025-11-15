@@ -310,21 +310,6 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		if err := cloneRepoContentsIntoHost(cloneRepoSlug, cloneRepoVersion, hostRepoSlug, verbose); err != nil {
 			return fmt.Errorf("failed to clone repository contents: %w", err)
 		}
-
-		// After cloning, disable all workflows except the ones being trialled
-		// Build list of workflow names to keep enabled
-		var workflowsToKeep []string
-		for _, spec := range parsedSpecs {
-			workflowsToKeep = append(workflowsToKeep, spec.WorkflowName)
-		}
-
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Disabling workflows in cloned repository (keeping: %s)", strings.Join(workflowsToKeep, ", "))))
-		}
-		if err := DisableAllWorkflowsExcept(hostRepoSlug, workflowsToKeep, verbose); err != nil {
-			// Log warning but don't fail the trial - workflow disabling is not critical
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to disable workflows: %v", err)))
-		}
 	}
 
 	// Function to run all trials once
@@ -352,6 +337,43 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup local temp directory: %v", err)))
 			}
 		}()
+
+		// Step 3.5: Disable all workflows except the ones being trialled (only in clone-repo mode)
+		if cloneRepoSlug != "" {
+			// Build list of workflow names to keep enabled
+			var workflowsToKeep []string
+			for _, spec := range parsedSpecs {
+				workflowsToKeep = append(workflowsToKeep, spec.WorkflowName)
+			}
+
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Disabling workflows in cloned repository (keeping: %s)", strings.Join(workflowsToKeep, ", "))))
+			}
+
+			// Change to temp directory to access local .github/workflows
+			originalDir, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current directory: %w", err)
+			}
+
+			if err := os.Chdir(tempDir); err != nil {
+				return fmt.Errorf("failed to change to temp directory: %w", err)
+			}
+
+			// Disable workflows (pass empty string for repoSlug since we're working locally)
+			disableErr := DisableAllWorkflowsExcept("", workflowsToKeep, verbose)
+
+			// Change back to original directory
+			if err := os.Chdir(originalDir); err != nil {
+				return fmt.Errorf("failed to change back to original directory: %w", err)
+			}
+
+			// Check for disable errors after changing back
+			if disableErr != nil {
+				// Log warning but don't fail the trial - workflow disabling is not critical
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to disable workflows: %v", disableErr)))
+			}
+		}
 
 		// Step 4: Create trials directory
 		if err := os.MkdirAll("trials", 0755); err != nil {
@@ -1121,9 +1143,6 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Determining required engine secret for workflow"))
 	}
-
-	// Debug: Always show what engine override we received
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("DEBUG: engineOverride parameter = '%s'", engineOverride)))
 
 	// Use engine override if provided
 	if engineOverride != "" {
