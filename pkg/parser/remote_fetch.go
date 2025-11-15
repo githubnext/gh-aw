@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -197,7 +198,9 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	if err != nil {
 		outputStr := string(output)
 		if strings.Contains(outputStr, "GH_TOKEN") || strings.Contains(outputStr, "authentication") || strings.Contains(outputStr, "not logged into") {
-			return "", fmt.Errorf("failed to resolve ref to SHA: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+			// Try fallback without authentication
+			remoteLog.Printf("gh CLI authentication failed, trying unauthenticated REST API fallback")
+			return resolveRefToSHAUnauthenticated(owner, repo, ref)
 		}
 		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
 	}
@@ -236,7 +239,9 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 		// Check if this is an authentication error
 		stderrStr := stderr.String()
 		if strings.Contains(stderrStr, "GH_TOKEN") || strings.Contains(stderrStr, "authentication") || strings.Contains(stderrStr, "not logged into") {
-			return nil, fmt.Errorf("failed to fetch file content: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+			// Try fallback without authentication
+			remoteLog.Printf("gh CLI authentication failed, trying unauthenticated REST API fallback")
+			return downloadFileFromGitHubUnauthenticated(owner, repo, path, ref)
 		}
 		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(stderrStr), err)
 	}
@@ -254,5 +259,111 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}
 
+	return content, nil
+}
+
+// resolveRefToSHAUnauthenticated resolves a git ref to SHA using unauthenticated REST API
+// This is a fallback for when gh CLI authentication is not available
+func resolveRefToSHAUnauthenticated(owner, repo, ref string) (string, error) {
+	remoteLog.Printf("Attempting to resolve ref %s to SHA for %s/%s using unauthenticated API", ref, owner, repo)
+	
+	// Use curl to make unauthenticated request
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits/%s", owner, repo, ref)
+	cmd := exec.Command("curl", "-s", "-H", "Accept: application/vnd.github.v3+json", url)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve ref using unauthenticated API: %w", err)
+	}
+	
+	// Parse JSON response
+	var response struct {
+		SHA     string `json:"sha"`
+		Message string `json:"message"`
+	}
+	
+	if err := json.Unmarshal(output, &response); err != nil {
+		return "", fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+	
+	// Check for error message in response
+	if response.Message != "" {
+		if strings.Contains(response.Message, "Not Found") {
+			return "", fmt.Errorf("ref %s not found in %s/%s", ref, owner, repo)
+		}
+		if strings.Contains(response.Message, "rate limit") {
+			return "", fmt.Errorf("GitHub API rate limit exceeded")
+		}
+		return "", fmt.Errorf("GitHub API error: %s", response.Message)
+	}
+	
+	// Validate it's a valid SHA (40 hex characters)
+	if len(response.SHA) != 40 || !isHexString(response.SHA) {
+		return "", fmt.Errorf("invalid SHA format returned: %s", response.SHA)
+	}
+	
+	remoteLog.Printf("Successfully resolved ref %s to SHA %s using unauthenticated API", ref, response.SHA)
+	return response.SHA, nil
+}
+
+// downloadFileFromGitHubUnauthenticated downloads a file using unauthenticated REST API
+// This is a fallback for when gh CLI authentication is not available
+func downloadFileFromGitHubUnauthenticated(owner, repo, path, ref string) ([]byte, error) {
+	remoteLog.Printf("Attempting to download %s/%s/%s@%s using unauthenticated API", owner, repo, path, ref)
+	
+	// Use curl to make unauthenticated request
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref)
+	cmd := exec.Command("curl", "-s", "-H", "Accept: application/vnd.github.v3+json", url)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch file using unauthenticated API: %w", err)
+	}
+	
+	// Parse JSON response
+	var response struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+		Message  string `json:"message"`
+	}
+	
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+	
+	// Check for error message in response
+	if response.Message != "" {
+		if strings.Contains(response.Message, "Not Found") {
+			return nil, fmt.Errorf("file %s not found in %s/%s@%s", path, owner, repo, ref)
+		}
+		if strings.Contains(response.Message, "rate limit") {
+			return nil, fmt.Errorf("GitHub API rate limit exceeded")
+		}
+		return nil, fmt.Errorf("GitHub API error: %s", response.Message)
+	}
+	
+	// Verify encoding
+	if response.Encoding != "base64" {
+		return nil, fmt.Errorf("unexpected encoding: %s (expected base64)", response.Encoding)
+	}
+	
+	// Remove newlines and whitespace from base64 content
+	contentBase64 := strings.ReplaceAll(response.Content, "\n", "")
+	contentBase64 = strings.ReplaceAll(contentBase64, " ", "")
+	contentBase64 = strings.TrimSpace(contentBase64)
+	
+	if contentBase64 == "" {
+		return nil, fmt.Errorf("empty content returned from GitHub API")
+	}
+	
+	// Decode base64 content
+	decodeCmd := exec.Command("base64", "-d")
+	decodeCmd.Stdin = strings.NewReader(contentBase64)
+	content, err := decodeCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+	
+	remoteLog.Printf("Successfully downloaded %s/%s/%s@%s using unauthenticated API (%d bytes)", owner, repo, path, ref, len(content))
 	return content, nil
 }
