@@ -703,7 +703,14 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	for key := range toolConfig {
 		if !knownProperties[key] {
-			return nil, fmt.Errorf("unknown property '%s' in MCP configuration for tool '%s'", key, toolName)
+			// Build list of valid properties
+			validProps := []string{}
+			for prop := range knownProperties {
+				validProps = append(validProps, prop)
+			}
+			sort.Strings(validProps)
+			return nil, fmt.Errorf("unknown property '%s' in MCP configuration for tool '%s'. Valid properties are: %s. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", 
+				key, toolName, strings.Join(validProps, ", "), toolName)
 		}
 	}
 
@@ -729,7 +736,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Type = "stdio"
 			mcpLog.Printf("Inferred MCP type as stdio (has container field)")
 		} else {
-			return nil, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+			return nil, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container. Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", toolName, toolName)
 		}
 	}
 
@@ -767,13 +774,13 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if url, hasURL := config.GetString("url"); hasURL {
 			result.URL = url
 		} else {
-			return nil, fmt.Errorf("http MCP tool '%s' missing required 'url' field", toolName)
+			return nil, fmt.Errorf("http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. Example:\nmcp-servers:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"", toolName, toolName)
 		}
 		if headers, hasHeaders := config.GetStringMap("headers"); hasHeaders {
 			result.Headers = headers
 		}
 	default:
-		return nil, fmt.Errorf("unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
+		return nil, fmt.Errorf("unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", result.Type, toolName, toolName)
 	}
 
 	// Extract allowed tools
