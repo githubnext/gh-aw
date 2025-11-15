@@ -470,12 +470,16 @@ func NewMCPInspectSubcommand() *cobra.Command {
 	var checkSecrets bool
 
 	cmd := &cobra.Command{
-		Use:   "inspect [workflow-file]",
+		Use:   "inspect [workflow-id-or-file]",
 		Short: "Inspect MCP servers and list available tools, resources, and roots",
 		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
+
+The workflow-id-or-file can be:
+- A workflow ID (basename without .md extension, e.g., "weekly-research")
+- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
 Examples:
   gh aw mcp inspect                    # List workflows with MCP servers

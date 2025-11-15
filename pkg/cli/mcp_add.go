@@ -300,7 +300,7 @@ func NewMCPAddSubcommand() *cobra.Command {
 	var customToolID string
 
 	cmd := &cobra.Command{
-		Use:   "add [workflow-file] [mcp-server-name]",
+		Use:   "add [workflow-id-or-file] [mcp-server-name]",
 		Short: "Add an MCP tool to an agentic workflow",
 		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
 
@@ -308,6 +308,10 @@ This command searches the MCP registry for the specified server, adds it to the 
 and automatically compiles the workflow. If the tool already exists, the command will fail.
 
 When called with no arguments, it will show a list of available MCP servers from the registry.
+
+The workflow-id-or-file can be:
+- A workflow ID (basename without .md extension, e.g., "weekly-research")
+- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
 Examples:
   gh aw mcp add                                          # List available MCP servers
@@ -336,9 +340,9 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 				return listAvailableServers(registryURL, verbose)
 			}
 
-			// If only workflow file is provided, show error (need both workflow and server)
+			// If only workflow ID/file is provided, show error (need both workflow and server)
 			if len(args) == 1 {
-				return fmt.Errorf("both workflow file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
+				return fmt.Errorf("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
 			}
 
 			// If both arguments are provided, add the MCP tool
