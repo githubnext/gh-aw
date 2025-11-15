@@ -9,7 +9,7 @@ import (
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
 
-// buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
+// buildConclusionJob creates a job that updates the activation comment with workflow completion status
 // This job is only generated when both add-comment and ai-reaction are configured.
 // This job runs when:
 // 1. always() - runs even if agent fails
@@ -17,8 +17,8 @@ var notifyCommentLog = logger.New("workflow:notify_comment")
 // 3. NO add_comment output was produced by the agent
 // 4. NO create_pull_request output was produced by the agent
 // This job depends on all safe output jobs to ensure it runs last
-func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
-	notifyCommentLog.Printf("Building update reaction job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
+func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
+	notifyCommentLog.Printf("Building conclusion job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
 
 	// Create this job when:
 	// 1. add-comment is configured with a reaction, OR
@@ -39,7 +39,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 
 	if !hasAddComment && !hasCommand {
 		notifyCommentLog.Printf("Skipping job: neither add-comment nor command configured")
-		return nil, nil // Neither add-comment nor command is configured, no need for update_reaction job
+		return nil, nil // Neither add-comment nor command is configured, no need for conclusion job
 	}
 
 	// Build the job steps
@@ -79,7 +79,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
 		StepName:      "Update reaction comment with completion status",
-		StepID:        "update_reaction",
+		StepID:        "conclusion",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        notifyCommentErrorScript,
@@ -152,7 +152,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 
 	job := &Job{
-		Name:        "update_reaction",
+		Name:        "conclusion",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),

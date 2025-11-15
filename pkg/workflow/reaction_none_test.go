@@ -94,9 +94,9 @@ Test command workflow with reaction explicitly disabled.
 		t.Error("Activation job should have 'contents: read' permission for checkout step")
 	}
 
-	// Verify that update_reaction job is NOT created
-	if strings.Contains(compiled, "update_reaction:") {
-		t.Error("update_reaction job should not be created when reaction is 'none'")
+	// Verify that conclusion job is NOT created
+	if strings.Contains(compiled, "conclusion:") {
+		t.Error("conclusion job should not be created when reaction is 'none'")
 	}
 }
 
@@ -185,9 +185,9 @@ Test command workflow with default (eyes) reaction.
 		t.Error("Activation job should have 'contents: read' permission for checkout step")
 	}
 
-	// Verify that update_reaction job IS created
-	if !strings.Contains(compiled, "update_reaction:") {
-		t.Error("update_reaction job should be created when reaction is enabled and add-comment is configured")
+	// Verify that conclusion job IS created
+	if !strings.Contains(compiled, "conclusion:") {
+		t.Error("conclusion job should be created when reaction is enabled and add-comment is configured")
 	}
 }
 
@@ -255,8 +255,8 @@ Test command workflow with explicit rocket reaction.
 		t.Error("Activation job should have rocket reaction step")
 	}
 
-	// Verify that update_reaction job IS created
-	if !strings.Contains(compiled, "update_reaction:") {
-		t.Error("update_reaction job should be created when reaction is enabled and add-comment is configured")
+	// Verify that conclusion job IS created
+	if !strings.Contains(compiled, "conclusion:") {
+		t.Error("conclusion job should be created when reaction is enabled and add-comment is configured")
 	}
 }
