@@ -191,15 +191,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	var typeStr string
 
 	if hasType {
-		// Explicit type provided
-		if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
-			return err
-		}
-		var ok bool
-		typeStr, ok = mcpType.(string)
-		if !ok {
+		// Explicit type provided - validate it's a string
+		if _, ok := mcpType.(string); !ok {
 			return fmt.Errorf("tool '%s' mcp configuration 'type' must be a string, got %T. Valid types: stdio, http, local. Example:\nmcp-servers:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"", toolName, mcpType, toolName)
 		}
+		typeStr = mcpType.(string)
 	} else {
 		// Infer type from presence of fields
 		if _, hasURL := mcpConfig["url"]; hasURL {
