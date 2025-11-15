@@ -12,14 +12,6 @@ import (
 	"strings"
 )
 
-// ErrorMessage represents an error message found in the code
-type ErrorMessage struct {
-	File      string
-	Line      int
-	Message   string
-	IsWrapped bool
-}
-
 // QualityIssue represents a quality issue with an error message
 type QualityIssue struct {
 	File       string
