@@ -4363,6 +4363,35 @@ jobs:
                   core.setOutput("project-url", newProject.url);
                   core.setOutput("campaign-id", campaignId);
                 }
+                const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
+                const hasIssue = output.issue !== undefined && output.issue !== null;
+                const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
+                const values = [];
+                if (hasContentNumber) values.push({ key: "content_number", value: output.content_number });
+                if (hasIssue) values.push({ key: "issue", value: output.issue });
+                if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
+                if (values.length > 1) {
+                  const uniqueValues = [...new Set(values.map(v => String(v.value)))];
+                  if (uniqueValues.length > 1) {
+                    core.warning(
+                      `Multiple content number fields are set with different values: ` +
+                      values.map(v => `${v.key}=${v.value}`).join(", ") +
+                      `. Using the first non-empty value in the order: content_number, issue, pull_request.`
+                    );
+                  } else {
+                    core.warning(
+                      `Multiple content number fields are set (all with value "${uniqueValues[0]}"): ` +
+                      values.map(v => v.key).join(", ") +
+                      `. Using the first non-empty value in the order: content_number, issue, pull_request.`
+                    );
+                  }
+                }
+                if (hasIssue) {
+                  core.warning('The "issue" field is deprecated. Use "content_number" instead.');
+                }
+                if (hasPullRequest) {
+                  core.warning('The "pull_request" field is deprecated. Use "content_number" instead.');
+                }
                 const contentNumber = output.content_number || output.issue || output.pull_request;
                 if (contentNumber) {
                   const contentType =
@@ -4395,32 +4424,51 @@ jobs:
                     number: contentNumber,
                   });
                   const contentId = contentType === "Issue" ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id;
-                  const existingItemsResult = await githubClient.graphql(
-                    `query($projectId: ID!) {
-                      node(id: $projectId) {
-                        ... on ProjectV2 {
-                          items(first: 100) {
-                            nodes {
-                              id
-                              content {
-                                ... on Issue {
+                  async function findExistingProjectItem(projectId, contentId) {
+                    let hasNextPage = true;
+                    let endCursor = null;
+                    while (hasNextPage) {
+                      const result = await githubClient.graphql(
+                        `query($projectId: ID!, $after: String) {
+                          node(id: $projectId) {
+                            ... on ProjectV2 {
+                              items(first: 100, after: $after) {
+                                nodes {
                                   id
+                                  content {
+                                    ... on Issue {
+                                      id
+                                    }
+                                    ... on PullRequest {
+                                      id
+                                    }
+                                  }
                                 }
-                                ... on PullRequest {
-                                  id
+                                pageInfo {
+                                  hasNextPage
+                                  endCursor
                                 }
                               }
                             }
                           }
-                        }
+                        }`,
+                        { projectId, after: endCursor }
+                      );
+                      const items = result.node.items.nodes;
+                      const found = items.find(item => item.content && item.content.id === contentId);
+                      if (found) {
+                        return found;
                       }
-                    }`,
-                    { projectId }
-                  );
-                  const existingItem = existingItemsResult.node.items.nodes.find(item => item.content && item.content.id === contentId);
+                      hasNextPage = result.node.items.pageInfo.hasNextPage;
+                      endCursor = result.node.items.pageInfo.endCursor;
+                    }
+                    return null;
+                  }
+                  const existingItem = await findExistingProjectItem(projectId, contentId);
                   let itemId;
                   if (existingItem) {
                     itemId = existingItem.id;
+                    core.info('✓ Item already on board');
                   } else {
                     const addResult = await githubClient.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
@@ -4444,7 +4492,7 @@ jobs:
                         labels: [`campaign:${campaignId}`],
                       });
                     } catch (labelError) {
-                      core.warning(`Failed to add label: ${labelError.message}`);
+                      core.warning(`Failed to add campaign label: ${labelError.message}`);
                     }
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
@@ -4475,7 +4523,11 @@ jobs:
                     );
                     const projectFields = fieldsResult.node.fields.nodes;
                     for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
-                      let field = projectFields.find(f => f.name.toLowerCase() === fieldName.toLowerCase());
+                      const normalizedFieldName = fieldName
+                        .split(/[\s_-]+/)
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(' ');
+                      let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
                       if (!field) {
                         const isTextField =
                           fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
@@ -4490,11 +4542,11 @@ jobs:
                                 }) {
                                   projectV2Field {
                                     ... on ProjectV2Field {
-                                      id
-                                      name
-                                    }
-                                  }
-                                }
+                              {
+                                projectId,
+                                name: normalizedFieldName,
+                                dataType: "TEXT",
+                              }
                               }`,
                               {
                                 projectId,
@@ -4523,12 +4575,12 @@ jobs:
                                       name
                                       options {
                                         id
-                                        name
-                                      }
-                                    }
-                                  }
-                                }
-                              }`,
+                              {
+                                projectId,
+                                name: normalizedFieldName,
+                                dataType: "SINGLE_SELECT",
+                                options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
+                              }
                               {
                                 projectId,
                                 name: fieldName,
