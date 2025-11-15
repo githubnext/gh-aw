@@ -12,7 +12,6 @@ engine: codex
 timeout-minutes: 30
 tools:
   playwright:
-    version: "v1.56.1"
     allowed_domains:
       - "localhost"
       - "127.0.0.1"
@@ -20,7 +19,6 @@ tools:
     - "npm install*"
     - "npm run build*"
     - "npm run preview*"
-    - "npm run dev*"
     - "npx playwright*"
     - "curl*"
     - "kill*"
@@ -37,6 +35,7 @@ safe-outputs:
 
 network:
   allowed:
+    - defaults
     - node
 ---
 
