@@ -179,8 +179,7 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 		return fmt.Errorf("tool '%s' mcp configuration missing required property '%s'. Example: tools:\n  %s:\n    %s: \"value\"", toolName, propertyName, toolName, propertyName)
 	}
 	if _, ok := value.(string); !ok {
-		actualType := getTypeString(value)
-		return fmt.Errorf("tool '%s' mcp configuration property '%s' must be a string, got %s. Example: %s: \"value\"", toolName, propertyName, actualType, propertyName)
+		return fmt.Errorf("tool '%s' mcp configuration property '%s' must be a string, got %T. Example: %s: \"value\"", toolName, propertyName, value, propertyName)
 	}
 	return nil
 }

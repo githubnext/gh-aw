@@ -368,7 +368,7 @@ func (c *Compiler) extractCampaign(frontmatter map[string]any) (string, error) {
 	// Convert the value to string
 	strValue, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("campaign must be a string")
+		return "", fmt.Errorf("campaign must be a string, got %T. Example: campaign: \"my-campaign-123\"", value)
 	}
 
 	campaign := strings.TrimSpace(strValue)

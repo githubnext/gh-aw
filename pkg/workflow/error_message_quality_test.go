@@ -150,6 +150,62 @@ func TestErrorMessageQuality(t *testing.T) {
 			},
 			shouldNotBeVague: true,
 		},
+		{
+			name: "campaign type error shows actual type and example",
+			testFunc: func() error {
+				c := NewCompiler(false, "", "")
+				frontmatter := map[string]any{
+					"campaign": 12345678, // Wrong type: integer instead of string
+				}
+				_, err := c.extractCampaign(frontmatter)
+				return err
+			},
+			shouldContain: []string{
+				"campaign must be a string",
+				"got",
+				"Example:",
+				"campaign:",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "stop-after type error shows actual type and example",
+			testFunc: func() error {
+				c := NewCompiler(false, "", "")
+				frontmatter := map[string]any{
+					"on": map[string]any{
+						"stop-after": 123, // Wrong type: integer instead of string
+					},
+				}
+				_, err := c.extractStopAfterFromOn(frontmatter)
+				return err
+			},
+			shouldContain: []string{
+				"stop-after value must be a string",
+				"got",
+				"Example:",
+				"stop-after:",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "MCP property type error shows actual type with %T",
+			testFunc: func() error {
+				tools := map[string]any{
+					"test-tool": map[string]any{
+						"type":    "stdio",
+						"command": 123, // Wrong type: integer instead of string
+					},
+				}
+				return ValidateMCPConfigs(tools)
+			},
+			shouldContain: []string{
+				"must be a string",
+				"got",
+				"Example:",
+			},
+			shouldNotBeVague: true,
+		},
 	}
 
 	for _, tt := range tests {
