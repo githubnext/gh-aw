@@ -44,7 +44,6 @@ name: "Documentation Noob Tester"
 
 permissions:
   contents: read
-  discussions: write
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -144,7 +143,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      discussions: write
     concurrency:
       group: "gh-aw-codex-${{ github.workflow }}"
     env:

@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  discussions: write
 engine: codex
 timeout-minutes: 30
 tools:
