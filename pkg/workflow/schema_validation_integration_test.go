@@ -50,7 +50,7 @@ This is a valid workflow.
 
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetSkipValidation(false) // Enable schema validation
-			
+
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.shouldPass && err != nil {

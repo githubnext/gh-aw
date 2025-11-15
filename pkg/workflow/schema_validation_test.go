@@ -116,9 +116,9 @@ func TestGetFieldExample(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock validation error with a mock error struct
 			ve := &mockValidationError{msg: tt.errorMsg}
-			
+
 			result := getFieldExample(tt.fieldPath, ve)
-			
+
 			if result == "" && len(tt.expectedParts) > 0 {
 				t.Errorf("getFieldExample(%q, %q) returned empty string, want non-empty", tt.fieldPath, tt.errorMsg)
 				return
@@ -126,7 +126,7 @@ func TestGetFieldExample(t *testing.T) {
 
 			for _, part := range tt.expectedParts {
 				if !strings.Contains(result, part) {
-					t.Errorf("getFieldExample(%q, %q) = %q, missing expected part %q", 
+					t.Errorf("getFieldExample(%q, %q) = %q, missing expected part %q",
 						tt.fieldPath, tt.errorMsg, result, part)
 				}
 			}
@@ -166,7 +166,7 @@ func TestEnhanceSchemaValidationError(t *testing.T) {
 			// Create a mock validation error without using jsonschema.ValidationError
 			// since it can't be properly instantiated in tests
 			mockErr := &mockValidationError{msg: tt.errorMsg}
-			
+
 			// Instead of using enhanceSchemaValidationError (which requires a real ValidationError),
 			// we test the helper functions directly
 			fieldPath := extractFieldPath(tt.location)
@@ -184,10 +184,10 @@ func TestEnhanceSchemaValidationError(t *testing.T) {
 func TestValidateGitHubActionsSchemaWithExamples(t *testing.T) {
 	// Note: This test requires the schema to be loaded, which happens in validateGitHubActionsSchema
 	// We'll test the integration by using the actual compiler method
-	
+
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetSkipValidation(false) // Enable validation for this test
-	
+
 	tests := []struct {
 		name          string
 		yamlContent   string
@@ -215,14 +215,14 @@ jobs:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := compiler.validateGitHubActionsSchema(tt.yamlContent)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("validateGitHubActionsSchema() expected error, got nil")
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("validateGitHubActionsSchema() unexpected error: %v", err)
 			}
-			
+
 			if err != nil {
 				errStr := err.Error()
 				for _, part := range tt.expectedParts {

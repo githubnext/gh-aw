@@ -148,7 +148,7 @@ func extractFieldPath(location []string) string {
 	if len(location) == 0 {
 		return ""
 	}
-	
+
 	// Join the location parts to form a path like "timeout-minutes" or "jobs/build/runs-on"
 	return location[len(location)-1] // Return the last element as the field name
 }
@@ -158,27 +158,27 @@ func getFieldExample(fieldPath string, err error) string {
 	// Map of common fields to their examples
 	fieldExamples := map[string]string{
 		"timeout-minutes": "Example: timeout-minutes: 10",
-		"engine": "Valid engines are: copilot, claude, codex, custom. Example: engine: copilot",
-		"permissions": "Example: permissions:\\n  contents: read\\n  issues: write",
-		"on": "Example: on: push or on:\\n  issues:\\n    types: [opened]",
-		"runs-on": "Example: runs-on: ubuntu-latest",
-		"concurrency": "Example: concurrency: production or concurrency:\\n  group: ${{ github.workflow }}\\n  cancel-in-progress: true",
-		"env": "Example: env:\\n  NODE_ENV: production",
-		"tools": "Example: tools:\\n  github:\\n    allowed: [list_issues]",
-		"steps": "Example: steps:\\n  - name: Checkout\\n    uses: actions/checkout@v4",
-		"jobs": "Example: jobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - run: echo 'hello'",
-		"strategy": "Example: strategy:\\n  matrix:\\n    os: [ubuntu-latest, windows-latest]",
-		"container": "Example: container: node:20 or container:\\n  image: node:20\\n  options: --user root",
-		"services": "Example: services:\\n  postgres:\\n    image: postgres:15\\n    env:\\n      POSTGRES_PASSWORD: postgres",
-		"defaults": "Example: defaults:\\n  run:\\n    shell: bash",
-		"name": "Example: name: \"Build and Test\"",
-		"if": "Example: if: github.event_name == 'push'",
-		"environment": "Example: environment: production or environment:\\n  name: production\\n  url: https://example.com",
-		"outputs": "Example: outputs:\\n  build-id: ${{ steps.build.outputs.id }}",
-		"needs": "Example: needs: build or needs: [build, test]",
-		"uses": "Example: uses: ./.github/workflows/reusable.yml",
-		"with": "Example: with:\\n  node-version: '20'",
-		"secrets": "Example: secrets:\\n  token: ${{ secrets.GITHUB_TOKEN }}",
+		"engine":          "Valid engines are: copilot, claude, codex, custom. Example: engine: copilot",
+		"permissions":     "Example: permissions:\\n  contents: read\\n  issues: write",
+		"on":              "Example: on: push or on:\\n  issues:\\n    types: [opened]",
+		"runs-on":         "Example: runs-on: ubuntu-latest",
+		"concurrency":     "Example: concurrency: production or concurrency:\\n  group: ${{ github.workflow }}\\n  cancel-in-progress: true",
+		"env":             "Example: env:\\n  NODE_ENV: production",
+		"tools":           "Example: tools:\\n  github:\\n    allowed: [list_issues]",
+		"steps":           "Example: steps:\\n  - name: Checkout\\n    uses: actions/checkout@v4",
+		"jobs":            "Example: jobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - run: echo 'hello'",
+		"strategy":        "Example: strategy:\\n  matrix:\\n    os: [ubuntu-latest, windows-latest]",
+		"container":       "Example: container: node:20 or container:\\n  image: node:20\\n  options: --user root",
+		"services":        "Example: services:\\n  postgres:\\n    image: postgres:15\\n    env:\\n      POSTGRES_PASSWORD: postgres",
+		"defaults":        "Example: defaults:\\n  run:\\n    shell: bash",
+		"name":            "Example: name: \"Build and Test\"",
+		"if":              "Example: if: github.event_name == 'push'",
+		"environment":     "Example: environment: production or environment:\\n  name: production\\n  url: https://example.com",
+		"outputs":         "Example: outputs:\\n  build-id: ${{ steps.build.outputs.id }}",
+		"needs":           "Example: needs: build or needs: [build, test]",
+		"uses":            "Example: uses: ./.github/workflows/reusable.yml",
+		"with":            "Example: with:\\n  node-version: '20'",
+		"secrets":         "Example: secrets:\\n  token: ${{ secrets.GITHUB_TOKEN }}",
 	}
 
 	// Check if we have a specific example for this field
