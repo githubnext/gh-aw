@@ -565,8 +565,6 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 	return 0
 }
 
-
-
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
 func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
 	yaml.WriteString("          \n")
@@ -585,8 +583,6 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 
 	return nil
 }
-
-
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
 func (e *CodexEngine) GetLogParserScriptId() string {

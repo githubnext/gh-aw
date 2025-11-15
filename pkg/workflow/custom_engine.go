@@ -189,8 +189,6 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	})
 }
 
-
-
 // renderCustomMCPConfig generates custom MCP server configuration using shared logic
 func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 	return renderCustomMCPConfigWrapper(yaml, toolName, toolConfig, isLast)
@@ -206,8 +204,6 @@ func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 	// The folder is created by the cache step and is accessible to all tools
 	// No MCP configuration is needed for simple file access
 }
-
-
 
 // ParseLogMetrics implements basic log parsing for custom engine
 // For custom engines, try both Claude and Codex parsing approaches to extract turn information
