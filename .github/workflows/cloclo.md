@@ -8,6 +8,9 @@ permissions:
   issues: read
   discussions: read
   actions: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-cloclo
+  cancel-in-progress: false
 engine:
   id: claude
   max-turns: 100
@@ -30,7 +33,7 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Claude Command & Label Processor - `/cloclo` ✨
+# Claude Command Processor - /cloclo
 
 You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
 
