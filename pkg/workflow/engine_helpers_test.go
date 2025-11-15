@@ -316,3 +316,282 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 		t.Errorf("shellEscapeArg should not add single quotes to already double-quoted string, got: %s", result)
 	}
 }
+
+// TestBuildStandardPipInstallSteps tests the pip package installation helper
+func TestBuildStandardPipInstallSteps(t *testing.T) {
+	tests := []struct {
+		name          string
+		packages      []string
+		useUv         bool
+		expectedSteps int
+		checkContains []string
+	}{
+		{
+			name:          "single package with pip",
+			packages:      []string{"requests"},
+			useUv:         false,
+			expectedSteps: 2, // Python setup + install
+			checkContains: []string{"Setup Python", "pip install requests"},
+		},
+		{
+			name:          "multiple packages with pip",
+			packages:      []string{"requests", "numpy", "pandas"},
+			useUv:         false,
+			expectedSteps: 2,
+			checkContains: []string{"Setup Python", "pip install requests numpy pandas"},
+		},
+		{
+			name:          "single package with uv",
+			packages:      []string{"requests"},
+			useUv:         true,
+			expectedSteps: 3, // Python setup + uv setup + install
+			checkContains: []string{"Setup Python", "Setup uv", "uv pip install --system requests"},
+		},
+		{
+			name:          "multiple packages with uv",
+			packages:      []string{"requests", "numpy"},
+			useUv:         true,
+			expectedSteps: 3,
+			checkContains: []string{"Setup Python", "Setup uv", "uv pip install --system requests numpy"},
+		},
+		{
+			name:          "empty package list",
+			packages:      []string{},
+			useUv:         false,
+			expectedSteps: 0,
+			checkContains: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := BuildStandardPipInstallSteps(tt.packages, tt.useUv)
+
+			if len(steps) != tt.expectedSteps {
+				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(steps))
+			}
+
+			// Check that expected strings appear in the steps
+			allStepsText := ""
+			for _, step := range steps {
+				for _, line := range step {
+					allStepsText += line + "\n"
+				}
+			}
+
+			for _, expected := range tt.checkContains {
+				if !strings.Contains(allStepsText, expected) {
+					t.Errorf("Expected to find %q in steps, but it was not found", expected)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildStandardPipInstallSteps_ActionPins tests that setup actions use pinned versions
+func TestBuildStandardPipInstallSteps_ActionPins(t *testing.T) {
+	steps := BuildStandardPipInstallSteps([]string{"requests"}, true)
+
+	// Convert steps to text
+	allStepsText := ""
+	for _, step := range steps {
+		for _, line := range step {
+			allStepsText += line + "\n"
+		}
+	}
+
+	// Verify that actions use SHA pins (not just @v5 or @main)
+	if strings.Contains(allStepsText, "actions/setup-python@v") {
+		t.Error("Should use SHA-pinned version for actions/setup-python, not version tag")
+	}
+
+	if strings.Contains(allStepsText, "astral-sh/setup-uv@v") {
+		t.Error("Should use SHA-pinned version for astral-sh/setup-uv, not version tag")
+	}
+
+	// Should contain @ symbol (indicating pinned reference)
+	if !strings.Contains(allStepsText, "actions/setup-python@") {
+		t.Error("Should contain pinned reference for actions/setup-python")
+	}
+
+	if !strings.Contains(allStepsText, "astral-sh/setup-uv@") {
+		t.Error("Should contain pinned reference for astral-sh/setup-uv")
+	}
+}
+
+// TestBuildStandardDockerSetupSteps tests the Docker image pre-download helper
+func TestBuildStandardDockerSetupSteps(t *testing.T) {
+	tests := []struct {
+		name          string
+		images        []string
+		expectedSteps int
+		checkContains []string
+	}{
+		{
+			name:          "single image",
+			images:        []string{"ghcr.io/github/github-mcp-server:v1.0.0"},
+			expectedSteps: 1,
+			checkContains: []string{"Download Docker images", "docker pull ghcr.io/github/github-mcp-server:v1.0.0"},
+		},
+		{
+			name:          "multiple images",
+			images:        []string{"alpine:latest", "ubuntu:22.04", "nginx:stable"},
+			expectedSteps: 1,
+			checkContains: []string{"Download Docker images", "docker pull alpine:latest", "docker pull nginx:stable", "docker pull ubuntu:22.04"},
+		},
+		{
+			name:          "empty image list",
+			images:        []string{},
+			expectedSteps: 0,
+			checkContains: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := BuildStandardDockerSetupSteps(tt.images)
+
+			if len(steps) != tt.expectedSteps {
+				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(steps))
+			}
+
+			// Check that expected strings appear in the steps
+			allStepsText := ""
+			for _, step := range steps {
+				for _, line := range step {
+					allStepsText += line + "\n"
+				}
+			}
+
+			for _, expected := range tt.checkContains {
+				if !strings.Contains(allStepsText, expected) {
+					t.Errorf("Expected to find %q in steps, but it was not found", expected)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildStandardDockerSetupSteps_Sorted tests that images are sorted for consistency
+func TestBuildStandardDockerSetupSteps_Sorted(t *testing.T) {
+	images := []string{"ubuntu:22.04", "alpine:latest", "nginx:stable"}
+	steps := BuildStandardDockerSetupSteps(images)
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Convert to single string
+	allText := strings.Join(steps[0], "\n")
+
+	// Find positions of each image in the output
+	alpinePos := strings.Index(allText, "alpine:latest")
+	nginxPos := strings.Index(allText, "nginx:stable")
+	ubuntuPos := strings.Index(allText, "ubuntu:22.04")
+
+	// Verify alphabetical order (alpine < nginx < ubuntu)
+	if alpinePos == -1 || nginxPos == -1 || ubuntuPos == -1 {
+		t.Fatal("Not all images found in output")
+	}
+
+	if alpinePos > nginxPos || nginxPos > ubuntuPos {
+		t.Error("Images should be sorted alphabetically")
+	}
+}
+
+// TestBuildStandardEngineCleanupSteps tests the cleanup helper
+func TestBuildStandardEngineCleanupSteps(t *testing.T) {
+	tests := []struct {
+		name          string
+		cleanupPaths  []string
+		expectedSteps int
+		checkContains []string
+	}{
+		{
+			name:          "single path",
+			cleanupPaths:  []string{"/tmp/gh-aw/.copilot/"},
+			expectedSteps: 1,
+			checkContains: []string{"Cleanup temporary files", "if: always()", "rm -rf /tmp/gh-aw/.copilot/"},
+		},
+		{
+			name:          "multiple paths",
+			cleanupPaths:  []string{"/tmp/gh-aw/.copilot/", "/tmp/gh-aw/mcp-config/", "/tmp/gh-aw/logs/"},
+			expectedSteps: 1,
+			checkContains: []string{"Cleanup temporary files", "if: always()", "rm -rf /tmp/gh-aw/.copilot/", "rm -rf /tmp/gh-aw/mcp-config/", "rm -rf /tmp/gh-aw/logs/"},
+		},
+		{
+			name:          "empty path list",
+			cleanupPaths:  []string{},
+			expectedSteps: 0,
+			checkContains: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := BuildStandardEngineCleanupSteps(tt.cleanupPaths)
+
+			if len(steps) != tt.expectedSteps {
+				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(steps))
+			}
+
+			// Check that expected strings appear in the steps
+			allStepsText := ""
+			for _, step := range steps {
+				for _, line := range step {
+					allStepsText += line + "\n"
+				}
+			}
+
+			for _, expected := range tt.checkContains {
+				if !strings.Contains(allStepsText, expected) {
+					t.Errorf("Expected to find %q in steps, but it was not found", expected)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildStandardEngineCleanupSteps_Sorted tests that paths are sorted for consistency
+func TestBuildStandardEngineCleanupSteps_Sorted(t *testing.T) {
+	paths := []string{"/tmp/z", "/tmp/a", "/tmp/m"}
+	steps := BuildStandardEngineCleanupSteps(paths)
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Convert to single string
+	allText := strings.Join(steps[0], "\n")
+
+	// Find positions of each path in the output
+	aPos := strings.Index(allText, "rm -rf /tmp/a")
+	mPos := strings.Index(allText, "rm -rf /tmp/m")
+	zPos := strings.Index(allText, "rm -rf /tmp/z")
+
+	// Verify alphabetical order (a < m < z)
+	if aPos == -1 || mPos == -1 || zPos == -1 {
+		t.Fatal("Not all paths found in output")
+	}
+
+	if aPos > mPos || mPos > zPos {
+		t.Error("Paths should be sorted alphabetically")
+	}
+}
+
+// TestBuildStandardEngineCleanupSteps_AlwaysCondition tests that cleanup has always() condition
+func TestBuildStandardEngineCleanupSteps_AlwaysCondition(t *testing.T) {
+	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test"})
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Convert to single string
+	allText := strings.Join(steps[0], "\n")
+
+	// Verify that if: always() is present
+	if !strings.Contains(allText, "if: always()") {
+		t.Error("Cleanup step should have 'if: always()' condition")
+	}
+}

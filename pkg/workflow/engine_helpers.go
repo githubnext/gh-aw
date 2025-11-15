@@ -476,3 +476,124 @@ func RenderJSONMCPConfig(
 		options.PostEOFCommands(yaml)
 	}
 }
+
+// BuildStandardPipInstallSteps creates standard Python package installation steps
+// This helper extracts the common pattern for installing Python packages via pip or uv.
+//
+// Parameters:
+//   - packages: List of package names to install (e.g., ["requests", "numpy"])
+//   - useUv: If true, uses "uv pip install" instead of "pip install"
+//
+// Returns:
+//   - []GitHubActionStep: The installation steps including Python setup
+func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionStep {
+	engineHelpersLog.Printf("Building pip install steps: packages=%v, useUv=%v", packages, useUv)
+
+	if len(packages) == 0 {
+		engineHelpersLog.Print("No packages to install, returning empty steps")
+		return []GitHubActionStep{}
+	}
+
+	var steps []GitHubActionStep
+
+	// Add Python setup step
+	pythonSetupStep := GitHubActionStep{
+		"      - name: Setup Python",
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-python")),
+		"        with:",
+		"          python-version: '3.12'",
+	}
+	steps = append(steps, pythonSetupStep)
+
+	// Add uv setup if needed
+	if useUv {
+		uvSetupStep := GitHubActionStep{
+			"      - name: Setup uv",
+			fmt.Sprintf("        uses: %s", GetActionPin("astral-sh/setup-uv")),
+		}
+		steps = append(steps, uvSetupStep)
+	}
+
+	// Build install command
+	var installCmd string
+	if useUv {
+		installCmd = "uv pip install --system " + strings.Join(packages, " ")
+	} else {
+		installCmd = "pip install " + strings.Join(packages, " ")
+	}
+
+	// Add package installation step
+	installStep := GitHubActionStep{
+		"      - name: Install Python packages",
+		fmt.Sprintf("        run: %s", installCmd),
+	}
+	steps = append(steps, installStep)
+
+	return steps
+}
+
+// BuildStandardDockerSetupSteps creates standard Docker image pre-download steps
+// This helper extracts the common pattern for pre-downloading Docker images used by engines.
+//
+// Parameters:
+//   - images: List of Docker image names to pre-download (e.g., ["ghcr.io/github/github-mcp-server:v1.0.0"])
+//
+// Returns:
+//   - []GitHubActionStep: The Docker image download step (empty if no images)
+func BuildStandardDockerSetupSteps(images []string) []GitHubActionStep {
+	engineHelpersLog.Printf("Building Docker setup steps: %d images", len(images))
+
+	if len(images) == 0 {
+		engineHelpersLog.Print("No Docker images to download, returning empty steps")
+		return []GitHubActionStep{}
+	}
+
+	// Sort images for consistent output
+	sortedImages := make([]string, len(images))
+	copy(sortedImages, images)
+	sort.Strings(sortedImages)
+
+	// Build the docker pull commands
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: Download Docker images")
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          set -e")
+	for _, image := range sortedImages {
+		stepLines = append(stepLines, fmt.Sprintf("          docker pull %s", image))
+	}
+
+	return []GitHubActionStep{stepLines}
+}
+
+// BuildStandardEngineCleanupSteps creates standard cleanup steps for engines
+// This helper provides a common pattern for cleanup operations after engine execution.
+//
+// Parameters:
+//   - cleanupPaths: List of file/directory paths to remove (e.g., ["/tmp/gh-aw/.copilot/"])
+//
+// Returns:
+//   - []GitHubActionStep: The cleanup step (empty if no paths)
+func BuildStandardEngineCleanupSteps(cleanupPaths []string) []GitHubActionStep {
+	engineHelpersLog.Printf("Building engine cleanup steps: paths=%v", cleanupPaths)
+
+	if len(cleanupPaths) == 0 {
+		engineHelpersLog.Print("No cleanup paths specified, returning empty steps")
+		return []GitHubActionStep{}
+	}
+
+	// Sort paths for consistent output
+	sortedPaths := make([]string, len(cleanupPaths))
+	copy(sortedPaths, cleanupPaths)
+	sort.Strings(sortedPaths)
+
+	// Build the cleanup commands
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: Cleanup temporary files")
+	stepLines = append(stepLines, "        if: always()")
+	stepLines = append(stepLines, "        run: |")
+	for _, path := range sortedPaths {
+		stepLines = append(stepLines, fmt.Sprintf("          rm -rf %s", path))
+	}
+
+	return []GitHubActionStep{stepLines}
+}
