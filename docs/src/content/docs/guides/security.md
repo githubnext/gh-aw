@@ -97,11 +97,11 @@ The compiler generates conditions using repository ID comparison (`github.event.
 
 #### workflow_run Trigger Security
 
-Workflows triggered by `workflow_run` events include automatic protections against cross-repository attacks:
+Workflows triggered by `workflow_run` events include automatic protections against cross-repository attacks and fork execution:
 
-**Automatic repository validation:**
+**Automatic repository and fork validation:**
 
-The compiler automatically injects a repository ID check into the activation job for all workflows using `workflow_run` triggers:
+The compiler automatically injects a repository ID check and fork detection into the activation job for all workflows using `workflow_run` triggers:
 
 ```yaml wrap
 on:
@@ -110,16 +110,21 @@ on:
     types: [completed]
 ```
 
-This generates a safety condition that prevents execution if the triggering workflow_run is from a different repository:
+This generates a safety condition that prevents execution if the triggering workflow_run is from a different repository or from a forked repository:
 
 ```yaml wrap
 if: >
   (user_condition) &&
   ((github.event_name != 'workflow_run') ||
-   (github.event.workflow_run.repository.id == github.repository_id))
+   ((github.event.workflow_run.repository.id == github.repository_id) &&
+    (!github.event.workflow_run.repository.fork)))
 ```
 
-The safety check combines with user-specified conditions using AND logic and protects all downstream jobs through job dependencies.
+The safety check:
+- Prevents cross-repository attacks (repository ID mismatch)
+- Prevents execution when triggered from forked repositories
+- Combines with user-specified conditions using AND logic
+- Protects all downstream jobs through job dependencies
 
 **Branch restriction validation:**
 

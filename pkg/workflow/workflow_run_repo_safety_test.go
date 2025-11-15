@@ -229,6 +229,19 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 	if !strings.Contains(lockContentStr, "||") {
 		t.Error("Expected safety condition to use || operator")
 	}
+
+	// Verify the fork check is present
+	forkCondition := "github.event.workflow_run.repository.fork"
+	if !strings.Contains(lockContentStr, forkCondition) {
+		t.Errorf("Expected fork check to be present in lock file")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the NOT operator is used for the fork check
+	if !strings.Contains(lockContentStr, "!(github.event.workflow_run.repository.fork)") {
+		t.Errorf("Expected NOT operator on fork check")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
 }
 
 // TestNoWorkflowRunRepoSafetyForPushTrigger tests that push triggers don't get the safety check
