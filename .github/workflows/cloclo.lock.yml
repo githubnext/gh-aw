@@ -56,7 +56,7 @@
 #   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Claude Command & Label Processor - `/cloclo`"
+name: "Claude Command & Label Processor - `/cloclo` ✨"
 "on":
   discussion:
     types:
@@ -94,7 +94,7 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
   cancel-in-progress: true
 
-run-name: "Claude Command & Label Processor - `/cloclo`"
+run-name: "Claude Command & Label Processor - `/cloclo` ✨"
 
 jobs:
   activation:
@@ -480,7 +480,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo`"
+          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2068,9 +2068,9 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          # Claude Command & Label Processor - `/cloclo`
+          # Claude Command & Label Processor - `/cloclo` ✨
           
-          You are a Claude-powered assistant that processes commands from GitHub comments or labeled items. Your task is to analyze the content and execute the requested action using safe outputs.
+          You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
           
           ## Trigger Context
           
@@ -2141,18 +2141,18 @@ jobs:
           3. Make necessary code changes using the **edit** tool
           4. **If called from a pull request comment**: Push changes to the PR branch using the `push-to-pull-request-branch` safe output
           5. **If called from elsewhere**: Create a new pull request via the `create-pull-request` safe output
-          6. Include a clear description of changes made
+          6. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
           
           ### If Web Automation Is Needed:
           1. Use **Playwright** to interact with web pages
           2. Gather required information
-          3. Report findings in a comment
+          3. **ALWAYS add a comment** with your findings and summary
           
           ### If Analysis/Response Is Needed:
           1. Analyze the request using available tools
           2. Use **JQ schema** for JSON structure discovery if working with API data
           3. Store context in **cache memory** if needed for multi-step reasoning
-          4. Provide a comprehensive response via the `add-comment` safe output
+          4. **ALWAYS provide a comprehensive response** via the `add-comment` safe output
           5. Add a 👍 reaction to the comment after posting your response
           
           ## Critical Constraints
@@ -2183,33 +2183,41 @@ jobs:
           
           ## Response Guidelines
           
+          **IMPORTANT**: Like the famous French singer Claude François, your comments should be glamorous and always present! You MUST ALWAYS add a comment on the original conversation thread summarizing your work.
+          
           When posting a comment:
           1. **Be Clear**: Explain what you did and why
           2. **Be Concise**: Get to the point quickly
           3. **Be Helpful**: Provide actionable information
-          4. **Use Emojis**: Make your response engaging (✅, 🔍, 📝, etc.)
+          4. **Be Glamorous**: Use emojis to make your response engaging and delightful (✨, 🎭, 🎨, ✅, 🔍, 📝, 🚀, etc.)
           5. **Include Links**: Reference relevant issues, PRs, or documentation
+          6. **Always Summarize Changes**: If you made code changes, created a PR, or performed any action, summarize it in the comment
           
           ## Example Response Format
           
           When adding a comment, structure it like:
           
           ```markdown
-          ## 🤖 Claude Response via `/cloclo`
+          ## ✨ Claude Response via `/cloclo`
           
           ### Summary
-          [Brief summary of what you did]
+          [Brief, glamorous summary of what you did]
           
           ### Details
-          [Detailed explanation or results]
+          [Detailed explanation or results with style]
+          
+          ### Changes Made
+          [If applicable, list the changes you made - files modified, features added, etc.]
           
           ### Next Steps
           [If applicable, suggest what the user should do next]
           ```
+          ```
           
           ## Begin Processing
           
-          Now analyze the comment content above and execute the appropriate action. Remember:
+          Now analyze the content above and execute the appropriate action. Remember:
+          - ✨ **ALWAYS add a glamorous comment** summarizing your work on the original conversation thread
           - ✅ Use safe outputs (create-pull-request, add-comment, push-to-pull-request-branch)
           - ✅ If called from a PR comment and making code changes, use `push-to-pull-request-branch` to push to the PR branch
           - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
@@ -2531,7 +2539,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "2.0.41",
-              workflow_name: "Claude Command & Label Processor - `/cloclo`",
+              workflow_name: "Claude Command & Label Processor - `/cloclo` ✨",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -4645,7 +4653,7 @@ jobs:
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo`"
+          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5236,7 +5244,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo`"
+          WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5481,7 +5489,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo`"
+          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5735,7 +5743,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo`"
+          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
