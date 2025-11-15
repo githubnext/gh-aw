@@ -7,7 +7,7 @@ import (
 var toolsTypesLog = logger.New("workflow:tools_types")
 
 // Tools represents the parsed tools configuration from workflow frontmatter
-type Tools struct{
+type Tools struct {
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`

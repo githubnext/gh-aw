@@ -275,7 +275,7 @@ func validateSecretReferences(secrets []string) error {
 
 	for _, secret := range secrets {
 		if !secretNamePattern.MatchString(secret) {
-			return fmt.Errorf("invalid secret name: %s", secret)
+			return fmt.Errorf("invalid secret name: %s. Secret names must start with an uppercase letter and contain only uppercase letters, numbers, and underscores. Example: MY_SECRET_KEY", secret)
 		}
 	}
 

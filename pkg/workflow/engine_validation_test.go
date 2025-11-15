@@ -42,13 +42,13 @@ func TestValidateEngine(t *testing.T) {
 			name:        "invalid engine ID",
 			engineID:    "invalid-engine",
 			expectError: true,
-			errorMsg:    "no engine found matching prefix",
+			errorMsg:    "invalid engine",
 		},
 		{
 			name:        "unknown engine ID",
 			engineID:    "gpt-7",
 			expectError: true,
-			errorMsg:    "no engine found matching prefix",
+			errorMsg:    "invalid engine",
 		},
 	}
 

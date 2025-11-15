@@ -93,7 +93,7 @@ func validateDockerImage(image string, verbose bool) error {
 		}
 
 		// Other errors indicate the image truly doesn't exist or has issues
-		return fmt.Errorf("container image '%s' not found and could not be pulled: %s", image, outputStr)
+		return fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, outputStr)
 	}
 
 	// Successfully pulled
