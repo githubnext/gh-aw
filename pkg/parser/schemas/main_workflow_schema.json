@@ -3304,7 +3304,7 @@
             },
             "max-turns": {
               "type": "integer",
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
             },
             "concurrency": {
               "oneOf": [
