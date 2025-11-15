@@ -514,39 +514,6 @@ func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionS
 	return []GitHubActionStep{installStep}
 }
 
-// BuildStandardDockerSetupSteps creates standard Docker image pre-download steps
-// This helper extracts the common pattern for pre-downloading Docker images used by engines.
-//
-// Parameters:
-//   - images: List of Docker image names to pre-download (e.g., ["ghcr.io/github/github-mcp-server:v1.0.0"])
-//
-// Returns:
-//   - []GitHubActionStep: The Docker image download step (empty if no images)
-func BuildStandardDockerSetupSteps(images []string) []GitHubActionStep {
-	engineHelpersLog.Printf("Building Docker setup steps: %d images", len(images))
-
-	if len(images) == 0 {
-		engineHelpersLog.Print("No Docker images to download, returning empty steps")
-		return []GitHubActionStep{}
-	}
-
-	// Sort images for consistent output
-	sortedImages := make([]string, len(images))
-	copy(sortedImages, images)
-	sort.Strings(sortedImages)
-
-	// Build the docker pull commands
-	var stepLines []string
-	stepLines = append(stepLines, "      - name: Download Docker images")
-	stepLines = append(stepLines, "        run: |")
-	stepLines = append(stepLines, "          set -e")
-	for _, image := range sortedImages {
-		stepLines = append(stepLines, fmt.Sprintf("          docker pull %s", image))
-	}
-
-	return []GitHubActionStep{stepLines}
-}
-
 // BuildStandardEngineCleanupSteps creates standard cleanup steps for engines
 // This helper provides a common pattern for cleanup operations after engine execution.
 //
