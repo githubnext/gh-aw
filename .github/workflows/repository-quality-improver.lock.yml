@@ -1300,15 +1300,7 @@ jobs:
              - Think creatively about this specific project's challenges
              - Consider areas beyond traditional software quality categories
              - Focus on workflow-specific, tool-specific, or user experience concerns (e.g., "Developer Onboarding", "Debugging Experience", "Contribution Friction")
-             - **Examples of creative custom areas:**
-               - "Workflow Compilation Performance"
-               - "Error Message Clarity and Actionability"
-               - "MCP Server Documentation Completeness"
-               - "GitHub Actions Best Practices Adoption"
-               - "Command-line Help Text Quality"
-               - "Integration Test Reliability"
-               - "Safe Output Mechanism Robustness"
-               - "Workflow Template Reusability"
+             - **Be creative!** Don't limit yourself to predefined examples - analyze the repository to identify truly unique improvement opportunities
           
           2. **Use a Standard Category (30% of the time)** - Select from established areas:
              - Code Quality, Documentation, Testing, Security, Performance
@@ -1668,13 +1660,6 @@ jobs:
           
           1. **Copilot Agent Section**: Always include a clearly marked section for Copilot agent tasks
           2. **Planner Note**: Include a note for the planner agent to split tasks
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           3. **Code Regions**: Mark specific files or patterns where changes are needed
           4. **Task Format**: Each task should be self-contained with clear acceptance criteria
           5. **Variety**: Generate 3-5 actionable tasks per run
@@ -1682,6 +1667,13 @@ jobs:
           
           ## Phase 3: Update Cache Memory
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           After generating the report, update the focus area history:
           
           ```bash
@@ -1736,15 +1728,15 @@ jobs:
           - **Repository-Specific**: Custom areas should reflect actual needs of this specific project
           - **Reuse Strategically**: When reusing (10% of time), pick the most impactful area from recent history
           
-          ### Custom Focus Area Examples for This Repository
+          ### Custom Focus Area Guidelines
           
-          Consider these types of custom areas specific to gh-aw:
+          When creating custom focus areas specific to gh-aw:
           
-          - **Workflow-Specific**: "Workflow Template Quality", "Frontmatter Schema Completeness", "Workflow Compilation Feedback"
-          - **Tool Integration**: "MCP Server Stability", "GitHub API Tool Coverage", "Safe Output Mechanisms"
-          - **User Experience**: "CLI Command Discoverability", "Error Recovery Guidance", "Workflow Debugging Experience"
-          - **Developer Productivity**: "Local Development Setup", "Testing Workflow Changes", "Compilation Speed"
-          - **Documentation Quality**: "MCP Server Setup Guides", "Tool Configuration Examples", "Troubleshooting Resources"
+          - **Be creative and analytical**: Study the repository structure, codebase, issues, and pull requests to identify real improvement opportunities
+          - **Think holistically**: Consider workflow-specific aspects, tool integration quality, user experience, developer productivity, and documentation
+          - **Focus on impact**: Choose areas where improvements would provide significant value to users or contributors
+          - **Avoid repetition**: Invent fresh perspectives rather than rehashing previous focus areas
+          - **Context matters**: Let the repository's actual needs guide your creativity, not a predefined list
           
           ### Analysis Depth
           - **Be Thorough**: Collect relevant metrics and perform meaningful analysis
