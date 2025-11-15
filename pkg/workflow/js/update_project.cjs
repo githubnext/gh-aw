@@ -346,6 +346,7 @@ async function updateProject(output) {
       let itemId;
       if (existingItem) {
         itemId = existingItem.id;
+        core.info('✓ Item already on board');
       } else {
         // Add item to board
         const addResult = await githubClient.graphql(
