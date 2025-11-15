@@ -723,7 +723,7 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 
 	for _, candidate := range candidates {
 		candidateLower := strings.ToLower(candidate)
-		
+
 		// Skip exact matches
 		if targetLower == candidateLower {
 			continue
@@ -925,14 +925,6 @@ func removeDuplicates(strings []string) []string {
 	}
 
 	return result
-}
-
-// abs returns the absolute value of an integer
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
 
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly
