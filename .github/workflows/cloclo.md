@@ -11,7 +11,7 @@ permissions:
   actions: read
 engine:
   id: claude
-  max-turns: 5
+  max-turns: 100
 imports:
   - shared/mcp/serena.md
   - shared/mcp/gh-aw.md
@@ -27,6 +27,7 @@ safe-outputs:
     labels: [automation, cloclo]
   add-comment:
     max: 1
+  push-to-pull-request-branch:
 timeout-minutes: 20
 ---
 
@@ -73,8 +74,9 @@ Analyze the comment content above and determine what action the user is requesti
 1. Use the **Serena MCP** for code analysis and understanding
 2. Use the **gh-aw MCP** to inspect existing workflows if relevant
 3. Make necessary code changes using the **edit** tool
-4. Create a pull request via the `create-pull-request` safe output
-5. Include a clear description of changes made
+4. **If called from a pull request comment**: Push changes to the PR branch using the `push-to-pull-request-branch` safe output
+5. **If called from elsewhere**: Create a new pull request via the `create-pull-request` safe output
+6. Include a clear description of changes made
 
 ### If Web Automation Is Needed:
 1. Use **Playwright** to interact with web pages
@@ -143,7 +145,8 @@ When adding a comment, structure it like:
 ## Begin Processing
 
 Now analyze the comment content above and execute the appropriate action. Remember:
-- ✅ Use safe outputs (create-pull-request, add-comment)
+- ✅ Use safe outputs (create-pull-request, add-comment, push-to-pull-request-branch)
+- ✅ If called from a PR comment and making code changes, use `push-to-pull-request-branch` to push to the PR branch
 - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
 - ✅ Store context in cache memory if needed
 - ✅ Add 👍 reaction after posting comments

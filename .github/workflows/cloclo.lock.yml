@@ -19,6 +19,7 @@
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   update_reaction["update_reaction"]
 #   pre_activation --> activation
 #   agent --> add_comment
@@ -31,10 +32,14 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> push_to_pull_request_branch
+#   activation --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
 #   agent --> update_reaction
 #   activation --> update_reaction
 #   create_pull_request --> update_reaction
 #   add_comment --> update_reaction
+#   push_to_pull_request_branch --> update_reaction
 #   missing_tool --> update_reaction
 # ```
 #
@@ -1444,7 +1449,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{}}
+          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{},"push_to_pull_request_branch":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -2447,8 +2452,9 @@ jobs:
           1. Use the **Serena MCP** for code analysis and understanding
           2. Use the **gh-aw MCP** to inspect existing workflows if relevant
           3. Make necessary code changes using the **edit** tool
-          4. Create a pull request via the `create-pull-request` safe output
-          5. Include a clear description of changes made
+          4. **If called from a pull request comment**: Push changes to the PR branch using the `push-to-pull-request-branch` safe output
+          5. **If called from elsewhere**: Create a new pull request via the `create-pull-request` safe output
+          6. Include a clear description of changes made
           
           ### If Web Automation Is Needed:
           1. Use **Playwright** to interact with web pages
@@ -2517,7 +2523,8 @@ jobs:
           ## Begin Processing
           
           Now analyze the comment content above and execute the appropriate action. Remember:
-          - ✅ Use safe outputs (create-pull-request, add-comment)
+          - ✅ Use safe outputs (create-pull-request, add-comment, push-to-pull-request-branch)
+          - ✅ If called from a PR comment and making code changes, use `push-to-pull-request-branch` to push to the PR branch
           - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
           - ✅ Store context in cache memory if needed
           - ✅ Add 👍 reaction after posting comments
@@ -2641,7 +2648,7 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Reporting Missing Tools or Functionality
+          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Pushing Changes to Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
@@ -2657,6 +2664,13 @@ jobs:
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
           5. Create the pull request with the create-pull-request tool from safeoutputs
+          
+          **Pushing Changes to Pull Request Branch**
+          
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -2977,7 +2991,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --max-turns 5 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__serena' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --max-turns 100 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__serena' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -2991,7 +3005,7 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_MAX_TURNS: 5
+          GH_AW_MAX_TURNS: 100
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -5687,7 +5701,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --max-turns 5 --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --max-turns 100 --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -5699,7 +5713,7 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
-          GH_AW_MAX_TURNS: 5
+          GH_AW_MAX_TURNS: 100
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -6027,12 +6041,518 @@ jobs:
             }
             await main();
 
+  push_to_pull_request_branch:
+    needs:
+      - agent
+      - activation
+      - detection
+    if: >
+      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
+      (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
+    steps:
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL="${{ github.server_url }}"
+          SERVER_URL="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Push to Branch
+        id: push_to_pull_request_branch
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_TOKEN: ${{ github.token }}
+          GH_AW_PUSH_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - `/cloclo`"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message, "commit");
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              if (!commentId) {
+                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+                return;
+              }
+              core.info(`Updating activation comment ${commentId}`);
+              let repoOwner = context.repo.owner;
+              let repoName = context.repo.repo;
+              if (commentRepo) {
+                const parts = commentRepo.split("/");
+                if (parts.length === 2) {
+                  repoOwner = parts[0];
+                  repoName = parts[1];
+                } else {
+                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
+                }
+              }
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const currentComment = await github.graphql(
+                    `
+                    query($commentId: ID!) {
+                      node(id: $commentId) {
+                        ... on DiscussionComment {
+                          body
+                        }
+                      }
+                    }`,
+                    { commentId: commentId }
+                  );
+                  if (!currentComment?.node?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
+                    return;
+                  }
+                  const currentBody = currentComment.node.body;
+                  const updatedBody = currentBody + message;
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: updatedBody }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  const successMessage = label
+                    ? `Successfully updated discussion comment with ${label} link`
+                    : "Successfully updated discussion comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  if (!currentComment?.data?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted");
+                    return;
+                  }
+                  const currentBody = currentComment.data.body;
+                  const updatedBody = currentBody + message;
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: updatedBody,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              if (agentOutputFile.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              const target = process.env.GH_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const message = "No patch file found - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot push without changes";
+                core.error("Patch file generation failed - this is an error condition that requires investigation");
+                core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+                core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
+                const previewLength = Math.min(500, patchContent.length);
+                core.error(`Patch file preview (first ${previewLength} characters):`);
+                core.error(patchContent.substring(0, previewLength));
+                core.setFailed(message);
+                return;
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  core.setFailed(message);
+                  return;
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              }
+              core.info(`Target configuration: ${target}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
+              if (!pushItem) {
+                core.info("No push-to-pull-request-branch item found in agent output");
+                return;
+              }
+              core.info("Found push-to-pull-request-branch item");
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Push to PR Branch",
+                  description: "The following changes would be pushed if staged mode was disabled:",
+                  items: [{ target, commit_message: pushItem.commit_message }],
+                  renderItem: item => {
+                    let content = "";
+                    content += `**Target:** ${item.target}\n\n`;
+                    if (item.commit_message) {
+                      content += `**Commit Message:** ${item.commit_message}\n\n`;
+                    }
+                    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                      if (patchStats.trim()) {
+                        content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                      } else {
+                        content += `**Changes:** No changes (empty patch)\n\n`;
+                      }
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              if (target !== "*" && target !== "triggering") {
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
+                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
+                  return;
+                }
+              }
+              let pullNumber;
+              if (target === "triggering") {
+                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+                if (!pullNumber) {
+                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
+                  return;
+                }
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                  pullNumber = parseInt(pushItem.pull_number, 10);
+                }
+              } else {
+                pullNumber = parseInt(target, 10);
+              }
+              let branchName;
+              let prTitle = "";
+              let prLabels = [];
+              try {
+                const prInfoRes = await exec.getExecOutput(`gh`, [
+                  `pr`,
+                  `view`,
+                  `${pullNumber}`,
+                  `--json`,
+                  `headRefName,title,labels`,
+                  `--jq`,
+                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+                ]);
+                if (prInfoRes.exitCode === 0) {
+                  const prData = JSON.parse(prInfoRes.stdout.trim());
+                  branchName = prData.headRefName;
+                  prTitle = prData.title || "";
+                  prLabels = prData.labels || [];
+                } else {
+                  throw new Error("No PR data found");
+                }
+              } catch (error) {
+                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
+              }
+              core.info(`Target branch: ${branchName}`);
+              core.info(`PR title: ${prTitle}`);
+              core.info(`PR labels: ${prLabels.join(", ")}`);
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+                return;
+              }
+              const requiredLabelsStr = process.env.GH_AW_PR_LABELS;
+              if (requiredLabelsStr) {
+                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+                if (missingLabels.length > 0) {
+                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+                  return;
+                }
+              }
+              if (titlePrefix) {
+                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+              }
+              if (requiredLabelsStr) {
+                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+              }
+              const hasChanges = !isEmpty;
+              core.info(`Switching to branch: ${branchName}`);
+              try {
+                await exec.exec("git fetch origin");
+              } catch (fetchError) {
+                core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                return;
+              }
+              try {
+                await exec.exec(`git rev-parse --verify origin/${branchName}`);
+              } catch (verifyError) {
+                core.setFailed(
+                  `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
+                );
+                return;
+              }
+              try {
+                await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+                core.info(`Checked out existing branch from origin: ${branchName}`);
+              } catch (checkoutError) {
+                core.setFailed(
+                  `Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`
+                );
+                return;
+              }
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                try {
+                  const commitTitleSuffix = process.env.GH_AW_COMMIT_TITLE_SUFFIX;
+                  if (commitTitleSuffix) {
+                    core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
+                    let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchContent = patchContent.replace(
+                      /^Subject: (?:\[PATCH\] )?(.*)$/gm,
+                      (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`
+                    );
+                    fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+                    core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
+                  }
+                  const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  const patchLines = finalPatchContent.split("\n");
+                  const previewLineCount = Math.min(100, patchLines.length);
+                  core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+                  for (let i = 0; i < previewLineCount; i++) {
+                    core.info(patchLines[i]);
+                  }
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info(`Changes committed and pushed to branch: ${branchName}`);
+                } catch (error) {
+                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
+                    core.info("Recent commits (last 5):");
+                    core.info(logResult.stdout);
+                    const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
+                    core.info("Uncommitted changes:");
+                    core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
+                    const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch diff:");
+                    core.info(patchDiffResult.stdout);
+                    const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
+                    core.info("Failed patch (full):");
+                    core.info(patchFullResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
+                }
+              }
+              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
+              const commitSha = commitShaRes.stdout.trim();
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const repoUrl = context.payload.repository
+                ? context.payload.repository.html_url
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+              const pushUrl = `${repoUrl}/tree/${branchName}`;
+              const commitUrl = `${repoUrl}/commit/${commitSha}`;
+              core.setOutput("branch_name", branchName);
+              core.setOutput("commit_sha", commitSha);
+              core.setOutput("push_url", pushUrl);
+              if (hasChanges) {
+                await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
+              }
+              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
+              const summaryContent = hasChanges
+                ? `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
+            `
+                : `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Status**: No changes to apply (noop operation)
+            - **URL**: [${pushUrl}](${pushUrl})
+            `;
+              await core.summary.addRaw(summaryContent).write();
+            }
+            await main();
+
   update_reaction:
     needs:
       - agent
       - activation
       - create_pull_request
       - add_comment
+      - push_to_pull_request_branch
       - missing_tool
     if: >
       (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
