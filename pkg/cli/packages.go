@@ -780,3 +780,29 @@ func discoverWorkflowsInPackage(repoSlug, version string, verbose bool) ([]*Work
 	packagesLog.Printf("Discovered %d workflows in package %s", len(workflows), repoSlug)
 	return workflows, nil
 }
+
+// ExtractWorkflowDescription extracts the description field from workflow content string
+func ExtractWorkflowDescription(content string) string {
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return ""
+	}
+
+	if desc, ok := result.Frontmatter["description"]; ok {
+		if descStr, ok := desc.(string); ok {
+			return descStr
+		}
+	}
+
+	return ""
+}
+
+// ExtractWorkflowDescriptionFromFile extracts the description field from a workflow file
+func ExtractWorkflowDescriptionFromFile(filePath string) string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return ""
+	}
+
+	return ExtractWorkflowDescription(string(content))
+}

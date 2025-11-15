@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/gh-aw.md
@@ -1326,7 +1328,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.355
       - name: Downloading container images
         run: |
           set -e
@@ -2871,7 +2873,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.358",
+              agent_version: "0.0.355",
               workflow_name: "Q",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4036,43 +4038,6 @@ jobs:
                 runLogParser,
               };
             }
-            function formatDuration(ms) {
-              if (!ms || ms <= 0) return "";
-              const seconds = Math.round(ms / 1000);
-              if (seconds < 60) {
-                return `${seconds}s`;
-              }
-              const minutes = Math.floor(seconds / 60);
-              const remainingSeconds = seconds % 60;
-              if (remainingSeconds === 0) {
-                return `${minutes}m`;
-              }
-              return `${minutes}m ${remainingSeconds}s`;
-            }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 300;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -4731,6 +4696,23 @@ jobs:
               }
               return markdown;
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
             function formatToolUseWithDetails(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
@@ -4857,6 +4839,21 @@ jobs:
                 paramStrs.push("...");
               }
               return paramStrs.join(", ");
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 300;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
@@ -5922,7 +5919,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Q"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_DESCRIPTION: "Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations"
         with:
           script: |
             const fs = require('fs');
@@ -6050,7 +6047,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.355
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

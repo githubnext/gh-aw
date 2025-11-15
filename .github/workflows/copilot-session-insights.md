@@ -1,5 +1,6 @@
 ---
 name: Copilot Session Insights
+description: Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
 on:
   schedule:
     # Daily at 8:00 AM Pacific Time (16:00 UTC)

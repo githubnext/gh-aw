@@ -1,5 +1,6 @@
 ---
-on: 
+description: Example workflow demonstrating proper permission provisioning and security best practices
+on:
   workflow_dispatch:
 permissions:
   contents: write

@@ -1,4 +1,5 @@
 ---
+description: Test workflow for validating secret masking and redaction functionality
 on: workflow_dispatch
 permissions:
   contents: read

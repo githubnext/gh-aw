@@ -1,4 +1,5 @@
 ---
+description: Reusable workflow that analyzes failed workflow runs and provides diagnostic information
 network: defaults
 on:
   workflow_call:

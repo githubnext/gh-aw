@@ -1,4 +1,5 @@
 ---
+description: Inspects MCP (Model Context Protocol) server configurations and validates their functionality
 on:
   schedule:
     - cron: "0 18 * * 1"  # Weekly on Mondays at 6pm UTC

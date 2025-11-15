@@ -1,4 +1,5 @@
 ---
+description: Summarizes PDF and other documents by analyzing URLs provided via /summarize command or workflow dispatch
 on:
   # Command trigger - responds to /summarize mentions
   command:

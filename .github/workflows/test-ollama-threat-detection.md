@@ -1,4 +1,5 @@
 ---
+description: Test workflow for validating Ollama Llama Guard 3 threat detection functionality
 on:
   workflow_dispatch:
 

@@ -1,4 +1,5 @@
 ---
+description: Generates high-quality data visualizations and trend charts using Python scientific computing libraries
 on:
   workflow_dispatch:
 permissions:

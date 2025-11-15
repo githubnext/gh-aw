@@ -1,4 +1,5 @@
 ---
+description: Runs comprehensive code quality checks using Super Linter and creates issues for violations
 on:
   workflow_dispatch:
   schedule:

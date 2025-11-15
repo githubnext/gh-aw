@@ -1,5 +1,6 @@
 ---
 name: Copilot PR Prompt Pattern Analysis
+description: Analyzes prompt patterns used in Copilot PR interactions to identify common usage patterns and optimization opportunities
 on:
   schedule:
     # Every day at 9am UTC

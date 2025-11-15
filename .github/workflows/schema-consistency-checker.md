@@ -1,4 +1,5 @@
 ---
+description: Detects inconsistencies between JSON schema, implementation code, and documentation
 on:
   schedule:
     - cron: "0 2 * * *"  # Daily at 2 AM UTC

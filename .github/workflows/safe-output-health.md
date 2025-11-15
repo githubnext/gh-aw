@@ -1,4 +1,5 @@
 ---
+description: Monitors and analyzes the health of safe output operations across all agentic workflows
 on:
   schedule:
     - cron: "0 0 * * *"  # Daily at midnight UTC
