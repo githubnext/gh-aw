@@ -2498,7 +2498,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub pull requests from agentic workflow output",
+              "description": "Configuration for creating GitHub pull requests from agentic workflow output. Note: The max parameter is not supported for pull requests - workflows are always limited to creating 1 pull request per run. This design decision prevents workflow runs from creating excessive PRs and maintains repository integrity.",
               "properties": {
                 "title-prefix": {
                   "type": "string",
