@@ -23,8 +23,9 @@ type Runtime struct {
 
 // RuntimeRequirement represents a detected runtime requirement
 type RuntimeRequirement struct {
-	Runtime *Runtime
-	Version string // Empty string means use default
+	Runtime    *Runtime
+	Version    string            // Empty string means use default
+	ExtraFields map[string]any   // Additional 'with' fields from user's setup step (e.g., cache settings)
 }
 
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
@@ -355,14 +356,16 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 	var steps []GitHubActionStep
 
 	for _, req := range requirements {
-		steps = append(steps, generateSetupStep(req.Runtime, req.Version))
+		steps = append(steps, generateSetupStep(&req))
 	}
 
 	return steps
 }
 
-// generateSetupStep creates a setup step for a given runtime
-func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
+// generateSetupStep creates a setup step for a given runtime requirement
+func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
+	runtime := req.Runtime
+	version := req.Version
 	log.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
 	// Use default version if none specified
 	if version == "" {
@@ -392,6 +395,10 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: go.mod")
 		step = append(step, "          cache: true")
+		// Add any extra fields from user's setup step
+		for key, value := range req.ExtraFields {
+			step = append(step, fmt.Sprintf("          %s: %v", key, value))
+		}
 		return step
 	}
 
@@ -400,16 +407,58 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
 	} else if runtime.ID == "uv" {
-		// For uv without version, no with block needed
-		return step
+		// For uv without version, no with block needed (unless there are extra fields)
+		if len(req.ExtraFields) == 0 {
+			return step
+		}
+		step = append(step, "        with:")
 	}
 
-	// Add extra fields if present
+	// Add extra fields from runtime configuration
 	for key, value := range runtime.ExtraWithFields {
 		step = append(step, fmt.Sprintf("          %s: %s", key, value))
 	}
+	
+	// Add extra fields from user's setup step (carries over fields like cache, cache-dependency-path)
+	for key, value := range req.ExtraFields {
+		// Format the value appropriately for YAML
+		valueStr := formatYAMLValue(value)
+		step = append(step, fmt.Sprintf("          %s: %s", key, valueStr))
+		log.Printf("  Added extra field to runtime setup: %s = %s", key, valueStr)
+	}
 
 	return step
+}
+
+// formatYAMLValue formats a value for YAML output
+func formatYAMLValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		// Quote strings if they contain special characters or look like non-string types
+		if v == "true" || v == "false" || v == "null" {
+			return fmt.Sprintf("'%s'", v)
+		}
+		// Check if it's a number
+		if _, err := fmt.Sscanf(v, "%f", new(float64)); err == nil {
+			return fmt.Sprintf("'%s'", v)
+		}
+		// Return as-is for simple strings, quote for complex ones
+		return fmt.Sprintf("'%s'", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32, float64:
+		return fmt.Sprintf("%v", v)
+	default:
+		// For other types, convert to string and quote
+		return fmt.Sprintf("'%v'", v)
+	}
 }
 
 // ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
@@ -664,10 +713,29 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 							preservedCount++
 							break
 						}
+						
+						// No customization detected, but capture extra fields to carry over
+						// These are fields beyond the version field that should be preserved
+						if req.ExtraFields == nil {
+							req.ExtraFields = make(map[string]any)
+						}
+						for key, value := range withMap {
+							// Skip the version field as it's handled separately
+							if req.Runtime.VersionField != "" && key == req.Runtime.VersionField {
+								continue
+							}
+							// Skip standard Go fields that will be auto-generated
+							if req.Runtime.ID == "go" && (key == "go-version-file" || key == "cache") {
+								continue
+							}
+							// Carry over any other fields
+							req.ExtraFields[key] = value
+							log.Printf("  Capturing extra field from setup step: %s = %v", key, value)
+						}
 					}
 				}
 				
-				// No real customization - remove this duplicate
+				// No real customization - remove this duplicate but keep extra fields
 				shouldRemove = true
 				log.Printf("  Removing duplicate runtime setup step: %s", usesStr)
 				removedCount++
