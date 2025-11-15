@@ -1,29 +1,13 @@
 ---
 on:
-  issues:
-    types: [opened, edited, reopened, labeled]
-  issue_comment:
-    types: [created, edited]
-  pull_request:
-    types: [opened, edited, reopened]
-  discussion:
-    types: [created, edited, labeled]
-  discussion_comment:
-    types: [created, edited]
+  command:
+    name: cloclo
 permissions:
   contents: read
   pull-requests: read
   issues: read
   discussions: read
   actions: read
-if: |
-  (github.event_name == 'issues' && github.event.action == 'labeled' && contains(github.event.label.name, 'cloclo')) ||
-  (github.event_name == 'discussion' && github.event.action == 'labeled' && contains(github.event.label.name, 'cloclo')) ||
-  (github.event_name == 'issues' && contains(github.event.issue.body, '/cloclo')) ||
-  (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/cloclo')) ||
-  (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '/cloclo')) ||
-  (github.event_name == 'discussion' && contains(github.event.discussion.body, '/cloclo')) ||
-  (github.event_name == 'discussion_comment' && contains(github.event.comment.body, '/cloclo'))
 engine:
   id: claude
   max-turns: 100
@@ -52,14 +36,10 @@ You are a Claude-powered assistant inspired by the legendary French singer Claud
 
 ## Trigger Context
 
-This workflow can be triggered in two ways:
-
-1. **Command Trigger**: When someone posts `/cloclo` in:
-   - Issue bodies or comments
-   - Pull request bodies or comments (via issue_comment)
-   - Discussion bodies or comments
-   
-2. **Label Trigger**: When an issue or discussion is labeled with "cloclo"
+This workflow is triggered when someone posts `/cloclo` in:
+- Issue bodies or comments
+- Pull request bodies or comments
+- Discussion bodies or comments
 
 ## Current Context
 
@@ -71,24 +51,23 @@ This workflow can be triggered in two ways:
 ${{ needs.activation.outputs.text }}
 ```
 
-**Note**: For label triggers, the content will be the issue or discussion body. For command triggers, it will be the comment content.
-
-## Issue Context (if applicable)
-
-When triggered by an issue (either via label or comment):
+{{#if github.event.issue}}
+## Issue Context
 
 - **Issue Number**: ${{ github.event.issue.number }}
 - **Issue Title**: ${{ github.event.issue.title }}
 - **Issue State**: ${{ github.event.issue.state }}
+{{/if}}
 
-## Discussion Context (if applicable)
-
-When triggered by a discussion (either via label or comment):
+{{#if github.event.discussion}}
+## Discussion Context
 
 - **Discussion Number**: ${{ github.event.discussion.number }}
 - **Discussion Title**: ${{ github.event.discussion.title }}
+{{/if}}
 
-## Pull Request Context (if applicable)
+{{#if github.event.pull_request}}
+## Pull Request Context
 
 **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:
 
@@ -97,6 +76,7 @@ When triggered by a discussion (either via label or comment):
 - **Source Branch SHA**: ${{ github.event.pull_request.head.sha }}
 - **Target Branch SHA**: ${{ github.event.pull_request.base.sha }}
 - **PR State**: ${{ github.event.pull_request.state }}
+{{/if}}
 
 ## Available Tools
 
