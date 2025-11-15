@@ -98,6 +98,8 @@ gh aw add ci-doctor --dir shared --number 3      # Organize and create copies
 gh aw add ci-doctor --pr                         # Create PR instead of direct commit
 ```
 
+When adding a workflow, the command displays the workflow description (extracted from the frontmatter `description` field) to provide context about the workflow's purpose.
+
 **Options:**
 - `--dir`: Organize workflows in subdirectories
 - `--number`: Create multiple numbered copies
@@ -132,6 +134,8 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
+Remote imports are automatically cached in `.github/aw/imports/` for offline compilation. First compilation downloads imports; subsequent compilations use cached files, eliminating network calls.
+
 **Key Options:**
 
 | Option | Description |
@@ -158,6 +162,8 @@ gh aw trial ./workflow.md --logical-repo owner/repo # Act as different repo
 gh aw trial ./issue-workflow.md --trigger-context "#123" # With issue context
 gh aw trial ./workflow.md --repo owner/repo        # Run directly in repository
 ```
+
+When trialing a workflow, the command displays the workflow description (extracted from the frontmatter `description` field) to provide context about what the workflow does.
 
 **Key Options:**
 
@@ -219,6 +225,7 @@ gh aw logs                                 # Download logs for all workflows
 gh aw logs workflow-name                   # Download logs for specific workflow
 gh aw logs -c 10 --start-date -1w         # Filter by count and date
 gh aw logs --parse --json                 # Generate markdown + JSON output
+gh aw logs workflow-name --repo owner/repo # Download logs from specific repository
 ```
 
 **Key Options:**
@@ -226,10 +233,12 @@ gh aw logs --parse --json                 # Generate markdown + JSON output
 | Option | Description | Example |
 |--------|-------------|---------|
 | `-c, --count N` | Limit number of runs | `-c 10` |
+| `-e, --engine` | Filter by AI engine | `-e copilot` |
 | `--start-date` | Filter runs from date | `--start-date -1w` |
 | `--end-date` | Filter runs until date | `--end-date -1d` |
 | `--parse` | Generate `log.md` and `firewall.md` | `--parse` |
 | `--json` | Output structured metrics | `--json` |
+| `--repo owner/repo` | Download logs from specific repository | `--repo owner/repo` |
 
 Downloads workflow execution logs, analyzes tool usage and network patterns, and caches results for faster subsequent runs (~10-100x speedup).
 
@@ -257,9 +266,13 @@ Enable workflows for execution.
 gh aw enable                                # Enable all workflows
 gh aw enable prefix                         # Enable workflows matching prefix
 gh aw enable ci-*                          # Enable workflows with pattern
+gh aw enable workflow-name --repo owner/repo # Enable in specific repository
 ```
 
 Enables workflows for automatic and manual execution with pattern matching support for bulk operations.
+
+**Options:**
+- `--repo owner/repo`: Enable workflows in a specific repository (defaults to current repository)
 
 #### `disable`
 
@@ -269,9 +282,13 @@ Disable workflows and cancel running jobs.
 gh aw disable                               # Disable all workflows
 gh aw disable prefix                        # Disable workflows matching prefix
 gh aw disable ci-*                         # Disable workflows with pattern
+gh aw disable workflow-name --repo owner/repo # Disable in specific repository
 ```
 
 Disables workflows to prevent execution and cancels any currently running workflow jobs.
+
+**Options:**
+- `--repo owner/repo`: Disable workflows in a specific repository (defaults to current repository)
 
 #### `remove`
 

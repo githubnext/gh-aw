@@ -11,6 +11,10 @@ This reference documents common error messages encountered when working with Git
 
 Schema validation errors occur when the workflow frontmatter does not conform to the expected JSON schema. These errors are detected during the compilation process.
 
+:::tip[Typo Detection]
+When you make a typo in frontmatter field names, the compiler automatically suggests correct field names using fuzzy matching. Look for "Did you mean" suggestions in error messages to quickly identify and fix common typos like `permisions` → `permissions` or `engnie` → `engine`.
+:::
+
 ### Frontmatter Not Properly Closed
 
 **Error Message:**
@@ -80,6 +84,40 @@ timeout-minutes: "10"
 # Correct
 timeout-minutes: 10
 ```
+
+### Unknown Property
+
+**Error Message:**
+```
+Unknown property: permisions. Did you mean 'permissions'?
+```
+
+**Cause:** A field name in the frontmatter is not recognized by the schema validator, often due to a typo.
+
+**Solution:** Use the suggested field name from the error message. The compiler uses fuzzy matching to suggest the most likely correct field names based on edit distance.
+
+```yaml wrap
+# Incorrect - typo in field name
+---
+on: issues
+permisions:  # Typo
+  contents: read
+---
+
+# Correct
+---
+on: issues
+permissions:
+  contents: read
+---
+```
+
+**Common typos detected:**
+- `permisions` → `permissions`
+- `engnie` → `engine`
+- `toolz` → `tools`
+- `timeout_minute` → `timeout-minutes`
+- `runs_on` → `runs-on`
 
 ### Imports Field Must Be Array
 
