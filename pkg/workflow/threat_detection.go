@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var threatLog = logger.New("workflow:threat_detection")
 
 //go:embed templates/threat_detection.md
 var defaultThreatDetectionPrompt string
@@ -22,12 +25,15 @@ type ThreatDetectionConfig struct {
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
+		threatLog.Print("Found threat-detection configuration")
 		// Handle boolean values
 		if boolVal, ok := configData.(bool); ok {
 			if !boolVal {
+				threatLog.Print("Threat detection explicitly disabled")
 				// When explicitly disabled, return nil
 				return nil
 			}
+			threatLog.Print("Threat detection enabled with default settings")
 			// When enabled as boolean, return empty config
 			return &ThreatDetectionConfig{}
 		}
@@ -38,6 +44,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 			if enabled, exists := configMap["enabled"]; exists {
 				if enabledBool, ok := enabled.(bool); ok {
 					if !enabledBool {
+						threatLog.Print("Threat detection disabled via enabled field")
 						// When explicitly disabled, return nil
 						return nil
 					}
@@ -66,36 +73,43 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				// Handle boolean false to disable AI engine
 				if engineBool, ok := engine.(bool); ok {
 					if !engineBool {
+						threatLog.Print("Threat detection AI engine disabled")
 						// engine: false means no AI engine steps
 						threatConfig.EngineConfig = nil
 						threatConfig.EngineDisabled = true
 					}
 				} else if engineStr, ok := engine.(string); ok {
+					threatLog.Printf("Threat detection engine set to: %s", engineStr)
 					// Handle string format
 					threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
 				} else if engineObj, ok := engine.(map[string]any); ok {
+					threatLog.Print("Parsing threat detection engine configuration")
 					// Handle object format - use extractEngineConfig logic
 					_, engineConfig := c.ExtractEngineConfig(map[string]any{"engine": engineObj})
 					threatConfig.EngineConfig = engineConfig
 				}
 			}
 
+			threatLog.Printf("Threat detection configured with custom prompt: %v, custom steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0)
 			return threatConfig
 		}
 	}
 
 	// Default behavior: enabled if any safe-outputs are configured
+	threatLog.Print("Using default threat detection configuration")
 	return &ThreatDetectionConfig{}
 }
 
 // buildThreatDetectionJob creates the detection job
 func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	threatLog.Printf("Building threat detection job for main job: %s", mainJobName)
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		return nil, fmt.Errorf("threat detection is not enabled")
 	}
 
 	// Build steps using a more structured approach
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
+	threatLog.Printf("Generated %d steps for threat detection job", len(steps))
 
 	// Generate agent concurrency configuration (same as main agent job)
 	agentConcurrency := GenerateJobConcurrencyConfig(data)

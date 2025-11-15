@@ -1,7 +1,13 @@
 package workflow
 
+import (
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var toolsTypesLog = logger.New("workflow:tools_types")
+
 // Tools represents the parsed tools configuration from workflow frontmatter
-type Tools struct {
+type Tools struct{
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
@@ -77,6 +83,7 @@ type CacheMemoryToolConfig struct {
 
 // NewTools creates a new Tools instance from a map
 func NewTools(toolsMap map[string]any) *Tools {
+	toolsTypesLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
 	if toolsMap == nil {
 		return &Tools{
 			Custom: make(map[string]any),
@@ -144,28 +151,34 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"startup-timeout":   true,
 	}
 
+	customCount := 0
 	for name, config := range toolsMap {
 		if !knownTools[name] {
 			tools.Custom[name] = config
+			customCount++
 		}
 	}
 
+	toolsTypesLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
 	return tools
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig
 func parseGitHubTool(val any) *GitHubToolConfig {
 	if val == nil {
+		toolsTypesLog.Print("GitHub tool enabled with default configuration")
 		return &GitHubToolConfig{}
 	}
 
 	// Handle string type (simple enable)
 	if _, ok := val.(string); ok {
+		toolsTypesLog.Print("GitHub tool enabled with string configuration")
 		return &GitHubToolConfig{}
 	}
 
 	// Handle map type (detailed configuration)
 	if configMap, ok := val.(map[string]any); ok {
+		toolsTypesLog.Print("Parsing GitHub tool detailed configuration")
 		config := &GitHubToolConfig{}
 
 		if allowed, ok := configMap["allowed"].([]any); ok {
