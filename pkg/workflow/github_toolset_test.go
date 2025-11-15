@@ -280,10 +280,16 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := &CodexEngine{}
+			// Use unified renderer with Codex engine options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "toml",
+				IsLast:               false,
+			})
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
-			engine.renderGitHubCodexMCPConfig(&yaml, tt.githubTool, workflowData)
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()
 
