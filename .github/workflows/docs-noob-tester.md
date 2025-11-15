@@ -15,18 +15,7 @@ tools:
       - "localhost"
       - "127.0.0.1"
   bash:
-    - "npm install*"
-    - "npm run build*"
-    - "npm run preview*"
-    - "npx playwright*"
-    - "curl*"
-    - "kill*"
-    - "lsof*"
-    - "ls*"      # List files for directory navigation
-    - "pwd*"     # Print working directory
-    - "cd*"      # Change directory
-    - "cat*"     # Read files
-    - "grep*"    # Search in files
+    - "*"
 safe-outputs:
   upload-assets:
   create-discussion:
