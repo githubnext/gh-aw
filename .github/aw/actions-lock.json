@@ -30,6 +30,11 @@
       "version": "v8",
       "sha": "ed597411d8f924073f98dfc5c65a23a2325f34cd"
     },
+    "actions/setup-dotnet@v4": {
+      "repo": "actions/setup-dotnet",
+      "version": "v4",
+      "sha": "67a3573c9a986a3f9c594539f4ab511d57bb3ce9"
+    },
     "actions/setup-go@v5": {
       "repo": "actions/setup-go",
       "version": "v5",
@@ -39,6 +44,11 @@
       "repo": "actions/setup-go",
       "version": "v6",
       "sha": "44694675825211faa026b3c33043df3e48a5fa00"
+    },
+    "actions/setup-java@v4": {
+      "repo": "actions/setup-java",
+      "version": "v4",
+      "sha": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00"
     },
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
@@ -64,6 +74,11 @@
       "repo": "astral-sh/setup-uv",
       "version": "v5",
       "sha": "e58605a9b6da7c637471fab8847a5e5a6b8df081"
+    },
+    "denoland/setup-deno@v2": {
+      "repo": "denoland/setup-deno",
+      "version": "v2",
+      "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
     },
     "erlef/setup-beam@v1": {
       "repo": "erlef/setup-beam",

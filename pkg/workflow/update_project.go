@@ -14,7 +14,7 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)
-			c.parseBaseSafeOutputConfig(configMap, &updateProjectConfig.BaseSafeOutputConfig)
+			c.parseBaseSafeOutputConfig(configMap, &updateProjectConfig.BaseSafeOutputConfig, 10)
 
 			// Parse github-token override if specified
 			if token, exists := configMap["github-token"]; exists {
