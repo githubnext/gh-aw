@@ -90,7 +90,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	if len(allEngines) > 1 {
-		return "", fmt.Errorf("multiple engine fields found. Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one. Example: engine: copilot")
+		return "", fmt.Errorf("multiple engine fields found (%d engine specifications detected). Only one engine field is allowed across the main workflow and all included files. Remove duplicate engine specifications to keep only one. Example: engine: copilot", len(allEngines))
 	}
 
 	// Exactly one engine found - parse and return it
@@ -101,7 +101,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	// Must be from included file
 	var firstEngine any
 	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
-		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected format: engine: copilot or engine:\n  id: copilot", err)
+		return "", fmt.Errorf("failed to parse included engine configuration: %w. Expected string or object format. Example (string): engine: copilot or (object): engine:\\n  id: copilot\\n  model: gpt-4", err)
 	}
 
 	// Handle string format
@@ -116,5 +116,5 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		}
 	}
 
-	return "", fmt.Errorf("invalid engine configuration in included file. Expected format: engine: copilot or engine:\n  id: copilot\n  model: gpt-4")
+	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string or object with 'id' field. Example (string): engine: copilot or (object): engine:\\n  id: copilot\\n  model: gpt-4")
 }
