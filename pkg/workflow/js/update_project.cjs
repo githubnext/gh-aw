@@ -231,6 +231,37 @@ async function updateProject(output) {
 
     // Step 3: If issue or PR specified, add/update it on the board
     // Support both old format (issue/pull_request) and new format (content_type/content_number)
+    // Validate mutually exclusive content_number/issue/pull_request fields
+    const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
+    const hasIssue = output.issue !== undefined && output.issue !== null;
+    const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
+    const values = [];
+    if (hasContentNumber) values.push({ key: "content_number", value: output.content_number });
+    if (hasIssue) values.push({ key: "issue", value: output.issue });
+    if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
+    if (values.length > 1) {
+      // Check for conflicting values
+      const uniqueValues = [...new Set(values.map(v => String(v.value)))];
+      if (uniqueValues.length > 1) {
+        core.warning(
+          `Multiple content number fields are set with different values: ` +
+          values.map(v => `${v.key}=${v.value}`).join(", ") +
+          `. Using the first non-empty value in the order: content_number, issue, pull_request.`
+        );
+      } else {
+        core.warning(
+          `Multiple content number fields are set (all with value "${uniqueValues[0]}"): ` +
+          values.map(v => v.key).join(", ") +
+          `. Using the first non-empty value in the order: content_number, issue, pull_request.`
+        );
+      }
+    }
+    if (hasIssue) {
+      core.warning('The "issue" field is deprecated. Use "content_number" instead.');
+    }
+    if (hasPullRequest) {
+      core.warning('The "pull_request" field is deprecated. Use "content_number" instead.');
+    }
     const contentNumber = output.content_number || output.issue || output.pull_request;
     if (contentNumber) {
       const contentType =
