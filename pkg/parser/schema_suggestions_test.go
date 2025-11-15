@@ -158,7 +158,7 @@ func TestGenerateFieldSuggestions(t *testing.T) {
 			name:           "single invalid property with close matches",
 			invalidProps:   []string{"contnt"},
 			acceptedFields: []string{"content", "contents", "name"},
-			wantContains:   []string{"Did you mean:", "content"}, // Gets both "content" (dist 1) and "contents" (dist 2)
+			wantContains:   []string{"Did you mean:", "content"}, // Returns suggestions including "content"
 		},
 		{
 			name:           "multiple invalid properties",
