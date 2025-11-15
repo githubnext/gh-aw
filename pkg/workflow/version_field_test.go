@@ -33,7 +33,7 @@ func TestVersionField(t *testing.T) {
 
 	// Test Playwright tool version extraction
 	t.Run("Playwright version field extraction", func(t *testing.T) {
-		// Test "version" field
+		// Test "version" field with specific version
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 			"version":         "v1.41.0",
@@ -43,13 +43,23 @@ func TestVersionField(t *testing.T) {
 			t.Errorf("Expected v1.41.0, got %s", result)
 		}
 
-		// Test default value when version field is not present
+		// Test explicit "latest" version is respected
+		playwrightToolLatest := map[string]any{
+			"allowed_domains": []any{"example.com"},
+			"version":         "latest",
+		}
+		result = getPlaywrightDockerImageVersion(playwrightToolLatest)
+		if result != "latest" {
+			t.Errorf("Expected latest (user explicitly set it), got %s", result)
+		}
+
+		// Test default value when version field is not present (empty string, caller uses pinned version)
 		playwrightToolDefault := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
 		result = getPlaywrightDockerImageVersion(playwrightToolDefault)
-		if result != "latest" {
-			t.Errorf("Expected default latest, got %s", result)
+		if result != "" {
+			t.Errorf("Expected default empty string, got %s", result)
 		}
 	})
 

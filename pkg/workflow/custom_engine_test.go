@@ -300,9 +300,9 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@latest") {
-		t.Errorf("Expected Playwright MCP npx package in output")
+	// Check that it contains Playwright MCP npx configuration with the specified version
+	if !strings.Contains(output, "@playwright/mcp@v1.40.0") {
+		t.Errorf("Expected Playwright MCP npx package with v1.40.0 in output")
 	}
 
 	// Check that it contains --allowed-origins flag when domains are configured
@@ -351,9 +351,9 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@latest") {
-		t.Errorf("Expected Playwright MCP npx package in output")
+	// Check that it contains Playwright MCP npx configuration with the specified version
+	if !strings.Contains(output, "@playwright/mcp@v1.40.0") {
+		t.Errorf("Expected Playwright MCP npx package with v1.40.0 in output")
 	}
 
 	// Check that it contains --allowed-origins flag for default domains
