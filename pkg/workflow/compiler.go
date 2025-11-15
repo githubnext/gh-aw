@@ -771,13 +771,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate the engine setting
 	if err := c.validateEngine(engineSetting); err != nil {
-		return nil, fmt.Errorf("invalid engine setting '%s': %w", engineSetting, err)
+		return nil, err
 	}
 
 	// Get the agentic engine instance
 	agenticEngine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
+		return nil, err
 	}
 
 	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
@@ -896,12 +896,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate MCP configurations
 	if err := ValidateMCPConfigs(tools); err != nil {
-		return nil, fmt.Errorf("invalid MCP configuration: %w", err)
+		return nil, err
 	}
 
 	// Validate HTTP transport support for the current engine
 	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
-		return nil, fmt.Errorf("HTTP transport not supported: %w", err)
+		return nil, err
 	}
 
 	if !agenticEngine.SupportsToolsAllowlist() {
@@ -921,7 +921,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate max-turns support for the current engine
 	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
-		return nil, fmt.Errorf("max-turns not supported: %w", err)
+		return nil, err
 	}
 
 	// Validate web-search support for the current engine (warning only)
@@ -976,7 +976,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract and validate campaign
 	campaign, err := c.extractCampaign(result.Frontmatter)
 	if err != nil {
-		return nil, fmt.Errorf("invalid campaign: %w", err)
+		return nil, err
 	}
 
 	// Build workflow data
