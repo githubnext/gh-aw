@@ -976,7 +976,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract and validate campaign
 	campaign, err := c.extractCampaign(result.Frontmatter)
 	if err != nil {
-		return nil, fmt.Errorf("invalid campaign: %w", err)
+		return nil, err
 	}
 
 	// Build workflow data
