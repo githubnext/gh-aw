@@ -45,6 +45,18 @@ Import paths support local files (`shared/file.md`, `../file.md`), remote reposi
 
 Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 
+## Import Cache
+
+Remote imports are automatically cached in `.github/aw/imports/` to enable offline compilation. The cache stores imports by commit SHA, allowing different refs (branches, tags) pointing to the same commit to share cached files.
+
+When compiling workflows with remote imports:
+- First compilation downloads the import and stores it in the cache
+- Subsequent compilations use the cached file, eliminating network calls
+- Cache is organized by owner/repo/sha/path for efficient lookups
+- Local imports are never cached and are always read from the filesystem
+
+The cache directory is git-tracked and automatically configured with `.gitattributes` to mark cached files as generated content with conflict-free merge behavior.
+
 ## Agent Files
 
 Import custom agent files from `.github/agents/` to customize AI engine behavior. Agent files are markdown documents with specialized instructions that modify how the AI interprets and executes workflows.
