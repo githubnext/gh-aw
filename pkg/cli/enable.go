@@ -14,13 +14,13 @@ import (
 )
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
-func EnableWorkflowsByNames(workflowNames []string) error {
-	return toggleWorkflowsByNames(workflowNames, true)
+func EnableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	return toggleWorkflowsByNames(workflowNames, true, repoOverride)
 }
 
 // DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
-func DisableWorkflowsByNames(workflowNames []string) error {
-	return toggleWorkflowsByNames(workflowNames, false)
+func DisableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	return toggleWorkflowsByNames(workflowNames, false, repoOverride)
 }
 
 // Deprecated: Use EnableWorkflowsByNames with specific workflow names instead
@@ -40,7 +40,7 @@ func DisableWorkflows(pattern string) error {
 }
 
 // toggleWorkflowsByNames toggles workflows by specific names, or all if no names provided
-func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
+func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride string) error {
 	action := "enable"
 	if !enable {
 		action = "disable"
@@ -68,7 +68,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		}
 
 		// Recursively call with all workflow names
-		return toggleWorkflowsByNames(allWorkflowNames, enable)
+		return toggleWorkflowsByNames(allWorkflowNames, enable, repoOverride)
 	}
 
 	// Check if gh CLI is available
@@ -202,9 +202,17 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		if enable {
 			// Prefer enabling by ID, otherwise fall back to lock file name
 			if t.ID != 0 {
-				cmd = exec.Command("gh", "workflow", "enable", strconv.FormatInt(t.ID, 10))
+				args := []string{"workflow", "enable", strconv.FormatInt(t.ID, 10)}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			} else {
-				cmd = exec.Command("gh", "workflow", "enable", t.LockFileBase)
+				args := []string{"workflow", "enable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			}
 		} else {
 			// First cancel any running workflows (by ID when available, else by lock file name)
@@ -213,12 +221,20 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
 				// Prefer disabling by lock file name for reliability
-				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
+				args := []string{"workflow", "disable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			} else {
 				if err := cancelWorkflowRunsByLockFile(t.LockFileBase); err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
-				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
+				args := []string{"workflow", "disable", t.LockFileBase}
+				if repoOverride != "" {
+					args = append(args, "--repo", repoOverride)
+				}
+				cmd = exec.Command("gh", args...)
 			}
 		}
 
