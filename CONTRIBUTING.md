@@ -80,6 +80,28 @@ For detailed development setup instructions, see the [Development Guide](DEVGUID
 - Use `make fmt` to format your code
 - Ensure `make lint` passes without errors
 - Write tests for new functionality
+- Follow error message style guide (see below)
+
+#### Error Messages
+
+All validation error messages should follow the error message template: **[what's wrong]. [what's expected]. [example]**
+
+```go
+// Good - explains what's wrong, what's expected, and provides example
+return fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo. Example: +3d", deltaStr)
+
+// Bad - doesn't explain what's expected or provide example
+return fmt.Errorf("invalid format")
+```
+
+**Key guidelines:**
+- Validation errors should include examples showing correct usage
+- Use proper YAML formatting in examples
+- Show actual values/types for debugging (use `%T`, `%v`, `%s`)
+- List valid options for enum/choice fields
+- Run `make lint-errors` to check error message quality
+
+For complete guidelines, see [Error Message Style Guide](.github/instructions/error-messages.instructions.md).
 
 #### Console Output
 When adding CLI output, always use the styled console functions from `pkg/console`:
