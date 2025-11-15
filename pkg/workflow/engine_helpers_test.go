@@ -439,24 +439,35 @@ func TestBuildStandardEngineCleanupSteps(t *testing.T) {
 	tests := []struct {
 		name          string
 		cleanupPaths  []string
+		stepName      string
 		expectedSteps int
 		checkContains []string
 	}{
 		{
-			name:          "single path",
+			name:          "single path with default name",
 			cleanupPaths:  []string{"/tmp/gh-aw/.copilot/"},
+			stepName:      "",
 			expectedSteps: 1,
 			checkContains: []string{"Cleanup temporary files", "if: always()", "rm -rf /tmp/gh-aw/.copilot/"},
 		},
 		{
+			name:          "single path with custom name",
+			cleanupPaths:  []string{"/tmp/gh-aw/.copilot/"},
+			stepName:      "Clean up copilot files",
+			expectedSteps: 1,
+			checkContains: []string{"Clean up copilot files", "if: always()", "rm -rf /tmp/gh-aw/.copilot/"},
+		},
+		{
 			name:          "multiple paths",
 			cleanupPaths:  []string{"/tmp/gh-aw/.copilot/", "/tmp/gh-aw/mcp-config/", "/tmp/gh-aw/logs/"},
+			stepName:      "",
 			expectedSteps: 1,
 			checkContains: []string{"Cleanup temporary files", "if: always()", "rm -rf /tmp/gh-aw/.copilot/", "rm -rf /tmp/gh-aw/mcp-config/", "rm -rf /tmp/gh-aw/logs/"},
 		},
 		{
 			name:          "empty path list",
 			cleanupPaths:  []string{},
+			stepName:      "",
 			expectedSteps: 0,
 			checkContains: []string{},
 		},
@@ -464,7 +475,7 @@ func TestBuildStandardEngineCleanupSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := BuildStandardEngineCleanupSteps(tt.cleanupPaths)
+			steps := BuildStandardEngineCleanupSteps(tt.cleanupPaths, tt.stepName)
 
 			if len(steps) != tt.expectedSteps {
 				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(steps))
@@ -487,10 +498,15 @@ func TestBuildStandardEngineCleanupSteps(t *testing.T) {
 	}
 }
 
-// TestBuildStandardEngineCleanupSteps_Sorted tests that paths are sorted for consistency
-func TestBuildStandardEngineCleanupSteps_Sorted(t *testing.T) {
-	paths := []string{"/tmp/z", "/tmp/a", "/tmp/m"}
-	steps := BuildStandardEngineCleanupSteps(paths)
+// TestBuildStandardEngineCleanupSteps_DepthSorting tests that paths are sorted by depth (deepest first)
+func TestBuildStandardEngineCleanupSteps_DepthSorting(t *testing.T) {
+	// Test with nested paths - should delete deepest first
+	paths := []string{
+		".claude",
+		".claude/hooks",
+		".claude/hooks/network_permissions.py",
+	}
+	steps := BuildStandardEngineCleanupSteps(paths, "")
 
 	if len(steps) != 1 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
@@ -500,23 +516,23 @@ func TestBuildStandardEngineCleanupSteps_Sorted(t *testing.T) {
 	allText := strings.Join(steps[0], "\n")
 
 	// Find positions of each path in the output
-	aPos := strings.Index(allText, "rm -rf /tmp/a")
-	mPos := strings.Index(allText, "rm -rf /tmp/m")
-	zPos := strings.Index(allText, "rm -rf /tmp/z")
+	filePos := strings.Index(allText, "rm -rf .claude/hooks/network_permissions.py")
+	hooksPos := strings.Index(allText, "rm -rf .claude/hooks ||")
+	claudePos := strings.Index(allText, "rm -rf .claude ||")
 
-	// Verify alphabetical order (a < m < z)
-	if aPos == -1 || mPos == -1 || zPos == -1 {
+	// Verify depth-first order (file before hooks before claude)
+	if filePos == -1 || hooksPos == -1 || claudePos == -1 {
 		t.Fatal("Not all paths found in output")
 	}
 
-	if aPos > mPos || mPos > zPos {
-		t.Error("Paths should be sorted alphabetically")
+	if filePos > hooksPos || hooksPos > claudePos {
+		t.Errorf("Paths should be sorted by depth (deepest first). Got order: file=%d, hooks=%d, claude=%d", filePos, hooksPos, claudePos)
 	}
 }
 
 // TestBuildStandardEngineCleanupSteps_AlwaysCondition tests that cleanup has always() condition
 func TestBuildStandardEngineCleanupSteps_AlwaysCondition(t *testing.T) {
-	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test"})
+	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test"}, "")
 
 	if len(steps) != 1 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
@@ -533,7 +549,7 @@ func TestBuildStandardEngineCleanupSteps_AlwaysCondition(t *testing.T) {
 
 // TestBuildStandardEngineCleanupSteps_ErrorHandling tests that cleanup commands have || true
 func TestBuildStandardEngineCleanupSteps_ErrorHandling(t *testing.T) {
-	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test1", "/tmp/test2"})
+	steps := BuildStandardEngineCleanupSteps([]string{"/tmp/test1", "/tmp/test2"}, "")
 
 	if len(steps) != 1 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))

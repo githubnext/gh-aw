@@ -343,15 +343,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			t.Error("Expected cleanup step to have 'if: always()' condition")
 		}
 
-		// Verify cleanup commands
-		if !strings.Contains(result, "rm -rf .claude/hooks/network_permissions.py || true") {
-			t.Error("Expected cleanup step to remove network_permissions.py")
-		}
-
-		if !strings.Contains(result, "rm -rf .claude/hooks || true") {
-			t.Error("Expected cleanup step to remove hooks directory")
-		}
-
+		// Verify cleanup commands - now only removes .claude (which removes everything beneath it)
 		if !strings.Contains(result, "rm -rf .claude || true") {
 			t.Error("Expected cleanup step to remove .claude directory")
 		}

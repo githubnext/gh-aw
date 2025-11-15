@@ -270,14 +270,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add cleanup step for network proxy hook files (if proxy was enabled)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		cleanupPaths := []string{
-			".claude/hooks/network_permissions.py",
-			".claude/hooks",
 			".claude",
 		}
-		cleanupStep := BuildStandardEngineCleanupSteps(cleanupPaths)
+		cleanupStep := BuildStandardEngineCleanupSteps(cleanupPaths, "Clean up network proxy hook files")
 		if len(cleanupStep) > 0 {
-			// Customize the step name for Claude's specific use case
-			cleanupStep[0][0] = "      - name: Clean up network proxy hook files"
 			steps = append(steps, cleanupStep[0])
 		}
 	}

@@ -519,25 +519,39 @@ func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionS
 //
 // Parameters:
 //   - cleanupPaths: List of file/directory paths to remove (e.g., ["/tmp/gh-aw/.copilot/"])
+//   - stepName: Custom name for the cleanup step (e.g., "Clean up network proxy hook files")
 //
 // Returns:
 //   - []GitHubActionStep: The cleanup step (empty if no paths)
-func BuildStandardEngineCleanupSteps(cleanupPaths []string) []GitHubActionStep {
-	engineHelpersLog.Printf("Building engine cleanup steps: paths=%v", cleanupPaths)
+func BuildStandardEngineCleanupSteps(cleanupPaths []string, stepName string) []GitHubActionStep {
+	engineHelpersLog.Printf("Building engine cleanup steps: paths=%v, stepName=%s", cleanupPaths, stepName)
 
 	if len(cleanupPaths) == 0 {
 		engineHelpersLog.Print("No cleanup paths specified, returning empty steps")
 		return []GitHubActionStep{}
 	}
 
-	// Sort paths for consistent output
+	// Sort paths by depth (deepest first) for proper cleanup order
+	// This ensures child directories/files are deleted before parents
 	sortedPaths := make([]string, len(cleanupPaths))
 	copy(sortedPaths, cleanupPaths)
-	sort.Strings(sortedPaths)
+	sort.Slice(sortedPaths, func(i, j int) bool {
+		depthI := strings.Count(sortedPaths[i], "/")
+		depthJ := strings.Count(sortedPaths[j], "/")
+		if depthI != depthJ {
+			return depthI > depthJ // Deeper paths first
+		}
+		return sortedPaths[i] > sortedPaths[j] // Reverse alphabetical for same depth
+	})
+
+	// Use provided step name or default
+	if stepName == "" {
+		stepName = "Cleanup temporary files"
+	}
 
 	// Build the cleanup commands
 	var stepLines []string
-	stepLines = append(stepLines, "      - name: Cleanup temporary files")
+	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        if: always()")
 	stepLines = append(stepLines, "        run: |")
 	for _, path := range sortedPaths {

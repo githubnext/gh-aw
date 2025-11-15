@@ -3059,8 +3059,6 @@ jobs:
         if: always()
         run: |
           rm -rf .claude || true
-          rm -rf .claude/hooks || true
-          rm -rf .claude/hooks/network_permissions.py || true
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
