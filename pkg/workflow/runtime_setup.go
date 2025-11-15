@@ -395,9 +395,14 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: go.mod")
 		step = append(step, "          cache: true")
-		// Add any extra fields from user's setup step
-		for key, value := range req.ExtraFields {
-			step = append(step, fmt.Sprintf("          %s: %v", key, value))
+		// Add any extra fields from user's setup step (sorted for stable output)
+		var extraKeys []string
+		for key := range req.ExtraFields {
+			extraKeys = append(extraKeys, key)
+		}
+		sort.Strings(extraKeys)
+		for _, key := range extraKeys {
+			step = append(step, fmt.Sprintf("          %s: %v", key, req.ExtraFields[key]))
 		}
 		return step
 	}
@@ -414,15 +419,26 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 		step = append(step, "        with:")
 	}
 
-	// Add extra fields from runtime configuration
-	for key, value := range runtime.ExtraWithFields {
-		step = append(step, fmt.Sprintf("          %s: %s", key, value))
+	// Add extra fields from runtime configuration (sorted for stable output)
+	var runtimeKeys []string
+	for key := range runtime.ExtraWithFields {
+		runtimeKeys = append(runtimeKeys, key)
+	}
+	sort.Strings(runtimeKeys)
+	for _, key := range runtimeKeys {
+		step = append(step, fmt.Sprintf("          %s: %s", key, runtime.ExtraWithFields[key]))
 	}
 	
-	// Add extra fields from user's setup step (carries over fields like cache, cache-dependency-path)
-	for key, value := range req.ExtraFields {
+	// Add extra fields from user's setup step (sorted for stable output)
+	// These carry over fields like cache, cache-dependency-path
+	var extraKeys []string
+	for key := range req.ExtraFields {
+		extraKeys = append(extraKeys, key)
+	}
+	sort.Strings(extraKeys)
+	for _, key := range extraKeys {
 		// Format the value appropriately for YAML
-		valueStr := formatYAMLValue(value)
+		valueStr := formatYAMLValue(req.ExtraFields[key])
 		step = append(step, fmt.Sprintf("          %s: %s", key, valueStr))
 		log.Printf("  Added extra field to runtime setup: %s = %s", key, valueStr)
 	}
