@@ -299,31 +299,49 @@ async function updateProject(output) {
 
       const contentId = contentType === "Issue" ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id;
 
-      // Check if item already exists on board
-      const existingItemsResult = await githubClient.graphql(
-        `query($projectId: ID!) {
-          node(id: $projectId) {
-            ... on ProjectV2 {
-              items(first: 100) {
-                nodes {
-                  id
-                  content {
-                    ... on Issue {
+      // Check if item already exists on board (handle pagination)
+      async function findExistingProjectItem(projectId, contentId) {
+        let hasNextPage = true;
+        let endCursor = null;
+        while (hasNextPage) {
+          const result = await githubClient.graphql(
+            `query($projectId: ID!, $after: String) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  items(first: 100, after: $after) {
+                    nodes {
                       id
+                      content {
+                        ... on Issue {
+                          id
+                        }
+                        ... on PullRequest {
+                          id
+                        }
+                      }
                     }
-                    ... on PullRequest {
-                      id
+                    pageInfo {
+                      hasNextPage
+                      endCursor
                     }
                   }
                 }
               }
-            }
+            }`,
+            { projectId, after: endCursor }
+          );
+          const items = result.node.items.nodes;
+          const found = items.find(item => item.content && item.content.id === contentId);
+          if (found) {
+            return found;
           }
-        }`,
-        { projectId }
-      );
+          hasNextPage = result.node.items.pageInfo.hasNextPage;
+          endCursor = result.node.items.pageInfo.endCursor;
+        }
+        return null;
+      }
 
-      const existingItem = existingItemsResult.node.items.nodes.find(item => item.content && item.content.id === contentId);
+      const existingItem = await findExistingProjectItem(projectId, contentId);
 
       let itemId;
       if (existingItem) {
