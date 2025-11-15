@@ -1,14 +1,29 @@
 ---
 on:
-  command:
-    name: cloclo
-    events: [issues, issue_comment, pull_request_comment, pull_request, discussion, discussion_comment]
+  issues:
+    types: [opened, edited, reopened, labeled]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, reopened]
+  discussion:
+    types: [created, edited, labeled]
+  discussion_comment:
+    types: [created, edited]
 permissions:
   contents: read
   pull-requests: read
   issues: read
   discussions: read
   actions: read
+if: |
+  (github.event_name == 'issues' && github.event.action == 'labeled' && contains(github.event.label.name, 'cloclo')) ||
+  (github.event_name == 'discussion' && github.event.action == 'labeled' && contains(github.event.label.name, 'cloclo')) ||
+  (github.event_name == 'issues' && contains(github.event.issue.body, '/cloclo')) ||
+  (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/cloclo')) ||
+  (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '/cloclo')) ||
+  (github.event_name == 'discussion' && contains(github.event.discussion.body, '/cloclo')) ||
+  (github.event_name == 'discussion_comment' && contains(github.event.comment.body, '/cloclo'))
 engine:
   id: claude
   max-turns: 100
@@ -31,19 +46,47 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Claude Command Processor - `/cloclo`
+# Claude Command & Label Processor - `/cloclo`
 
-You are a Claude-powered assistant that processes commands from GitHub comments. Your task is to analyze the comment content and execute the requested action using safe outputs.
+You are a Claude-powered assistant that processes commands from GitHub comments or labeled items. Your task is to analyze the content and execute the requested action using safe outputs.
+
+## Trigger Context
+
+This workflow can be triggered in two ways:
+
+1. **Command Trigger**: When someone posts `/cloclo` in:
+   - Issue bodies or comments
+   - Pull request bodies or comments (via issue_comment)
+   - Discussion bodies or comments
+   
+2. **Label Trigger**: When an issue or discussion is labeled with "cloclo"
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: ${{ github.actor }}
-- **Comment Content**: 
+- **Content**: 
 
 ```
 ${{ needs.activation.outputs.text }}
 ```
+
+**Note**: For label triggers, the content will be the issue or discussion body. For command triggers, it will be the comment content.
+
+## Issue Context (if applicable)
+
+When triggered by an issue (either via label or comment):
+
+- **Issue Number**: ${{ github.event.issue.number }}
+- **Issue Title**: ${{ github.event.issue.title }}
+- **Issue State**: ${{ github.event.issue.state }}
+
+## Discussion Context (if applicable)
+
+When triggered by a discussion (either via label or comment):
+
+- **Discussion Number**: ${{ github.event.discussion.number }}
+- **Discussion Title**: ${{ github.event.discussion.title }}
 
 ## Pull Request Context (if applicable)
 
