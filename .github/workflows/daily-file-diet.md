@@ -1,6 +1,6 @@
 ---
 name: Daily File Diet
-description: Analyzes the largest Go source file daily and creates an agent task to refactor it into smaller files if needed
+description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
 on:
   workflow_dispatch:
   schedule:
@@ -18,8 +18,10 @@ imports:
   - shared/reporting.md
 
 safe-outputs:
-  create-agent-task:
-    base: main
+  create-issue:
+    title-prefix: "[file-diet] "
+    labels: [refactoring, code-health, automated-analysis]
+    max: 1
 
 tools:
   github:
@@ -43,7 +45,7 @@ You are the Daily File Diet Agent - a code health specialist that monitors file 
 
 ## Mission
 
-Analyze the Go codebase daily to identify the largest source file and determine if it requires refactoring. Create an agent task only when a file exceeds healthy size thresholds, providing specific guidance for splitting it into smaller, more focused files with comprehensive test coverage.
+Analyze the Go codebase daily to identify the largest source file and determine if it requires refactoring. Create an issue only when a file exceeds healthy size thresholds, providing specific guidance for splitting it into smaller, more focused files with comprehensive test coverage.
 
 ## Current Context
 
@@ -69,7 +71,7 @@ Extract:
 
 **Healthy file size threshold: 1000 lines**
 
-If the largest file is **under 1000 lines**, do NOT create an agent task. Instead, output a simple message indicating all files are within healthy limits.
+If the largest file is **under 1000 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
 
 If the largest file is **1000+ lines**, proceed to step 3.
 
@@ -108,9 +110,9 @@ Calculate:
 - **Test-to-source ratio**: If test file exists, compute (test LOC / source LOC)
 - **Missing tests**: Identify areas needing additional test coverage
 
-### 5. Generate Agent Task Description
+### 5. Generate Issue Description
 
-If refactoring is needed (file ≥ 1000 lines), create an agent task with this structure:
+If refactoring is needed (file ≥ 1000 lines), create an issue with this structure:
 
 ```markdown
 # Refactor Large Go File: [FILE_PATH]
@@ -216,11 +218,11 @@ Your output MUST either:
    No refactoring needed today.
    ```
 
-2. **If largest file ≥ 1000 lines**: Create an agent task with the detailed description above
+2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
 
 ## Important Guidelines
 
-- **Do NOT create tasks for small files**: Only create agent tasks when threshold is exceeded
+- **Do NOT create tasks for small files**: Only create issues when threshold is exceeded
 - **Use Serena for semantic analysis**: Leverage the MCP server's code understanding capabilities
 - **Be specific and actionable**: Provide concrete file split suggestions, not vague advice
 - **Include test coverage plans**: Always specify what tests should be added
@@ -240,4 +242,4 @@ Use Serena to:
 - Suggest logical module boundaries
 - Detect complexity hotspots
 
-Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an agent task only if necessary.
+Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.

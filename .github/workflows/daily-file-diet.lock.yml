@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Analyzes the largest Go source file daily and creates an agent task to refactor it into smaller files if needed
+# Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -15,12 +15,12 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   create_agent_task["create_agent_task"]
+#   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
-#   agent --> create_agent_task
-#   detection --> create_agent_task
+#   agent --> create_issue
+#   detection --> create_issue
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
@@ -269,7 +269,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_agent_task":{"max":1},"missing_tool":{}}
+          {"create_issue":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1207,7 +1207,7 @@ jobs:
           
           ## Mission
           
-          Analyze the Go codebase daily to identify the largest source file and determine if it requires refactoring. Create an agent task only when a file exceeds healthy size thresholds, providing specific guidance for splitting it into smaller, more focused files with comprehensive test coverage.
+          Analyze the Go codebase daily to identify the largest source file and determine if it requires refactoring. Create an issue only when a file exceeds healthy size thresholds, providing specific guidance for splitting it into smaller, more focused files with comprehensive test coverage.
           
           ## Current Context
           
@@ -1233,7 +1233,7 @@ jobs:
           
           **Healthy file size threshold: 1000 lines**
           
-          If the largest file is **under 1000 lines**, do NOT create an agent task. Instead, output a simple message indicating all files are within healthy limits.
+          If the largest file is **under 1000 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
           
           If the largest file is **1000+ lines**, proceed to step 3.
           
@@ -1272,9 +1272,9 @@ jobs:
           - **Test-to-source ratio**: If test file exists, compute (test LOC / source LOC)
           - **Missing tests**: Identify areas needing additional test coverage
           
-          ### 5. Generate Agent Task Description
+          ### 5. Generate Issue Description
           
-          If refactoring is needed (file ≥ 1000 lines), create an agent task with this structure:
+          If refactoring is needed (file ≥ 1000 lines), create an issue with this structure:
           
           ```markdown
           # Refactor Large Go File: [FILE_PATH]
@@ -1380,11 +1380,11 @@ jobs:
              No refactoring needed today.
              ```
           
-          2. **If largest file ≥ 1000 lines**: Create an agent task with the detailed description above
+          2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
           
           ## Important Guidelines
           
-          - **Do NOT create tasks for small files**: Only create agent tasks when threshold is exceeded
+          - **Do NOT create tasks for small files**: Only create issues when threshold is exceeded
           - **Use Serena for semantic analysis**: Leverage the MCP server's code understanding capabilities
           - **Be specific and actionable**: Provide concrete file split suggestions, not vague advice
           - **Include test coverage plans**: Always specify what tests should be added
@@ -1404,7 +1404,7 @@ jobs:
           - Suggest logical module boundaries
           - Detect complexity hotspots
           
-          Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an agent task only if necessary.
+          Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1483,13 +1483,13 @@ jobs:
           
           ---
           
-          ## Creating an Agent Task, Reporting Missing Tools or Functionality
+          ## Creating an Issue, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Creating an Agent Task**
+          **Creating an Issue**
           
-          To create a GitHub Copilot agent task, use the create-agent-task tool from safeoutputs
+          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -3257,27 +3257,22 @@ jobs:
               main();
             }
 
-  create_agent_task:
+  create_issue:
     needs:
       - agent
       - detection
     if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_agent_task'))) &&
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))) &&
       (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       issues: write
-      pull-requests: write
     timeout-minutes: 10
     outputs:
-      task_number: ${{ steps.create_agent_task.outputs.task_number }}
-      task_url: ${{ steps.create_agent_task.outputs.task_url }}
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Checkout repository for gh CLI
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          persist-credentials: false
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -3289,153 +3284,333 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Agent Task
-        id: create_agent_task
+      - name: Create Output Issue
+        id: create_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Daily File Diet"
-          GITHUB_AW_AGENT_TASK_BASE: "main"
+          GH_AW_ISSUE_TITLE_PREFIX: "[file-diet] "
+          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis"
           GH_AW_WORKFLOW_NAME: "Daily File Diet"
         with:
-          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
             const fs = require("fs");
-            const path = require("path");
-            async function main() {
-              core.setOutput("task_number", "");
-              core.setOutput("task_url", "");
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
               }
               let outputContent;
               try {
                 outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-                return;
+                return { success: false };
               }
               core.info(`Agent output content length: ${outputContent.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
-                return;
+                return { success: false };
               }
-              const createAgentTaskItems = validatedOutput.items.filter(item => item.type === "create_agent_task");
-              if (createAgentTaskItems.length === 0) {
-                core.info("No create-agent-task items found in agent output");
-                return;
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
               }
-              core.info(`Found ${createAgentTaskItems.length} create-agent-task item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Agent Tasks Preview\n\n";
-                summaryContent += "The following agent tasks would be created if staged mode was disabled:\n\n";
-                for (const [index, item] of createAgentTaskItems.entries()) {
-                  summaryContent += `### Task ${index + 1}\n\n`;
-                  summaryContent += `**Description:**\n${item.body || "No description provided"}\n\n`;
-                  const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || "main";
-                  summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
-                  const targetRepo = process.env.GITHUB_AW_TARGET_REPO || process.env.GITHUB_REPOSITORY || "unknown";
-                  summaryContent += `**Target Repository:** ${targetRepo}\n\n`;
-                  summaryContent += "---\n\n";
-                }
+              try {
+                await core.summary.addRaw(summaryContent).write();
                 core.info(summaryContent);
-                core.summary.addRaw(summaryContent);
-                await core.summary.write();
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
+              }
+              return "";
+            }
+            async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || process.env.GITHUB_REF_NAME || "main";
-              const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
-              const createdTasks = [];
-              let summaryContent = "## ✅ Agent Tasks Created\n\n";
-              for (const [index, taskItem] of createAgentTaskItems.entries()) {
-                const taskDescription = taskItem.body;
-                if (!taskDescription || taskDescription.trim() === "") {
-                  core.warning(`Task ${index + 1}: Agent task description is empty, skipping`);
-                  continue;
-                }
-                try {
-                  const tmpDir = "/tmp/gh-aw";
-                  if (!fs.existsSync(tmpDir)) {
-                    fs.mkdirSync(tmpDir, { recursive: true });
-                  }
-                  const taskFile = path.join(tmpDir, `agent-task-description-${index + 1}.md`);
-                  fs.writeFileSync(taskFile, taskDescription, "utf8");
-                  core.info(`Task ${index + 1}: Task description written to ${taskFile}`);
-                  const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
-                  if (targetRepo) {
-                    ghArgs.push("--repo", targetRepo);
-                  }
-                  core.info(`Task ${index + 1}: Creating agent task with command: gh ${ghArgs.join(" ")}`);
-                  let taskOutput;
-                  try {
-                    taskOutput = await exec.getExecOutput("gh", ghArgs, {
-                      silent: false,
-                      ignoreReturnCode: false,
-                    });
-                  } catch (execError) {
-                    const errorMessage = execError instanceof Error ? execError.message : String(execError);
-                    if (
-                      errorMessage.includes("authentication") ||
-                      errorMessage.includes("permission") ||
-                      errorMessage.includes("forbidden") ||
-                      errorMessage.includes("401") ||
-                      errorMessage.includes("403")
-                    ) {
-                      core.error(`Task ${index + 1}: Failed to create agent task due to authentication/permission error.`);
-                      core.error(`The default GITHUB_TOKEN does not have permission to create agent tasks.`);
-                      core.error(`You must configure a Personal Access Token (PAT) as GH_AW_COPILOT_TOKEN or GH_AW_GITHUB_TOKEN.`);
-                      core.error(`See documentation: https://githubnext.github.io/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-task`);
-                    } else {
-                      core.error(`Task ${index + 1}: Failed to create agent task: ${errorMessage}`);
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
                     }
-                    continue;
-                  }
-                  const output = taskOutput.stdout.trim();
-                  core.info(`Task ${index + 1}: Agent task created: ${output}`);
-                  const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
-                  if (urlMatch) {
-                    const taskNumber = urlMatch[1];
-                    createdTasks.push({ number: taskNumber, url: output });
-                    summaryContent += `### Task ${index + 1}\n\n`;
-                    summaryContent += `**Task:** [#${taskNumber}](${output})\n\n`;
-                    summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
-                    core.info(`✅ Successfully created agent task #${taskNumber}`);
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
+                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+                }
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
+                }
+                labels = labels
+                  .filter(label => !!label)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (effectiveParentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
+                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const fingerprintComment = getCampaign("markdown");
+                if (fingerprintComment) {
+                  bodyLines.push(fingerprintComment);
+                }
+                bodyLines.push(
+                  ``,
+                  ``,
+                  generateFooter(
+                    workflowName,
+                    runUrl,
+                    workflowSource,
+                    workflowSourceURL,
+                    triggeringIssueNumber,
+                    triggeringPRNumber,
+                    triggeringDiscussionNumber
+                  ).trimEnd(),
+                  ""
+                );
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+                  if (effectiveParentIssueNumber) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
+                    try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: effectiveParentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
+                      const addSubIssueMutation = `
+                        mutation($issueId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            issueId: $issueId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        issueId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
+                      try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: effectiveParentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(
+                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                        );
+                      }
+                    }
                   } else {
-                    core.warning(`Task ${index + 1}: Could not parse task number from output: ${output}`);
-                    createdTasks.push({ number: "", url: output });
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
                   }
                 } catch (error) {
-                  core.error(`Task ${index + 1}: Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
                 }
               }
-              if (createdTasks.length > 0) {
-                core.setOutput("task_number", createdTasks[0].number);
-                core.setOutput("task_url", createdTasks[0].url);
-              } else {
-                core.setFailed("No agent tasks were created");
-                return;
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
               }
-              core.info(summaryContent);
-              core.summary.addRaw(summaryContent);
-              await core.summary.write();
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            (async () => {
+              await main();
+            })();
 
   detection:
     needs: agent
@@ -3475,7 +3650,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily File Diet"
-          WORKFLOW_DESCRIPTION: "Analyzes the largest Go source file daily and creates an agent task to refactor it into smaller files if needed"
+          WORKFLOW_DESCRIPTION: "Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed"
         with:
           script: |
             const fs = require('fs');
