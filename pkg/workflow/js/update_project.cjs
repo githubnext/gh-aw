@@ -410,7 +410,13 @@ async function updateProject(output) {
 
         // Update each specified field
         for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
-          let field = projectFields.find(f => f.name.toLowerCase() === fieldName.toLowerCase());
+          // Normalize field names: capitalize first letter of each word for consistency
+          const normalizedFieldName = fieldName
+            .split(/[\s_-]+/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          
+          let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field) {
             // Try to create the field - determine type based on field name or value
             const isTextField =
@@ -428,11 +434,11 @@ async function updateProject(output) {
                     }) {
                       projectV2Field {
                         ... on ProjectV2Field {
-                          id
-                          name
-                        }
-                      }
-                    }
+                  {
+                    projectId,
+                    name: normalizedFieldName,
+                    dataType: "TEXT",
+                  }
                   }`,
                   {
                     projectId,
@@ -462,12 +468,12 @@ async function updateProject(output) {
                           name
                           options {
                             id
-                            name
-                          }
-                        }
-                      }
-                    }
-                  }`,
+                  {
+                    projectId,
+                    name: normalizedFieldName,
+                    dataType: "SINGLE_SELECT",
+                    options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
+                  }
                   {
                     projectId,
                     name: fieldName,
