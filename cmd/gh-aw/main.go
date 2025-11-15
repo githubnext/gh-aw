@@ -128,9 +128,11 @@ var enableCmd = &cobra.Command{
 Examples:
   ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor         # Enable specific workflow
-  ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows`,
+  ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows
+  ` + constants.CLIExtensionPrefix + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := cli.EnableWorkflowsByNames(args); err != nil {
+		repoOverride, _ := cmd.Flags().GetString("repo")
+		if err := cli.EnableWorkflowsByNames(args, repoOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -145,9 +147,11 @@ var disableCmd = &cobra.Command{
 Examples:
   ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor         # Disable specific workflow
-  ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows`,
+  ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows
+  ` + constants.CLIExtensionPrefix + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := cli.DisableWorkflowsByNames(args); err != nil {
+		repoOverride, _ := cmd.Flags().GetString("repo")
+		if err := cli.DisableWorkflowsByNames(args, repoOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -430,6 +434,10 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+
+	// Add flags to enable/disable commands
+	enableCmd.Flags().StringP("repo", "r", "", "Repository to enable workflows in (owner/repo format)")
+	disableCmd.Flags().StringP("repo", "r", "", "Repository to disable workflows in (owner/repo format)")
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
