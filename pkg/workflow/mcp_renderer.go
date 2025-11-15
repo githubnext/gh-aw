@@ -63,7 +63,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		if r.options.IncludeCopilotFields {
 			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 		}
-		
+
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
 			Toolsets:           toolsets,
