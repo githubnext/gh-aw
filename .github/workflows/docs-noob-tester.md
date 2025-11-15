@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-engine: codex
+engine: copilot
 timeout-minutes: 30
 tools:
   playwright:
