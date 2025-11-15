@@ -685,7 +685,7 @@ runs-on:
   labels: []
     # Array of strings
 
-# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 15
+# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20
 # minutes for agentic workflows. Has sensible defaults and can typically be
 # omitted.
 # (optional)
@@ -908,7 +908,8 @@ engine:
   model: "example-value"
 
   # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted.
+  # control costs. Has sensible defaults and can typically be omitted. Note: Only
+  # supported by the claude engine.
   # (optional)
   max-turns: 1
 
@@ -1404,7 +1405,10 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for creating GitHub pull requests from agentic workflow
-  # output
+  # output. Note: The max parameter is not supported for pull requests - workflows
+  # are always limited to creating 1 pull request per run. This design decision
+  # prevents workflow runs from creating excessive PRs and maintains repository
+  # integrity.
   create-pull-request:
     # Optional prefix for the pull request title
     # (optional)
