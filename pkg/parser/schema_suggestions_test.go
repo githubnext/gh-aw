@@ -36,15 +36,15 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 	}{
 		{
 			name:         "additional property error at root level",
-			errorMessage: "additional property 'invalid_prop' not allowed",
+			errorMessage: "additional property 'naem' not allowed", // Typo for "name" (distance 2)
 			jsonPath:     "",
-			wantContains: []string{"Did you mean one of:", "name", "age", "email"},
+			wantContains: []string{"Did you mean", "name"}, // Close match found
 		},
 		{
 			name:         "additional property error in nested object",
-			errorMessage: "additional property 'unknown_permission' not allowed",
+			errorMessage: "additional property 'contnt' not allowed", // Typo for "contents" (distance 1)
 			jsonPath:     "/permissions",
-			wantContains: []string{"Did you mean one of:", "contents", "issues", "pull-requests"},
+			wantContains: []string{"Did you mean", "contents"}, // Close match found
 		},
 		{
 			name:         "type error with integer expected",
@@ -54,9 +54,9 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 		},
 		{
 			name:         "multiple additional properties",
-			errorMessage: "additional properties 'prop1', 'prop2' not allowed",
+			errorMessage: "additional properties 'prop1', 'prop2' not allowed", // Far from any valid field
 			jsonPath:     "",
-			wantContains: []string{"Valid fields are:", "name", "age"},
+			wantContains: []string{"Valid fields are:", "name", "age"}, // No close matches, show valid fields
 		},
 		{
 			name:         "non-validation error",
@@ -155,16 +155,16 @@ func TestGenerateFieldSuggestions(t *testing.T) {
 		wantContains   []string
 	}{
 		{
-			name:           "single invalid property with close match",
+			name:           "single invalid property with close matches",
 			invalidProps:   []string{"contnt"},
 			acceptedFields: []string{"content", "contents", "name"},
-			wantContains:   []string{"Did you mean one of:", "content"},
+			wantContains:   []string{"Did you mean:", "content"}, // Gets both "content" (dist 1) and "contents" (dist 2)
 		},
 		{
 			name:           "multiple invalid properties",
 			invalidProps:   []string{"prop1", "prop2"},
 			acceptedFields: []string{"name", "age", "email"},
-			wantContains:   []string{"Valid fields are:", "name", "age", "email"},
+			wantContains:   []string{"Valid fields are:", "name", "age", "email"}, // No close matches, show all
 		},
 		{
 			name:           "no accepted fields",
@@ -204,22 +204,22 @@ func TestFindClosestMatches(t *testing.T) {
 		wantFirst  string // First result should be this
 	}{
 		{
-			name:       "exact substring match",
+			name:       "exact match skipped - returns next closest",
 			target:     "content",
 			maxResults: 3,
-			wantFirst:  "content",
+			wantFirst:  "contents", // Exact match is skipped, "contents" has distance 1
 		},
 		{
 			name:       "partial match",
 			target:     "contnt",
 			maxResults: 2,
-			wantFirst:  "content",
+			wantFirst:  "content", // "content" has distance 1
 		},
 		{
 			name:       "prefix match",
 			target:     "time",
 			maxResults: 1,
-			wantFirst:  "timeout",
+			wantFirst:  "name", // "name" has distance 2, closer than "timeout" (distance 3)
 		},
 	}
 
