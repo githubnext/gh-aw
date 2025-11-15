@@ -725,9 +725,9 @@ func TestFinalizeToolMetrics(t *testing.T) {
 			name:           "Basic finalization with sequence and tools",
 			initialMetrics: LogMetrics{},
 			toolCallMap: map[string]*ToolCallInfo{
-				"bash":           {Name: "bash", CallCount: 2},
-				"github_search":  {Name: "github_search", CallCount: 1},
-				"web_fetch":      {Name: "web_fetch", CallCount: 3},
+				"bash":          {Name: "bash", CallCount: 2},
+				"github_search": {Name: "github_search", CallCount: 1},
+				"web_fetch":     {Name: "web_fetch", CallCount: 3},
 			},
 			currentSequence: []string{"bash", "github_search", "web_fetch"},
 			turns:           5,
@@ -870,82 +870,82 @@ Info: Processing complete
 }
 
 func TestFinalizeToolCallsAndSequence(t *testing.T) {
-tests := []struct {
-name            string
-initialMetrics  LogMetrics
-toolCallMap     map[string]*ToolCallInfo
-currentSequence []string
-expectedToolLen int
-expectedSeqLen  int
-}{
-{
-name:           "Basic finalization with tools and sequence",
-initialMetrics: LogMetrics{},
-toolCallMap: map[string]*ToolCallInfo{
-"bash":          {Name: "bash", CallCount: 2},
-"github_search": {Name: "github_search", CallCount: 1},
-},
-currentSequence: []string{"bash", "github_search"},
-expectedToolLen: 2,
-expectedSeqLen:  1,
-},
-{
-name:            "Empty sequence should not be added",
-initialMetrics:  LogMetrics{},
-toolCallMap:     map[string]*ToolCallInfo{"bash": {Name: "bash", CallCount: 1}},
-currentSequence: []string{},
-expectedToolLen: 1,
-expectedSeqLen:  0,
-},
-{
-name:           "Tools should be sorted alphabetically",
-initialMetrics: LogMetrics{},
-toolCallMap: map[string]*ToolCallInfo{
-"zebra":  {Name: "zebra", CallCount: 1},
-"alpha":  {Name: "alpha", CallCount: 2},
-"middle": {Name: "middle", CallCount: 3},
-},
-currentSequence: []string{"zebra", "alpha"},
-expectedToolLen: 3,
-expectedSeqLen:  1,
-},
-{
-name: "Preserves existing sequences",
-initialMetrics: LogMetrics{
-ToolSequences: [][]string{
-{"tool1", "tool2"},
-},
-},
-toolCallMap:     map[string]*ToolCallInfo{"tool3": {Name: "tool3", CallCount: 1}},
-currentSequence: []string{"tool3"},
-expectedToolLen: 1,
-expectedSeqLen:  2, // 1 existing + 1 new
-},
-}
+	tests := []struct {
+		name            string
+		initialMetrics  LogMetrics
+		toolCallMap     map[string]*ToolCallInfo
+		currentSequence []string
+		expectedToolLen int
+		expectedSeqLen  int
+	}{
+		{
+			name:           "Basic finalization with tools and sequence",
+			initialMetrics: LogMetrics{},
+			toolCallMap: map[string]*ToolCallInfo{
+				"bash":          {Name: "bash", CallCount: 2},
+				"github_search": {Name: "github_search", CallCount: 1},
+			},
+			currentSequence: []string{"bash", "github_search"},
+			expectedToolLen: 2,
+			expectedSeqLen:  1,
+		},
+		{
+			name:            "Empty sequence should not be added",
+			initialMetrics:  LogMetrics{},
+			toolCallMap:     map[string]*ToolCallInfo{"bash": {Name: "bash", CallCount: 1}},
+			currentSequence: []string{},
+			expectedToolLen: 1,
+			expectedSeqLen:  0,
+		},
+		{
+			name:           "Tools should be sorted alphabetically",
+			initialMetrics: LogMetrics{},
+			toolCallMap: map[string]*ToolCallInfo{
+				"zebra":  {Name: "zebra", CallCount: 1},
+				"alpha":  {Name: "alpha", CallCount: 2},
+				"middle": {Name: "middle", CallCount: 3},
+			},
+			currentSequence: []string{"zebra", "alpha"},
+			expectedToolLen: 3,
+			expectedSeqLen:  1,
+		},
+		{
+			name: "Preserves existing sequences",
+			initialMetrics: LogMetrics{
+				ToolSequences: [][]string{
+					{"tool1", "tool2"},
+				},
+			},
+			toolCallMap:     map[string]*ToolCallInfo{"tool3": {Name: "tool3", CallCount: 1}},
+			currentSequence: []string{"tool3"},
+			expectedToolLen: 1,
+			expectedSeqLen:  2, // 1 existing + 1 new
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-metrics := tt.initialMetrics
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metrics := tt.initialMetrics
 
-FinalizeToolCallsAndSequence(&metrics, tt.toolCallMap, tt.currentSequence)
+			FinalizeToolCallsAndSequence(&metrics, tt.toolCallMap, tt.currentSequence)
 
-if len(metrics.ToolCalls) != tt.expectedToolLen {
-t.Errorf("Expected %d tool calls, got %d", tt.expectedToolLen, len(metrics.ToolCalls))
-}
+			if len(metrics.ToolCalls) != tt.expectedToolLen {
+				t.Errorf("Expected %d tool calls, got %d", tt.expectedToolLen, len(metrics.ToolCalls))
+			}
 
-if len(metrics.ToolSequences) != tt.expectedSeqLen {
-t.Errorf("Expected %d sequences, got %d", tt.expectedSeqLen, len(metrics.ToolSequences))
-}
+			if len(metrics.ToolSequences) != tt.expectedSeqLen {
+				t.Errorf("Expected %d sequences, got %d", tt.expectedSeqLen, len(metrics.ToolSequences))
+			}
 
-// Verify tools are sorted by name
-if len(metrics.ToolCalls) > 1 {
-for i := 0; i < len(metrics.ToolCalls)-1; i++ {
-if metrics.ToolCalls[i].Name > metrics.ToolCalls[i+1].Name {
-t.Errorf("Tool calls not sorted: %s comes before %s",
-metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)
-}
-}
-}
-})
-}
+			// Verify tools are sorted by name
+			if len(metrics.ToolCalls) > 1 {
+				for i := 0; i < len(metrics.ToolCalls)-1; i++ {
+					if metrics.ToolCalls[i].Name > metrics.ToolCalls[i+1].Name {
+						t.Errorf("Tool calls not sorted: %s comes before %s",
+							metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)
+					}
+				}
+			}
+		})
+	}
 }
