@@ -41,7 +41,18 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
+		},
+		{
+			name: "contents write permission includes example",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents": "write",
+				},
+			},
+			expectError: true,
+			errorMsg:    "Example:",
 		},
 		{
 			name: "issues write permission is refused",
@@ -52,7 +63,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons",
 		},
 		{
 			name: "pull-requests write permission is refused",
@@ -63,7 +74,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'pull-requests: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'pull-requests: write' is not allowed for security reasons",
 		},
 		{
 			name: "multiple write permissions fail on first one",
@@ -89,7 +100,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'issues: write' is not allowed for security reasons",
 		},
 		{
 			name: "other write permissions are allowed (not in sensitive scopes)",
@@ -117,7 +128,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				"permissions": "write",
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
 		},
 		{
 			name: "shorthand write-all is refused",
@@ -126,7 +137,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 				"permissions": "write-all",
 			},
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
 		},
 		{
 			name: "empty permissions map is allowed",
@@ -179,6 +190,12 @@ func TestValidateStrictNetwork(t *testing.T) {
 			errorMsg:           "strict mode: 'network' configuration is required to prevent unrestricted network access",
 		},
 		{
+			name:               "nil network permissions includes example",
+			networkPermissions: nil,
+			expectError:        true,
+			errorMsg:           "Example:",
+		},
+		{
 			name: "defaults mode is allowed",
 			networkPermissions: &NetworkPermissions{
 				Mode: "defaults",
@@ -201,6 +218,15 @@ func TestValidateStrictNetwork(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access",
+		},
+		{
+			name: "wildcard in allowed domains includes example",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"*"},
+			},
+			expectError: true,
+			errorMsg:    "Example:",
 		},
 		{
 			name: "wildcard among other domains is refused",

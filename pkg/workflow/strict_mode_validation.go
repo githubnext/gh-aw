@@ -63,7 +63,7 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 	for _, scope := range writePermissions {
 		if perms.IsAllowed(scope, "write") {
 			strictModeValidationLog.Printf("Write permission validation failed: scope=%s", scope)
-			return fmt.Errorf("strict mode: write permission '%s: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely. See: https://githubnext.github.io/gh-aw/reference/safe-outputs/", scope)
+			return fmt.Errorf("strict mode: write permission '%s: write' is not allowed for security reasons. Use safe-outputs for write operations instead. Example:\nsafe-outputs:\n  create-issue:\n  create-pull-request:\n  add-comment:\n  update-issue:\n\nSee: https://githubnext.github.io/gh-aw/reference/safe-outputs/", scope)
 		}
 	}
 
@@ -75,7 +75,7 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions) error {
 	if networkPermissions == nil {
 		strictModeValidationLog.Printf("Network configuration missing")
-		return fmt.Errorf("strict mode: 'network' configuration is required to prevent unrestricted network access. Add 'network: { allowed: [...] }' or 'network: defaults' to your frontmatter. See: https://githubnext.github.io/gh-aw/reference/network/")
+		return fmt.Errorf("strict mode: 'network' configuration is required to prevent unrestricted network access. Example:\nnetwork:\n  allowed:\n    - \"api.example.com\"\n    - \"*.trusted-domain.com\"\n\nOr use defaults:\nnetwork: defaults\n\nSee: https://githubnext.github.io/gh-aw/reference/network/")
 	}
 
 	// If mode is "defaults", that's acceptable
@@ -88,7 +88,7 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	for _, domain := range networkPermissions.Allowed {
 		if domain == "*" {
 			strictModeValidationLog.Printf("Network validation failed: wildcard detected")
-			return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://githubnext.github.io/gh-aw/reference/network/#available-ecosystem-identifiers")
+			return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers. Example:\nnetwork:\n  allowed:\n    - python\n    - node\n    - containers\n    - \"api.specific-domain.com\"\n\nSee: https://githubnext.github.io/gh-aw/reference/network/#available-ecosystem-identifiers")
 		}
 	}
 
@@ -127,7 +127,7 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 			if _, hasContainer := serverConfig["container"]; hasContainer {
 				// Check if network configuration is present
 				if _, hasNetwork := serverConfig["network"]; !hasNetwork {
-					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration for security. Add 'network: { allowed: [...] }' to the server configuration to restrict network access. See: https://githubnext.github.io/gh-aw/reference/network/", serverName)
+					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration for security. Example:\nmcp-servers:\n  %s:\n    container: \"my-server:latest\"\n    network:\n      allowed:\n        - \"api.example.com\"\n\nSee: https://githubnext.github.io/gh-aw/reference/network/", serverName, serverName)
 				}
 			}
 		}

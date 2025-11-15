@@ -37,6 +37,13 @@ func TestValidateIncludedPermissions(t *testing.T) {
 			errorContains:       "Missing permissions",
 		},
 		{
+			name:                "Missing permission includes example",
+			topPermissionsYAML:  "permissions:\n  contents: read",
+			importedPermissions: `{"actions":"read"}`,
+			expectError:         true,
+			errorContains:       "Example:",
+		},
+		{
 			name:                "Insufficient permission level fails validation",
 			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: `{"contents":"write"}`,

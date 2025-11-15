@@ -239,7 +239,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 	// If there are missing or insufficient permissions, return an error
 	if len(missingPermissions) > 0 || len(insufficientPermissions) > 0 {
 		var errorMsg strings.Builder
-		errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted in the main workflow.\n\n")
+		errorMsg.WriteString("Imported workflows require permissions that are not granted in the main workflow. ")
 		errorMsg.WriteString("The permission set must be explicitly declared in the main workflow.\n\n")
 
 		if len(missingPermissions) > 0 {
@@ -272,7 +272,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 			errorMsg.WriteString("\n")
 		}
 
-		errorMsg.WriteString("Suggested fix: Add the required permissions to your main workflow frontmatter:\n")
+		errorMsg.WriteString("Example: Add the required permissions to your main workflow frontmatter:\n")
 		errorMsg.WriteString("permissions:\n")
 
 		// Combine all required permissions for the suggestion

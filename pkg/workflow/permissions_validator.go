@@ -269,7 +269,8 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	lines = append(lines, "")
 	lines = append(lines, "To fix this, you can either:")
 	lines = append(lines, "")
-	lines = append(lines, "Option 1: Add missing permissions to your workflow frontmatter:")
+	lines = append(lines, "Option 1: Add missing permissions to your workflow frontmatter")
+	lines = append(lines, "Example:")
 	lines = append(lines, "permissions:")
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
@@ -280,7 +281,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	// Add suggestion to reduce toolsets if we have toolset details
 	if len(result.MissingToolsetDetails) > 0 {
 		lines = append(lines, "")
-		lines = append(lines, "Option 2: Reduce the required toolsets in your workflow:")
+		lines = append(lines, "Option 2: Reduce the required toolsets in your workflow")
 		lines = append(lines, "Remove or adjust toolsets that require these permissions:")
 
 		// Get unique toolsets from MissingToolsetDetails
