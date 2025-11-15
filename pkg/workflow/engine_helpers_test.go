@@ -330,29 +330,29 @@ func TestBuildStandardPipInstallSteps(t *testing.T) {
 			name:          "single package with pip",
 			packages:      []string{"requests"},
 			useUv:         false,
-			expectedSteps: 2, // Python setup + install
-			checkContains: []string{"Setup Python", "pip install requests"},
+			expectedSteps: 1, // Only install step - runtime detection adds Python setup automatically
+			checkContains: []string{"pip install requests"},
 		},
 		{
 			name:          "multiple packages with pip",
 			packages:      []string{"requests", "numpy", "pandas"},
 			useUv:         false,
-			expectedSteps: 2,
-			checkContains: []string{"Setup Python", "pip install requests numpy pandas"},
+			expectedSteps: 1,
+			checkContains: []string{"pip install requests numpy pandas"},
 		},
 		{
 			name:          "single package with uv",
 			packages:      []string{"requests"},
 			useUv:         true,
-			expectedSteps: 3, // Python setup + uv setup + install
-			checkContains: []string{"Setup Python", "Setup uv", "uv pip install --system requests"},
+			expectedSteps: 1, // Only install step - runtime detection adds Python/uv setup automatically
+			checkContains: []string{"uv pip install --system requests"},
 		},
 		{
 			name:          "multiple packages with uv",
 			packages:      []string{"requests", "numpy"},
 			useUv:         true,
-			expectedSteps: 3,
-			checkContains: []string{"Setup Python", "Setup uv", "uv pip install --system requests numpy"},
+			expectedSteps: 1,
+			checkContains: []string{"uv pip install --system requests numpy"},
 		},
 		{
 			name:          "empty package list",
@@ -388,8 +388,31 @@ func TestBuildStandardPipInstallSteps(t *testing.T) {
 	}
 }
 
-// TestBuildStandardPipInstallSteps_ActionPins tests that setup actions use pinned versions
-func TestBuildStandardPipInstallSteps_ActionPins(t *testing.T) {
+// TestBuildStandardPipInstallSteps_RuntimeDetection tests that the helper relies on runtime detection
+func TestBuildStandardPipInstallSteps_RuntimeDetection(t *testing.T) {
+	steps := BuildStandardPipInstallSteps([]string{"requests"}, false)
+
+	// Convert steps to text
+	allStepsText := ""
+	for _, step := range steps {
+		for _, line := range step {
+			allStepsText += line + "\n"
+		}
+	}
+
+	// Should NOT contain Python setup - runtime detection handles that
+	if strings.Contains(allStepsText, "Setup Python") {
+		t.Error("Should not include Python setup - runtime detection handles that automatically")
+	}
+
+	// Should contain the pip install command
+	if !strings.Contains(allStepsText, "pip install requests") {
+		t.Error("Should contain pip install command")
+	}
+}
+
+// TestBuildStandardPipInstallSteps_UvRuntimeDetection tests uv with runtime detection
+func TestBuildStandardPipInstallSteps_UvRuntimeDetection(t *testing.T) {
 	steps := BuildStandardPipInstallSteps([]string{"requests"}, true)
 
 	// Convert steps to text
@@ -400,22 +423,14 @@ func TestBuildStandardPipInstallSteps_ActionPins(t *testing.T) {
 		}
 	}
 
-	// Verify that actions use SHA pins (not just @v5 or @main)
-	if strings.Contains(allStepsText, "actions/setup-python@v") {
-		t.Error("Should use SHA-pinned version for actions/setup-python, not version tag")
+	// Should NOT contain uv setup - runtime detection handles that
+	if strings.Contains(allStepsText, "Setup uv") {
+		t.Error("Should not include uv setup - runtime detection handles that automatically")
 	}
 
-	if strings.Contains(allStepsText, "astral-sh/setup-uv@v") {
-		t.Error("Should use SHA-pinned version for astral-sh/setup-uv, not version tag")
-	}
-
-	// Should contain @ symbol (indicating pinned reference)
-	if !strings.Contains(allStepsText, "actions/setup-python@") {
-		t.Error("Should contain pinned reference for actions/setup-python")
-	}
-
-	if !strings.Contains(allStepsText, "astral-sh/setup-uv@") {
-		t.Error("Should contain pinned reference for astral-sh/setup-uv")
+	// Should contain the uv pip install command
+	if !strings.Contains(allStepsText, "uv pip install --system requests") {
+		t.Error("Should contain uv pip install command")
 	}
 }
 

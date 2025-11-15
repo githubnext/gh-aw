@@ -478,14 +478,15 @@ func RenderJSONMCPConfig(
 }
 
 // BuildStandardPipInstallSteps creates standard Python package installation steps
-// This helper extracts the common pattern for installing Python packages via pip or uv.
+// This helper leverages the runtime detection system which automatically adds Python/uv setup.
+// The runtime system will detect pip or uv commands and add the appropriate setup steps.
 //
 // Parameters:
 //   - packages: List of package names to install (e.g., ["requests", "numpy"])
 //   - useUv: If true, uses "uv pip install" instead of "pip install"
 //
 // Returns:
-//   - []GitHubActionStep: The installation steps including Python setup
+//   - []GitHubActionStep: The package installation step (Python/uv setup added automatically by runtime detection)
 func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionStep {
 	engineHelpersLog.Printf("Building pip install steps: packages=%v, useUv=%v", packages, useUv)
 
@@ -494,27 +495,7 @@ func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionS
 		return []GitHubActionStep{}
 	}
 
-	var steps []GitHubActionStep
-
-	// Add Python setup step
-	pythonSetupStep := GitHubActionStep{
-		"      - name: Setup Python",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-python")),
-		"        with:",
-		"          python-version: '3.12'",
-	}
-	steps = append(steps, pythonSetupStep)
-
-	// Add uv setup if needed
-	if useUv {
-		uvSetupStep := GitHubActionStep{
-			"      - name: Setup uv",
-			fmt.Sprintf("        uses: %s", GetActionPin("astral-sh/setup-uv")),
-		}
-		steps = append(steps, uvSetupStep)
-	}
-
-	// Build install command
+	// Build install command - runtime detection will automatically add Python/uv setup
 	var installCmd string
 	if useUv {
 		installCmd = "uv pip install --system " + strings.Join(packages, " ")
@@ -522,14 +503,15 @@ func BuildStandardPipInstallSteps(packages []string, useUv bool) []GitHubActionS
 		installCmd = "pip install " + strings.Join(packages, " ")
 	}
 
-	// Add package installation step
+	// Return only the package installation step
+	// The runtime detection system will automatically detect the pip/uv command
+	// and add the appropriate Python/uv setup steps before this step
 	installStep := GitHubActionStep{
 		"      - name: Install Python packages",
 		fmt.Sprintf("        run: %s", installCmd),
 	}
-	steps = append(steps, installStep)
 
-	return steps
+	return []GitHubActionStep{installStep}
 }
 
 // BuildStandardDockerSetupSteps creates standard Docker image pre-download steps
