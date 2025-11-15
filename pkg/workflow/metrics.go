@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -463,4 +464,64 @@ func extractErrorMessage(line string) string {
 	}
 
 	return cleanedLine
+}
+
+// FinalizeToolMetrics completes the metric collection process by finalizing sequences,
+// converting tool call maps to sorted slices, and optionally counting errors using patterns.
+// This function is called by engine-specific ParseLogMetrics implementations to avoid code duplication.
+func FinalizeToolMetrics(
+	metrics *LogMetrics,
+	toolCallMap map[string]*ToolCallInfo,
+	currentSequence []string,
+	turns int,
+	tokenUsage int,
+	logContent string,
+	errorPatterns []ErrorPattern,
+) {
+	// Add final sequence if any
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	}
+
+	metrics.TokenUsage = tokenUsage
+	metrics.Turns = turns
+
+	// Convert tool call map to slice
+	for _, toolInfo := range toolCallMap {
+		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	}
+
+	// Sort tool calls by name for consistent output
+	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
+		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	})
+
+	// Count errors and warnings using pattern matching for better accuracy
+	if len(errorPatterns) > 0 {
+		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
+	}
+}
+
+// FinalizeToolCallsAndSequence completes the tool call and sequence finalization.
+// This is a lighter version of FinalizeToolMetrics for engines that manage token usage
+// and turns separately (like Claude which extracts them from result entries).
+func FinalizeToolCallsAndSequence(
+	metrics *LogMetrics,
+	toolCallMap map[string]*ToolCallInfo,
+	currentSequence []string,
+) {
+	// Add final sequence if any
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	}
+
+	// Convert tool call map to slice
+	for _, toolInfo := range toolCallMap {
+		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	}
+
+	// Sort tool calls by name for consistent output
+	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
+		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	})
 }

@@ -404,29 +404,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		// Basic processing - error/warning counting moved to end of function
 	}
 
-	// Add final sequence if any
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-	}
-
-	metrics.TokenUsage = totalTokenUsage
-	metrics.Turns = turns
-
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
-	})
-
-	// Count errors and warnings using pattern matching for better accuracy
-	errorPatterns := e.GetErrorPatterns()
-	if len(errorPatterns) > 0 {
-		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-	}
+	// Finalize metrics using shared helper
+	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
 
 	codexEngineLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d, errors=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls), len(metrics.Errors))
