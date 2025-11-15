@@ -56,6 +56,9 @@ const DefaultHaskellVersion = "9.10"
 // DefaultDenoVersion is the default version of Deno for runtime setup
 const DefaultDenoVersion = "2.x"
 
+// DefaultPlaywrightVersion is the default version of Playwright MCP server
+const DefaultPlaywrightVersion = "1.56.1"
+
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
 const DefaultAgenticWorkflowTimeoutMinutes = 20
 

@@ -37,6 +37,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -84,5 +85,64 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	}
 
 	npmValidationLog.Print("All npx packages validated successfully")
+	return nil
+}
+
+// validatePlaywrightVersion validates that Playwright package version matches the pinned constant
+// This ensures consistent Playwright versions across all workflows
+func (c *Compiler) validatePlaywrightVersion(workflowData *WorkflowData) error {
+	packages := extractNpxPackages(workflowData)
+	if len(packages) == 0 {
+		return nil
+	}
+
+	npmValidationLog.Print("Checking Playwright package versions")
+
+	var warnings []string
+	for _, pkg := range packages {
+		// Check if this is a Playwright package
+		if !strings.HasPrefix(pkg, "@playwright/mcp") {
+			continue
+		}
+
+		// Parse the package version
+		parts := strings.Split(pkg, "@")
+		if len(parts) < 3 {
+			// No version specified - this is fine, will use default
+			continue
+		}
+
+		version := parts[len(parts)-1]
+
+		// Check if version matches pinned constant or is "latest"
+		if version != constants.DefaultPlaywrightVersion && version != "latest" {
+			npmValidationLog.Printf("Playwright version mismatch: %s (expected: %s)", pkg, constants.DefaultPlaywrightVersion)
+			warnings = append(warnings, fmt.Sprintf(
+				"Playwright package '%s' version does not match pinned version '%s'. Consider updating to '@playwright/mcp@%s' for consistency",
+				pkg, constants.DefaultPlaywrightVersion, constants.DefaultPlaywrightVersion,
+			))
+		} else if version == "latest" {
+			npmValidationLog.Printf("Playwright using 'latest' tag, recommend pinning to: %s", constants.DefaultPlaywrightVersion)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+					"⚠ Playwright package '%s' uses 'latest' tag. Consider pinning to version %s for reproducibility",
+					pkg, constants.DefaultPlaywrightVersion,
+				)))
+			}
+		} else {
+			npmValidationLog.Printf("Playwright version validated: %s", pkg)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ Playwright version validated: %s", pkg)))
+			}
+		}
+	}
+
+	if len(warnings) > 0 {
+		npmValidationLog.Printf("Playwright version validation completed with %d warnings", len(warnings))
+		for _, warning := range warnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+		}
+	}
+
 	return nil
 }

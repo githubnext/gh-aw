@@ -156,6 +156,10 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 			if err := c.validateNpxPackages(workflowData); err != nil {
 				errors = append(errors, err.Error())
 			}
+			// Validate Playwright package versions for consistency
+			if err := c.validatePlaywrightVersion(workflowData); err != nil {
+				errors = append(errors, err.Error())
+			}
 		case "python":
 			// Validate pip packages used in the workflow
 			if err := c.validatePipPackages(workflowData); err != nil {
