@@ -224,8 +224,9 @@ tools:
 	// Check that the warning includes both options
 	expectedPhrases := []string{
 		"Missing required permissions for github toolsets:",
-		"Option 1: Add missing permissions to your workflow frontmatter:",
-		"Option 2: Reduce the required toolsets in your workflow:",
+		"Option 1: Add missing permissions to your workflow frontmatter",
+		"Example:",
+		"Option 2: Reduce the required toolsets in your workflow",
 		"issues",
 		"pull_requests",
 		"repos",
