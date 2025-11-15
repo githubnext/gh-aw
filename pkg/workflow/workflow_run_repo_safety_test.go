@@ -229,6 +229,19 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 	if !strings.Contains(lockContentStr, "||") {
 		t.Error("Expected safety condition to use || operator")
 	}
+
+	// Verify the fork check is present
+	forkCondition := "github.event.workflow_run.repository.fork"
+	if !strings.Contains(lockContentStr, forkCondition) {
+		t.Errorf("Expected fork check to be present in lock file")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the NOT operator is used for the fork check
+	if !strings.Contains(lockContentStr, "!(github.event.workflow_run.repository.fork)") {
+		t.Errorf("Expected NOT operator on fork check")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
 }
 
 // TestNoWorkflowRunRepoSafetyForPushTrigger tests that push triggers don't get the safety check
@@ -278,6 +291,80 @@ Do something on push.`
 	unexpectedCondition := "github.event.workflow_run.repository.id"
 	if strings.Contains(lockContentStr, unexpectedCondition) {
 		t.Errorf("Did not expect repository safety condition in push-triggered workflow")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+}
+
+// TestWorkflowRunForkCheckPresent verifies that the fork check is present in workflow_run workflows
+func TestWorkflowRunForkCheckPresent(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+---
+
+# Test Workflow
+
+Test workflow with workflow_run trigger.`
+
+	// Create a temporary directory for the test
+	tmpDir, err := os.MkdirTemp("", "workflow-run-fork-check-test*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write the test workflow file
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+	err = os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	err = compiler.CompileWorkflow(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify the fork check is present
+	forkCheck := "github.event.workflow_run.repository.fork"
+	if !strings.Contains(lockContentStr, forkCheck) {
+		t.Errorf("Expected fork check to be present in compiled workflow")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the NOT operator is applied to the fork check
+	notForkCheck := "!(github.event.workflow_run.repository.fork)"
+	if !strings.Contains(lockContentStr, notForkCheck) {
+		t.Errorf("Expected NOT operator on fork check")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
+	// Verify the complete safety condition structure
+	// Should have: (repo.id == repository_id) && (!repo.fork)
+	repoIDCheck := "github.event.workflow_run.repository.id == github.repository_id"
+	if !strings.Contains(lockContentStr, repoIDCheck) {
+		t.Errorf("Expected repository ID check to be present")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
+	// Verify AND operator combines the checks
+	if !strings.Contains(lockContentStr, "&&") {
+		t.Errorf("Expected AND operator to combine repository ID and fork checks")
 		t.Logf("Lock file content:\n%s", lockContentStr)
 	}
 }
