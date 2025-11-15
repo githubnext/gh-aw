@@ -1265,7 +1265,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				if reactionStr, ok := reactionValue.(string); ok {
 					// Validate reaction value
 					if !isValidReaction(reactionStr) {
-						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+						return fmt.Errorf("invalid reaction value '%s': must be one of %v. Example:\n---\non:\n  issues:\n    types: [opened]\n  reaction: rocket\n---", reactionStr, getValidReactions())
 					}
 					// Set AIReaction even if it's "none" - "none" explicitly disables reactions
 					workflowData.AIReaction = reactionStr
@@ -1283,7 +1283,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 				for _, eventName := range conflictingEvents {
 					if _, hasConflict := onMap[eventName]; hasConflict {
-						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
+						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow. Command triggers use /mention syntax and are incompatible with event-based triggers. Example:\n---\non:\n  command:\n    name: bot-name\n---", eventName)
 					}
 				}
 
