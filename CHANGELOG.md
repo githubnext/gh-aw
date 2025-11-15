@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.29.0 - 2025-11-15
+
+### Features
+
+#### Add new feature description
+
+
 ## v0.28.7 - 2025-11-14
 
 ### Bug Fixes
