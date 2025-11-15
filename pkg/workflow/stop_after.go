@@ -27,7 +27,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, e
 			if str, ok := stopAfter.(string); ok {
 				return str, nil
 			}
-			return "", fmt.Errorf("stop-after value must be a string")
+			return "", fmt.Errorf("stop-after value must be a string, got %T. Example: stop-after: \"+1d\"", stopAfter)
 		}
 		return "", nil
 	default:
