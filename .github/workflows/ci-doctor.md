@@ -13,7 +13,11 @@ on:
 # Only trigger for failures - check in the workflow body
 if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 
-permissions: read-all
+permissions:
+  actions: read        # To query workflow runs, jobs, and logs
+  contents: read       # To read repository files
+  issues: read         # To search and analyze issues
+  pull-requests: read  # To analyze pull request context
 
 network: defaults
 
