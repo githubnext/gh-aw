@@ -3,6 +3,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Automatically identify, score, and assign issues to AI agents for efficient resolution
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -31,34 +33,36 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Weekly Bug Bash Campaign"
+name: "AI Triage Campaign"
 "on":
   schedule:
-  - cron: "0 10 * * 1"
+  - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
+      max_issues:
+        default: "10"
+        description: Maximum number of issues to process
+        required: false
       project_url:
-        description: GitHub Project v2 user/org URL
-        required: true
-        type: string
+        default: https://github.com/users/mnkiefer/projects/24
+        description: GitHub project URL (e.g., https://github.com/users/username/projects/24)
+        required: false
 
 permissions:
   contents: read
   issues: read
-  repository-projects: read
+  repository-projects: write
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Weekly Bug Bash Campaign"
+run-name: "AI Triage Campaign"
 
 jobs:
   activation:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -71,7 +75,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "bug-bash-campaign.lock.yml"
+          GH_AW_WORKFLOW_FILE: "ai-triage-campaign.lock.yml"
         with:
           script: |
             const fs = require("fs");
@@ -141,245 +145,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            function extractDomainsFromUrl(url) {
-              if (!url || typeof url !== "string") {
-                return [];
-              }
-              try {
-                const urlObj = new URL(url);
-                const hostname = urlObj.hostname.toLowerCase();
-                const domains = [hostname];
-                if (hostname === "github.com") {
-                  domains.push("api.github.com");
-                  domains.push("raw.githubusercontent.com");
-                  domains.push("*.githubusercontent.com");
-                }
-                else if (!hostname.startsWith("api.")) {
-                  domains.push("api." + hostname);
-                  domains.push("raw." + hostname);
-                }
-                return domains;
-              } catch (e) {
-                return [];
-              }
-            }
-            function sanitizeContent(content, maxLength) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              let allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              const githubServerUrl = process.env.GITHUB_SERVER_URL;
-              const githubApiUrl = process.env.GITHUB_API_URL;
-              if (githubServerUrl) {
-                const serverDomains = extractDomainsFromUrl(githubServerUrl);
-                allowedDomains = allowedDomains.concat(serverDomains);
-              }
-              if (githubApiUrl) {
-                const apiDomains = extractDomainsFromUrl(githubApiUrl);
-                allowedDomains = allowedDomains.concat(apiDomains);
-              }
-              allowedDomains = [...new Set(allowedDomains)];
-              let sanitized = content;
-              sanitized = neutralizeCommands(sanitized);
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = removeXmlComments(sanitized);
-              sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
-                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match; 
-                  }
-                  const domain = hostname;
-                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                  core.info(`Redacted URL: ${truncated}`);
-                  core.debug(`Redacted URL (full): ${match}`);
-                  const urlParts = match.split(/([?&#])/);
-                  let result = "(redacted)"; 
-                  for (let i = 1; i < urlParts.length; i++) {
-                    if (urlParts[i].match(/^[?&#]$/)) {
-                      result += urlParts[i]; 
-                    } else {
-                      result += sanitizeUrlDomains(urlParts[i]);
-                    }
-                  }
-                  return result;
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
-                  if (protocol.toLowerCase() === "https") {
-                    return match;
-                  }
-                  if (match.includes("::")) {
-                    return match;
-                  }
-                  if (match.includes("://")) {
-                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
-                    const domain = domainMatch ? domainMatch[1] : match;
-                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    return "(redacted)";
-                  }
-                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
-                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
-                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    return "(redacted)";
-                  }
-                  return match;
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b"];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match; 
-                    }
-                  }
-                  return `(${tagContent})`; 
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.info(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                case "discussion":
-                  if (context.payload.discussion) {
-                    const title = context.payload.discussion.title || "";
-                    const body = context.payload.discussion.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "discussion_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.info(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
 
   agent:
     needs: activation
@@ -387,9 +152,7 @@ jobs:
     permissions:
       contents: read
       issues: read
-      repository-projects: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      repository-projects: write
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -484,7 +247,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{},"update_project":{"max":15}}
+          {"missing_tool":{},"update_project":{"max":20}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1273,7 +1036,7 @@ jobs:
           
       - name: Setup MCPs
         env:
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -1293,7 +1056,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=issues,projects",
+                  "GITHUB_TOOLSETS=repos,issues",
                   "ghcr.io/github/github-mcp-server:v0.20.2"
                 ],
                 "tools": ["*"],
@@ -1334,137 +1097,235 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Weekly Bug Bash Campaign
+          You are an AI-focused issue triage bot that identifies issues AI agents can solve efficiently and routes them appropriately.
           
-          You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
+          ## Your Mission
           
-          **Important**: Use the GitHub MCP server tools (available via `issues` and `projects` toolsets) to access GitHub data. Do NOT use `gh` CLI commands - all GitHub API access must go through the MCP server.
+          1. **Fetch open issues** - Query for open issues in this repository (max ${GH_AW_EXPR_0D0C2AD6} most recent, default: 10)
+          2. **Analyze each issue** - Determine if it's well-suited for AI agent resolution
+          3. **Route to project board** - Add each issue to project ${GH_AW_EXPR_7B9A5317} with intelligent field assignments
           
-          ## Steps
+          ## AI Agent Suitability Assessment
           
-          1. **Determine the project to use:**
-             - **REQUIRED**: Use the exact project URL from `${GH_AW_EXPR_E6A2FDC7}` in all `update-project` safe outputs
-             - The project URL must be provided as input - this workflow does not support automatic project selection by name
-             - Use the URL exactly as provided without modification
-             - The project must already exist - do not attempt to create it. Only add items to existing projects.
-          2. Use the GitHub MCP server tools (issues toolset) to fetch recent open issues (last 30 days) that have at least one of these labels: `bug`, `defect`, or `regression`. Filter out:
-             - Issues already on the board
-             - Closed issues
-             - Issues with `in-progress`, `wip`, or `blocked-by-external` labels
-             - Issues with `enhancement` label unless they also have a defect label
-             - Issues with `security-review-pending` label
-          4. Extract per-issue metadata: number, title, created_at, labels, comment_count, reactions_count (sum of all reaction types), body_length (full body length for accurate classification).
-          5. Classify each issue using these rules (EXACT ORDER):
+          **Issues AI agents handle VERY WELL (High AI-Readiness):**
           
-             **Priority**:
-             - "Critical" if label contains `P0`, `P1`, or `severity:critical`
-             - "High" if (comments + reactions) >= 5 OR label contains `severity:high`
-             - "Medium" (default for all other cases)
+          1. **Well-defined code changes:**
+             - Clear acceptance criteria
+             - Specific file/function targets mentioned
+             - Example input/output provided
+             - Reproducible steps included
           
-             **Complexity**:
-             - "Complex" if label contains `architecture` OR `security`
-             - "Quick Win" if body length < 600 characters (and not Complex)
-             - "Standard" (all other cases)
+          2. **Pattern-based tasks:**
+             - Refactoring with clear pattern (e.g., "convert all callbacks to promises")
+             - Code style consistency fixes
+             - Adding type hints/annotations
+             - Updating deprecated API usage
+             - Adding missing error handling
           
-             **Impact**:
-             - "Blocker" if label contains `blocker`
-             - "Major" if count of component/area labels (prefixes: `area:`, `component:`, `module:`) >= 2
-             - "Minor" (all other cases)
+          3. **Documentation tasks:**
+             - Adding/updating README sections
+             - Generating API documentation
+             - Adding code comments
+             - Creating usage examples
+             - Writing migration guides
           
-             **Classification**: concatenated string `Priority|Impact|Complexity` (e.g., `High|Minor|Quick Win`)
+          4. **Test creation:**
+             - Adding unit tests for specific functions
+             - Adding integration tests with clear scenarios
+             - Improving test coverage for identified gaps
           
-          6. **Before adding items, ensure required fields exist on the project board:**
-             - Try to use the projects toolset from the GitHub MCP server to check if these fields exist:
-               - `Status` (SingleSelect) - with option "Todo"
-               - `Priority` (SingleSelect) - with options: "Critical", "High", "Medium"
-               - `Complexity` (SingleSelect) - with options: "Complex", "Quick Win", "Standard"
-               - `Impact` (SingleSelect) - with options: "Blocker", "Major", "Minor"
-               - `Classification` (Text) - for storing concatenated classification string
-             - If any field is missing, attempt to create it with the appropriate type and options
-             - If field exists but missing required options, attempt to add the missing options
-             - **If field operations fail or are not supported:** Log the error in the summary and proceed with item addition anyway (the safe-output handler will handle field creation/validation)
+          5. **Configuration changes:**
+             - Adding CI/CD steps
+             - Updating dependencies
+             - Modifying build configurations
+             - Environment setup improvements
           
-          7. For each selected issue emit an `update-project` safe output using the project URL from step 1. Use the projects toolset from the GitHub MCP server to interact with the project board. Safe output fields:
-             - Status: "Todo"
-             - Priority: (from classification above)
-             - Complexity: (from classification above)
-             - Impact: (from classification above)
-             - Classification: (concatenated string from above)
-          8. Limit additions to `max` (15) in safe-outputs.
-          9. Log a summary to the workflow step summary with:
-             - Project name used
-             - Fields created or updated (if any), or note if field operations were not available/failed
-             - Count scanned vs added vs skipped
-             - Priority distribution (Critical / High / Medium)
-             - Top 10 candidates (markdown table) sorted by Priority then Impact
-             - Quick Wins count (Complexity="Quick Win")
-             - Any permission, API access, or configuration issues encountered (with specific error messages if available)
+          **Issues AI agents struggle with (Low AI-Readiness):**
           
-          ## Guardrails
-          - **Required label**: Issue MUST have at least one of: `bug`, `defect`, or `regression`
-          - Skip items with `enhancement` label unless they also have a defect label.
-          - Skip items with workflow/status labels: `in-progress`, `wip`, `blocked-by-external`.
-          - Skip issues with label `security-review-pending`.
-          - Do not modify items already on the board or closed.
-          - Use `${GH_AW_EXPR_0BABF60D}` for any manual context (if dispatched from an issue).
-          - Abort additions (but still produce summary) if `PROJECT_GITHUB_TOKEN` missing or lacks `repository-projects: write`.
-          - When classifying, use EXACT body length (not truncated) for Complexity determination.
-          - Count ALL reaction types when calculating engagement for Priority.
+          - Vague feature requests ("make it better")
+          - Debugging without reproduction steps
+          - Performance issues without profiling data
+          - Architecture decisions requiring human judgment
+          - User research or design work
+          - Issues requiring external service setup
+          - Problems with unclear scope
           
-          ## Error Handling
-          If you encounter errors when using the GitHub MCP server:
-          - **"failed to list" or JSON parsing errors**: The MCP server may not support the requested operation. Log the error and continue with available operations.
-          - **Project not found**: Verify the project URL/name is correct and the token has access. Report in summary.
-          - **Field operations fail**: Skip field creation/validation and let the safe-output handler manage fields. Continue with item additions.
-          - **Rate limiting or API errors**: Log the error details and proceed with any successful operations.
+          ## Routing Strategy
           
-          ## Example (Project Update)
-          ```json
-          {
-            "type": "update-project",
-            "project": "https://github.com/users/monalisa/projects/42",
-            "content_type": "issue",
-            "content_number": 123,
-            "fields": {
-              "Status": "Todo",
-              "Priority": "High",
-              "Complexity": "Standard",
-              "Impact": "Major",
-              "Classification": "High|Major|Standard"
-            }
-          }
-          ```
+          ### Project Board
           
-          **Important:** The `project` field must be a **project URL** (e.g., "https://github.com/users/monalisa/projects/42"). Use the exact URL provided in the workflow input without modification.
+          **Use project URL "${GH_AW_EXPR_7B9A5317}" for ALL issues**
           
-          Note: The `Classification` field is the concatenated string `Priority|Impact|Complexity` for easy sorting and filtering.
+          All issues will be routed to this single project board, with differentiation handled through the **Status** field:
           
-          ## Summary Template (Log to Step Summary)
-          ````markdown
-          # Bug Bash Weekly Campaign Summary
+          - **Status: "Ready"** - Issues perfect for immediate AI agent work (AI-Readiness ≥ 8)
+          - **Status: "Needs Clarification"** - Issues that could be AI-ready with more details (Score 5-7)
+          - **Status: "Human Review"** - Issues needing human expertise (Score < 5)
+          - **Status: "In Progress"** - Already assigned to an agent
+          - **Status: "Blocked"** - External dependencies preventing work
           
-          **Project**: <PROJECT_URL>
-          **Fields Created/Updated**: <LIST_OF_FIELDS> (or 'None - all fields existed')
-          **Scanned**: <SCANNED_COUNT> | **Added**: <ADDED_COUNT> | **Skipped**: <SKIPPED_COUNT>
+          ## Field Assignments
           
-          ## Priority Distribution
-          - Critical: <COUNT>
-          - High: <COUNT>
-          - Medium: <COUNT>
+          For each issue, set these project fields:
           
-          ## Top Candidates
-          | # | Title | Priority | Impact | Complexity | Comments | Reactions | Labels |
-          |---|-------|----------|--------|------------|----------|-----------|--------|
-          <Rows limited to 10>
+          ### 1. AI-Readiness Score
+          Rate from 1-10 based on:
+          - Clarity of requirements (3 points)
+          - Availability of context/examples (2 points)
+          - Specificity of scope (2 points)
+          - Testability/verification criteria (2 points)
+          - Independence from external factors (1 point)
           
-          ## Quick Wins (<N>)
-          <Comma separated issue numbers or 'None'>
+          ### 2. Status
+          - **"Ready"** - AI-Readiness score ≥ 8
+          - **"Needs Clarification"** - Score 5-7
+          - **"Human Review"** - Score < 5
+          - **"In Progress"** - If already assigned
+          - **"Blocked"** - External dependencies
           
-          ## Configuration
-          - Project URL: ${GH_AW_EXPR_E6A2FDC7}
-          - Lookback days: 30
-          - Token scope issues: <YES/NO if encountered>
-          ````
+          ### 3. Effort Estimate
+          - **"Small"** (1-2 hours) - Single file changes, simple additions
+          - **"Medium"** (3-8 hours) - Multi-file changes, moderate complexity
+          - **"Large"** (1-3 days) - Significant refactoring, new features
+          - **"X-Large"** (> 3 days) - Major features, consider breaking down
+          
+          ### 4. AI Agent Type
+          Recommend which type of AI agent is best suited:
+          - **"Code Generation"** - Writing new code from specs
+          - **"Code Refactoring"** - Improving existing code
+          - **"Documentation"** - Writing/updating docs
+          - **"Testing"** - Creating/improving tests
+          - **"Bug Fixing"** - Fixing specific bugs with repro steps
+          - **"Mixed"** - Combination of above
+          
+          ### 5. Priority
+          - **"Critical"** - Blocking issues, security vulnerabilities
+          - **"High"** - High-impact, well-defined, AI-ready
+          - **"Medium"** - Valuable but not urgent
+          - **"Low"** - Nice-to-have improvements
+          
+          ## Analysis Checklist
+          
+          For each issue, evaluate:
+          
+          **Clarity**: Are requirements unambiguous?
+          **Context**: Is enough background provided?
+          **Scope**: Is the scope well-defined and bounded?
+          **Verification**: Are success criteria testable?
+          **Independence**: Can it be done without external coordination?
+          **Examples**: Are examples/references provided?
+          
+          ## Special Handling
+          
+          **Good first issue + AI-ready:**
+          - Project: "${GH_AW_EXPR_7B9A5317}"
+          - Status: "Ready"
+          - Priority: "High" (great for demonstrating AI agent capabilities)
+          - Add label suggestion: `ai-agent-friendly`
+          
+          **Complex issue with AI-suitable sub-tasks:**
+          - Project: "${GH_AW_EXPR_7B9A5317}"
+          - Status: "Human Review"
+          - Add comment suggesting breaking into smaller, AI-ready tasks
+          - Identify which parts could be AI-agent-ready
+          
+          **Duplicate/similar patterns:**
+          - If multiple similar issues exist, note they could be batch-processed by an AI agent
+          
+          ## Adding Issues to the Project Board
+          
+          For each issue you analyze, add it to this project board:
+          `https://github.com/users/mnkiefer/projects/24`
+          
+          Use the update-project safe-output with these fields:
+          - **project**: `https://github.com/users/mnkiefer/projects/24` (always use this exact URL)
+          - **content_type**: "issue"
+          - **content_number**: the issue number
+          - **fields**: 
+            - AI-Readiness Score: your calculated score (1-10)
+            - Status: "Ready", "Needs Clarification", or "Human Review"
+            - Effort Estimate: "Small", "Medium", "Large", or "X-Large"
+            - AI Agent Type: the recommended agent type
+            - Priority: "Critical", "High", "Medium", or "Low"
+          
+          Example for issue #5:
+          - project: https://github.com/users/mnkiefer/projects/24
+          - content_type: issue
+          - content_number: 5
+          - fields with AI-Readiness Score, Status, Effort Estimate, AI Agent Type, Priority
+          
+          **Content types:**
+          - `"issue"` - Add/update an issue on the board
+          - `"pull_request"` - Add/update a pull request
+          - `"draft"` - Create a draft item (requires `title` and optional `body`)
+          
+          ## Assignment Strategy
+          
+          **Immediately assign @copilot when:**
+          - AI-Readiness Score ≥ 9
+          - Issue has clear acceptance criteria
+          - All context is provided
+          - No external dependencies
+          
+          **For lower scores (5-8):**
+          - Route to "AI Agent Potential" board
+          - Don't assign yet - needs clarification first
+          - Suggest specific questions to improve readiness
+          
+          **For scores < 5:**
+          - Route to "Human Review Required"
+          - Flag for human expertise
+          - No AI agent assignment
+          
+          ## Recommended AI Agent Types
+          
+          Based on task characteristics, suggest:
+          
+          - **@copilot** - General code changes, GitHub-integrated work (use for immediate assignment)
+          - **Codex** - Complex code generation, algorithm implementation
+          - **Claude** - Analysis, refactoring, documentation with context
+          - **Custom agents** - Specialized workflows (testing, security scanning)
+          
+          ## Analysis Template
+          
+          For each issue, provide:
+          
+          1. **AI-Readiness Assessment** (1-2 sentences)
+             - What makes this suitable/unsuitable for AI agents?
+             
+          2. **Field Rationale** (bullet points)
+             - AI-Readiness Score: [score + brief reason]
+             - Status: [status + brief reason]
+             - Effort: [estimate + brief reason]
+             - AI Agent Type: [type + brief reason]
+             - Priority: [priority + brief reason]
+          
+          3. **Assignment Decision**
+             - If score ≥ 9: "Assigning to @copilot for immediate work"
+             - If score 5-8: "Needs [specific clarifications] before assignment"
+             - If score < 5: "Requires human review - [specific reasons]"
+          
+          ## Important Notes
+          
+          - Projects are created automatically if they don't exist
+          - Focus on AI agent suitability over traditional triage criteria
+          - Prioritize issues with clear, testable outcomes
+          - Flag issues that need human clarification
+          - Consider batch-processing opportunities for similar issues
+          
+          ## Workflow Steps
+          
+          1. **Fetch Issues**: Use GitHub MCP to query up to ${GH_AW_EXPR_0D0C2AD6} most recent open issues (default: 10)
+          2. **Score Each Issue**: Evaluate AI-readiness based on the criteria above
+          3. **Route to Project Board**: For each issue, output an `update_project` safe-output item with `"project": "${GH_AW_EXPR_7B9A5317}"` to add it to the project board with field assignments
+          
+          ## Execution Notes
+          
+          - This workflow runs every 4 hours automatically (or manually with custom parameters)
+          - Input defaults: max_issues=10, project_url=https://github.com/users/mnkiefer/projects/24
+          - All issues are routed to the project board with differentiation via Status field
+          - Custom fields are created automatically if they don't exist
+          - User projects must exist before workflow runs (cannot auto-create)
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1571,8 +1432,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_E6A2FDC7: ${{ inputs.project_url }}
-          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
+          GH_AW_EXPR_0D0C2AD6: ${{ github.event.inputs.max_issues }}
+          GH_AW_EXPR_7B9A5317: ${{ github.event.inputs.project_url }}
         with:
           script: |
             const fs = require("fs");
@@ -1664,7 +1525,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.355",
-              workflow_name: "Weekly Bug Bash Campaign",
+              workflow_name: "AI Triage Campaign",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1698,7 +1559,9 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 10
+        # --allow-tool github
+        # --allow-tool safeoutputs
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -1706,7 +1569,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -1714,7 +1577,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -1830,10 +1693,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
@@ -3895,8 +3757,6 @@ jobs:
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -3927,8 +3787,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Weekly Bug Bash Campaign"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_NAME: "AI Triage Campaign"
+          WORKFLOW_DESCRIPTION: "Automatically identify, score, and assign issues to AI agents for efficient resolution"
         with:
           script: |
             const fs = require('fs');
@@ -4163,7 +4023,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Bug Bash Campaign"
+          GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4295,7 +4155,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
-          github-token: ${{ secrets.PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PROJECT_PAT }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -4332,6 +4192,9 @@ jobs:
               return { success: true, items: validatedOutput.items };
             }
             function parseProjectInput(projectInput) {
+              if (!projectInput || typeof projectInput !== 'string') {
+                throw new Error(`Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`);
+              }
               const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
               if (urlMatch) {
                 return {
@@ -4356,14 +4219,10 @@ jobs:
             async function updateProject(output) {
               const { owner, repo } = context.repo;
               const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
-              core.info(`Parsed project input: ${output.project} -> number=${parsedProjectNumber}, name=${parsedProjectName}`);
               const displayName = parsedProjectName || parsedProjectNumber || output.project;
               const campaignId = output.campaign_id || generateCampaignId(displayName);
-              core.info(`Campaign ID: ${campaignId}`);
-              core.info(`Managing project: ${output.project}`);
               let githubClient = github;
               if (process.env.PROJECT_GITHUB_TOKEN) {
-                core.info(`✓ Using custom PROJECT_GITHUB_TOKEN for project operations`);
                 const { Octokit } = require("@octokit/rest");
                 const octokit = new Octokit({
                   auth: process.env.PROJECT_GITHUB_TOKEN,
@@ -4373,8 +4232,6 @@ jobs:
                   graphql: octokit.graphql.bind(octokit),
                   rest: octokit.rest,
                 };
-              } else {
-                core.info(`ℹ Using default GITHUB_TOKEN (may not have project creation permissions)`);
               }
               try {
                 const repoResult = await githubClient.graphql(
@@ -4392,11 +4249,9 @@ jobs:
                 const repositoryId = repoResult.repository.id;
                 const ownerId = repoResult.repository.owner.id;
                 const ownerType = repoResult.repository.owner.__typename;
-                core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
                 let projectId;
                 let projectNumber;
                 let existingProject = null;
-                core.info(`Searching ${ownerType.toLowerCase()} projects...`);
                 const ownerQuery =
                   ownerType === "User"
                     ? `query($login: String!) {
@@ -4431,7 +4286,6 @@ jobs:
                   return p.title === parsedProjectName;
                 });
                 if (existingProject) {
-                  core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
                   try {
                     await githubClient.graphql(
                       `mutation($projectId: ID!, $repositoryId: ID!) {
@@ -4446,39 +4300,23 @@ jobs:
                       }`,
                       { projectId: existingProject.id, repositoryId }
                     );
-                    core.info(`✓ Ensured project is linked to repository`);
                   } catch (linkError) {
-                    if (linkError.message && linkError.message.includes("already linked")) {
-                      core.info(`✓ Project already linked to repository`);
-                    } else {
-                      core.warning(`Could not link project to repository: ${linkError.message}`);
+                    if (!linkError.message || !linkError.message.includes("already linked")) {
+                      core.warning(`Could not link project: ${linkError.message}`);
                     }
                   }
                 }
                 if (existingProject) {
                   projectId = existingProject.id;
                   projectNumber = existingProject.number;
-                  core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
                 } else {
                   if (ownerType === "User") {
                     const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-                    const manualUrl = `https://github.com/users/${owner}/projects/new`;
                     core.error(
-                      `❌ Cannot find ${projectDisplay} on user account.\n\n` +
-                        `GitHub Actions cannot create projects on user accounts due to permission restrictions.\n\n` +
-                        `📋 To fix this:\n` +
-                        `  1. Verify the project exists and is accessible\n` +
-                        `  2. If it doesn't exist, create it at: ${manualUrl}\n` +
-                        `  3. Ensure it's linked to this repository\n` +
-                        `  4. Provide a valid PROJECT_GITHUB_TOKEN with 'project' scope\n` +
-                        `  5. Re-run this workflow\n\n` +
-                        `The workflow will then be able to add issues/PRs to the existing project.`
+                      `Cannot find ${projectDisplay}. User projects must be created manually at https://github.com/users/${owner}/projects/new`
                     );
-                    throw new Error(
-                      `Cannot find ${projectDisplay} on user account. Please verify it exists and you have the correct token permissions.`
-                    );
+                    throw new Error(`Cannot find ${projectDisplay} on user account.`);
                   }
-                  core.info(`Creating new project: ${output.project}`);
                   const createResult = await githubClient.graphql(
                     `mutation($ownerId: ID!, $title: String!) {
                       createProjectV2(input: {
@@ -4514,8 +4352,7 @@ jobs:
                     }`,
                     { projectId, repositoryId }
                   );
-                  core.info(`✓ Created and linked project: ${newProject.title} (${newProject.url})`);
-                  core.info(`✓ Campaign ID stored in project: ${campaignId}`);
+                  core.info(`✓ Created project: ${newProject.title}`);
                   core.setOutput("project-id", projectId);
                   core.setOutput("project-number", projectNumber);
                   core.setOutput("project-url", newProject.url);
@@ -4531,7 +4368,6 @@ jobs:
                         : output.issue
                           ? "Issue"
                           : "PullRequest";
-                  core.info(`Adding/updating ${contentType} #${contentNumber} on project board`);
                   const contentQuery =
                     contentType === "Issue"
                       ? `query($owner: String!, $repo: String!, $number: Int!) {
@@ -4580,7 +4416,6 @@ jobs:
                   let itemId;
                   if (existingItem) {
                     itemId = existingItem.id;
-                    core.info(`✓ Item already on board`);
                   } else {
                     const addResult = await githubClient.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
@@ -4596,22 +4431,18 @@ jobs:
                       { projectId, contentId }
                     );
                     itemId = addResult.addProjectV2ItemById.item.id;
-                    core.info(`✓ Added ${contentType} #${contentNumber} to project board`);
                     try {
-                      const campaignLabel = `campaign:${campaignId}`;
                       await githubClient.rest.issues.addLabels({
                         owner,
                         repo,
                         issue_number: contentNumber,
-                        labels: [campaignLabel],
+                        labels: [`campaign:${campaignId}`],
                       });
-                      core.info(`✓ Added campaign label: ${campaignLabel}`);
                     } catch (labelError) {
-                      core.warning(`Failed to add campaign label: ${labelError.message}`);
+                      core.warning(`Failed to add label: ${labelError.message}`);
                     }
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
-                    core.info(`Updating custom fields...`);
                     const fieldsResult = await githubClient.graphql(
                       `query($projectId: ID!) {
                         node(id: $projectId) {
@@ -4641,7 +4472,6 @@ jobs:
                     for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
                       let field = projectFields.find(f => f.name.toLowerCase() === fieldName.toLowerCase());
                       if (!field) {
-                        core.info(`Field "${fieldName}" not found, attempting to create it...`);
                         const isTextField =
                           fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
                         if (isTextField) {
@@ -4668,7 +4498,6 @@ jobs:
                               }
                             );
                             field = createFieldResult.createProjectV2Field.projectV2Field;
-                            core.info(`✓ Created text field "${fieldName}"`);
                           } catch (createError) {
                             core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                             continue;
@@ -4703,7 +4532,6 @@ jobs:
                               }
                             );
                             field = createFieldResult.createProjectV2Field.projectV2Field;
-                            core.info(`✓ Created single select field "${fieldName}" with option "${fieldValue}"`);
                           } catch (createError) {
                             core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                             continue;
@@ -4714,7 +4542,6 @@ jobs:
                       if (field.options) {
                         let option = field.options.find(o => o.name === fieldValue);
                         if (!option) {
-                          core.info(`Option "${fieldValue}" not found for field "${fieldName}", attempting to create it...`);
                           try {
                             const allOptions = [
                               ...field.options.map(o => ({ name: o.name, description: "" })),
@@ -4749,7 +4576,6 @@ jobs:
                             const updatedField = createOptionResult.updateProjectV2Field.projectV2Field;
                             option = updatedField.options.find(o => o.name === fieldValue);
                             field = updatedField; 
-                            core.info(`✓ Created option "${fieldValue}" for field "${fieldName}"`);
                           } catch (createError) {
                             core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
                             continue;
@@ -4784,12 +4610,10 @@ jobs:
                           value: valueToSet,
                         }
                       );
-                      core.info(`✓ Updated field "${fieldName}" = "${fieldValue}"`);
                     }
                   }
                   core.setOutput("item-id", itemId);
                 }
-                core.info(`✓ Project management completed successfully`);
               } catch (error) {
                 if (error.message && error.message.includes("does not have permission to create projects")) {
                   const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
@@ -4818,21 +4642,15 @@ jobs:
               }
               const updateProjectItems = result.items.filter(item => item.type === "update_project");
               if (updateProjectItems.length === 0) {
-                core.info("No update-project items found in agent output");
                 return;
               }
-              core.info(`Processing ${updateProjectItems.length} update_project items`);
               for (let i = 0; i < updateProjectItems.length; i++) {
                 const output = updateProjectItems[i];
-                core.info(
-                  `\n[${i + 1}/${updateProjectItems.length}] Processing item: ${output.content_type || "project"} #${output.content_number || output.issue || output.pull_request || "N/A"}`
-                );
                 try {
                   await updateProject(output);
                 } catch (error) {
                   core.error(`Failed to process item ${i + 1}: ${error.message}`);
                 }
               }
-              core.info(`\n✓ Completed processing ${updateProjectItems.length} items`);
             })();
 

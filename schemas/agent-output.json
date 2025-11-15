@@ -312,48 +312,46 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "update-project"
+          "const": "update_project"
         },
         "project": {
           "type": "string",
-          "description": "Project title or number",
+          "description": "Project title, number, or GitHub project URL",
           "minLength": 1
-        },
-        "create_if_missing": {
-          "type": "boolean",
-          "description": "Whether to create the project if it doesn't exist"
-        },
-        "description": {
-          "type": "string",
-          "description": "Project description (used when creating)"
         },
         "campaign_id": {
           "type": "string",
-          "description": "Optional campaign ID for tracking related work"
+          "description": "Optional campaign ID for tracking (auto-generated if not provided). Format: slug-timestamp"
         },
         "content_type": {
           "type": "string",
-          "enum": ["issue", "pull_request", "draft"],
-          "description": "Type of content to add/update"
+          "enum": ["issue", "pull_request"],
+          "description": "Type of content to add to the project board"
         },
         "content_number": {
           "oneOf": [
             {"type": "number"},
             {"type": "string"}
           ],
-          "description": "Issue or PR number (for issue/pull_request types)"
+          "description": "Issue or PR number (preferred field)"
         },
-        "title": {
-          "type": "string",
-          "description": "Title for draft items"
+        "issue": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number (legacy field, use content_number instead)"
         },
-        "body": {
-          "type": "string",
-          "description": "Body content for draft items"
+        "pull_request": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "PR number (legacy field, use content_number instead)"
         },
         "fields": {
           "type": "object",
-          "description": "Custom field values to set on the item",
+          "description": "Custom project field values to set/update. Creates fields if missing.",
           "additionalProperties": true
         }
       },

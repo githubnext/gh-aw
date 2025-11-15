@@ -3,11 +3,12 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 /**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type
- * @property {string} project - Project title or number
- * @property {number} [issue] - Issue number to add/update on the board
- * @property {number} [pull_request] - PR number to add/update on the board
- * @property {Object} [fields] - Custom field values to set/update
- * @property {Object} [fields_schema] - Define custom fields when creating a new project
+ * @property {string} project - Project title, number, or GitHub project URL
+ * @property {string} [content_type] - Type of content: "issue" or "pull_request"
+ * @property {number|string} [content_number] - Issue or PR number (preferred)
+ * @property {number|string} [issue] - Issue number (legacy, use content_number instead)
+ * @property {number|string} [pull_request] - PR number (legacy, use content_number instead)
+ * @property {Object} [fields] - Custom field values to set/update (creates fields if missing)
  * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
  */
 
@@ -17,6 +18,11 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  * @returns {{projectNumber: string|null, projectName: string}} Extracted project number (if URL) and name
  */
 function parseProjectInput(projectInput) {
+  // Validate input
+  if (!projectInput || typeof projectInput !== 'string') {
+    throw new Error(`Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`);
+  }
+
   // Try to parse as GitHub project URL
   const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (urlMatch) {
@@ -61,33 +67,21 @@ async function updateProject(output) {
   // In actions/github-script, 'github' and 'context' are already available
   const { owner, repo } = context.repo;
 
-  // Parse project input to extract number from URL or use name
   const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
-  core.info(`Parsed project input: ${output.project} -> number=${parsedProjectNumber}, name=${parsedProjectName}`);
-
-  // Generate or use provided campaign ID
   const displayName = parsedProjectName || parsedProjectNumber || output.project;
   const campaignId = output.campaign_id || generateCampaignId(displayName);
-  core.info(`Campaign ID: ${campaignId}`);
-  core.info(`Managing project: ${output.project}`);
 
-  // Check for custom token with projects permissions and create authenticated client
   let githubClient = github;
   if (process.env.PROJECT_GITHUB_TOKEN) {
-    core.info(`✓ Using custom PROJECT_GITHUB_TOKEN for project operations`);
-    // Create new Octokit instance with the custom token
     const { Octokit } = require("@octokit/rest");
     const octokit = new Octokit({
       auth: process.env.PROJECT_GITHUB_TOKEN,
       baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
     });
-    // Wrap in the same interface as github-script provides
     githubClient = {
       graphql: octokit.graphql.bind(octokit),
       rest: octokit.rest,
     };
-  } else {
-    core.info(`ℹ Using default GITHUB_TOKEN (may not have project creation permissions)`);
   }
 
   try {
@@ -108,17 +102,12 @@ async function updateProject(output) {
     const ownerId = repoResult.repository.owner.id;
     const ownerType = repoResult.repository.owner.__typename;
 
-    core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
-
     // Step 2: Find existing project or create it
     let projectId;
     let projectNumber;
     let existingProject = null;
 
     // Search for projects at the owner level (user/org)
-    // Note: repository.projectsV2 doesn't reliably return user-owned projects even when linked
-    core.info(`Searching ${ownerType.toLowerCase()} projects...`);
-
     const ownerQuery =
       ownerType === "User"
         ? `query($login: String!) {
@@ -159,8 +148,6 @@ async function updateProject(output) {
 
     // If found at owner level, ensure it's linked to the repository
     if (existingProject) {
-      core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
-
       try {
         await githubClient.graphql(
           `mutation($projectId: ID!, $repositoryId: ID!) {
@@ -175,46 +162,27 @@ async function updateProject(output) {
           }`,
           { projectId: existingProject.id, repositoryId }
         );
-        core.info(`✓ Ensured project is linked to repository`);
       } catch (linkError) {
-        // Project might already be linked, that's okay
-        if (linkError.message && linkError.message.includes("already linked")) {
-          core.info(`✓ Project already linked to repository`);
-        } else {
-          core.warning(`Could not link project to repository: ${linkError.message}`);
+        if (!linkError.message || !linkError.message.includes("already linked")) {
+          core.warning(`Could not link project: ${linkError.message}`);
         }
       }
     }
 
     if (existingProject) {
-      // Project exists
       projectId = existingProject.id;
       projectNumber = existingProject.number;
-      core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
     } else {
       // Check if owner is a User before attempting to create
       if (ownerType === "User") {
         const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-        const manualUrl = `https://github.com/users/${owner}/projects/new`;
         core.error(
-          `❌ Cannot find ${projectDisplay} on user account.\n\n` +
-            `GitHub Actions cannot create projects on user accounts due to permission restrictions.\n\n` +
-            `📋 To fix this:\n` +
-            `  1. Verify the project exists and is accessible\n` +
-            `  2. If it doesn't exist, create it at: ${manualUrl}\n` +
-            `  3. Ensure it's linked to this repository\n` +
-            `  4. Provide a valid PROJECT_GITHUB_TOKEN with 'project' scope\n` +
-            `  5. Re-run this workflow\n\n` +
-            `The workflow will then be able to add issues/PRs to the existing project.`
+          `Cannot find ${projectDisplay}. User projects must be created manually at https://github.com/users/${owner}/projects/new`
         );
-        throw new Error(
-          `Cannot find ${projectDisplay} on user account. Please verify it exists and you have the correct token permissions.`
-        );
+        throw new Error(`Cannot find ${projectDisplay} on user account.`);
       }
 
       // Create new project (organization only)
-      core.info(`Creating new project: ${output.project}`);
-
       const createResult = await githubClient.graphql(
         `mutation($ownerId: ID!, $title: String!) {
           createProjectV2(input: {
@@ -254,8 +222,7 @@ async function updateProject(output) {
         { projectId, repositoryId }
       );
 
-      core.info(`✓ Created and linked project: ${newProject.title} (${newProject.url})`);
-      core.info(`✓ Campaign ID stored in project: ${campaignId}`);
+      core.info(`✓ Created project: ${newProject.title}`);
       core.setOutput("project-id", projectId);
       core.setOutput("project-number", projectNumber);
       core.setOutput("project-url", newProject.url);
@@ -274,8 +241,6 @@ async function updateProject(output) {
             : output.issue
               ? "Issue"
               : "PullRequest";
-
-      core.info(`Adding/updating ${contentType} #${contentNumber} on project board`);
 
       // Get content ID
       const contentQuery =
@@ -332,7 +297,6 @@ async function updateProject(output) {
       let itemId;
       if (existingItem) {
         itemId = existingItem.id;
-        core.info(`✓ Item already on board`);
       } else {
         // Add item to board
         const addResult = await githubClient.graphql(
@@ -349,27 +313,22 @@ async function updateProject(output) {
           { projectId, contentId }
         );
         itemId = addResult.addProjectV2ItemById.item.id;
-        core.info(`✓ Added ${contentType} #${contentNumber} to project board`);
 
         // Add campaign label to issue/PR
         try {
-          const campaignLabel = `campaign:${campaignId}`;
           await githubClient.rest.issues.addLabels({
             owner,
             repo,
             issue_number: contentNumber,
-            labels: [campaignLabel],
+            labels: [`campaign:${campaignId}`],
           });
-          core.info(`✓ Added campaign label: ${campaignLabel}`);
         } catch (labelError) {
-          core.warning(`Failed to add campaign label: ${labelError.message}`);
+          core.warning(`Failed to add label: ${labelError.message}`);
         }
       }
 
       // Step 4: Update custom fields if provided
       if (output.fields && Object.keys(output.fields).length > 0) {
-        core.info(`Updating custom fields...`);
-
         // Get project fields
         const fieldsResult = await githubClient.graphql(
           `query($projectId: ID!) {
@@ -403,8 +362,6 @@ async function updateProject(output) {
         for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
           let field = projectFields.find(f => f.name.toLowerCase() === fieldName.toLowerCase());
           if (!field) {
-            core.info(`Field "${fieldName}" not found, attempting to create it...`);
-
             // Try to create the field - determine type based on field name or value
             const isTextField =
               fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
@@ -434,7 +391,6 @@ async function updateProject(output) {
                   }
                 );
                 field = createFieldResult.createProjectV2Field.projectV2Field;
-                core.info(`✓ Created text field "${fieldName}"`);
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                 continue;
@@ -470,7 +426,6 @@ async function updateProject(output) {
                   }
                 );
                 field = createFieldResult.createProjectV2Field.projectV2Field;
-                core.info(`✓ Created single select field "${fieldName}" with option "${fieldValue}"`);
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                 continue;
@@ -485,7 +440,6 @@ async function updateProject(output) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option) {
               // Option doesn't exist, try to create it
-              core.info(`Option "${fieldValue}" not found for field "${fieldName}", attempting to create it...`);
               try {
                 // Build options array with existing options plus the new one
                 const allOptions = [
@@ -494,9 +448,8 @@ async function updateProject(output) {
                 ];
 
                 const createOptionResult = await githubClient.graphql(
-                  `mutation($projectId: ID!, $fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                  `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                     updateProjectV2Field(input: {
-                      projectId: $projectId,
                       fieldId: $fieldId,
                       name: $fieldName,
                       singleSelectOptions: $options
@@ -513,7 +466,6 @@ async function updateProject(output) {
                     }
                   }`,
                   {
-                    projectId,
                     fieldId: field.id,
                     fieldName: field.name,
                     options: allOptions,
@@ -523,7 +475,6 @@ async function updateProject(output) {
                 const updatedField = createOptionResult.updateProjectV2Field.projectV2Field;
                 option = updatedField.options.find(o => o.name === fieldValue);
                 field = updatedField; // Update field reference with new options
-                core.info(`✓ Created option "${fieldValue}" for field "${fieldName}"`);
               } catch (createError) {
                 core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
                 continue;
@@ -560,15 +511,11 @@ async function updateProject(output) {
               value: valueToSet,
             }
           );
-
-          core.info(`✓ Updated field "${fieldName}" = "${fieldValue}"`);
         }
       }
 
       core.setOutput("item-id", itemId);
     }
-
-    core.info(`✓ Project management completed successfully`);
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
@@ -600,18 +547,12 @@ async function updateProject(output) {
 
   const updateProjectItems = result.items.filter(item => item.type === "update_project");
   if (updateProjectItems.length === 0) {
-    core.info("No update-project items found in agent output");
     return;
   }
-
-  core.info(`Processing ${updateProjectItems.length} update_project items`);
 
   // Process all update_project items
   for (let i = 0; i < updateProjectItems.length; i++) {
     const output = updateProjectItems[i];
-    core.info(
-      `\n[${i + 1}/${updateProjectItems.length}] Processing item: ${output.content_type || "project"} #${output.content_number || output.issue || output.pull_request || "N/A"}`
-    );
     try {
       await updateProject(output);
     } catch (error) {
@@ -619,6 +560,4 @@ async function updateProject(output) {
       // Continue processing remaining items even if one fails
     }
   }
-
-  core.info(`\n✓ Completed processing ${updateProjectItems.length} items`);
 })();

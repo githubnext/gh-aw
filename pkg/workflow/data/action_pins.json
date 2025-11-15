@@ -65,11 +65,6 @@
       "version": "v5",
       "sha": "e58605a9b6da7c637471fab8847a5e5a6b8df081"
     },
-    "super-linter/super-linter/slim@v8": {
-      "repo": "super-linter/super-linter/slim",
-      "version": "v8",
-      "sha": "f6d06a003575dde14f917e642302cf1251f28f4a"
-    },
     "erlef/setup-beam@v1": {
       "repo": "erlef/setup-beam",
       "version": "v1",
@@ -94,6 +89,11 @@
       "repo": "ruby/setup-ruby",
       "version": "v1",
       "sha": "e5517072e87f198d9533967ae13d97c11b604005"
+    },
+    "super-linter/super-linter/slim@v8": {
+      "repo": "super-linter/super-linter/slim",
+      "version": "v8",
+      "sha": "f6d06a003575dde14f917e642302cf1251f28f4a"
     },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",
