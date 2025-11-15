@@ -15,6 +15,10 @@ mcp-servers:
 steps:
   - name: Verify uv
     run: uv --version
+  - name: Install Go language service
+    run: go install golang.org/x/tools/gopls@latest
+  - name: Check gopls version
+    run: gopls version
 ---
 
 ## Serena configuration
