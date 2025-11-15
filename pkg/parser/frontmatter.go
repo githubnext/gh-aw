@@ -1163,4 +1163,3 @@ func areEqual(a, b any) bool {
 
 	return string(aJSON) == string(bJSON)
 }
-
