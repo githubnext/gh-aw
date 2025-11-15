@@ -74,7 +74,11 @@ const DefaultActivationJobRunnerImage = "ubuntu-slim"
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
 
 // SafeWorkflowEvents defines events that are considered safe and don't require permission checks
-var SafeWorkflowEvents = []string{"workflow_dispatch", "workflow_run", "schedule"}
+// workflow_run is intentionally excluded because it has HIGH security risks:
+// - Privilege escalation (inherits permissions from triggering workflow)
+// - Branch protection bypass (can execute on protected branches via unprotected branches)
+// - Secret exposure (secrets available even when triggered by untrusted code)
+var SafeWorkflowEvents = []string{"workflow_dispatch", "schedule"}
 
 // AllowedExpressions contains the GitHub Actions expressions that can be used in workflow markdown content
 // see https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context

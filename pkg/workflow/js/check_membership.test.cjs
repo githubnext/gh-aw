@@ -65,14 +65,10 @@ describe("check_membership.cjs", () => {
   };
 
   describe("safe events", () => {
-    it("should skip check for workflow_run events", async () => {
-      mockContext.eventName = "workflow_run";
-      await runScript();
-
-      expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_run does not require validation");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
-    });
+    // workflow_run is no longer a safe event due to HIGH security risks:
+    // - Privilege escalation (inherits permissions from triggering workflow)
+    // - Branch protection bypass (can execute on protected branches)
+    // - Secret exposure (secrets available from untrusted code)
 
     it("should skip check for schedule events", async () => {
       mockContext.eventName = "schedule";
