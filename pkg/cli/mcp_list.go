@@ -211,12 +211,16 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 // NewMCPListSubcommand creates the mcp list subcommand
 func NewMCPListSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [workflow-file]",
+		Use:   "list [workflow-id-or-file]",
 		Short: "List MCP servers defined in agentic workflows",
 		Long: `List MCP servers defined in agentic workflows.
 
-When no workflow file is specified, lists all workflows that contain MCP server configurations.
-When a workflow file is specified, lists the MCP servers configured in that specific workflow.
+When no workflow ID/file is specified, lists all workflows that contain MCP server configurations.
+When a workflow ID/file is specified, lists the MCP servers configured in that specific workflow.
+
+The workflow-id-or-file can be:
+- A workflow ID (basename without .md extension, e.g., "weekly-research")
+- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
 Examples:
   gh aw mcp list                     # List all workflows with MCP servers

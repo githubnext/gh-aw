@@ -156,8 +156,8 @@ on:
 func TestNewMCPListSubcommand(t *testing.T) {
 	cmd := NewMCPListSubcommand()
 
-	if cmd.Use != "list [workflow-file]" {
-		t.Errorf("Expected Use to be 'list [workflow-file]', got %s", cmd.Use)
+	if cmd.Use != "list [workflow-id-or-file]" {
+		t.Errorf("Expected Use to be 'list [workflow-id-or-file]', got %s", cmd.Use)
 	}
 
 	if cmd.Short != "List MCP servers defined in agentic workflows" {
