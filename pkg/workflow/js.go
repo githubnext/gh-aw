@@ -25,8 +25,8 @@ var checkStopTimeScript string
 //go:embed js/check_command_position.cjs
 var checkCommandPositionScript string
 
-//go:embed js/check_workflow_timestamp.cjs
-var checkWorkflowTimestampScript string
+//go:embed js/check_workflow_timestamp_api.cjs
+var checkWorkflowTimestampAPIScript string
 
 //go:embed js/log_parser_bootstrap.cjs
 var logParserBootstrapScript string
