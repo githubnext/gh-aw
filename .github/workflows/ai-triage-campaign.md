@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       project_url:
-        description: 'GitHub project URL (e.g., https://github.com/users/username/projects/24)'
+        description: 'GitHub project URL (e.g., https://github.com/users/username/projects/123 or https://github.com/orgs/orgname/projects/123)'
         required: false
-        default: 'https://github.com/users/mnkiefer/projects/24'
+        default: 'https://github.com/orgs/githubnext/projects/53'
       max_issues:
         description: 'Maximum number of issues to process'
         required: false
@@ -29,12 +29,12 @@ engine: copilot
 tools:
   github:
     mode: local
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     toolsets: [repos, issues]
 safe-outputs:
   update-project:
     max: 20
-    github-token: ${{ secrets.PROJECT_PAT }}
+    github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
   missing-tool:
 ---
 
@@ -176,10 +176,10 @@ For each issue, evaluate:
 ## Adding Issues to the Project Board
 
 For each issue you analyze, add it to this project board:
-`https://github.com/users/mnkiefer/projects/24`
+`https://github.com/users/username/projects/123`
 
 Use the update-project safe-output with these fields:
-- **project**: `https://github.com/users/mnkiefer/projects/24` (always use this exact URL)
+- **project**: `https://github.com/users/username/projects/123` (always use this exact URL)
 - **content_type**: "issue"
 - **content_number**: the issue number
 - **fields**: 
@@ -190,7 +190,7 @@ Use the update-project safe-output with these fields:
   - Priority: "Critical", "High", "Medium", or "Low"
 
 Example for issue #5:
-- project: https://github.com/users/mnkiefer/projects/24
+- project: https://github.com/users/username/projects/123
 - content_type: issue
 - content_number: 5
 - fields with AI-Readiness Score, Status, Effort Estimate, AI Agent Type, Priority
@@ -263,7 +263,7 @@ For each issue, provide:
 ## Execution Notes
 
 - This workflow runs every 4 hours automatically (or manually with custom parameters)
-- Input defaults: max_issues=10, project_url=https://github.com/users/mnkiefer/projects/24
+- Input defaults: max_issues=10, project_url=https://github.com/users/username/projects/123
 - All issues are routed to the project board with differentiation via Status field
 - Custom fields are created automatically if they don't exist
 - User projects must exist before workflow runs (cannot auto-create)
