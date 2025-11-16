@@ -54,28 +54,25 @@ This workflow is triggered when someone posts `/cloclo` in:
 ${{ needs.activation.outputs.text }}
 ```
 
-{{#if github.event.issue}}
+{{#if github.event.issue.number}}
 ## Issue Context
 
 - **Issue Number**: ${{ github.event.issue.number }}
-- **Issue Title**: ${{ github.event.issue.title }}
 - **Issue State**: ${{ github.event.issue.state }}
 {{/if}}
 
-{{#if github.event.discussion}}
+{{#if github.event.discussion.number}}
 ## Discussion Context
 
 - **Discussion Number**: ${{ github.event.discussion.number }}
-- **Discussion Title**: ${{ github.event.discussion.title }}
 {{/if}}
 
-{{#if github.event.pull_request}}
+{{#if github.event.pull_request.number}}
 ## Pull Request Context
 
 **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:
 
 - **Pull Request Number**: ${{ github.event.pull_request.number }}
-- **Pull Request Title**: ${{ github.event.pull_request.title }}
 - **Source Branch SHA**: ${{ github.event.pull_request.head.sha }}
 - **Target Branch SHA**: ${{ github.event.pull_request.base.sha }}
 - **PR State**: ${{ github.event.pull_request.state }}
