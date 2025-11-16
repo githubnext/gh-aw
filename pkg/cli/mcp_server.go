@@ -36,6 +36,7 @@ The server provides the following tools:
   - audit       - Investigate a workflow run and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
   - add         - Add workflows from remote repositories to .github/workflows
+  - update      - Update workflows from their source repositories
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -508,6 +509,85 @@ Returns formatted text output showing:
 		}
 		if args.Name != "" {
 			cmdArgs = append(cmdArgs, "-n", args.Name)
+		}
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
+				},
+			}, nil, nil
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+
+	// Add update tool
+	type updateArgs struct {
+		Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
+		Major       bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
+		Force       bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
+		Engine      string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot, custom)"`
+		PR          bool     `json:"pr,omitempty" jsonschema:"Create a pull request with the workflow changes"`
+		Dir         string   `json:"dir,omitempty" jsonschema:"Relative directory containing workflows (default: .github/workflows)"`
+		NoStopAfter bool     `json:"no_stop_after,omitempty" jsonschema:"Remove any stop-after field from the updated workflow"`
+		StopAfter   string   `json:"stop_after,omitempty" jsonschema:"Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "update",
+		Description: `Update workflows from their source repositories and check for gh-aw updates.
+
+The command:
+1. Checks if a newer version of gh-aw is available
+2. Updates workflows using the 'source' field in the workflow frontmatter
+3. Compiles each workflow immediately after update
+
+For workflow updates, it fetches the latest version based on the current ref:
+- If the ref is a tag, it updates to the latest release (use major flag for major version updates)
+- If the ref is a branch, it fetches the latest commit from that branch
+- Otherwise, it fetches the latest commit from the default branch
+
+Returns formatted text output showing:
+- Extension update status
+- Updated workflows with their new versions
+- Compilation status for each updated workflow`,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, any, error) {
+		// Build command arguments
+		cmdArgs := []string{"update"}
+
+		// Add workflow IDs if specified
+		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Add optional flags
+		if args.Major {
+			cmdArgs = append(cmdArgs, "--major")
+		}
+		if args.Force {
+			cmdArgs = append(cmdArgs, "--force")
+		}
+		if args.Engine != "" {
+			cmdArgs = append(cmdArgs, "--engine", args.Engine)
+		}
+		if args.PR {
+			cmdArgs = append(cmdArgs, "--pr")
+		}
+		if args.Dir != "" {
+			cmdArgs = append(cmdArgs, "--dir", args.Dir)
+		}
+		if args.NoStopAfter {
+			cmdArgs = append(cmdArgs, "--no-stop-after")
+		}
+		if args.StopAfter != "" {
+			cmdArgs = append(cmdArgs, "--stop-after", args.StopAfter)
 		}
 
 		// Execute the CLI command
