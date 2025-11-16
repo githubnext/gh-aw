@@ -292,7 +292,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler(false, "", "test")
-			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(tt.tools)
+			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
 			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig)
 
 			// Parse expected and actual results into sets for comparison
@@ -412,7 +412,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Extract cache-memory config from tools if present
 			compiler := NewCompiler(false, "", "test")
-			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(tt.tools)
+			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
 			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig)
 
 			// Split both expected and result into slices and check each tool is present

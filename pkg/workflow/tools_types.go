@@ -6,8 +6,63 @@ import (
 
 var toolsTypesLog = logger.New("workflow:tools_types")
 
-// Tools represents the parsed tools configuration from workflow frontmatter
-type Tools struct {
+// ToolsConfig represents the unified configuration for all tools in a workflow.
+// This type provides a structured alternative to the pervasive map[string]any pattern.
+// It includes strongly-typed fields for built-in tools and a flexible Custom map for
+// MCP server configurations.
+//
+// # Migration Pattern
+//
+// This unified type helps eliminate unnecessary type assertions and runtime validation
+// by replacing map[string]any with strongly-typed configuration structs.
+//
+// # Usage Examples
+//
+// Creating a ToolsConfig from a map[string]any:
+//
+//	toolsMap := map[string]any{
+//	    "github": map[string]any{"allowed": []any{"get_issue"}},
+//	    "bash":   []any{"echo", "ls"},
+//	}
+//	config, err := ParseToolsConfig(toolsMap)
+//	if err != nil {
+//	    // handle error
+//	}
+//
+// Converting back to map[string]any for legacy code:
+//
+//	toolsMap := config.ToMap()
+//
+// # Backward Compatibility
+//
+// For functions that currently accept map[string]any, create wrapper functions
+// that handle conversion:
+//
+//	// New signature using ToolsConfig
+//	func processTools(config *ToolsConfig) error {
+//	    if config.GitHub != nil {
+//	        // Access strongly-typed GitHub config
+//	    }
+//	    return nil
+//	}
+//
+//	// Backward compatibility wrapper
+//	func processToolsFromMap(tools map[string]any) error {
+//	    config, err := ParseToolsConfig(tools)
+//	    if err != nil {
+//	        return err
+//	    }
+//	    return processTools(config)
+//	}
+//
+// # Design Notes
+//
+//   - Built-in tool fields use pointers to distinguish between "not configured" (nil)
+//     and "configured with defaults" (non-nil but empty struct)
+//   - The Custom map stores MCP server configurations that aren't built-in tools
+//   - The raw map is preserved for perfect round-trip conversion when needed
+//   - Type alias Tools = ToolsConfig provides backward compatibility for existing code
+type ToolsConfig struct {
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
@@ -26,6 +81,76 @@ type Tools struct {
 
 	// Raw map for backwards compatibility
 	raw map[string]any
+}
+
+// Tools is a type alias for ToolsConfig for backward compatibility.
+// New code should prefer using ToolsConfig to be explicit about the unified configuration pattern.
+type Tools = ToolsConfig
+
+// ParseToolsConfig creates a ToolsConfig from a map[string]any.
+// This function provides backward compatibility for code that uses map[string]any.
+// It parses all known tool types into their strongly-typed equivalents and stores
+// unknown tools in the Custom map.
+func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
+	config := NewTools(toolsMap)
+	return config, nil
+}
+
+// ToMap converts the ToolsConfig back to a map[string]any for backward compatibility.
+// This is useful when interfacing with legacy code that expects map[string]any.
+func (t *ToolsConfig) ToMap() map[string]any {
+	if t == nil {
+		return make(map[string]any)
+	}
+
+	// Return the raw map if it exists
+	if t.raw != nil {
+		return t.raw
+	}
+
+	// Otherwise construct a new map from the fields
+	result := make(map[string]any)
+
+	if t.GitHub != nil {
+		result["github"] = t.GitHub
+	}
+	if t.Bash != nil {
+		result["bash"] = t.Bash.AllowedCommands
+	}
+	if t.WebFetch != nil {
+		result["web-fetch"] = t.WebFetch
+	}
+	if t.WebSearch != nil {
+		result["web-search"] = t.WebSearch
+	}
+	if t.Edit != nil {
+		result["edit"] = t.Edit
+	}
+	if t.Playwright != nil {
+		result["playwright"] = t.Playwright
+	}
+	if t.AgenticWorkflows != nil {
+		result["agentic-workflows"] = t.AgenticWorkflows.Enabled
+	}
+	if t.CacheMemory != nil {
+		result["cache-memory"] = t.CacheMemory.Raw
+	}
+	if t.SafetyPrompt != nil {
+		result["safety-prompt"] = *t.SafetyPrompt
+	}
+	if t.Timeout != nil {
+		result["timeout"] = *t.Timeout
+	}
+	if t.StartupTimeout != nil {
+		result["startup-timeout"] = *t.StartupTimeout
+	}
+
+	// Add custom tools
+	for name, config := range t.Custom {
+		result[name] = config
+	}
+
+	return result
 }
 
 // GitHubToolConfig represents the configuration for the GitHub tool

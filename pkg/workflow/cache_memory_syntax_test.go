@@ -103,7 +103,7 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 				"cache-memory": tt.cacheValue,
 			}
 
-			config, err := compiler.extractCacheMemoryConfig(tools)
+			config, err := compiler.extractCacheMemoryConfigFromMap(tools)
 
 			// Check if error matches expectation
 			if !tt.shouldWork {

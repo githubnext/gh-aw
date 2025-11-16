@@ -28,7 +28,7 @@ func TestNeutralToolsExpandsToClaudeTools(t *testing.T) {
 
 	// Extract cache-memory config
 	compiler := NewCompiler(false, "", "test")
-	cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(neutralTools)
+	cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(neutralTools)
 	result := engine.computeAllowedClaudeToolsString(neutralTools, safeOutputs, cacheMemoryConfig)
 
 	// Verify that neutral tools are converted to Claude tools
@@ -83,7 +83,7 @@ func TestNeutralToolsWithoutSafeOutputs(t *testing.T) {
 
 	// Extract cache-memory config
 	compiler := NewCompiler(false, "", "test")
-	cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(neutralTools)
+	cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(neutralTools)
 	result := engine.computeAllowedClaudeToolsString(neutralTools, nil, cacheMemoryConfig)
 
 	// Should include converted neutral tools

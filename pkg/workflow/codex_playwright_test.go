@@ -36,7 +36,7 @@ func TestCodexEnginePlaywrightToolsExpansion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.expandNeutralToolsToCodexTools(tt.input)
+			result := engine.expandNeutralToolsToCodexToolsFromMap(tt.input)
 
 			if tt.expected == 0 {
 				// Should not have playwright in result
