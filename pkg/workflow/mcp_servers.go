@@ -6,8 +6,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var mcpServersLog = logger.New("workflow:mcp_servers")
 
 // hasMCPServers checks if the workflow has any MCP servers configured
 func HasMCPServers(workflowData *WorkflowData) bool {
@@ -15,6 +18,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		return false
 	}
 
+	mcpServersLog.Print("Checking for MCP servers in workflow configuration")
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
@@ -38,6 +42,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
+	mcpServersLog.Print("Generating MCP server configuration setup")
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 
@@ -74,12 +79,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 
+	if mcpServersLog.Enabled() {
+		mcpServersLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
+	}
+
 	// Collect all Docker images that will be used and generate download step
 	dockerImages := collectDockerImages(tools)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {
+		mcpServersLog.Print("No MCP tools configured, skipping MCP setup")
 		return
 	}
 

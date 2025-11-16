@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
+
+var compilerJobsLog = logger.New("workflow:compiler_jobs")
 
 // This file contains job building functions extracted from compiler.go
 // These functions are responsible for constructing the various jobs that make up
@@ -27,7 +30,7 @@ func (c *Compiler) isActivationJobNeeded() bool {
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
-	log.Printf("Building jobs for workflow: %s", markdownPath)
+	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
 
 	// Try to read frontmatter to determine event types for safe events check
 	// This is used for the enhanced permission checking logic
@@ -44,7 +47,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
-	log.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
 	// Add the check if the agentic workflow declares a workflow_run trigger
@@ -52,7 +55,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var workflowRunRepoSafety string
 	if c.hasWorkflowRunTrigger(frontmatter) {
 		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
-		log.Print("Adding workflow_run repository safety check")
+		compilerJobsLog.Print("Adding workflow_run repository safety check")
 	}
 
 	// Extract lock filename for timestamp check
@@ -113,7 +116,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
-	log.Print("Successfully built all jobs for workflow")
+	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
 }
 
@@ -122,7 +125,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	if data.SafeOutputs == nil {
 		return nil
 	}
-	log.Print("Building safe outputs jobs")
+	compilerJobsLog.Print("Building safe outputs jobs")
 
 	// Track whether threat detection job is enabled
 	threatDetectionEnabled := false
@@ -407,7 +410,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
 func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {
-	log.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, data.StopTime != "")
+	compilerJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, data.StopTime != "")
 	var steps []string
 	var permissions string
 
@@ -776,7 +779,7 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
-	log.Printf("Building %d custom jobs", len(data.Jobs))
+	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
@@ -803,7 +806,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// This ensures custom jobs wait for workflow validation before executing
 			if !hasExplicitNeeds && activationJobCreated {
 				job.Needs = append(job.Needs, constants.ActivationJobName)
-				log.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, constants.ActivationJobName)
+				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, constants.ActivationJobName)
 			}
 
 			// Extract other job properties
