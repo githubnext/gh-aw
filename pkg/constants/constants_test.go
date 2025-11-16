@@ -131,9 +131,9 @@ func TestDefaultGitHubTools(t *testing.T) {
 	}
 
 	for name, tools := range map[string][]string{
-		"DefaultGitHubToolsLocal":     DefaultGitHubToolsLocal,
-		"DefaultGitHubToolsRemote":    DefaultGitHubToolsRemote,
-		"DefaultReadOnlyGitHubTools":  DefaultReadOnlyGitHubTools,
+		"DefaultGitHubToolsLocal":    DefaultGitHubToolsLocal,
+		"DefaultGitHubToolsRemote":   DefaultGitHubToolsRemote,
+		"DefaultReadOnlyGitHubTools": DefaultReadOnlyGitHubTools,
 	} {
 		toolsMap := make(map[string]bool)
 		for _, tool := range tools {
