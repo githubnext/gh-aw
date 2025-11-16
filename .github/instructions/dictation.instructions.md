@@ -17,6 +17,7 @@ agentic
 agentic-workflows
 allowed
 allowed-domains
+anthropic
 args
 assignees
 audit
@@ -35,6 +36,7 @@ container
 contents
 copilot
 create-agent-task
+create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
