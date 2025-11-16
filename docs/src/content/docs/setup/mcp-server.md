@@ -5,7 +5,7 @@ sidebar:
   order: 400
 ---
 
-The `gh aw mcp-server` command exposes CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol.
+The `gh aw mcp-server` command exposes CLI tools (status, compile, logs, audit, update, add, mcp-inspect) to AI agents through the Model Context Protocol.
 
 Start the server:
 ```bash wrap
@@ -91,6 +91,7 @@ The MCP server provides:
 - **compile**: Generate GitHub Actions YAML
 - **logs**: Download with timeout handling and continuation
 - **audit**: Generate report to `/tmp/gh-aw/aw-mcp/logs`
+- **update**: Update workflows with support for major version updates and force flag
 - **add**: Install workflows from remote repositories
 - **mcp-inspect**: Inspect servers and validate secrets
 
