@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/goccy/go-yaml"
 )
 
 // Runtime represents configuration for a runtime environment
@@ -22,8 +23,9 @@ type Runtime struct {
 
 // RuntimeRequirement represents a detected runtime requirement
 type RuntimeRequirement struct {
-	Runtime *Runtime
-	Version string // Empty string means use default
+	Runtime     *Runtime
+	Version     string         // Empty string means use default
+	ExtraFields map[string]any // Additional 'with' fields from user's setup step (e.g., cache settings)
 }
 
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
@@ -192,19 +194,10 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// Filter out runtimes that already have setup actions in custom steps or engine steps
-	if workflowData.CustomSteps != "" {
-		filterExistingSetupActions(workflowData.CustomSteps, requirements)
-	}
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			if uses, hasUses := step["uses"]; hasUses {
-				if usesStr, ok := uses.(string); ok {
-					filterExistingSetupAction(usesStr, requirements)
-				}
-			}
-		}
-	}
+	// NOTE: We intentionally DO NOT filter out runtimes that already have setup actions.
+	// Instead, we will deduplicate the setup actions from CustomSteps in the compiler.
+	// This ensures runtime setup steps are always added BEFORE custom steps.
+	// The deduplication happens in compiler_yaml.go to remove duplicate setup actions from custom steps.
 
 	// Convert map to sorted slice (alphabetically by runtime ID)
 	var result []RuntimeRequirement
@@ -309,25 +302,6 @@ func detectFromEngineSteps(steps []map[string]any, requirements map[string]*Runt
 }
 
 // filterExistingSetupActions removes runtimes from requirements if they already have setup actions in the custom steps
-func filterExistingSetupActions(customSteps string, requirements map[string]*RuntimeRequirement) {
-	for _, runtime := range knownRuntimes {
-		// Check if the action repo is referenced in the custom steps
-		if strings.Contains(customSteps, runtime.ActionRepo) {
-			// Remove this runtime from requirements as it already has a setup action
-			delete(requirements, runtime.ID)
-		}
-	}
-}
-
-// filterExistingSetupAction removes a runtime from requirements if it has a setup action
-func filterExistingSetupAction(usesStr string, requirements map[string]*RuntimeRequirement) {
-	for _, runtime := range knownRuntimes {
-		if strings.Contains(usesStr, runtime.ActionRepo) {
-			delete(requirements, runtime.ID)
-		}
-	}
-}
-
 // updateRequiredRuntime updates the version requirement, choosing the highest version
 func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map[string]*RuntimeRequirement) {
 	existing, exists := requirements[runtime.ID]
@@ -363,14 +337,16 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 	var steps []GitHubActionStep
 
 	for _, req := range requirements {
-		steps = append(steps, generateSetupStep(req.Runtime, req.Version))
+		steps = append(steps, generateSetupStep(&req))
 	}
 
 	return steps
 }
 
-// generateSetupStep creates a setup step for a given runtime
-func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
+// generateSetupStep creates a setup step for a given runtime requirement
+func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
+	runtime := req.Runtime
+	version := req.Version
 	log.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
 	// Use default version if none specified
 	if version == "" {
@@ -400,6 +376,16 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: go.mod")
 		step = append(step, "          cache: true")
+		// Add any extra fields from user's setup step (sorted for stable output)
+		var extraKeys []string
+		for key := range req.ExtraFields {
+			extraKeys = append(extraKeys, key)
+		}
+		sort.Strings(extraKeys)
+		for _, key := range extraKeys {
+			valueStr := formatYAMLValue(req.ExtraFields[key])
+			step = append(step, fmt.Sprintf("          %s: %s", key, valueStr))
+		}
 		return step
 	}
 
@@ -408,16 +394,89 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
 	} else if runtime.ID == "uv" {
-		// For uv without version, no with block needed
-		return step
+		// For uv without version, no with block needed (unless there are extra fields)
+		if len(req.ExtraFields) == 0 {
+			return step
+		}
+		step = append(step, "        with:")
 	}
 
-	// Add extra fields if present
-	for key, value := range runtime.ExtraWithFields {
-		step = append(step, fmt.Sprintf("          %s: %s", key, value))
+	// Merge extra fields from runtime configuration and user's setup step
+	// User fields take precedence over runtime fields
+	// Note: runtime.ExtraWithFields are pre-formatted strings, req.ExtraFields need formatting
+	allExtraFields := make(map[string]string)
+
+	// Add runtime extra fields (already formatted)
+	for k, v := range runtime.ExtraWithFields {
+		allExtraFields[k] = v
+	}
+
+	// Add user extra fields (need formatting), these override runtime fields
+	for k, v := range req.ExtraFields {
+		allExtraFields[k] = formatYAMLValue(v)
+	}
+
+	// Output merged extra fields in sorted key order for stable output
+	var allKeys []string
+	for key := range allExtraFields {
+		allKeys = append(allKeys, key)
+	}
+	sort.Strings(allKeys)
+	for _, key := range allKeys {
+		step = append(step, fmt.Sprintf("          %s: %s", key, allExtraFields[key]))
+		log.Printf("  Added extra field to runtime setup: %s = %s", key, allExtraFields[key])
 	}
 
 	return step
+}
+
+// formatYAMLValue formats a value for YAML output
+func formatYAMLValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		// Quote strings if they contain special characters or look like non-string types
+		if v == "true" || v == "false" || v == "null" {
+			return fmt.Sprintf("'%s'", v)
+		}
+		// Check if it's a number
+		if _, err := fmt.Sscanf(v, "%f", new(float64)); err == nil {
+			return fmt.Sprintf("'%s'", v)
+		}
+		// Return as-is for simple strings, quote for complex ones
+		return fmt.Sprintf("'%s'", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int8:
+		return fmt.Sprintf("%d", v)
+	case int16:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case uint:
+		return fmt.Sprintf("%d", v)
+	case uint8:
+		return fmt.Sprintf("%d", v)
+	case uint16:
+		return fmt.Sprintf("%d", v)
+	case uint32:
+		return fmt.Sprintf("%d", v)
+	case uint64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return fmt.Sprintf("%v", v)
+	case float64:
+		return fmt.Sprintf("%v", v)
+	default:
+		// For other types, convert to string and quote
+		return fmt.Sprintf("'%v'", v)
+	}
 }
 
 // ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
@@ -546,4 +605,190 @@ func findRuntimeByID(id string) *Runtime {
 		}
 	}
 	return nil
+}
+
+// DeduplicateRuntimeSetupStepsFromCustomSteps removes runtime setup action steps from custom steps
+// to avoid duplication when runtime steps are added before custom steps.
+// This function parses the YAML custom steps, removes any steps that use runtime setup actions,
+// and returns the deduplicated YAML.
+//
+// It preserves user-customized setup actions (e.g., with specific versions) and filters the corresponding
+// runtime from the requirements so we don't generate a duplicate runtime setup step.
+func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequirements []RuntimeRequirement) (string, []RuntimeRequirement, error) {
+	if customSteps == "" || len(runtimeRequirements) == 0 {
+		return customSteps, runtimeRequirements, nil
+	}
+
+	log.Printf("Deduplicating runtime setup steps from custom steps (%d runtimes)", len(runtimeRequirements))
+
+	// Parse custom steps YAML
+	var stepsWrapper map[string]any
+	if err := yaml.Unmarshal([]byte(customSteps), &stepsWrapper); err != nil {
+		return customSteps, runtimeRequirements, fmt.Errorf("failed to parse custom workflow steps from frontmatter. Custom steps must be valid GitHub Actions step syntax. Example:\nsteps:\n  - name: Setup\n    run: echo 'hello'\n  - name: Build\n    run: make build\nError: %w", err)
+	}
+
+	stepsVal, hasSteps := stepsWrapper["steps"]
+	if !hasSteps {
+		return customSteps, runtimeRequirements, nil
+	}
+
+	steps, ok := stepsVal.([]any)
+	if !ok {
+		return customSteps, runtimeRequirements, nil
+	}
+
+	// Build map of action repos to runtime requirements
+	actionRepoToReq := make(map[string]*RuntimeRequirement)
+	for i := range runtimeRequirements {
+		if runtimeRequirements[i].Runtime.ActionRepo != "" {
+			actionRepoToReq[runtimeRequirements[i].Runtime.ActionRepo] = &runtimeRequirements[i]
+			log.Printf("  Will check steps using action: %s", runtimeRequirements[i].Runtime.ActionRepo)
+		}
+	}
+
+	// Track which runtimes to filter from requirements (user has custom setup)
+	filteredRuntimeIDs := make(map[string]bool)
+
+	// Filter out steps that use runtime setup actions
+	// BUT: Preserve steps that have user-specified customizations
+	var filteredSteps []any
+	removedCount := 0
+	preservedCount := 0
+	for _, stepAny := range steps {
+		step, ok := stepAny.(map[string]any)
+		if !ok {
+			filteredSteps = append(filteredSteps, stepAny)
+			continue
+		}
+
+		// Check if this step uses a runtime setup action
+		usesVal, hasUses := step["uses"]
+		if !hasUses {
+			filteredSteps = append(filteredSteps, stepAny)
+			continue
+		}
+
+		usesStr, ok := usesVal.(string)
+		if !ok {
+			filteredSteps = append(filteredSteps, stepAny)
+			continue
+		}
+
+		// Check if this uses string matches any runtime setup action
+		shouldRemove := false
+		shouldPreserve := false
+		for actionRepo, req := range actionRepoToReq {
+			if strings.Contains(usesStr, actionRepo) {
+				// Check if the step has custom "with" fields that differ from defaults
+				withVal, hasWith := step["with"]
+				if hasWith {
+					withMap, isMap := withVal.(map[string]any)
+					if isMap && len(withMap) > 0 {
+						// Check if this has actual user customizations beyond defaults
+						hasCustomization := false
+
+						// For Go, the standard with fields are: go-version-file and cache
+						// These should NOT be considered customizations
+						if req.Runtime.ID == "go" {
+							// Check if there are fields other than go-version-file and cache
+							for key := range withMap {
+								if key != "go-version-file" && key != "cache" {
+									hasCustomization = true
+									break
+								}
+							}
+							// Also check if go-version-file is NOT go.mod (custom path)
+							if !hasCustomization {
+								if goVersionFile, ok := withMap["go-version-file"]; ok {
+									if goVersionFileStr, isStr := goVersionFile.(string); isStr {
+										if goVersionFileStr != "go.mod" {
+											hasCustomization = true
+										}
+									}
+								}
+							}
+						} else if req.Runtime.VersionField != "" {
+							// For other runtimes, check if user specified a custom version
+							if userVersion, hasVersion := withMap[req.Runtime.VersionField]; hasVersion {
+								userVersionStr := fmt.Sprintf("%v", userVersion)
+								// Check if it differs from default or detected version
+								if req.Runtime.DefaultVersion != "" && userVersionStr != req.Runtime.DefaultVersion {
+									hasCustomization = true
+								} else if req.Version != "" && userVersionStr != req.Version {
+									hasCustomization = true
+								} else if req.Runtime.DefaultVersion == "" && req.Version == "" {
+									// No default and no detected version means user specified it
+									hasCustomization = true
+								}
+							}
+						}
+
+						if hasCustomization {
+							// User has truly customized the setup action - preserve it
+							shouldPreserve = true
+							filteredRuntimeIDs[req.Runtime.ID] = true
+							log.Printf("  Preserving user-customized runtime setup step: %s", usesStr)
+							preservedCount++
+							break
+						}
+
+						// No customization detected, but capture extra fields to carry over
+						// These are fields beyond the version field that should be preserved
+						if req.ExtraFields == nil {
+							req.ExtraFields = make(map[string]any)
+						}
+						for key, value := range withMap {
+							// Skip the version field as it's handled separately
+							if req.Runtime.VersionField != "" && key == req.Runtime.VersionField {
+								continue
+							}
+							// Skip standard Go fields that will be auto-generated
+							if req.Runtime.ID == "go" && (key == "go-version-file" || key == "cache") {
+								continue
+							}
+							// Carry over any other fields
+							req.ExtraFields[key] = value
+							log.Printf("  Capturing extra field from setup step: %s = %v", key, value)
+						}
+					}
+				}
+
+				// No real customization - remove this duplicate but keep extra fields
+				shouldRemove = true
+				log.Printf("  Removing duplicate runtime setup step: %s", usesStr)
+				removedCount++
+				break
+			}
+		}
+
+		if shouldPreserve || !shouldRemove {
+			filteredSteps = append(filteredSteps, stepAny)
+		}
+	}
+
+	if removedCount == 0 && preservedCount == 0 {
+		log.Print("  No duplicate runtime setup steps found")
+		return customSteps, runtimeRequirements, nil
+	}
+
+	log.Printf("  Removed %d duplicate runtime setup steps, preserved %d user-customized steps", removedCount, preservedCount)
+
+	// Filter runtime requirements to exclude those with user-customized setup actions
+	var filteredRequirements []RuntimeRequirement
+	for _, req := range runtimeRequirements {
+		if !filteredRuntimeIDs[req.Runtime.ID] {
+			filteredRequirements = append(filteredRequirements, req)
+		} else {
+			log.Printf("  Excluding runtime %s from generated setup steps (user has custom setup)", req.Runtime.ID)
+		}
+	}
+
+	// Convert back to YAML
+	stepsWrapper["steps"] = filteredSteps
+	deduplicatedYAML, err := yaml.Marshal(stepsWrapper)
+	if err != nil {
+		return customSteps, runtimeRequirements, fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", err)
+	}
+
+	return string(deduplicatedYAML), filteredRequirements, nil
 }

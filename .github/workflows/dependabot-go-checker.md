@@ -1,5 +1,5 @@
 ---
-description: Checks for Go module dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
+description: Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 on:
   schedule:
     # Run every other business day: Monday, Wednesday, Friday at 9 AM UTC
@@ -30,14 +30,15 @@ tools:
   bash: [":*"]
 
 ---
-# Dependabot Go Module Dependency Checker
+# Dependabot Dependency Checker
 
 ## Objective
-Check for available Go module updates using Dependabot, evaluate their safety, and create issues for safe updates.
+Check for available Go module and NPM dependency updates using Dependabot, evaluate their safety, and create issues for safe updates.
 
 ## Current Context
 - **Repository**: ${{ github.repository }}
 - **Go Module File**: `go.mod` in repository root
+- **NPM Packages**: Check for `@playwright/mcp` updates in constants.go
 
 ## Your Tasks
 
@@ -49,6 +50,19 @@ Check for available Go module updates using Dependabot, evaluate their safety, a
    - Type of update (patch, minor, major)
    - Security vulnerability information (if any)
    - Changelog or release notes (if available via web-fetch)
+
+### Phase 1.5: Check Playwright NPM Package Updates
+1. Check the current `@playwright/mcp` version in `pkg/constants/constants.go`:
+   - Look for `DefaultPlaywrightVersion` constant
+   - Extract the current version number
+2. Check for newer versions on NPM:
+   - Use web-fetch to query `https://registry.npmjs.org/@playwright/mcp`
+   - Compare the latest version with the current version in constants.go
+   - Get release information and changelog if available
+3. Evaluate the update:
+   - Check if it's a patch, minor, or major version update
+   - Look for breaking changes in release notes
+   - Consider security fixes and improvements
 
 ### Phase 2: Evaluate Update Safety
 For each dependency update, evaluate:
@@ -205,4 +219,51 @@ go mod tidy
 - Run all tests: `make test`
 - Test system-specific functionality
 - Verify cross-platform compatibility
+```
+
+### Example 3: Playwright NPM Package Update
+
+```markdown
+## Summary
+Update `@playwright/mcp` package from 1.56.1 to 1.57.0
+
+## Current State
+- **Package**: @playwright/mcp
+- **Current Version**: 1.56.1 (in pkg/constants/constants.go - DefaultPlaywrightVersion)
+- **Proposed Version**: 1.57.0
+- **Update Type**: Minor
+
+## Safety Assessment
+✅ **Safe to update**
+- Minor version update (1.56.1 -> 1.57.0)
+- No breaking changes mentioned in release notes
+- Includes bug fixes and new features
+- Backward compatible
+
+## Changes
+- Added support for new Playwright features
+- Improved MCP server stability
+- Bug fixes in browser automation
+- Performance improvements
+
+## Links
+- [NPM Package](https://www.npmjs.com/package/@playwright/mcp)
+- [Release Notes](https://github.com/microsoft/playwright/releases/tag/v1.57.0)
+- [Source Repository](https://github.com/microsoft/playwright)
+
+## Recommended Action
+```bash
+# Update the constant in pkg/constants/constants.go
+# Change: const DefaultPlaywrightVersion = "1.56.1"
+# To:     const DefaultPlaywrightVersion = "1.57.0"
+
+# Then run tests to verify
+make test-unit
+```
+
+## Testing Notes
+- Run unit tests: `make test-unit`
+- Verify Playwright MCP configuration generation
+- Test browser automation workflows with playwright tool
+- Check that version is correctly used in compiled workflows
 ```

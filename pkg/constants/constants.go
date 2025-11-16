@@ -15,7 +15,7 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.41"
+const DefaultClaudeCodeVersion = "2.0.42"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 const DefaultCopilotVersion = "0.0.358"
@@ -28,6 +28,9 @@ const DefaultGitHubMCPServerVersion = "v0.20.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion = "v0.1.1"
+
+// DefaultPlaywrightVersion is the default version of the @playwright/mcp package
+const DefaultPlaywrightVersion = "1.56.1"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion = "1.1"

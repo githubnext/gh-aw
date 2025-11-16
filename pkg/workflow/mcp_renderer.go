@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -47,7 +48,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		githubType, readOnly, toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
-		// TOML format doesn't support GitHub MCP yet
+		r.renderGitHubTOML(yaml, githubTool, workflowData)
 		return
 	}
 
@@ -55,11 +56,18 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
-		// Use shell environment variable instead of GitHub Actions expression to prevent template injection
+		// Determine authorization value based on engine requirements
+		// Copilot uses MCP passthrough syntax: "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"
+		// Other engines use shell variable: "Bearer $GITHUB_MCP_SERVER_TOKEN"
+		authValue := "Bearer $GITHUB_MCP_SERVER_TOKEN"
+		if r.options.IncludeCopilotFields {
+			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+		}
+
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
 			Toolsets:           toolsets,
-			AuthorizationValue: "Bearer $GITHUB_MCP_SERVER_TOKEN",
+			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			IncludeEnvSection:  r.options.IncludeCopilotFields,
@@ -109,7 +117,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"npx\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("            \"@playwright/mcp@" + constants.DefaultPlaywrightVersion + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
@@ -172,4 +180,87 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	yaml.WriteString("            \"mcp-server\",\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
+}
+
+// renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
+func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
+	githubType := getGitHubType(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.github]\n")
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to sanitizing workflow name to identifier
+			userAgent = SanitizeIdentifier(workflowData.Name)
+		}
+	}
+	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
+
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	if workflowData != nil && workflowData.ToolsStartupTimeout > 0 {
+		startupTimeout = workflowData.ToolsStartupTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", startupTimeout))
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	toolTimeout := constants.DefaultToolTimeoutSeconds
+	if workflowData != nil && workflowData.ToolsTimeout > 0 {
+		toolTimeout = workflowData.ToolsTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          tool_timeout_sec = %d\n", toolTimeout))
+
+	// Check if remote mode is enabled
+	if githubType == "remote" {
+		// Remote mode - use hosted GitHub MCP server with streamable HTTP
+		// Use readonly endpoint if read-only mode is enabled
+		if readOnly {
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
+		} else {
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
+		}
+
+		// Use bearer_token_env_var for authentication
+		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
+	} else {
+		// Local mode - use Docker-based GitHub MCP server (default)
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+
+		yaml.WriteString("          command = \"docker\"\n")
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"run\",\n")
+		yaml.WriteString("            \"-i\",\n")
+		yaml.WriteString("            \"--rm\",\n")
+		yaml.WriteString("            \"-e\",\n")
+		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		if readOnly {
+			yaml.WriteString("            \"-e\",\n")
+			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+		}
+
+		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
+		yaml.WriteString("            \"-e\",\n")
+		yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
+
+		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+		// Append custom args if present
+		writeArgsToYAML(yaml, customArgs, "            ")
+
+		yaml.WriteString("\n")
+		yaml.WriteString("          ]\n")
+
+		// Use env_vars array to reference environment variables instead of embedding secrets
+		// The actual secret values are set in the execution step's env block
+		yaml.WriteString("          env_vars = [\"GITHUB_PERSONAL_ACCESS_TOKEN\"]\n")
+	}
 }

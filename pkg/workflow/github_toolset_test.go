@@ -129,10 +129,16 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := &ClaudeEngine{}
+			// Use unified renderer with Claude-specific options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "json",
+				IsLast:               true,
+			})
 			var yaml strings.Builder
 			workflowData := &WorkflowData{}
-			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true, workflowData)
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()
 
@@ -202,9 +208,16 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := &CopilotEngine{}
 			var yaml strings.Builder
-			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, true)
+			workflowData := &WorkflowData{}
+			// Use unified renderer instead of direct method call
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: true,
+				InlineArgs:           true,
+				Format:               "json",
+				IsLast:               true,
+			})
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()
 
@@ -274,10 +287,16 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := &CodexEngine{}
+			// Use unified renderer with Codex engine options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "toml",
+				IsLast:               false,
+			})
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
-			engine.renderGitHubCodexMCPConfig(&yaml, tt.githubTool, workflowData)
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()
 
@@ -343,10 +362,16 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := &ClaudeEngine{}
+			// Use unified renderer with Claude-specific options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "json",
+				IsLast:               true,
+			})
 			var yaml strings.Builder
 			workflowData := &WorkflowData{}
-			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true, workflowData)
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()
 

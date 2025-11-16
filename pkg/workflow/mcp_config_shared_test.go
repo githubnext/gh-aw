@@ -23,7 +23,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@latest"`,
+				`"@playwright/mcp@1.56.1"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-origins"`,
@@ -50,7 +50,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@latest"`,
+				`"@playwright/mcp@1.56.1"`,
 			},
 			wantEnding: "},\n",
 		},
@@ -225,49 +225,74 @@ func TestRenderCustomMCPConfigWrapperShared(t *testing.T) {
 
 // TestEngineMethodsDelegateToShared ensures engine methods properly delegate to shared functions
 func TestEngineMethodsDelegateToShared(t *testing.T) {
-	t.Run("Claude engine Playwright delegation", func(t *testing.T) {
-		engine := &ClaudeEngine{}
+	t.Run("Claude engine Playwright delegation via unified renderer", func(t *testing.T) {
+		// Use unified renderer with Claude-specific options
+		renderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
 		var yaml strings.Builder
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
 
-		engine.renderPlaywrightMCPConfig(&yaml, playwrightTool, false)
+		renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 		result := yaml.String()
 
 		if !strings.Contains(result, `"playwright": {`) {
-			t.Error("Claude engine renderPlaywrightMCPConfig should delegate to shared function")
+			t.Error("Claude engine should use unified renderer for Playwright MCP config")
 		}
 	})
 
 	t.Run("Custom engine Playwright delegation", func(t *testing.T) {
-		engine := &CustomEngine{}
+		// Use unified renderer with Custom engine options
+		renderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
 		var yaml strings.Builder
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
 
-		engine.renderPlaywrightMCPConfig(&yaml, playwrightTool, false)
+		renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 		result := yaml.String()
 
 		if !strings.Contains(result, `"playwright": {`) {
-			t.Error("Custom engine renderPlaywrightMCPConfig should delegate to shared function")
+			t.Error("Custom engine Playwright should produce output via unified renderer")
 		}
 	})
 
 	t.Run("Claude and Custom engines produce identical output", func(t *testing.T) {
-		claudeEngine := &ClaudeEngine{}
-		customEngine := &CustomEngine{}
+		// Claude engine via unified renderer
+		claudeRenderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
+
+		// Custom engine also uses unified renderer with same options
+		customRenderer := NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false,
+			InlineArgs:           false,
+			Format:               "json",
+			IsLast:               false,
+		})
 
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com", "test.com"},
 		}
 
 		var claudeYAML strings.Builder
-		claudeEngine.renderPlaywrightMCPConfig(&claudeYAML, playwrightTool, false)
+		claudeRenderer.RenderPlaywrightMCP(&claudeYAML, playwrightTool)
 
 		var customYAML strings.Builder
-		customEngine.renderPlaywrightMCPConfig(&customYAML, playwrightTool, false)
+		customRenderer.RenderPlaywrightMCP(&customYAML, playwrightTool)
 
 		if claudeYAML.String() != customYAML.String() {
 			t.Error("Claude and Custom engines should produce identical Playwright MCP config")

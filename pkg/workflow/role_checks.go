@@ -202,9 +202,9 @@ func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any) bool {
 	return false
 }
 
-// buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo
-// The condition uses: (event_name != 'workflow_run') OR (repository IDs match)
-// This allows all non-workflow_run events, but requires repository match for workflow_run events
+// buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo and not a fork
+// The condition uses: (event_name != 'workflow_run') OR (repository IDs match AND not from fork)
+// This allows all non-workflow_run events, but requires repository match and fork check for workflow_run events
 func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
 	// Check that event is NOT workflow_run
 	eventNotWorkflowRun := BuildNotEquals(
@@ -218,8 +218,16 @@ func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
 		BuildPropertyAccess("github.repository_id"),
 	)
 
-	// Combine with OR: allow if NOT workflow_run OR repository matches
-	combinedCheck := buildOr(eventNotWorkflowRun, repoIDCheck)
+	// Check that the triggering repository is NOT a fork
+	notFromForkCheck := &NotNode{
+		Child: BuildPropertyAccess("github.event.workflow_run.repository.fork"),
+	}
+
+	// Combine repository ID check AND not-from-fork check
+	repoSafetyCheck := buildAnd(repoIDCheck, notFromForkCheck)
+
+	// Combine with OR: allow if NOT workflow_run OR (repository matches AND not fork)
+	combinedCheck := buildOr(eventNotWorkflowRun, repoSafetyCheck)
 
 	// Wrap in ${{ }} for GitHub Actions
 	return fmt.Sprintf("${{ %s }}", combinedCheck.Render())

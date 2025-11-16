@@ -301,7 +301,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@latest") {
+	if !strings.Contains(output, "@playwright/mcp@1.56.1") {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
@@ -352,7 +352,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@latest") {
+	if !strings.Contains(output, "@playwright/mcp@1.56.1") {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
@@ -537,10 +537,16 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine := NewCustomEngine()
+			// Use unified renderer with Custom engine options
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: false,
+				InlineArgs:           false,
+				Format:               "json",
+				IsLast:               true,
+			})
 			var yaml strings.Builder
 
-			engine.renderGitHubMCPConfig(&yaml, tt.githubTool, true, nil)
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, nil)
 
 			output := yaml.String()
 

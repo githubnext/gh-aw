@@ -48,8 +48,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 		}
 		result = getPlaywrightDockerImageVersion(playwrightToolDefault)
-		if result != "latest" {
-			t.Errorf("Expected default latest, got %s", result)
+		if result != "1.56.1" {
+			t.Errorf("Expected default 1.56.1, got %s", result)
 		}
 	})
 

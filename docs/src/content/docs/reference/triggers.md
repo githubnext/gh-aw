@@ -108,7 +108,7 @@ on:
 
 Workflows with `workflow_run` triggers include automatic security protections:
 
-**Automatic repository validation:** The compiler automatically injects a repository ID check to prevent cross-repository attacks. This safety condition ensures workflows only execute when triggered by workflow runs from the same repository.
+**Automatic repository and fork validation:** The compiler automatically injects repository ID and fork checks to prevent cross-repository attacks and fork execution. This safety condition ensures workflows only execute when triggered by workflow runs from the same repository and not from forked repositories.
 
 **Branch restrictions required:** Include `branches` to limit which branch workflows can trigger the event. Without branch restrictions, the compiler emits warnings (or errors in strict mode). This prevents unexpected execution for workflow runs on all branches.
 

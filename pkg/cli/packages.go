@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -193,7 +194,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	metadataPath := filepath.Join(targetDir, ".commit-sha")
 	if err := os.WriteFile(metadataPath, []byte(commitSHA), 0644); err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to write commit SHA metadata: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write commit SHA metadata: %v", err)))
 		}
 	}
 

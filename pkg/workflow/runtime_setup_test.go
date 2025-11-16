@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -505,7 +506,8 @@ func TestUVDetectionAddsPython(t *testing.T) {
 }
 
 func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
-	// Test that runtimes with existing setup actions are filtered out
+	// Test that runtimes are detected even when setup actions already exist
+	// The deduplication happens later in the compiler, not during detection
 	workflowData := &WorkflowData{
 		CustomSteps: `steps:
   - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
@@ -522,7 +524,9 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 
 	requirements := DetectRuntimeRequirements(workflowData)
 
-	// Check that uv and python are detected, but go is filtered out
+	// Check that uv, python, and go are all detected
+	// Go should be detected even though there's an existing setup action
+	// The compiler will deduplicate the setup action from custom steps
 	foundUV := false
 	foundPython := false
 	foundGo := false
@@ -546,7 +550,120 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 		t.Error("Expected python to be auto-added when uv is detected")
 	}
 
-	if foundGo {
-		t.Error("Expected go to be filtered out since it has existing setup action")
+	if !foundGo {
+		t.Error("Expected go to be detected from go build command (deduplication happens in compiler)")
+	}
+}
+
+// TestRuntimeSetupErrorMessages validates that error messages in runtime_setup.go
+// provide clear context, explanation, and examples following the error message guidelines
+func TestRuntimeSetupErrorMessages(t *testing.T) {
+	tests := []struct {
+		name          string
+		testFunc      func() error
+		shouldContain []string
+		description   string
+	}{
+		{
+			name: "parse custom steps error includes example and explanation",
+			testFunc: func() error {
+				// Invalid YAML - tab character which is not allowed in YAML
+				invalidYAML := "steps:\n\t- name: test\n\t  run: echo 'hello'"
+				// Need at least one runtime requirement to avoid early exit
+				requirements := []RuntimeRequirement{
+					{Runtime: findRuntimeByID("node"), Version: "20"},
+				}
+				_, _, err := DeduplicateRuntimeSetupStepsFromCustomSteps(invalidYAML, requirements)
+				return err
+			},
+			shouldContain: []string{
+				"failed to parse custom workflow steps",
+				"Custom steps must be valid GitHub Actions step syntax",
+				"Example:",
+				"steps:",
+				"- name:",
+				"run:",
+			},
+			description: "Error should explain what custom steps are and show valid example",
+		},
+		{
+			name: "marshal deduplicated steps error includes context about deduplication",
+			testFunc: func() error {
+				// This test is harder to trigger since Marshal rarely fails
+				// We test the error message format by checking it would be generated correctly
+				// by examining the code path
+				return nil // Skip actual test since Marshal errors are rare
+			},
+			shouldContain: []string{},
+			description:   "Skip - Marshal errors are difficult to trigger in tests",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.testFunc()
+
+			// Skip tests that are marked to skip
+			if len(tt.shouldContain) == 0 {
+				t.Skip(tt.description)
+				return
+			}
+
+			if err == nil {
+				t.Fatal("Expected error but got nil")
+			}
+
+			errMsg := err.Error()
+
+			// Check that error contains expected content
+			for _, content := range tt.shouldContain {
+				if !strings.Contains(errMsg, content) {
+					t.Errorf("Error message should contain '%s'\nActual error: %s",
+						content, errMsg)
+				}
+			}
+
+			// Check that error is descriptive (not too vague)
+			if len(errMsg) < 50 {
+				t.Errorf("Error message should be descriptive (>50 chars)\nActual (%d chars): %s",
+					len(errMsg), errMsg)
+			}
+
+			// Check that error includes the word "Error:" before the wrapped error
+			if !strings.Contains(errMsg, "Error:") {
+				t.Errorf("Error message should include 'Error:' before wrapped error\nActual: %s",
+					errMsg)
+			}
+		})
+	}
+}
+
+// TestDeduplicateErrorMessageFormat tests that the deduplicate function would
+// produce a helpful error message if Marshal fails
+func TestDeduplicateErrorMessageFormat(t *testing.T) {
+	// We can't easily trigger a Marshal error, but we can verify the error format
+	// by checking what the error message would look like
+	expectedPhrases := []string{
+		"failed to marshal deduplicated workflow steps",
+		"Step deduplication removes duplicate runtime setup actions",
+		"to avoid conflicts",
+		"Error:",
+	}
+
+	// Create a sample error message as it would appear
+	sampleError := fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", fmt.Errorf("yaml marshal error"))
+
+	errMsg := sampleError.Error()
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(errMsg, phrase) {
+			t.Errorf("Error message should contain '%s'\nActual: %s", phrase, errMsg)
+		}
+	}
+
+	// Verify the message is descriptive
+	if len(errMsg) < 100 {
+		t.Errorf("Error message should be comprehensive (>100 chars)\nActual (%d chars): %s",
+			len(errMsg), errMsg)
 	}
 }

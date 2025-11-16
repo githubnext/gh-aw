@@ -217,6 +217,28 @@ func TestConstantValues(t *testing.T) {
 	}
 }
 
+func TestVersionConstants(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected string
+	}{
+		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.0.42"},
+		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.358"},
+		{"DefaultCodexVersion", DefaultCodexVersion, "0.57.0"},
+		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.20.2"},
+		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.1.1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.value != tt.expected {
+				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
+			}
+		})
+	}
+}
+
 func TestNumericConstants(t *testing.T) {
 	tests := []struct {
 		name     string

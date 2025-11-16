@@ -361,19 +361,40 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	// Create the directory first
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
-	// Use shared JSON MCP config renderer with Copilot-specific options
+	// Create unified renderer with Copilot-specific options
+	// Copilot uses JSON format with type and tools fields, and inline args
+	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
+		return NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: true, // Copilot uses "type" and "tools" fields
+			InlineArgs:           true, // Copilot uses inline args format
+			Format:               "json",
+			IsLast:               isLast,
+		})
+	}
+
+	// Use shared JSON MCP config renderer with unified renderer methods
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath: "/home/runner/.copilot/mcp-config.json",
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+				renderer := createRenderer(isLast)
+				renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
 			},
-			RenderPlaywright: e.renderPlaywrightCopilotMCPConfig,
+			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
+			},
 			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				// Cache-memory is not used for Copilot (filtered out)
 			},
-			RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
-			RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderAgenticWorkflowsMCP(yaml)
+			},
+			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderSafeOutputsMCP(yaml)
+			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 			},
@@ -396,68 +417,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
-}
-
-// renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
-// Supports both local (Docker) and remote (hosted) modes
-func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	githubType := getGitHubType(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
-	toolsets := getGitHubToolsets(githubTool)
-	allowedTools := getGitHubAllowedTools(githubTool)
-
-	yaml.WriteString("              \"github\": {\n")
-
-	// Check if remote mode is enabled (type: remote)
-	if githubType == "remote" {
-		// Render remote configuration using shared helper
-		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
-			ReadOnly:           readOnly,
-			Toolsets:           toolsets,
-			AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-			IncludeToolsField:  true, // Copilot uses tools field
-			AllowedTools:       allowedTools,
-			IncludeEnvSection:  true, // Copilot uses env section for passthrough
-		})
-	} else {
-		// Local mode - use Docker-based GitHub MCP server (default)
-		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-		customArgs := getGitHubCustomArgs(githubTool)
-
-		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
-			ReadOnly:           readOnly,
-			Toolsets:           toolsets,
-			DockerImageVersion: githubDockerImageVersion,
-			CustomArgs:         customArgs,
-			IncludeTypeField:   true, // Copilot includes "type": "local" field
-			AllowedTools:       allowedTools,
-			EffectiveToken:     "", // Copilot uses env passthrough
-		})
-	}
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-}
-
-// renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, true, true)
-}
-
-// renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, true)
-}
-
-// renderAgenticWorkflowsCopilotMCPConfig generates the Agentic Workflows MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderAgenticWorkflowsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, isLast, true)
 }
 
 // renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI
@@ -530,29 +489,8 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		// Basic processing - error/warning counting moved to end of function
 	}
 
-	// Add final sequence if any
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-	}
-
-	metrics.TokenUsage = maxTokenUsage
-	metrics.Turns = turns
-
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
-	})
-
-	// Count errors and warnings using pattern matching for better accuracy
-	errorPatterns := e.GetErrorPatterns()
-	if len(errorPatterns) > 0 {
-		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-	}
+	// Finalize metrics using shared helper
+	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, maxTokenUsage, logContent, e.GetErrorPatterns())
 
 	return metrics
 }

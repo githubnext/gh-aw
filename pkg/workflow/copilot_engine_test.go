@@ -648,8 +648,6 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 }
 
 func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
-	engine := NewCopilotEngine()
-
 	tests := []struct {
 		name         string
 		githubTool   any
@@ -717,8 +715,14 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{}
-			var _ *WorkflowData = workflowData
-			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast)
+			// Use unified renderer instead of direct method call
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: true,
+				InlineArgs:           true,
+				Format:               "json",
+				IsLast:               tt.isLast,
+			})
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
 			output := yaml.String()
 
 			for _, expected := range tt.expectedStrs {

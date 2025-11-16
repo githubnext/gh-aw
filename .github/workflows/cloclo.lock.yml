@@ -15,17 +15,23 @@
 #   activation["activation"]
 #   add_comment["add_comment"]
 #   agent["agent"]
+#   conclusion["conclusion"]
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
-#   update_reaction["update_reaction"]
 #   pre_activation --> activation
 #   agent --> add_comment
 #   create_pull_request --> add_comment
 #   detection --> add_comment
 #   activation --> agent
+#   agent --> conclusion
+#   activation --> conclusion
+#   create_pull_request --> conclusion
+#   add_comment --> conclusion
+#   push_to_pull_request_branch --> conclusion
+#   missing_tool --> conclusion
 #   agent --> create_pull_request
 #   activation --> create_pull_request
 #   detection --> create_pull_request
@@ -35,12 +41,6 @@
 #   agent --> push_to_pull_request_branch
 #   activation --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
-#   agent --> update_reaction
-#   activation --> update_reaction
-#   create_pull_request --> update_reaction
-#   add_comment --> update_reaction
-#   push_to_pull_request_branch --> update_reaction
-#   missing_tool --> update_reaction
 # ```
 #
 # Pinned GitHub Actions:
@@ -63,7 +63,7 @@
 #   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Claude Command & Label Processor - `/cloclo` ✨"
+name: "Claude Command Processor - /cloclo"
 "on":
   discussion:
     types:
@@ -100,9 +100,10 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}-cloclo
 
-run-name: "Claude Command & Label Processor - `/cloclo` ✨"
+run-name: "Claude Command Processor - /cloclo"
 
 jobs:
   activation:
@@ -456,7 +457,7 @@ jobs:
         env:
           GH_AW_REACTION: eyes
           GH_AW_COMMAND: cloclo
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           script: |
             async function main() {
@@ -826,7 +827,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1213,6 +1214,11 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -1225,11 +1231,6 @@ jobs:
         run: go install golang.org/x/tools/gopls@latest
       - name: Check gopls version
         run: gopls version
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          cache: true
-          go-version-file: go.mod
       - name: Install dependencies
         run: make deps-dev
       - name: Install binary as 'gh-aw'
@@ -1336,7 +1337,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.41
+        run: npm install -g @anthropic-ai/claude-code@2.0.42
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2275,7 +2276,7 @@ jobs:
               "playwright": {
                 "command": "npx",
                 "args": [
-                  "@playwright/mcp@latest",
+                  "@playwright/mcp@1.56.1",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
                   "--allowed-origins",
@@ -2414,7 +2415,7 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          # Claude Command & Label Processor - `/cloclo` ✨
+          # Claude Command Processor - /cloclo
           
           You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
           
@@ -2880,8 +2881,8 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.41",
-              workflow_name: "Claude Command & Label Processor - `/cloclo` ✨",
+              agent_version: "2.0.42",
+              workflow_name: "Claude Command Processor - /cloclo",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -4929,6 +4930,143 @@ jobs:
           path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
+  conclusion:
+    needs:
+      - agent
+      - activation
+      - create_pull_request
+      - add_comment
+      - push_to_pull_request_branch
+      - missing_tool
+    if: >
+      (((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) &&
+      (!(needs.add_comment.outputs.comment_id))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            async function main() {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              let message;
+              if (agentConclusion === "success") {
+                statusEmoji = "✅";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+              } else if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else {
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              }
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: message }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: message,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
+
   create_pull_request:
     needs:
       - agent
@@ -4998,7 +5136,7 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5589,7 +5727,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          WORKFLOW_NAME: "Claude Command Processor - /cloclo"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5718,7 +5856,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.41
+        run: npm install -g @anthropic-ai/claude-code@2.0.42
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -5834,7 +5972,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6148,7 +6286,7 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
+          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6589,141 +6727,4 @@ jobs:
               await core.summary.addRaw(summaryContent).write();
             }
             await main();
-
-  update_reaction:
-    needs:
-      - agent
-      - activation
-      - create_pull_request
-      - add_comment
-      - push_to_pull_request_branch
-      - missing_tool
-    if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
-        run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Update reaction comment with completion status
-        id: update_reaction
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Claude Command & Label Processor - `/cloclo` ✨"
-          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (!commentId) {
-                core.info("No comment ID found, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
-              let message;
-              if (agentConclusion === "success") {
-                statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-              } else if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
 

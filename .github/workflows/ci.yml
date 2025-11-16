@@ -205,6 +205,9 @@ jobs:
       - name: Check formatting
         run: make fmt-check
 
+      - name: Lint error messages
+        run: make lint-errors
+
   fuzz:
     runs-on: ubuntu-latest
     permissions:

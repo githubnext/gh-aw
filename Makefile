@@ -207,6 +207,12 @@ lint-cjs: fmt-check-cjs
 lint-json: fmt-check-json
 	@echo "✓ JSON formatting validated"
 
+# Lint error messages for quality compliance
+.PHONY: lint-errors
+lint-errors:
+	@echo "Running error message quality linter..."
+	@go run scripts/lint_error_messages.go
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check fmt-check-json lint-cjs golint
@@ -311,6 +317,7 @@ help:
 	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding pkg/workflow/js)"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
+	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"

@@ -204,7 +204,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 	mcpServers, ok := mcpServersSection.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("mcp-servers section is not a valid map")
+		return nil, fmt.Errorf("mcp-servers section must be a map, got %T. Example:\nmcp-servers:\n  my-server:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", mcpServersSection)
 	}
 
 	// Process built-in MCP tools from tools section
@@ -501,7 +501,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			return config, fmt.Errorf("invalid JSON in mcp configuration: %w", err)
 		}
 	default:
-		return config, fmt.Errorf("invalid mcp configuration format")
+		return config, fmt.Errorf("mcp configuration must be a map or JSON string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", v, toolName)
 	}
 
 	// Extract type (explicit or inferred)
@@ -514,7 +514,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 				config.Type = typeStr
 			}
 		} else {
-			return config, fmt.Errorf("type must be a string")
+			return config, fmt.Errorf("type field must be a string, got %T. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"", typeVal, toolName)
 		}
 	} else {
 		// Infer type from presence of fields
@@ -528,7 +528,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			config.Type = "stdio"
 			mcpLog.Printf("Inferred MCP type 'stdio' for tool %s based on container field", toolName)
 		} else {
-			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container. Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", toolName, toolName)
 		}
 	}
 
@@ -537,7 +537,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		if registryStr, ok := registry.(string); ok {
 			config.Registry = registryStr
 		} else {
-			return config, fmt.Errorf("registry must be a string")
+			return config, fmt.Errorf("registry field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    registry: \"https://registry.npmjs.org/@my/tool\"\n    command: \"npx @my/tool\"", registry, toolName)
 		}
 	}
 
@@ -591,10 +591,24 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 				if commandStr, ok := command.(string); ok {
 					config.Command = commandStr
 				} else {
-					return config, fmt.Errorf("command must be a string")
+					return config, fmt.Errorf("command field must be a string, got %T. Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", command, toolName)
 				}
 			} else {
-				return config, fmt.Errorf("stdio type requires 'command' or 'container' field")
+				return config, fmt.Errorf(
+					"stdio MCP tool '%s' must specify either 'command' or 'container' field. Cannot specify both. "+
+						"Example with command:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    command: \"npx @my/tool\"\n"+
+						"    args: [\"--port\", \"3000\"]\n\n"+
+						"Example with container:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    container: \"myorg/my-tool:latest\"\n"+
+						"    env:\n"+
+						"      API_KEY: \"${{ secrets.API_KEY }}\"",
+					toolName, toolName, toolName,
+				)
 			}
 
 			if args, hasArgs := mcpConfig["args"]; hasArgs {
@@ -640,10 +654,28 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			if urlStr, ok := url.(string); ok {
 				config.URL = urlStr
 			} else {
-				return config, fmt.Errorf("url must be a string")
+				return config, fmt.Errorf(
+					"url field must be a string, got %T. Example:\n"+
+						"mcp-servers:\n"+
+						"  %s:\n"+
+						"    type: http\n"+
+						"    url: \"https://api.example.com/mcp\"\n"+
+						"    headers:\n"+
+						"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+					url, toolName)
 			}
 		} else {
-			return config, fmt.Errorf("http type requires 'url' field")
+			return config, fmt.Errorf(
+				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
+					"Example:\n"+
+					"mcp-servers:\n"+
+					"  %s:\n"+
+					"    type: http\n"+
+					"    url: \"https://api.example.com/mcp\"\n"+
+					"    headers:\n"+
+					"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
+				toolName, toolName,
+			)
 		}
 
 		// Extract headers
@@ -658,7 +690,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		}
 
 	default:
-		return config, fmt.Errorf("unsupported MCP type: %s", config.Type)
+		return config, fmt.Errorf("unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]", config.Type, toolName, toolName)
 	}
 
 	return config, nil

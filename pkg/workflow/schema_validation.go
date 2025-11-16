@@ -40,6 +40,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/goccy/go-yaml"
@@ -111,8 +112,97 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	}
 
 	if err := schema.Validate(jsonObj); err != nil {
-		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
+		// Enhance error message with field-specific examples
+		enhancedErr := enhanceSchemaValidationError(err)
+		return fmt.Errorf("GitHub Actions schema validation failed: %w", enhancedErr)
 	}
 
 	return nil
+}
+
+// enhanceSchemaValidationError adds inline examples to schema validation errors
+func enhanceSchemaValidationError(err error) error {
+	ve, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		return err
+	}
+
+	// Extract field path from InstanceLocation
+	fieldPath := extractFieldPath(ve.InstanceLocation)
+	if fieldPath == "" {
+		return err // Cannot enhance, return original error
+	}
+
+	// Get field-specific example
+	example := getFieldExample(fieldPath, ve)
+	if example == "" {
+		return err // No example available, return original error
+	}
+
+	// Return enhanced error with example
+	return fmt.Errorf("%v. %s", err, example)
+}
+
+// extractFieldPath converts InstanceLocation to a readable field path
+func extractFieldPath(location []string) string {
+	if len(location) == 0 {
+		return ""
+	}
+
+	// Join the location parts to form a path like "timeout-minutes" or "jobs/build/runs-on"
+	return location[len(location)-1] // Return the last element as the field name
+}
+
+// getFieldExample returns an example for the given field based on the validation error
+func getFieldExample(fieldPath string, err error) string {
+	// Map of common fields to their examples
+	fieldExamples := map[string]string{
+		"timeout-minutes": "Example: timeout-minutes: 10",
+		"engine":          "Valid engines are: copilot, claude, codex, custom. Example: engine: copilot",
+		"permissions":     "Example: permissions:\\n  contents: read\\n  issues: write",
+		"on":              "Example: on: push or on:\\n  issues:\\n    types: [opened]",
+		"runs-on":         "Example: runs-on: ubuntu-latest",
+		"concurrency":     "Example: concurrency: production or concurrency:\\n  group: ${{ github.workflow }}\\n  cancel-in-progress: true",
+		"env":             "Example: env:\\n  NODE_ENV: production",
+		"tools":           "Example: tools:\\n  github:\\n    allowed: [list_issues]",
+		"steps":           "Example: steps:\\n  - name: Checkout\\n    uses: actions/checkout@v4",
+		"jobs":            "Example: jobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - run: echo 'hello'",
+		"strategy":        "Example: strategy:\\n  matrix:\\n    os: [ubuntu-latest, windows-latest]",
+		"container":       "Example: container: node:20 or container:\\n  image: node:20\\n  options: --user root",
+		"services":        "Example: services:\\n  postgres:\\n    image: postgres:15\\n    env:\\n      POSTGRES_PASSWORD: postgres",
+		"defaults":        "Example: defaults:\\n  run:\\n    shell: bash",
+		"name":            "Example: name: \"Build and Test\"",
+		"if":              "Example: if: github.event_name == 'push'",
+		"environment":     "Example: environment: production or environment:\\n  name: production\\n  url: https://example.com",
+		"outputs":         "Example: outputs:\\n  build-id: ${{ steps.build.outputs.id }}",
+		"needs":           "Example: needs: build or needs: [build, test]",
+		"uses":            "Example: uses: ./.github/workflows/reusable.yml",
+		"with":            "Example: with:\\n  node-version: '20'",
+		"secrets":         "Example: secrets:\\n  token: ${{ secrets.GITHUB_TOKEN }}",
+	}
+
+	// Check if we have a specific example for this field
+	if example, ok := fieldExamples[fieldPath]; ok {
+		return example
+	}
+
+	// Generic examples based on error type
+	errorMsg := err.Error()
+	if strings.Contains(errorMsg, "string") {
+		return fmt.Sprintf("Example: %s: \"value\"", fieldPath)
+	}
+	if strings.Contains(errorMsg, "boolean") {
+		return fmt.Sprintf("Example: %s: true", fieldPath)
+	}
+	if strings.Contains(errorMsg, "object") {
+		return fmt.Sprintf("Example: %s:\\n  key: value", fieldPath)
+	}
+	if strings.Contains(errorMsg, "array") {
+		return fmt.Sprintf("Example: %s: [item1, item2]", fieldPath)
+	}
+	if strings.Contains(errorMsg, "integer") || strings.Contains(errorMsg, "type") {
+		return fmt.Sprintf("Example: %s: 10", fieldPath)
+	}
+
+	return "" // No example available
 }

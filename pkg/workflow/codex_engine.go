@@ -284,6 +284,17 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		codexEngineLog.Printf("Rendering MCP config for Codex: mcp_tools=%v, tool_count=%d", mcpTools, len(tools))
 	}
 
+	// Create unified renderer with Codex-specific options
+	// Codex uses TOML format without Copilot-specific fields and multi-line args
+	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
+		return NewMCPConfigRenderer(MCPRendererOptions{
+			IncludeCopilotFields: false, // Codex doesn't use "type" and "tools" fields
+			InlineArgs:           false, // Codex uses multi-line args format
+			Format:               "toml",
+			IsLast:               isLast,
+		})
+	}
+
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -299,17 +310,22 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
+		renderer := createRenderer(false) // isLast is always false in TOML format
 		switch toolName {
 		case "github":
 			githubTool := expandedTools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
+			renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
+			renderer.RenderPlaywrightMCP(yaml, playwrightTool)
 		case "agentic-workflows":
-			e.renderAgenticWorkflowsCodexMCPConfig(yaml)
+			renderer.RenderAgenticWorkflowsMCP(yaml)
 		case "safe-outputs":
-			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
+			// Add safe-outputs MCP server if safe-outputs are configured
+			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+			if hasSafeOutputs {
+				renderer.RenderSafeOutputsMCP(yaml)
+			}
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
 		default:
@@ -388,29 +404,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		// Basic processing - error/warning counting moved to end of function
 	}
 
-	// Add final sequence if any
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-	}
-
-	metrics.TokenUsage = totalTokenUsage
-	metrics.Turns = turns
-
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
-	})
-
-	// Count errors and warnings using pattern matching for better accuracy
-	errorPatterns := e.GetErrorPatterns()
-	if len(errorPatterns) > 0 {
-		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-	}
+	// Finalize metrics using shared helper
+	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
 
 	codexEngineLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d, errors=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls), len(metrics.Errors))
@@ -549,97 +544,6 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 	return 0
 }
 
-// renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml
-// Supports both local (Docker) and remote (hosted) modes
-func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
-	githubType := getGitHubType(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
-	toolsets := getGitHubToolsets(githubTool)
-
-	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.github]\n")
-
-	// Add user_agent field defaulting to workflow identifier
-	userAgent := "github-agentic-workflow"
-	if workflowData != nil {
-		// Check if user_agent is configured in engine config first
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
-			userAgent = workflowData.EngineConfig.UserAgent
-		} else if workflowData.Name != "" {
-			// Fall back to sanitizing workflow name to identifier
-			userAgent = SanitizeIdentifier(workflowData.Name)
-		}
-	}
-	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
-
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
-	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
-	if workflowData.ToolsStartupTimeout > 0 {
-		startupTimeout = workflowData.ToolsStartupTimeout
-	}
-	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", startupTimeout))
-
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
-	toolTimeout := constants.DefaultToolTimeoutSeconds
-	if workflowData.ToolsTimeout > 0 {
-		toolTimeout = workflowData.ToolsTimeout
-	}
-	yaml.WriteString(fmt.Sprintf("          tool_timeout_sec = %d\n", toolTimeout))
-
-	// https://developers.openai.com/codex/mcp
-	// Check if remote mode is enabled
-	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server with streamable HTTP
-		// Use readonly endpoint if read-only mode is enabled
-		if readOnly {
-			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
-		} else {
-			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-		}
-
-		// Use bearer_token_env_var for authentication
-		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
-	} else {
-		// Local mode - use Docker-based GitHub MCP server (default)
-		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-		customArgs := getGitHubCustomArgs(githubTool)
-
-		yaml.WriteString("          command = \"docker\"\n")
-		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"run\",\n")
-		yaml.WriteString("            \"-i\",\n")
-		yaml.WriteString("            \"--rm\",\n")
-		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-		if readOnly {
-			yaml.WriteString("            \"-e\",\n")
-			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
-		}
-
-		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
-		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
-
-		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-		// Append custom args if present
-		writeArgsToYAML(yaml, customArgs, "            ")
-
-		yaml.WriteString("\n")
-		yaml.WriteString("          ]\n")
-
-		// Use env_vars array to reference environment variables instead of embedding secrets
-		// The actual secret values are set in the execution step's env block
-		yaml.WriteString("          env_vars = [\"GITHUB_PERSONAL_ACCESS_TOKEN\"]\n")
-	}
-}
-
-// renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
-	renderPlaywrightMCPConfigTOML(yaml, playwrightTool)
-}
-
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
 func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
 	yaml.WriteString("          \n")
@@ -657,22 +561,6 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 	}
 
 	return nil
-}
-
-// renderSafeOutputsCodexMCPConfig generates the Safe Outputs MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
-	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-	if hasSafeOutputs {
-		renderSafeOutputsMCPConfigTOML(yaml)
-	}
-}
-
-// renderAgenticWorkflowsCodexMCPConfig generates the Agentic Workflows MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
-	renderAgenticWorkflowsMCPConfigTOML(yaml)
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
