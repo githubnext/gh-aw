@@ -1472,41 +1472,6 @@ func contains(slice []string, item string) bool {
 
 // extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
 
-// displayDetailedMissingToolsBreakdown shows missing tools organized by workflow (verbose mode)
-func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed Missing Tools Breakdown"))
-
-	for _, pr := range processedRuns {
-		if len(pr.MissingTools) == 0 {
-			continue
-		}
-
-		fmt.Printf("\n%s (Run %d) - %d missing tools:\n",
-			console.FormatInfoMessage(pr.Run.WorkflowName),
-			pr.Run.DatabaseID,
-			len(pr.MissingTools))
-
-		for i, tool := range pr.MissingTools {
-			fmt.Printf("  %d. %s %s\n",
-				i+1,
-				console.FormatListItem(tool.Tool),
-				console.FormatVerboseMessage(fmt.Sprintf("- %s", tool.Reason)))
-
-			if tool.Alternatives != "" && tool.Alternatives != "null" {
-				fmt.Printf("     %s %s\n",
-					console.FormatWarningMessage("Alternatives:"),
-					tool.Alternatives)
-			}
-
-			if tool.Timestamp != "" {
-				fmt.Printf("     %s %s\n",
-					console.FormatVerboseMessage("Reported at:"),
-					tool.Timestamp)
-			}
-		}
-	}
-}
-
 // extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
 
 // extractMCPFailuresFromLogFile parses a single log file for MCP server failures
