@@ -22,14 +22,30 @@ import (
 
 var trialLog = logger.New("cli:trial_command")
 
+// SafeOutput represents a single safe output artifact from a workflow run
+type SafeOutput struct {
+	Type     string      `json:"type"`               // "issue", "discussion", "comment", "pull_request", etc.
+	ID       int         `json:"id,omitempty"`       // Numeric ID of the created item
+	URL      string      `json:"url,omitempty"`      // URL to the created item
+	Metadata interface{} `json:"metadata,omitempty"` // Additional metadata (kept flexible for extensibility)
+}
+
+// AgenticRunInfo represents information about an agentic workflow execution
+type AgenticRunInfo struct {
+	TotalTurns   int           `json:"total_turns,omitempty"`   // Number of agent turns/iterations
+	TokensUsed   int           `json:"tokens_used,omitempty"`   // Total tokens consumed
+	Duration     time.Duration `json:"duration,omitempty"`      // Execution duration
+	Engine       string        `json:"engine,omitempty"`        // AI engine used (copilot, claude, codex, custom)
+	ModelVersion string        `json:"model_version,omitempty"` // Model version identifier
+}
+
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
-	WorkflowName string                 `json:"workflow_name"`
-	RunID        string                 `json:"run_id"`
-	SafeOutputs  map[string]interface{} `json:"safe_outputs"`
-	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
-	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
-	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
+	WorkflowName        string                 `json:"workflow_name"`
+	RunID               string                 `json:"run_id"`
+	SafeOutputs         []SafeOutput           `json:"safe_outputs,omitempty"`         // Strongly typed safe outputs
+	AgenticRunInfo      *AgenticRunInfo        `json:"agentic_run_info,omitempty"`     // Strongly typed agentic run information
+	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"` // Keep flexible for extensibility
 	Timestamp           time.Time              `json:"timestamp"`
 }
 
@@ -478,7 +494,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			// if len(artifacts.AgentStdioLogs) > 0 {
 			// 	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== Agent Stdio Logs Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AgentStdioLogs))))
 			// }
-			if len(artifacts.AgenticRunInfo) > 0 {
+			if artifacts.AgenticRunInfo != nil {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== Agentic Run Information Available from %s ===", parsedSpec.WorkflowName)))
 			}
 			if len(artifacts.AdditionalArtifacts) > 0 {
@@ -1469,9 +1485,8 @@ func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose b
 
 // TrialArtifacts represents all artifacts downloaded from a workflow run
 type TrialArtifacts struct {
-	SafeOutputs map[string]interface{} `json:"safe_outputs"`
-	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
-	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
+	SafeOutputs         []SafeOutput           `json:"safe_outputs,omitempty"`
+	AgenticRunInfo      *AgenticRunInfo        `json:"agentic_run_info,omitempty"`
 	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
 }
 
@@ -1529,13 +1544,13 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 		switch {
 		case strings.HasSuffix(path, "agent_output.json"):
 			// Parse safe outputs
-			if safeOutputs := parseJSONArtifact(path, verbose); safeOutputs != nil {
+			if safeOutputs := parseSafeOutputsArtifact(path, verbose); safeOutputs != nil {
 				artifacts.SafeOutputs = safeOutputs
 			}
 
 		case strings.HasSuffix(path, "aw_info.json"):
 			// Parse agentic run information
-			if runInfo := parseJSONArtifact(path, verbose); runInfo != nil {
+			if runInfo := parseAgenticRunInfoArtifact(path, verbose); runInfo != nil {
 				artifacts.AgenticRunInfo = runInfo
 			}
 
@@ -1568,6 +1583,99 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	}
 
 	return artifacts, nil
+}
+
+// parseSafeOutputsArtifact parses a safe outputs JSON artifact file
+func parseSafeOutputsArtifact(filePath string, verbose bool) []SafeOutput {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe outputs artifact %s: %v", filePath, err)))
+		}
+		return nil
+	}
+
+	// First unmarshal into a generic map to handle various formats
+	var rawData map[string]interface{}
+	if err := json.Unmarshal(content, &rawData); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe outputs artifact %s: %v", filePath, err)))
+		}
+		return nil
+	}
+
+	// Convert to SafeOutput array
+	var safeOutputs []SafeOutput
+
+	// Look for arrays of safe outputs or single safe output
+	for key, value := range rawData {
+		switch v := value.(type) {
+		case []interface{}:
+			// Array of safe outputs
+			for _, item := range v {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					safeOutput := convertToSafeOutput(key, itemMap)
+					safeOutputs = append(safeOutputs, safeOutput)
+				}
+			}
+		case map[string]interface{}:
+			// Single safe output
+			safeOutput := convertToSafeOutput(key, v)
+			safeOutputs = append(safeOutputs, safeOutput)
+		}
+	}
+
+	if verbose && len(safeOutputs) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Parsed %d safe outputs from: %s", len(safeOutputs), filepath.Base(filePath))))
+	}
+
+	return safeOutputs
+}
+
+// convertToSafeOutput converts a map to a SafeOutput struct
+func convertToSafeOutput(outputType string, data map[string]interface{}) SafeOutput {
+	output := SafeOutput{
+		Type:     outputType,
+		Metadata: data,
+	}
+
+	// Extract common fields if present
+	if id, ok := data["id"].(float64); ok {
+		output.ID = int(id)
+	}
+	if url, ok := data["url"].(string); ok {
+		output.URL = url
+	}
+	if typeField, ok := data["type"].(string); ok {
+		output.Type = typeField
+	}
+
+	return output
+}
+
+// parseAgenticRunInfoArtifact parses an agentic run info JSON artifact file
+func parseAgenticRunInfoArtifact(filePath string, verbose bool) *AgenticRunInfo {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read agentic run info artifact %s: %v", filePath, err)))
+		}
+		return nil
+	}
+
+	var runInfo AgenticRunInfo
+	if err := json.Unmarshal(content, &runInfo); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agentic run info artifact %s: %v", filePath, err)))
+		}
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Parsed agentic run info from: %s", filepath.Base(filePath))))
+	}
+
+	return &runInfo
 }
 
 // parseJSONArtifact parses a JSON artifact file and returns the parsed content
