@@ -47,7 +47,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	// Use shared helper for standard npm installation
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@anthropic-ai/claude-code",
-		constants.DefaultClaudeCodeVersion,
+		string(constants.DefaultClaudeCodeVersion),
 		"Install Claude Code CLI",
 		"claude",
 		workflowData,

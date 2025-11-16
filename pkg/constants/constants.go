@@ -1,72 +1,101 @@
 package constants
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"time"
+)
 
 // CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension
 const CLIExtensionPrefix = "gh aw"
 
+// Semantic types for measurements and identifiers
+
+// LineLength represents a line length in characters for expression formatting
+type LineLength int
+
+// Version represents a software version string
+type Version string
+
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline
-const MaxExpressionLineLength = 120
+const MaxExpressionLineLength LineLength = 120
 
 // ExpressionBreakThreshold is the threshold for breaking long lines at logical points
-const ExpressionBreakThreshold = 100
+const ExpressionBreakThreshold LineLength = 100
 
 // DefaultMCPRegistryURL is the default MCP registry URL
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.42"
+const DefaultClaudeCodeVersion Version = "2.0.42"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.358"
+const DefaultCopilotVersion Version = "0.0.358"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion = "0.57.0"
+const DefaultCodexVersion Version = "0.57.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "v0.20.2"
+const DefaultGitHubMCPServerVersion Version = "v0.20.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion = "v0.1.1"
+const DefaultFirewallVersion Version = "v0.1.1"
 
 // DefaultPlaywrightVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightVersion = "1.56.1"
+const DefaultPlaywrightVersion Version = "1.56.1"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
-const DefaultBunVersion = "1.1"
+const DefaultBunVersion Version = "1.1"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
-const DefaultNodeVersion = "24"
+const DefaultNodeVersion Version = "24"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
-const DefaultPythonVersion = "3.12"
+const DefaultPythonVersion Version = "3.12"
 
 // DefaultRubyVersion is the default version of Ruby for runtime setup
-const DefaultRubyVersion = "3.3"
+const DefaultRubyVersion Version = "3.3"
 
 // DefaultDotNetVersion is the default version of .NET for runtime setup
-const DefaultDotNetVersion = "8.0"
+const DefaultDotNetVersion Version = "8.0"
 
 // DefaultJavaVersion is the default version of Java for runtime setup
-const DefaultJavaVersion = "21"
+const DefaultJavaVersion Version = "21"
 
 // DefaultElixirVersion is the default version of Elixir for runtime setup
-const DefaultElixirVersion = "1.17"
+const DefaultElixirVersion Version = "1.17"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
-const DefaultHaskellVersion = "9.10"
+const DefaultHaskellVersion Version = "9.10"
 
 // DefaultDenoVersion is the default version of Deno for runtime setup
-const DefaultDenoVersion = "2.x"
+const DefaultDenoVersion Version = "2.x"
+
+// Timeout constants using time.Duration for type safety and clear units
+
+// DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution
+const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+
+// DefaultToolTimeout is the default timeout for tool/MCP server operations
+const DefaultToolTimeout = 60 * time.Second
+
+// DefaultMCPStartupTimeout is the default timeout for MCP server startup
+const DefaultMCPStartupTimeout = 120 * time.Second
+
+// Legacy timeout constants for backward compatibility (deprecated)
+// These are kept for existing code that expects integer values
+// TODO: Remove these after all call sites are migrated to use time.Duration
 
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
-const DefaultAgenticWorkflowTimeoutMinutes = 20
+// Deprecated: Use DefaultAgenticWorkflowTimeout instead
+const DefaultAgenticWorkflowTimeoutMinutes = int(DefaultAgenticWorkflowTimeout / time.Minute)
 
 // DefaultToolTimeoutSeconds is the default timeout for tool/MCP server operations in seconds
-const DefaultToolTimeoutSeconds = 60
+// Deprecated: Use DefaultToolTimeout instead
+const DefaultToolTimeoutSeconds = int(DefaultToolTimeout / time.Second)
 
 // DefaultMCPStartupTimeoutSeconds is the default timeout for MCP server startup in seconds
-const DefaultMCPStartupTimeoutSeconds = 120
+// Deprecated: Use DefaultMCPStartupTimeout instead
+const DefaultMCPStartupTimeoutSeconds = int(DefaultMCPStartupTimeout / time.Second)
 
 // DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
 // See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/

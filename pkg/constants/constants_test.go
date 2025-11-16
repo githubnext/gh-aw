@@ -3,6 +3,7 @@ package constants
 import (
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestGetWorkflowDir(t *testing.T) {
@@ -220,14 +221,24 @@ func TestConstantValues(t *testing.T) {
 func TestVersionConstants(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    string
-		expected string
+		value    Version
+		expected Version
 	}{
 		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.0.42"},
 		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.358"},
 		{"DefaultCodexVersion", DefaultCodexVersion, "0.57.0"},
 		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.20.2"},
 		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.1.1"},
+		{"DefaultPlaywrightVersion", DefaultPlaywrightVersion, "1.56.1"},
+		{"DefaultBunVersion", DefaultBunVersion, "1.1"},
+		{"DefaultNodeVersion", DefaultNodeVersion, "24"},
+		{"DefaultPythonVersion", DefaultPythonVersion, "3.12"},
+		{"DefaultRubyVersion", DefaultRubyVersion, "3.3"},
+		{"DefaultDotNetVersion", DefaultDotNetVersion, "8.0"},
+		{"DefaultJavaVersion", DefaultJavaVersion, "21"},
+		{"DefaultElixirVersion", DefaultElixirVersion, "1.17"},
+		{"DefaultHaskellVersion", DefaultHaskellVersion, "9.10"},
+		{"DefaultDenoVersion", DefaultDenoVersion, "2.x"},
 	}
 
 	for _, tt := range tests {
@@ -242,14 +253,11 @@ func TestVersionConstants(t *testing.T) {
 func TestNumericConstants(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    int
-		minValue int
+		value    LineLength
+		minValue LineLength
 	}{
 		{"MaxExpressionLineLength", MaxExpressionLineLength, 1},
 		{"ExpressionBreakThreshold", ExpressionBreakThreshold, 1},
-		{"DefaultAgenticWorkflowTimeoutMinutes", DefaultAgenticWorkflowTimeoutMinutes, 1},
-		{"DefaultToolTimeoutSeconds", DefaultToolTimeoutSeconds, 1},
-		{"DefaultMCPStartupTimeoutSeconds", DefaultMCPStartupTimeoutSeconds, 1},
 	}
 
 	for _, tt := range tests {
@@ -259,4 +267,60 @@ func TestNumericConstants(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTimeoutConstants(t *testing.T) {
+	// Test new time.Duration-based constants
+	tests := []struct {
+		name     string
+		value    time.Duration
+		minValue time.Duration
+	}{
+		{"DefaultAgenticWorkflowTimeout", DefaultAgenticWorkflowTimeout, 1 * time.Minute},
+		{"DefaultToolTimeout", DefaultToolTimeout, 1 * time.Second},
+		{"DefaultMCPStartupTimeout", DefaultMCPStartupTimeout, 1 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.value < tt.minValue {
+				t.Errorf("%s = %v, should be >= %v", tt.name, tt.value, tt.minValue)
+			}
+		})
+	}
+
+	// Test backward compatibility with legacy integer constants
+	legacyTests := []struct {
+		name     string
+		value    int
+		minValue int
+	}{
+		{"DefaultAgenticWorkflowTimeoutMinutes", DefaultAgenticWorkflowTimeoutMinutes, 1},
+		{"DefaultToolTimeoutSeconds", DefaultToolTimeoutSeconds, 1},
+		{"DefaultMCPStartupTimeoutSeconds", DefaultMCPStartupTimeoutSeconds, 1},
+	}
+
+	for _, tt := range legacyTests {
+		t.Run(tt.name+"_legacy", func(t *testing.T) {
+			if tt.value < tt.minValue {
+				t.Errorf("%s = %d, should be >= %d", tt.name, tt.value, tt.minValue)
+			}
+		})
+	}
+
+	// Test that legacy constants match the Duration-based values
+	t.Run("legacy_compatibility", func(t *testing.T) {
+		if DefaultAgenticWorkflowTimeoutMinutes != int(DefaultAgenticWorkflowTimeout/time.Minute) {
+			t.Errorf("DefaultAgenticWorkflowTimeoutMinutes (%d) doesn't match DefaultAgenticWorkflowTimeout (%v)",
+				DefaultAgenticWorkflowTimeoutMinutes, DefaultAgenticWorkflowTimeout)
+		}
+		if DefaultToolTimeoutSeconds != int(DefaultToolTimeout/time.Second) {
+			t.Errorf("DefaultToolTimeoutSeconds (%d) doesn't match DefaultToolTimeout (%v)",
+				DefaultToolTimeoutSeconds, DefaultToolTimeout)
+		}
+		if DefaultMCPStartupTimeoutSeconds != int(DefaultMCPStartupTimeout/time.Second) {
+			t.Errorf("DefaultMCPStartupTimeoutSeconds (%d) doesn't match DefaultMCPStartupTimeout (%v)",
+				DefaultMCPStartupTimeoutSeconds, DefaultMCPStartupTimeout)
+		}
+	})
 }

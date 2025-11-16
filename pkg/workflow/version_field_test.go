@@ -26,8 +26,8 @@ func TestVersionField(t *testing.T) {
 			"allowed": []any{"create_issue"},
 		}
 		result = getGitHubDockerImageVersion(githubToolDefault)
-		if result != constants.DefaultGitHubMCPServerVersion {
-			t.Errorf("Expected default %s, got %s", constants.DefaultGitHubMCPServerVersion, result)
+		if result != string(constants.DefaultGitHubMCPServerVersion) {
+			t.Errorf("Expected default %s, got %s", string(constants.DefaultGitHubMCPServerVersion), result)
 		}
 	})
 

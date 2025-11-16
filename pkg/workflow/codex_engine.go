@@ -59,7 +59,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@openai/codex",
-		constants.DefaultCodexVersion,
+		string(constants.DefaultCodexVersion),
 		"Install Codex",
 		"codex",
 		workflowData,

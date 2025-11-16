@@ -39,7 +39,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "oven-sh/setup-bun",
 		ActionVersion:  "v2",
 		VersionField:   "bun-version",
-		DefaultVersion: constants.DefaultBunVersion,
+		DefaultVersion: string(constants.DefaultBunVersion),
 		Commands:       []string{"bun", "bunx"},
 	},
 	{
@@ -48,7 +48,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "denoland/setup-deno",
 		ActionVersion:  "v2",
 		VersionField:   "deno-version",
-		DefaultVersion: constants.DefaultDenoVersion,
+		DefaultVersion: string(constants.DefaultDenoVersion),
 		Commands:       []string{"deno"},
 	},
 	{
@@ -57,7 +57,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "actions/setup-dotnet",
 		ActionVersion:  "v4",
 		VersionField:   "dotnet-version",
-		DefaultVersion: constants.DefaultDotNetVersion,
+		DefaultVersion: string(constants.DefaultDotNetVersion),
 		Commands:       []string{"dotnet"},
 	},
 	{
@@ -66,7 +66,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "erlef/setup-beam",
 		ActionVersion:  "v1",
 		VersionField:   "elixir-version",
-		DefaultVersion: constants.DefaultElixirVersion,
+		DefaultVersion: string(constants.DefaultElixirVersion),
 		Commands:       []string{"elixir", "mix", "iex"},
 		ExtraWithFields: map[string]string{
 			"otp-version": "27",
@@ -87,7 +87,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "haskell-actions/setup",
 		ActionVersion:  "v2",
 		VersionField:   "ghc-version",
-		DefaultVersion: constants.DefaultHaskellVersion,
+		DefaultVersion: string(constants.DefaultHaskellVersion),
 		Commands:       []string{"ghc", "ghci", "cabal", "stack"},
 	},
 	{
@@ -96,7 +96,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "actions/setup-java",
 		ActionVersion:  "v4",
 		VersionField:   "java-version",
-		DefaultVersion: constants.DefaultJavaVersion,
+		DefaultVersion: string(constants.DefaultJavaVersion),
 		Commands:       []string{"java", "javac", "mvn", "gradle"},
 		ExtraWithFields: map[string]string{
 			"distribution": "temurin",
@@ -108,7 +108,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "actions/setup-node",
 		ActionVersion:  "v6",
 		VersionField:   "node-version",
-		DefaultVersion: constants.DefaultNodeVersion,
+		DefaultVersion: string(constants.DefaultNodeVersion),
 		Commands:       []string{"node", "npm", "npx", "yarn", "pnpm"},
 	},
 	{
@@ -117,7 +117,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "actions/setup-python",
 		ActionVersion:  "v5",
 		VersionField:   "python-version",
-		DefaultVersion: constants.DefaultPythonVersion,
+		DefaultVersion: string(constants.DefaultPythonVersion),
 		Commands:       []string{"python", "python3", "pip", "pip3"},
 	},
 	{
@@ -126,7 +126,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "ruby/setup-ruby",
 		ActionVersion:  "v1",
 		VersionField:   "ruby-version",
-		DefaultVersion: constants.DefaultRubyVersion,
+		DefaultVersion: string(constants.DefaultRubyVersion),
 		Commands:       []string{"ruby", "gem", "bundle"},
 	},
 	{
