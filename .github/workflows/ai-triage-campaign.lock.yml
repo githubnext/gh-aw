@@ -45,7 +45,7 @@ name: "AI Triage Campaign"
         required: false
       project_url:
         default: https://github.com/orgs/githubnext/projects/53
-        description: GitHub project URL (e.g., https://github.com/users/username/projects/24)
+        description: GitHub project URL (e.g., https://github.com/users/username/projects/123)
         required: false
 
 permissions:
@@ -1235,10 +1235,10 @@ jobs:
           ## Adding Issues to the Project Board
           
           For each issue you analyze, add it to this project board:
-          `https://github.com/users/mnkiefer/projects/24`
+          `https://github.com/users/username/projects/123`
           
           Use the update-project safe-output with these fields:
-          - **project**: `https://github.com/users/mnkiefer/projects/24` (always use this exact URL)
+          - **project**: `https://github.com/users/username/projects/123` (always use this exact URL)
           - **content_type**: "issue"
           - **content_number**: the issue number
           - **fields**: 
@@ -1249,7 +1249,7 @@ jobs:
             - Priority: "Critical", "High", "Medium", or "Low"
           
           Example for issue #5:
-          - project: https://github.com/users/mnkiefer/projects/24
+          - project: https://github.com/users/username/projects/123
           - content_type: issue
           - content_number: 5
           - fields with AI-Readiness Score, Status, Effort Estimate, AI Agent Type, Priority
@@ -1322,7 +1322,7 @@ jobs:
           ## Execution Notes
           
           - This workflow runs every 4 hours automatically (or manually with custom parameters)
-          - Input defaults: max_issues=10, project_url=https://github.com/users/mnkiefer/projects/24
+          - Input defaults: max_issues=10, project_url=https://github.com/users/username/projects/123
           - All issues are routed to the project board with differentiation via Status field
           - Custom fields are created automatically if they don't exist
           - User projects must exist before workflow runs (cannot auto-create)
