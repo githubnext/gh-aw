@@ -2436,28 +2436,25 @@ jobs:
           ${GH_AW_EXPR_0BABF60D}
           ```
           
-          {{#if ${{ github.event.issue }} }}
+          {{#if ${{ github.event.issue.number }} }}
           ## Issue Context
           
           - **Issue Number**: ${GH_AW_EXPR_9C6DBB26}
-          - **Issue Title**: ${GH_AW_EXPR_C4BA81CC}
           - **Issue State**: ${GH_AW_EXPR_2EF6A34F}
           {{/if}}
           
-          {{#if ${{ github.event.discussion }} }}
+          {{#if ${{ github.event.discussion.number }} }}
           ## Discussion Context
           
           - **Discussion Number**: ${GH_AW_EXPR_2497EEDF}
-          - **Discussion Title**: ${GH_AW_EXPR_FAE74991}
           {{/if}}
           
-          {{#if ${{ github.event.pull_request }} }}
+          {{#if ${{ github.event.pull_request.number }} }}
           ## Pull Request Context
           
           **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:
           
           - **Pull Request Number**: ${GH_AW_EXPR_079D8664}
-          - **Pull Request Title**: ${GH_AW_EXPR_30041B09}
           - **Source Branch SHA**: ${GH_AW_EXPR_2F220DDC}
           - **Target Branch SHA**: ${GH_AW_EXPR_21620088}
           - **PR State**: ${GH_AW_EXPR_176C9F7A}
@@ -2779,15 +2776,12 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_EXPR_E80C082D: ${{ github.actor }}
           GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
-          GH_AW_EXPR_FAE74991: ${{ github.event.discussion.title }}
           GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
           GH_AW_EXPR_2EF6A34F: ${{ github.event.issue.state }}
-          GH_AW_EXPR_C4BA81CC: ${{ github.event.issue.title }}
           GH_AW_EXPR_21620088: ${{ github.event.pull_request.base.sha }}
           GH_AW_EXPR_2F220DDC: ${{ github.event.pull_request.head.sha }}
           GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
           GH_AW_EXPR_176C9F7A: ${{ github.event.pull_request.state }}
-          GH_AW_EXPR_30041B09: ${{ github.event.pull_request.title }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
           GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
           GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
