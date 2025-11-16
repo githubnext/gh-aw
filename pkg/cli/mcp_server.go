@@ -532,14 +532,9 @@ Returns formatted text output showing:
 
 	// Add update tool
 	type updateArgs struct {
-		Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
-		Major       bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
-		Force       bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
-		Engine      string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot, custom)"`
-		PR          bool     `json:"pr,omitempty" jsonschema:"Create a pull request with the workflow changes"`
-		Dir         string   `json:"dir,omitempty" jsonschema:"Relative directory containing workflows (default: .github/workflows)"`
-		NoStopAfter bool     `json:"no_stop_after,omitempty" jsonschema:"Remove any stop-after field from the updated workflow"`
-		StopAfter   string   `json:"stop_after,omitempty" jsonschema:"Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')"`
+		Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow IDs to update (empty for all workflows)"`
+		Major     bool     `json:"major,omitempty" jsonschema:"Allow major version updates when updating tagged releases"`
+		Force     bool     `json:"force,omitempty" jsonschema:"Force update even if no changes detected"`
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -573,21 +568,6 @@ Returns formatted text output showing:
 		}
 		if args.Force {
 			cmdArgs = append(cmdArgs, "--force")
-		}
-		if args.Engine != "" {
-			cmdArgs = append(cmdArgs, "--engine", args.Engine)
-		}
-		if args.PR {
-			cmdArgs = append(cmdArgs, "--pr")
-		}
-		if args.Dir != "" {
-			cmdArgs = append(cmdArgs, "--dir", args.Dir)
-		}
-		if args.NoStopAfter {
-			cmdArgs = append(cmdArgs, "--no-stop-after")
-		}
-		if args.StopAfter != "" {
-			cmdArgs = append(cmdArgs, "--stop-after", args.StopAfter)
 		}
 
 		// Execute the CLI command
