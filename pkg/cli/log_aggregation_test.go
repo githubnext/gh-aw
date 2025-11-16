@@ -18,8 +18,10 @@ func TestFirewallAnalysisImplementsLogAnalysis(t *testing.T) {
 
 func TestDomainAnalysisGettersSetters(t *testing.T) {
 	analysis := &DomainAnalysis{
-		AllowedDomains: []string{"example.com", "test.com"},
-		DeniedDomains:  []string{"blocked.com"},
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{"example.com", "test.com"},
+			DeniedDomains:  []string{"blocked.com"},
+		},
 	}
 
 	// Test getters
@@ -75,8 +77,10 @@ func TestDomainAnalysisAddMetrics(t *testing.T) {
 
 func TestFirewallAnalysisGettersSetters(t *testing.T) {
 	analysis := &FirewallAnalysis{
-		AllowedDomains:   []string{"api.github.com:443", "api.npmjs.org:443"},
-		DeniedDomains:    []string{"blocked.example.com:443"},
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
+			DeniedDomains:  []string{"blocked.example.com:443"},
+		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 
@@ -192,8 +196,10 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
 			return &DomainAnalysis{
-				AllowedDomains: []string{},
-				DeniedDomains:  []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 			}
 		},
 	)
@@ -265,8 +271,10 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 		parseFirewallLog,
 		func() *FirewallAnalysis {
 			return &FirewallAnalysis{
-				AllowedDomains:   []string{},
-				DeniedDomains:    []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
 		},
@@ -313,8 +321,10 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
 			return &DomainAnalysis{
-				AllowedDomains: []string{},
-				DeniedDomains:  []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 			}
 		},
 	)
@@ -360,8 +370,10 @@ func TestAggregateLogFilesWithParseErrors(t *testing.T) {
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
 			return &DomainAnalysis{
-				AllowedDomains: []string{},
-				DeniedDomains:  []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 			}
 		},
 	)

@@ -142,11 +142,13 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 				WorkflowName: "workflow-1",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{"api.github.com:443", "api.npmjs.org:443"},
+					DeniedDomains:  []string{"blocked.example.com:443"},
+				},
 				TotalRequests:   10,
 				AllowedRequests: 8,
 				DeniedRequests:  2,
-				AllowedDomains:  []string{"api.github.com:443", "api.npmjs.org:443"},
-				DeniedDomains:   []string{"blocked.example.com:443"},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443":      {Allowed: 5, Denied: 0},
 					"api.npmjs.org:443":       {Allowed: 3, Denied: 0},
@@ -159,11 +161,13 @@ func TestFirewallLogSummaryBuilding(t *testing.T) {
 				WorkflowName: "workflow-2",
 			},
 			FirewallAnalysis: &FirewallAnalysis{
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{"api.github.com:443"},
+					DeniedDomains:  []string{"denied.site:443"},
+				},
 				TotalRequests:   5,
 				AllowedRequests: 3,
 				DeniedRequests:  2,
-				AllowedDomains:  []string{"api.github.com:443"},
-				DeniedDomains:   []string{"denied.site:443"},
 				RequestsByDomain: map[string]DomainRequestStats{
 					"api.github.com:443": {Allowed: 3, Denied: 0},
 					"denied.site:443":    {Allowed: 0, Denied: 2},
