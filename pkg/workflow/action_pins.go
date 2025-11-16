@@ -68,7 +68,7 @@ func getActionPins() []ActionPin {
 
 // GetActionPin returns the pinned action reference for a given action repository
 // It uses the golden/default version defined in actionPins
-// If no pin is found, it returns an empty string
+// If no pin is found, it returns an empty string (e.g., for custom action repos)
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
@@ -77,7 +77,7 @@ func GetActionPin(actionRepo string) string {
 			return actionRepo + "@" + pin.SHA + " # " + pin.Version
 		}
 	}
-	// If no pin exists, return empty string to signal that this action is not pinned
+	// If no pin exists, return empty string - caller should handle this case
 	return ""
 }
 
