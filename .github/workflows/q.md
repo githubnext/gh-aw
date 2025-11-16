@@ -32,6 +32,7 @@ safe-outputs:
     labels: [automation, workflow-optimization]
     reviewers: copilot
     draft: false
+    if-no-changes: "ignore"
 timeout-minutes: 15
 strict: true
 ---
@@ -238,26 +239,34 @@ General optimizations:
 3. **Validate Syntax**: Confirm the workflow is syntactically correct
 4. **Review Generated YAML**: Check that .lock.yml files are properly generated
 
-### Phase 6: Create Pull Request
+### Phase 6: Create Pull Request (Only if Changes Exist)
+
+**IMPORTANT**: Only create a pull request if you have made actual changes to workflow files. If no changes are needed, explain your findings in a comment instead.
 
 Create a pull request with your improvements using the safe-outputs MCP server:
 
-1. **Use Safe-Outputs for PR Creation**:
+1. **Check for Changes First**:
+   - Before calling create-pull-request, verify you have modified workflow files
+   - If investigation shows no issues or improvements needed, use add-comment to report findings
+   - Only proceed with PR creation when you have actual changes to propose
+
+2. **Use Safe-Outputs for PR Creation**:
    - Use the `create-pull-request` tool from the safe-outputs MCP server
    - This is automatically configured in the workflow frontmatter
    - The PR will be created with the prefix "[q]" and labeled with "automation, workflow-optimization"
+   - The system will automatically skip PR creation if there are no file changes
 
-2. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
+3. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
    - Let the copilot agent compile them later
    - Only modify .md workflow files
    - The compilation will happen automatically after PR merge
 
-3. **Create Focused Changes**: Make minimal, surgical modifications
+4. **Create Focused Changes**: Make minimal, surgical modifications
    - Only change what's necessary to fix identified issues
    - Preserve existing working configurations
    - Keep changes well-documented
 
-4. **PR Structure**: Include in your pull request:
+5. **PR Structure**: Include in your pull request:
    - **Title**: Clear description of improvements (will be prefixed with "[q]")
    - **Description**: 
      - Summary of issues found from live data
