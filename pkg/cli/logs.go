@@ -826,7 +826,8 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	// Render output based on format preference
 	if jsonOutput {
 		if err := renderLogsJSON(logsData); err != nil {
-			return fmt.Errorf("failed to render JSON output: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to render JSON output: %v", err)))
+			return err
 		}
 	} else {
 		renderLogsConsole(logsData)
@@ -1096,17 +1097,27 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 			strings.Contains(combinedMsg, "authentication required") ||
 			strings.Contains(outputMsg, "gh auth login") {
-			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+				"GitHub CLI authentication required",
+				[]string{
+					"Run 'gh auth login' to authenticate with GitHub",
+					"Ensure you have a valid GitHub token",
+				},
+			))
+			return nil, 0, errors.New("GitHub CLI authentication required")
 		}
 		if len(output) > 0 {
-			return nil, 0, fmt.Errorf("failed to list workflow runs: %s", string(output))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to list workflow runs: %s", string(output))))
+			return nil, 0, errors.New("failed to list workflow runs")
 		}
-		return nil, 0, fmt.Errorf("failed to list workflow runs: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to list workflow runs: %v", err)))
+		return nil, 0, err
 	}
 
 	var runs []WorkflowRun
 	if err := json.Unmarshal(output, &runs); err != nil {
-		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse workflow runs: %v", err)))
+		return nil, 0, err
 	}
 
 	// Store the total count fetched from API before filtering
@@ -1120,7 +1131,8 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		// Get the list of agentic workflow names from .lock.yml files
 		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to get agentic workflow names: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to get agentic workflow names: %v", err)))
+			return nil, 0, err
 		}
 
 		for _, run := range runs {
@@ -1214,12 +1226,14 @@ func saveRunSummary(outputDir string, summary *RunSummary, verbose bool) error {
 	// Marshal to JSON with indentation for readability
 	data, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal run summary: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to marshal run summary: %v", err)))
+		return err
 	}
 
 	// Write to file
 	if err := os.WriteFile(summaryPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write run summary: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write run summary: %v", err)))
+		return err
 	}
 
 	if verbose {
@@ -1415,7 +1429,8 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 
 	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to glob .lock.yml files: %v", err)))
+		return nil, err
 	}
 
 	for _, file := range files {

@@ -153,16 +153,20 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 				useLocalCache = true
 			} else {
 				// Provide helpful message about using GitHub MCP server
-				return fmt.Errorf("GitHub API access denied and no local cache found.\n\n"+
-					"To download artifacts, use the GitHub MCP server:\n\n"+
-					"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
-					"   - run_id: %d\n"+
-					"   - output_directory: %s\n\n"+
-					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-					"Original error: %v", runInfo.RunID, runOutputDir, metadataErr)
+				fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+					"GitHub API access denied and no local cache found",
+					[]string{
+						"Use the github-mcp-server tool 'download_workflow_run_artifacts' with:",
+						fmt.Sprintf("  - run_id: %d", runInfo.RunID),
+						fmt.Sprintf("  - output_directory: %s", runOutputDir),
+						"After downloading, run this audit command again to analyze the cached artifacts",
+					},
+				))
+				return fmt.Errorf("GitHub API access denied: %v", metadataErr)
 			}
 		} else {
-			return fmt.Errorf("failed to fetch run metadata: %w", metadataErr)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to fetch run metadata: %v", metadataErr)))
+			return metadataErr
 		}
 	}
 
@@ -186,16 +190,20 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Artifact download failed due to permissions, but found locally cached artifacts. Processing cached data..."))
 					useLocalCache = true
 				} else {
-					return fmt.Errorf("failed to download artifacts due to permissions and no local cache found.\n\n"+
-						"To download artifacts, use the GitHub MCP server:\n\n"+
-						"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
-						"   - run_id: %d\n"+
-						"   - output_directory: %s\n\n"+
-						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-						"Original error: %v", runInfo.RunID, runOutputDir, err)
+					fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+						"Failed to download artifacts due to permissions and no local cache found",
+						[]string{
+							"Use the github-mcp-server tool 'download_workflow_run_artifacts' with:",
+							fmt.Sprintf("  - run_id: %d", runInfo.RunID),
+							fmt.Sprintf("  - output_directory: %s", runOutputDir),
+							"After downloading, run this audit command again to analyze the cached artifacts",
+						},
+					))
+					return fmt.Errorf("artifact download failed due to permissions: %v", err)
 				}
 			} else {
-				return fmt.Errorf("failed to download artifacts: %w", err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to download artifacts: %v", err)))
+				return err
 			}
 		}
 	}
@@ -292,7 +300,8 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 	// Render output based on format preference
 	if jsonOutput {
 		if err := renderJSON(auditData); err != nil {
-			return fmt.Errorf("failed to render JSON output: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to render JSON output: %v", err)))
+			return err
 		}
 	} else {
 		renderConsole(auditData, runOutputDir)
@@ -398,12 +407,14 @@ func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, er
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
-		return WorkflowRun{}, fmt.Errorf("failed to fetch run metadata: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to fetch run metadata: %v", err)))
+		return WorkflowRun{}, err
 	}
 
 	var run WorkflowRun
 	if err := json.Unmarshal(output, &run); err != nil {
-		return WorkflowRun{}, fmt.Errorf("failed to parse run metadata: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse run metadata: %v", err)))
+		return WorkflowRun{}, err
 	}
 
 	return run, nil

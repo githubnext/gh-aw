@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -264,13 +265,15 @@ func getMarkdownWorkflowFiles() ([]string, error) {
 	workflowsDir := getWorkflowsDir()
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("no .github/workflows directory found")
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("No .github/workflows directory found"))
+		return nil, errors.New("no .github/workflows directory found")
 	}
 
 	// Find all markdown files in .github/workflows
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to find workflow files: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to find workflow files: %v", err)))
+		return nil, err
 	}
 
 	return mdFiles, nil

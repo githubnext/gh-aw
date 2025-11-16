@@ -38,13 +38,15 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
-		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read generated lock file for validation: %v", err)))
+		return err
 	}
 
 	// Validate the lock file is valid YAML
 	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
-		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Generated lock file is not valid YAML: %v", err)))
+		return err
 	}
 
 	// Validate action SHAs if requested
@@ -61,21 +63,24 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	// Run zizmor on the generated lock file if requested
 	if runZizmorPerFile {
 		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("zizmor security scan failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Zizmor security scan failed: %v", err)))
+			return err
 		}
 	}
 
 	// Run poutine on the generated lock file if requested
 	if runPoutinePerFile {
 		if err := runPoutineOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("poutine security scan failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Poutine security scan failed: %v", err)))
+			return err
 		}
 	}
 
 	// Run actionlint on the generated lock file if requested
 	if runActionlintPerFile {
 		if err := runActionlintOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("actionlint linter failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Actionlint linter failed: %v", err)))
+			return err
 		}
 	}
 
@@ -101,13 +106,15 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
-		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read generated lock file for validation: %v", err)))
+		return err
 	}
 
 	// Validate the lock file is valid YAML
 	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
-		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Generated lock file is not valid YAML: %v", err)))
+		return err
 	}
 
 	// Validate action SHAs if requested
@@ -124,21 +131,24 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	// Run zizmor on the generated lock file if requested
 	if runZizmorPerFile {
 		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("zizmor security scan failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Zizmor security scan failed: %v", err)))
+			return err
 		}
 	}
 
 	// Run poutine on the generated lock file if requested
 	if runPoutinePerFile {
 		if err := runPoutineOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("poutine security scan failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Poutine security scan failed: %v", err)))
+			return err
 		}
 	}
 
 	// Run actionlint on the generated lock file if requested
 	if runActionlintPerFile {
 		if err := runActionlintOnFile(lockFile, verbose, strict); err != nil {
-			return fmt.Errorf("actionlint linter failed: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Actionlint linter failed: %v", err)))
+			return err
 		}
 	}
 
@@ -198,20 +208,24 @@ func validateCompileConfig(config CompileConfig) error {
 	// Validate dependabot flag usage
 	if config.Dependabot {
 		if len(config.MarkdownFiles) > 0 {
-			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("The --dependabot flag cannot be used with specific workflow files"))
+			return errors.New("--dependabot flag cannot be used with specific workflow files")
 		}
 		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
-			return fmt.Errorf("--dependabot flag cannot be used with custom --dir")
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("The --dependabot flag cannot be used with custom --dir"))
+			return errors.New("--dependabot flag cannot be used with custom --dir")
 		}
 	}
 
 	// Validate purge flag usage
 	if config.Purge && len(config.MarkdownFiles) > 0 {
-		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("The --purge flag can only be used when compiling all markdown files (no specific files specified)"))
+		return errors.New("--purge flag can only be used when compiling all markdown files (no specific files specified)")
 	}
 
 	// Validate workflow directory path
 	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("The --dir must be a relative path, got: %s", config.WorkflowDir)))
 		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)
 	}
 
@@ -303,7 +317,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			// Resolve the workflow file to get the full path
 			resolvedFile, err := resolveWorkflowFile(markdownFiles[0], verbose)
 			if err != nil {
-				return nil, fmt.Errorf("failed to resolve workflow '%s': %w", markdownFiles[0], err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to resolve workflow '%s': %v", markdownFiles[0], err)))
+				return nil, err
 			}
 			markdownFile = resolvedFile
 		}
@@ -497,14 +512,16 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Find git root for consistent behavior
 	gitRoot, err := findGitRoot()
 	if err != nil {
-		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Compile without arguments requires being in a git repository"))
+		return nil, err
 	}
 	compileLog.Printf("Found git root: %s", gitRoot)
 
 	// Compile all markdown files in the specified workflow directory relative to git root
 	workflowsDir := filepath.Join(gitRoot, workflowDir)
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("The %s directory does not exist in git root (%s)", workflowDir, gitRoot)))
+		return nil, err
 	}
 
 	compileLog.Printf("Scanning for markdown files in %s", workflowsDir)
@@ -515,11 +532,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Find all markdown files
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to find markdown files: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to find markdown files: %v", err)))
+		return nil, err
 	}
 
 	if len(mdFiles) == 0 {
-		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("No markdown files found in %s", workflowsDir)))
+		return nil, errors.New("no markdown files found")
 	}
 
 	compileLog.Printf("Found %d markdown files to compile", len(mdFiles))
@@ -534,7 +553,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Find all existing .lock.yml files
 		existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to find existing lock files: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to find existing lock files: %v", err)))
+			return nil, err
 		}
 
 		// Create expected lock files list based on markdown files
@@ -721,12 +741,16 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	// Find git root for consistent behavior
 	gitRoot, err := findGitRoot()
 	if err != nil {
-		return fmt.Errorf("watch mode requires being in a git repository: %w", err)
+		errMsg := "watch mode requires being in a git repository"
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Watch mode requires being in a git repository"))
+		return fmt.Errorf("%s: %w", errMsg, err)
 	}
 
 	workflowsDir := filepath.Join(gitRoot, ".github/workflows")
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the .github/workflows directory does not exist in git root (%s)", gitRoot)
+		errMsg := fmt.Sprintf("the .github/workflows directory does not exist in git root (%s)", gitRoot)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("The .github/workflows directory does not exist in git root (%s)", gitRoot)))
+		return errors.New(errMsg)
 	}
 
 	// If a specific file is provided, watch only that file and its directory
@@ -735,20 +759,26 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 			markdownFile = filepath.Join(workflowsDir, markdownFile)
 		}
 		if _, err := os.Stat(markdownFile); os.IsNotExist(err) {
-			return fmt.Errorf("specified markdown file does not exist: %s", markdownFile)
+			errMsg := fmt.Sprintf("specified markdown file does not exist: %s", markdownFile)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Specified markdown file does not exist: %s", markdownFile)))
+			return errors.New(errMsg)
 		}
 	}
 
 	// Set up file system watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("failed to create file watcher: %w", err)
+		errMsg := fmt.Sprintf("failed to create file watcher: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to create file watcher: %v", err)))
+		return errors.New(errMsg)
 	}
 	defer watcher.Close()
 
 	// Add the workflows directory to the watcher
 	if err := watcher.Add(workflowsDir); err != nil {
-		return fmt.Errorf("failed to watch directory %s: %w", workflowsDir, err)
+		errMsg := fmt.Sprintf("failed to watch directory %s: %v", workflowsDir, err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to watch directory %s: %v", workflowsDir, err)))
+		return errors.New(errMsg)
 	}
 
 	// Also watch subdirectories for include files (recursive watching)
