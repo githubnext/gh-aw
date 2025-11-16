@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -18,7 +19,14 @@ func InitRepository(verbose bool, mcp bool) error {
 	// Ensure we're in a git repository
 	if !isGitRepo() {
 		initLog.Print("Not in a git repository, initialization failed")
-		return fmt.Errorf("not in a git repository")
+		fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+			"Not in a git repository",
+			[]string{
+				"Run 'git init' to initialize a new repository",
+				"Navigate to an existing git repository",
+			},
+		))
+		return errors.New("not in a git repository")
 	}
 	initLog.Print("Verified git repository")
 
@@ -26,7 +34,8 @@ func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Configuring .gitattributes")
 	if err := ensureGitAttributes(); err != nil {
 		initLog.Printf("Failed to configure .gitattributes: %v", err)
-		return fmt.Errorf("failed to configure .gitattributes: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to configure .gitattributes: %v", err)))
+		return err
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
@@ -36,7 +45,8 @@ func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Writing GitHub Copilot instructions")
 	if err := ensureCopilotInstructions(verbose, false); err != nil {
 		initLog.Printf("Failed to write copilot instructions: %v", err)
-		return fmt.Errorf("failed to write copilot instructions: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write copilot instructions: %v", err)))
+		return err
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
@@ -46,14 +56,16 @@ func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Removing old agentic workflow prompt")
 	if err := ensureAgenticWorkflowPrompt(verbose, false); err != nil {
 		initLog.Printf("Failed to remove old agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to remove old agentic workflow prompt: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to remove old agentic workflow prompt: %v", err)))
+		return err
 	}
 
 	// Write agentic workflow agent
 	initLog.Print("Writing agentic workflow agent")
 	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
 		initLog.Printf("Failed to write agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write agentic workflow agent: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write agentic workflow agent: %v", err)))
+		return err
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created custom agent for workflow creation"))
@@ -63,7 +75,8 @@ func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Writing shared agentic workflow agent")
 	if err := ensureSharedAgenticWorkflowAgent(verbose, false); err != nil {
 		initLog.Printf("Failed to write shared agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write shared agentic workflow agent: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write shared agentic workflow agent: %v", err)))
+		return err
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow agent"))
@@ -73,7 +86,8 @@ func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Writing setup agentic workflows agent")
 	if err := ensureSetupAgenticWorkflowsAgent(verbose, false); err != nil {
 		initLog.Printf("Failed to write setup agentic workflows agent: %v", err)
-		return fmt.Errorf("failed to write setup agentic workflows agent: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write setup agentic workflows agent: %v", err)))
+		return err
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
@@ -86,7 +100,8 @@ func InitRepository(verbose bool, mcp bool) error {
 		// Create copilot-setup-steps.yml
 		if err := ensureCopilotSetupSteps(verbose); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
-			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to create copilot-setup-steps.yml: %v", err)))
+			return err
 		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
@@ -95,7 +110,8 @@ func InitRepository(verbose bool, mcp bool) error {
 		// Create .vscode/mcp.json
 		if err := ensureMCPConfig(verbose); err != nil {
 			initLog.Printf("Failed to create MCP config: %v", err)
-			return fmt.Errorf("failed to create MCP config: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to create MCP config: %v", err)))
+			return err
 		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
