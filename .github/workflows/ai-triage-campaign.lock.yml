@@ -4197,8 +4197,10 @@ jobs:
               return { success: true, items: validatedOutput.items };
             }
             function parseProjectInput(projectInput) {
-              if (!projectInput || typeof projectInput !== 'string') {
-                throw new Error(`Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`);
+              if (!projectInput || typeof projectInput !== "string") {
+                throw new Error(
+                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+                );
               }
               const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
               if (urlMatch) {
@@ -4317,7 +4319,7 @@ jobs:
                 } else {
                   if (ownerType === "User") {
                     const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-                      core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+                    core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
                     throw new Error(`Cannot find ${projectDisplay} on user account.`);
                   }
                   const createResult = await githubClient.graphql(
@@ -4382,11 +4384,7 @@ jobs:
                 }
                 let contentNumber = null;
                 if (hasContentNumber || hasIssue || hasPullRequest) {
-                  const rawContentNumber = hasContentNumber
-                    ? output.content_number
-                    : hasIssue
-                      ? output.issue
-                      : output.pull_request;
+                  const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
                   const sanitizedContentNumber =
                     rawContentNumber === undefined || rawContentNumber === null
                       ? ""
@@ -4476,7 +4474,7 @@ jobs:
                   let itemId;
                   if (existingItem) {
                     itemId = existingItem.id;
-                    core.info('✓ Item already on board');
+                    core.info("✓ Item already on board");
                   } else {
                     const addResult = await githubClient.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
@@ -4534,7 +4532,7 @@ jobs:
                       const normalizedFieldName = fieldName
                         .split(/[\s_-]+/)
                         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                        .join(' ');
+                        .join(" ");
                       let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
                       if (!field) {
                         const isTextField =
@@ -4718,10 +4716,10 @@ jobs:
                 }
               }
             }
-            if (typeof module !== 'undefined' && module.exports) {
+            if (typeof module !== "undefined" && module.exports) {
               module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
             }
-            if (typeof module === 'undefined' || require.main === module) {
+            if (typeof module === "undefined" || require.main === module) {
               main();
             }
 
