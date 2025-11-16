@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -337,10 +336,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		}
 	}
 
-	// Add the complete sequence if we found any tool calls
-	if len(currentSequence) > 0 {
-		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
-	}
+	// Finalize tool calls and sequences using shared helper
+	FinalizeToolCallsAndSequence(&metrics, toolCallMap, currentSequence)
 
 	if verbose && len(metrics.ToolSequences) > 0 {
 		totalTools := 0
@@ -350,16 +347,6 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		fmt.Printf("Claude parser extracted %d tool sequences with %d total tool calls\n",
 			len(metrics.ToolSequences), totalTools)
 	}
-
-	// Convert tool call map to slice
-	for _, toolInfo := range toolCallMap {
-		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
-	}
-
-	// Sort tool calls by name for consistent output
-	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
-		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
-	})
 
 	return metrics
 }
