@@ -95,7 +95,9 @@ async function main() {
       .addRaw("**Files:**\n")
       .addRaw(`- Source: \`${workflowMdPath}\`\n`)
       .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-      .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
+      .addRaw(
+        `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
+      )
       .addRaw(`- Lock: \`${lockFilePath}\`\n`)
       .addRaw(`  - Last commit: ${lockTimestamp}\n`)
       .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
