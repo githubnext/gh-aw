@@ -326,9 +326,6 @@ func TestMissingToolsIntegration(t *testing.T) {
 	// Display should work without panicking
 	displayLogsOverview(processedRuns, false)
 	displayLogsOverview(processedRuns, true)
-
-	// Display analysis should also work
-	displayMissingToolsAnalysis(processedRuns, false)
 }
 
 // TestMissingToolCountFieldAccessibility verifies field is accessible

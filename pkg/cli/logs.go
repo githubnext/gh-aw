@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1473,101 +1472,6 @@ func contains(slice []string, item string) bool {
 
 // extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
 
-// displayMissingToolsAnalysis displays a summary of missing tools across all runs
-func displayMissingToolsAnalysis(processedRuns []ProcessedRun, verbose bool) {
-	// Aggregate missing tools across all runs
-	toolSummary := make(map[string]*MissingToolSummary)
-	var totalReports int
-
-	for _, pr := range processedRuns {
-		for _, tool := range pr.MissingTools {
-			totalReports++
-			if summary, exists := toolSummary[tool.Tool]; exists {
-				summary.Count++
-				// Add workflow if not already in the list
-				found := false
-				for _, wf := range summary.Workflows {
-					if wf == tool.WorkflowName {
-						found = true
-						break
-					}
-				}
-				if !found {
-					summary.Workflows = append(summary.Workflows, tool.WorkflowName)
-				}
-				summary.RunIDs = append(summary.RunIDs, tool.RunID)
-			} else {
-				toolSummary[tool.Tool] = &MissingToolSummary{
-					Tool:        tool.Tool,
-					Count:       1,
-					Workflows:   []string{tool.WorkflowName},
-					FirstReason: tool.Reason,
-					RunIDs:      []int64{tool.RunID},
-				}
-			}
-		}
-	}
-
-	if totalReports == 0 {
-		return // No missing tools to display
-	}
-
-	// Display summary header
-	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Missing Tools Summary"))
-
-	// Convert map to slice for sorting
-	var summaries []*MissingToolSummary
-	for _, summary := range toolSummary {
-		summaries = append(summaries, summary)
-	}
-
-	// Sort by count (descending)
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].Count > summaries[j].Count
-	})
-
-	// Display summary table
-	headers := []string{"Tool", "Occurrences", "Workflows", "First Reason"}
-	var rows [][]string
-
-	for _, summary := range summaries {
-		workflowList := strings.Join(summary.Workflows, ", ")
-		if len(workflowList) > 40 {
-			workflowList = workflowList[:37] + "..."
-		}
-
-		reason := summary.FirstReason
-		if len(reason) > 50 {
-			reason = reason[:47] + "..."
-		}
-
-		rows = append(rows, []string{
-			summary.Tool,
-			fmt.Sprintf("%d", summary.Count),
-			workflowList,
-			reason,
-		})
-	}
-
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-
-	// Display total summary
-	uniqueTools := len(toolSummary)
-	fmt.Printf("\n📊 %s: %d unique missing tools reported %d times across workflows\n",
-		console.FormatCountMessage("Total"),
-		uniqueTools,
-		totalReports)
-
-	// Verbose mode: Show detailed breakdown by workflow
-	if verbose && totalReports > 0 {
-		displayDetailedMissingToolsBreakdown(processedRuns)
-	}
-}
 
 // displayDetailedMissingToolsBreakdown shows missing tools organized by workflow (verbose mode)
 func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
