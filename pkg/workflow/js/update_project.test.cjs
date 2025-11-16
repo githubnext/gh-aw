@@ -96,9 +96,7 @@ const repoResponse = (ownerType = "Organization") => ({
 });
 
 const ownerProjectsResponse = (nodes, ownerType = "Organization") =>
-  ownerType === "User"
-    ? { user: { projectsV2: { nodes } } }
-    : { organization: { projectsV2: { nodes } } };
+  ownerType === "User" ? { user: { projectsV2: { nodes } } } : { organization: { projectsV2: { nodes } } };
 
 const linkResponse = { linkProjectV2ToRepository: { repository: { id: "repo123" } } };
 
@@ -239,9 +237,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "existing-project-123", title: "Existing Campaign", number: 5 },
-      ]),
+      ownerProjectsResponse([{ id: "existing-project-123", title: "Existing Campaign", number: 5 }]),
       linkResponse,
     ]);
 
@@ -254,13 +250,7 @@ describe("updateProject", () => {
   it("finds an existing project by number", async () => {
     const output = { type: "update_project", project: "7" };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-by-number", title: "Bug Tracking", number: 7 },
-      ]),
-      linkResponse,
-    ]);
+    queueResponses([repoResponse(), ownerProjectsResponse([{ id: "project-by-number", title: "Bug Tracking", number: 7 }]), linkResponse]);
 
     await updateProject(output);
 
@@ -273,9 +263,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project123", title: "Bug Tracking", number: 1 },
-      ]),
+      ownerProjectsResponse([{ id: "project123", title: "Bug Tracking", number: 1 }]),
       linkResponse,
       issueResponse("issue-id-42"),
       emptyItemsResponse(),
@@ -301,9 +289,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project123", title: "Bug Tracking", number: 1 },
-      ]),
+      ownerProjectsResponse([{ id: "project123", title: "Bug Tracking", number: 1 }]),
       linkResponse,
       issueResponse("issue-id-99"),
       existingItemResponse("issue-id-99", "item-existing"),
@@ -321,9 +307,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-pr", title: "PR Review Board", number: 9 },
-      ]),
+      ownerProjectsResponse([{ id: "project-pr", title: "PR Review Board", number: 9 }]),
       linkResponse,
       pullRequestResponse("pr-id-17"),
       emptyItemsResponse(),
@@ -343,6 +327,35 @@ describe("updateProject", () => {
     expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:pr-review-board-[a-z0-9]{8}$/)]);
   });
 
+  it("falls back to legacy issue field when content_number missing", async () => {
+    const output = { type: "update_project", project: "Legacy Board", issue: "101" };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([{ id: "legacy-project", title: "Legacy Board", number: 6 }]),
+      linkResponse,
+      issueResponse("issue-id-101"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "legacy-item" } } },
+    ]);
+
+    await updateProject(output);
+
+    expect(mockCore.warning).toHaveBeenCalledWith('Field "issue" deprecated; use "content_number" instead.');
+
+    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelCall.issue_number).toBe(101);
+    expect(getOutput("item-id")).toBe("legacy-item");
+  });
+
+  it("rejects invalid content numbers", async () => {
+    const output = { type: "update_project", project: "Invalid Board", content_number: "ABC" };
+
+    queueResponses([repoResponse(), ownerProjectsResponse([{ id: "invalid-project", title: "Invalid Board", number: 7 }]), linkResponse]);
+
+    await expect(updateProject(output)).rejects.toThrow(/Invalid content number/);
+  });
+
   it("updates an existing text field", async () => {
     const output = {
       type: "update_project",
@@ -354,15 +367,11 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-field", title: "Field Test", number: 12 },
-      ]),
+      ownerProjectsResponse([{ id: "project-field", title: "Field Test", number: 12 }]),
       linkResponse,
       issueResponse("issue-id-10"),
       existingItemResponse("issue-id-10", "item-field"),
-      fieldsResponse([
-        { id: "field-status", name: "Status" },
-      ]),
+      fieldsResponse([{ id: "field-status", name: "Status" }]),
       updateFieldValueResponse(),
     ]);
 
@@ -384,9 +393,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-priority", title: "Priority Board", number: 3 },
-      ]),
+      ownerProjectsResponse([{ id: "project-priority", title: "Priority Board", number: 3 }]),
       linkResponse,
       issueResponse("issue-id-15"),
       existingItemResponse("issue-id-15", "item-priority"),
@@ -420,9 +427,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-test", title: "Test Project", number: 4 },
-      ]),
+      ownerProjectsResponse([{ id: "project-test", title: "Test Project", number: 4 }]),
       linkResponse,
       issueResponse("issue-id-20"),
       existingItemResponse("issue-id-20", "item-test"),
@@ -441,9 +446,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([
-        { id: "project-label", title: "Label Test", number: 11 },
-      ]),
+      ownerProjectsResponse([{ id: "project-label", title: "Label Test", number: 11 }]),
       linkResponse,
       issueResponse("issue-id-50"),
       emptyItemsResponse(),
@@ -460,10 +463,7 @@ describe("updateProject", () => {
   it("surfaces project creation failures", async () => {
     const output = { type: "update_project", project: "Fail Project" };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([]),
-    ]);
+    queueResponses([repoResponse(), ownerProjectsResponse([])]);
 
     mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
 

@@ -19,8 +19,10 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  */
 function parseProjectInput(projectInput) {
   // Validate input
-  if (!projectInput || typeof projectInput !== 'string') {
-    throw new Error(`Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`);
+  if (!projectInput || typeof projectInput !== "string") {
+    throw new Error(
+      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+    );
   }
 
   // Try to parse as GitHub project URL
@@ -176,9 +178,7 @@ async function updateProject(output) {
       // Check if owner is a User before attempting to create
       if (ownerType === "User") {
         const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-        core.error(
-          `Cannot find ${projectDisplay}. User projects must be created manually at https://github.com/users/${owner}/projects/new`
-        );
+        core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
         throw new Error(`Cannot find ${projectDisplay} on user account.`);
       }
 
@@ -240,30 +240,37 @@ async function updateProject(output) {
     if (hasIssue) values.push({ key: "issue", value: output.issue });
     if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
     if (values.length > 1) {
-      // Check for conflicting values
       const uniqueValues = [...new Set(values.map(v => String(v.value)))];
-      if (uniqueValues.length > 1) {
-        core.warning(
-          `Multiple content number fields are set with different values: ` +
-          values.map(v => `${v.key}=${v.value}`).join(", ") +
-          `. Using the first non-empty value in the order: content_number, issue, pull_request.`
-        );
-      } else {
-        core.warning(
-          `Multiple content number fields are set (all with value "${uniqueValues[0]}"): ` +
-          values.map(v => v.key).join(", ") +
-          `. Using the first non-empty value in the order: content_number, issue, pull_request.`
-        );
-      }
+      const list = values.map(v => `${v.key}=${v.value}`).join(", ");
+      const descriptor = uniqueValues.length > 1 ? "different values" : `same value "${uniqueValues[0]}"`;
+      core.warning(`Multiple content number fields (${descriptor}): ${list}. Using priority content_number > issue > pull_request.`);
     }
     if (hasIssue) {
-      core.warning('The "issue" field is deprecated. Use "content_number" instead.');
+      core.warning('Field "issue" deprecated; use "content_number" instead.');
     }
     if (hasPullRequest) {
-      core.warning('The "pull_request" field is deprecated. Use "content_number" instead.');
+      core.warning('Field "pull_request" deprecated; use "content_number" instead.');
     }
-    const contentNumber = output.content_number || output.issue || output.pull_request;
-    if (contentNumber) {
+    let contentNumber = null;
+    if (hasContentNumber || hasIssue || hasPullRequest) {
+      const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
+
+      const sanitizedContentNumber =
+        rawContentNumber === undefined || rawContentNumber === null
+          ? ""
+          : typeof rawContentNumber === "number"
+            ? rawContentNumber.toString()
+            : String(rawContentNumber).trim();
+
+      if (!sanitizedContentNumber) {
+        core.warning("Content number field provided but empty; skipping project item update.");
+      } else if (!/^\d+$/.test(sanitizedContentNumber)) {
+        throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer.`);
+      } else {
+        contentNumber = Number.parseInt(sanitizedContentNumber, 10);
+      }
+    }
+    if (contentNumber !== null) {
       const contentType =
         output.content_type === "pull_request"
           ? "PullRequest"
@@ -346,7 +353,7 @@ async function updateProject(output) {
       let itemId;
       if (existingItem) {
         itemId = existingItem.id;
-        core.info('✓ Item already on board');
+        core.info("✓ Item already on board");
       } else {
         // Add item to board
         const addResult = await githubClient.graphql(
@@ -414,8 +421,8 @@ async function updateProject(output) {
           const normalizedFieldName = fieldName
             .split(/[\s_-]+/)
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-          
+            .join(" ");
+
           let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field) {
             // Try to create the field - determine type based on field name or value
@@ -584,15 +591,11 @@ async function updateProject(output) {
       const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
       core.error(
         `Failed to manage project: ${error.message}\n\n` +
-          `💡 Troubleshooting:\n` +
-          `  1. Create the project manually first at https://github.com/orgs/${owner}/projects/new\n` +
-          `     Then the workflow can add items to it automatically.\n\n` +
-          `  2. Or, add a Personal Access Token (PAT) with 'project' permissions:\n` +
-          `     - Create a PAT at https://github.com/settings/tokens/new?scopes=project\n` +
-          `     - Add it as a secret named PROJECT_GITHUB_TOKEN\n` +
-          `     - Pass it to the workflow: PROJECT_GITHUB_TOKEN: \${{ secrets.PROJECT_GITHUB_TOKEN }}\n\n` +
-          `  3. Ensure the workflow has 'projects: write' permission.\n\n` +
-          `${usingCustomToken ? "⚠️  Note: Already using PROJECT_GITHUB_TOKEN but still getting permission error." : "📝 Currently using default GITHUB_TOKEN (no project create permissions)."}`
+          `Troubleshooting:\n` +
+          `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
+          `  • Or supply a PAT with project scope via PROJECT_GITHUB_TOKEN.\n` +
+          `  • Ensure the workflow grants projects: write.\n\n` +
+          `${usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);
@@ -625,11 +628,11 @@ async function main() {
 }
 
 // Export for testing
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
 }
 
-// Run if executed directly
-if (require.main === module) {
+// Run automatically in GitHub Actions (module undefined) or when executed directly via Node
+if (typeof module === "undefined" || require.main === module) {
   main();
 }
