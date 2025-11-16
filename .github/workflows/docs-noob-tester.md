@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 timeout-minutes: 30
 tools:
