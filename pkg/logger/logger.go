@@ -95,7 +95,7 @@ func (l *Logger) Enabled() bool {
 // Printf prints a formatted message if the logger is enabled.
 // A newline is always added at the end.
 // Time diff since last log is displayed like the debug npm package.
-func (l *Logger) Printf(format string, args ...interface{}) {
+func (l *Logger) Printf(format string, args ...any) {
 	if !l.enabled {
 		return
 	}
@@ -116,7 +116,7 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 // Print prints a message if the logger is enabled.
 // A newline is always added at the end.
 // Time diff since last log is displayed like the debug npm package.
-func (l *Logger) Print(args ...interface{}) {
+func (l *Logger) Print(args ...any) {
 	if !l.enabled {
 		return
 	}

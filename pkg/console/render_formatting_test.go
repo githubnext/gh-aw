@@ -9,7 +9,7 @@ import (
 func TestFormatFieldValue_Pointers(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{
@@ -50,7 +50,7 @@ func TestFormatFieldValue_Pointers(t *testing.T) {
 func TestFormatFieldValue_NumericTypes(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"int zero", int(0), "0"},
@@ -89,7 +89,7 @@ func TestFormatFieldValue_TimeType(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{
@@ -166,7 +166,7 @@ func TestFormatFieldValue_InvalidValue(t *testing.T) {
 func TestFormatFieldValueWithTag_NumberFormat(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"int - small", 500, "500"},
@@ -197,7 +197,7 @@ func TestFormatFieldValueWithTag_NumberFormat(t *testing.T) {
 func TestFormatFieldValueWithTag_CostFormat(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"float64 positive", float64(1.234), "$1.234"},
@@ -226,7 +226,7 @@ func TestFormatFieldValueWithTag_DefaultValue(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"zero int uses default", 0, "N/A"},
@@ -262,7 +262,7 @@ func TestFormatFieldValueWithTag_FilesizeFormat(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"bytes", int(512), "512 B"},
@@ -290,7 +290,7 @@ func TestFormatFieldValueWithTag_NoFormat(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"int", 42, "42"},

@@ -6,14 +6,14 @@ import (
 
 func TestContainerWithCustomArgs(t *testing.T) {
 	// Test that custom args are preserved when using container field
-	config := map[string]interface{}{
+	config := map[string]any{
 		"container": "test",
 		"version":   "latest",
-		"args":      []interface{}{"-v", "/tmp:/tmp:ro", "-w", "/tmp"},
-		"env": map[string]interface{}{
+		"args":      []any{"-v", "/tmp:/tmp:ro", "-w", "/tmp"},
+		"env": map[string]any{
 			"TEST_VAR": "value",
 		},
-		"allowed": []interface{}{"*"},
+		"allowed": []any{"*"},
 	}
 
 	result, err := getMCPConfig(config, "test-tool")
@@ -59,12 +59,12 @@ func TestContainerWithCustomArgs(t *testing.T) {
 
 func TestContainerWithoutCustomArgs(t *testing.T) {
 	// Test that container works without custom args (existing behavior)
-	config := map[string]interface{}{
+	config := map[string]any{
 		"container": "test:latest",
-		"env": map[string]interface{}{
+		"env": map[string]any{
 			"TEST_VAR": "value",
 		},
-		"allowed": []interface{}{"*"},
+		"allowed": []any{"*"},
 	}
 
 	result, err := getMCPConfig(config, "test-tool")
@@ -91,13 +91,13 @@ func TestContainerWithoutCustomArgs(t *testing.T) {
 
 func TestContainerWithVersionField(t *testing.T) {
 	// Test that version field properly appends to container
-	config := map[string]interface{}{
+	config := map[string]any{
 		"container": "ghcr.io/test/image",
 		"version":   "v1.2.3",
-		"env": map[string]interface{}{
+		"env": map[string]any{
 			"TEST_VAR": "value",
 		},
-		"allowed": []interface{}{"*"},
+		"allowed": []any{"*"},
 	}
 
 	result, err := getMCPConfig(config, "test-tool")
@@ -119,14 +119,14 @@ func TestContainerWithVersionField(t *testing.T) {
 
 func TestContainerWithEntrypointArgs(t *testing.T) {
 	// Test that entrypointArgs are added after the container image
-	config := map[string]interface{}{
+	config := map[string]any{
 		"container":      "test-image",
 		"version":        "latest",
-		"entrypointArgs": []interface{}{"--config", "/app/config.json", "--verbose"},
-		"env": map[string]interface{}{
+		"entrypointArgs": []any{"--config", "/app/config.json", "--verbose"},
+		"env": map[string]any{
 			"TEST_VAR": "value",
 		},
-		"allowed": []interface{}{"*"},
+		"allowed": []any{"*"},
 	}
 
 	result, err := getMCPConfig(config, "test-tool")
@@ -181,15 +181,15 @@ func TestContainerWithEntrypointArgs(t *testing.T) {
 
 func TestContainerWithArgsAndEntrypointArgs(t *testing.T) {
 	// Test that both args (before container) and entrypointArgs (after container) work together
-	config := map[string]interface{}{
+	config := map[string]any{
 		"container":      "test-image",
 		"version":        "v1.0",
-		"args":           []interface{}{"-v", "/host:/container"},
-		"entrypointArgs": []interface{}{"serve", "--port", "8080"},
-		"env": map[string]interface{}{
+		"args":           []any{"-v", "/host:/container"},
+		"entrypointArgs": []any{"serve", "--port", "8080"},
+		"env": map[string]any{
 			"ENV_VAR": "value",
 		},
-		"allowed": []interface{}{"*"},
+		"allowed": []any{"*"},
 	}
 
 	result, err := getMCPConfig(config, "test-tool")

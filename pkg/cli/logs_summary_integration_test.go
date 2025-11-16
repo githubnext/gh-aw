@@ -140,7 +140,7 @@ func TestRunSummaryCachingBehavior(t *testing.T) {
 	}
 
 	// Should be valid JSON
-	var jsonCheck map[string]interface{}
+	var jsonCheck map[string]any
 	if err := json.Unmarshal(summaryData, &jsonCheck); err != nil {
 		t.Fatalf("Summary file is not valid JSON: %v", err)
 	}

@@ -14,16 +14,16 @@ import (
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
 type MCPRegistryServerForProcessing struct {
-	Name                 string                 `json:"name"`
-	Description          string                 `json:"description"`
-	Repository           string                 `json:"repository"`
-	Command              string                 `json:"command"`
-	Args                 []string               `json:"args"`
-	RuntimeHint          string                 `json:"runtime_hint"`
-	RuntimeArguments     []string               `json:"runtime_arguments"`
-	Transport            string                 `json:"transport"`
-	Config               map[string]interface{} `json:"config"`
-	EnvironmentVariables []EnvironmentVariable  `json:"environment_variables"`
+	Name                 string                `json:"name"`
+	Description          string                `json:"description"`
+	Repository           string                `json:"repository"`
+	Command              string                `json:"command"`
+	Args                 []string              `json:"args"`
+	RuntimeHint          string                `json:"runtime_hint"`
+	RuntimeArguments     []string              `json:"runtime_arguments"`
+	Transport            string                `json:"transport"`
+	Config               map[string]any        `json:"config"`
+	EnvironmentVariables []EnvironmentVariable `json:"environment_variables"`
 }
 
 // MCPRegistryClient handles communication with MCP registries
@@ -165,8 +165,8 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 			// Convert environment variables to config
 			if len(pkg.EnvironmentVariables) > 0 {
-				processedServer.Config = make(map[string]interface{})
-				envVars := make(map[string]interface{})
+				processedServer.Config = make(map[string]any)
+				envVars := make(map[string]any)
 
 				for _, envVar := range pkg.EnvironmentVariables {
 					// Use name as key, and create a placeholder value for secrets
@@ -187,13 +187,13 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			// Handle remote servers
 			remote := server.Remotes[0]
 			processedServer.Transport = remote.Type
-			processedServer.Config = map[string]interface{}{
+			processedServer.Config = map[string]any{
 				"url": remote.URL,
 			}
 
 			// Add headers if present
 			if len(remote.Headers) > 0 {
-				headers := make(map[string]interface{})
+				headers := make(map[string]any)
 				for _, header := range remote.Headers {
 					if header.IsSecret {
 						headers[header.Name] = fmt.Sprintf("${%s}", header.Name)
@@ -338,8 +338,8 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 
 				// Convert environment variables to config
 				if len(pkg.EnvironmentVariables) > 0 {
-					processedServer.Config = make(map[string]interface{})
-					envVars := make(map[string]interface{})
+					processedServer.Config = make(map[string]any)
+					envVars := make(map[string]any)
 
 					for _, envVar := range pkg.EnvironmentVariables {
 						// Use name as key, and create a placeholder value for secrets
@@ -360,13 +360,13 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				// Handle remote servers
 				remote := server.Remotes[0]
 				processedServer.Transport = remote.Type
-				processedServer.Config = map[string]interface{}{
+				processedServer.Config = map[string]any{
 					"url": remote.URL,
 				}
 
 				// Add headers if present
 				if len(remote.Headers) > 0 {
-					headers := make(map[string]interface{})
+					headers := make(map[string]any)
 					for _, header := range remote.Headers {
 						if header.IsSecret {
 							headers[header.Name] = fmt.Sprintf("${%s}", header.Name)

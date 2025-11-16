@@ -211,13 +211,13 @@ func TestAwInfoWithFirewallMarshaling(t *testing.T) {
 	}
 
 	// Verify that the JSON contains the steps.firewall field
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.Unmarshal(jsonData, &result)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal marshaled JSON: %v", err)
 	}
 
-	steps, ok := result["steps"].(map[string]interface{})
+	steps, ok := result["steps"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected 'steps' field in marshaled JSON")
 	}

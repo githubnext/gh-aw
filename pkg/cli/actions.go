@@ -8,7 +8,7 @@ import (
 // convertToGitHubActionsEnv converts environment variables from shell syntax to GitHub Actions syntax
 // Uses IsSecret field to determine between secrets.* and env.* syntax
 // Leaves existing GitHub Actions syntax unchanged
-func convertToGitHubActionsEnv(env interface{}, envVarMetadata []EnvironmentVariable) map[string]string {
+func convertToGitHubActionsEnv(env any, envVarMetadata []EnvironmentVariable) map[string]string {
 	result := make(map[string]string)
 
 	// Create a map for quick lookup of environment variable metadata
@@ -17,7 +17,7 @@ func convertToGitHubActionsEnv(env interface{}, envVarMetadata []EnvironmentVari
 		envMetaMap[envVar.Name] = envVar
 	}
 
-	if envMap, ok := env.(map[string]interface{}); ok {
+	if envMap, ok := env.(map[string]any); ok {
 		for key, value := range envMap {
 			if valueStr, ok := value.(string); ok {
 				// Only convert shell syntax ${TOKEN_NAME}, leave GitHub Actions syntax unchanged
