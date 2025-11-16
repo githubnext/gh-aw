@@ -10,7 +10,7 @@ on:
       project_url:
         description: 'GitHub project URL (e.g., https://github.com/users/username/projects/24)'
         required: false
-        default: 'https://github.com/users/mnkiefer/projects/24'
+        default: 'https://github.com/orgs/githubnext/projects/53'
       max_issues:
         description: 'Maximum number of issues to process'
         required: false
@@ -29,7 +29,7 @@ engine: copilot
 tools:
   github:
     mode: local
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     toolsets: [repos, issues]
 safe-outputs:
   update-project:
