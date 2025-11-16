@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "fs";
-import path from "path";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 
-// Mock the global objects that GitHub Actions provides
+let updateProject;
+let parseProjectInput;
+let generateCampaignId;
+
 const mockCore = {
   debug: vi.fn(),
   info: vi.fn(),
@@ -41,944 +42,432 @@ const mockContext = {
   },
 };
 
-// Set up global variables
 global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("update_project.cjs", () => {
-  let updateProjectScript;
-  let tempFilePath;
+beforeAll(async () => {
+  const mod = await import("./update_project.cjs");
+  const exports = mod.default || mod;
+  updateProject = exports.updateProject;
+  parseProjectInput = exports.parseProjectInput;
+  generateCampaignId = exports.generateCampaignId;
+});
 
-  // Helper function to set agent output via file
-  const setAgentOutput = data => {
-    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
-    const content = typeof data === "string" ? data : JSON.stringify(data);
-    fs.writeFileSync(tempFilePath, content);
-    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
-  };
+function clearMock(fn) {
+  if (fn && typeof fn.mockClear === "function") {
+    fn.mockClear();
+  }
+}
 
-  beforeEach(() => {
-    // Reset all mocks
-    vi.clearAllMocks();
+function clearCoreMocks() {
+  clearMock(mockCore.debug);
+  clearMock(mockCore.info);
+  clearMock(mockCore.notice);
+  clearMock(mockCore.warning);
+  clearMock(mockCore.error);
+  clearMock(mockCore.setFailed);
+  clearMock(mockCore.setOutput);
+  clearMock(mockCore.exportVariable);
+  clearMock(mockCore.getInput);
+  clearMock(mockCore.summary.addRaw);
+  clearMock(mockCore.summary.write);
+}
 
-    // Reset environment variables
-    delete process.env.GH_AW_AGENT_OUTPUT;
+beforeEach(() => {
+  mockGithub.graphql.mockReset();
+  mockGithub.rest.issues.addLabels.mockClear();
+  clearCoreMocks();
+  vi.useRealTimers();
+});
 
-    // Read the script content
-    const scriptPath = path.join(process.cwd(), "update_project.cjs");
-    updateProjectScript = fs.readFileSync(scriptPath, "utf8");
-    updateProjectScript = updateProjectScript.replace("export {};", "");
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const repoResponse = (ownerType = "Organization") => ({
+  repository: {
+    id: "repo123",
+    owner: {
+      id: ownerType === "User" ? "owner-user-123" : "owner123",
+      __typename: ownerType,
+    },
+  },
+});
+
+const ownerProjectsResponse = (nodes, ownerType = "Organization") =>
+  ownerType === "User"
+    ? { user: { projectsV2: { nodes } } }
+    : { organization: { projectsV2: { nodes } } };
+
+const linkResponse = { linkProjectV2ToRepository: { repository: { id: "repo123" } } };
+
+const issueResponse = id => ({ repository: { issue: { id } } });
+
+const pullRequestResponse = id => ({ repository: { pullRequest: { id } } });
+
+const emptyItemsResponse = () => ({
+  node: {
+    items: {
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  },
+});
+
+const existingItemResponse = (contentId, itemId = "existing-item") => ({
+  node: {
+    items: {
+      nodes: [{ id: itemId, content: { id: contentId } }],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  },
+});
+
+const fieldsResponse = nodes => ({ node: { fields: { nodes } } });
+
+const updateFieldValueResponse = () => ({
+  updateProjectV2ItemFieldValue: {
+    projectV2Item: {
+      id: "item123",
+    },
+  },
+});
+
+function queueResponses(responses) {
+  responses.forEach(response => {
+    mockGithub.graphql.mockResolvedValueOnce(response);
   });
+}
 
-  afterEach(() => {
-    // Clean up temporary file
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-      tempFilePath = undefined;
-    }
-  });
+function getOutput(name) {
+  const call = mockCore.setOutput.mock.calls.find(([key]) => key === name);
+  return call ? call[1] : undefined;
+}
 
-  describe("generateCampaignId", () => {
-    it("should generate campaign ID with slug and timestamp", async () => {
-      // We can't directly test the function since it's not exported,
-      // but we can observe its behavior through the main function
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Bug Bash Q1 2025",
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          // Get repository ID
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Find existing project at owner level
-          organization: {
-            projectsV2: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Create project
-          createProjectV2: {
-            projectV2: {
-              id: "project123",
-              title: "Bug Bash Q1 2025",
-              url: "https://github.com/testowner/testrepo/projects/1",
-              number: 1,
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      // Execute the script
-      await eval(`(async () => { ${updateProjectScript} })()`);
-
-      // Verify campaign ID was logged (using setOutput, not info)
-      expect(mockCore.setOutput).toHaveBeenCalledWith("campaign-id", expect.stringMatching(/bug-bash-q1-2025-[a-z0-9]{8}/));
+describe("parseProjectInput", () => {
+  it("extracts the project number from a GitHub URL", () => {
+    expect(parseProjectInput("https://github.com/orgs/acme/projects/42")).toEqual({
+      projectNumber: "42",
+      projectName: null,
     });
   });
 
-  describe("create new project", () => {
-    it("should create a new project when it doesn't exist", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "New Campaign",
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          // Get repository ID
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Find existing project (none found)
-          organization: {
-            projectsV2: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Create project
-          createProjectV2: {
-            projectV2: {
-              id: "project123",
-              title: "New Campaign",
-              url: "https://github.com/testowner/testrepo/projects/1",
-              number: 1,
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      try {
-        await eval(`(async () => { ${updateProjectScript} })()`);
-      } catch (error) {
-        console.log("Script threw error:", error.message);
-      }
-
-      // Wait for async operations
-      // No need to wait with eval
-
-      // Debug: Log all calls
-      if (mockGithub.graphql.mock.calls.length < 3) {
-        console.log("Only made", mockGithub.graphql.mock.calls.length, "calls");
-        console.log("GraphQL call 1:", mockGithub.graphql.mock.calls[0]?.[0].substring(0, 50));
-        console.log("GraphQL call 2:", mockGithub.graphql.mock.calls[1]?.[0].substring(0, 50));
-        console.log("Mock results remaining:", mockGithub.graphql.mock.results.length);
-        console.log("Errors:", mockCore.error.mock.calls.map(c => c[0]));
-        console.log("Info calls:", mockCore.info.mock.calls.map(c => c[0]));
-      }
-
-      // Verify project creation
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("createProjectV2"),
-        expect.objectContaining({
-          ownerId: "owner123",
-          title: "New Campaign",
-        })
-      );
-
-      // Verify project linking
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("linkProjectV2ToRepository"),
-        expect.objectContaining({
-          projectId: "project123",
-          repositoryId: "repo123",
-        })
-      );
-
-      // Verify outputs were set
-      expect(mockCore.setOutput).toHaveBeenCalledWith("project-id", "project123");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("project-number", 1);
-      expect(mockCore.setOutput).toHaveBeenCalledWith("project-url", "https://github.com/testowner/testrepo/projects/1");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("campaign-id", expect.stringMatching(/new-campaign-[a-z0-9]{8}/));
-    });
-
-    it("should use custom campaign ID when provided", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Custom Campaign",
-            campaign_id: "custom-id-2025",
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          createProjectV2: {
-            projectV2: {
-              id: "project456",
-              title: "Custom Campaign",
-              url: "https://github.com/testowner/testrepo/projects/2",
-              number: 2,
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Verify custom campaign ID was used
-      expect(mockCore.setOutput).toHaveBeenCalledWith("campaign-id", "custom-id-2025");
-    });
+  it("treats a numeric string as a project number", () => {
+    expect(parseProjectInput("17")).toEqual({ projectNumber: "17", projectName: null });
   });
 
-  describe("find existing project", () => {
-    it("should find existing project by title", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Existing Campaign",
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Find existing project by title
-          organization: {
-            projectsV2: {
-              nodes: [
-                {
-                  id: "existing-project-123",
-                  title: "Existing Campaign",
-                  number: 5,
-                },
-              ],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Should not create a new project
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("createProjectV2"), expect.anything());
-    });
-
-    it("should find existing project by number", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "7", // Project number as string
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [
-                {
-                  id: "project-by-number",
-                  title: "Some Project",
-                  number: 7,
-                },
-              ],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Should not create a new project
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("createProjectV2"), expect.anything());
-    });
+  it("returns the project name when no number is present", () => {
+    expect(parseProjectInput("Engineering Roadmap")).toEqual({ projectNumber: null, projectName: "Engineering Roadmap" });
   });
 
-  describe("add issue to project", () => {
-    it("should add issue to project board", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Bug Tracking",
-            issue: 42,
-          },
-        ],
-      };
+  it("throws when the project input is missing", () => {
+    expect(() => parseProjectInput(undefined)).toThrow(/Invalid project input/);
+  });
+});
 
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "project123", title: "Bug Tracking", number: 1 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Get issue ID
-          repository: {
-            issue: { id: "issue-id-42" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Check if item exists on board
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Add item to board
-          addProjectV2ItemById: {
-            item: { id: "item123" },
-          },
-        });
+describe("generateCampaignId", () => {
+  it("builds a slug with a timestamp suffix", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1734470400000);
+    const id = generateCampaignId("Bug Bash Q1 2025");
+    expect(id).toBe("bug-bash-q1-2025-m4syw5xc");
+    nowSpy.mockRestore();
+  });
+});
 
-      setAgentOutput(output);
+describe("updateProject", () => {
+  it("creates a new project when none exist", async () => {
+    const output = { type: "update_project", project: "New Campaign" };
 
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([]),
+      {
+        createProjectV2: {
+          projectV2: {
+            id: "project123",
+            title: "New Campaign",
+            url: "https://github.com/orgs/testowner/projects/1",
+            number: 1,
+          },
+        },
+      },
+      linkResponse,
+    ]);
 
-      // Verify issue was queried
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("issue(number: $number)"),
-        expect.objectContaining({
-          owner: "testowner",
-          repo: "testrepo",
-          number: 42,
-        })
-      );
+    await updateProject(output);
 
-      // Verify item was added to board
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("addProjectV2ItemById"),
-        expect.objectContaining({
-          projectId: "project123",
-          contentId: "issue-id-42",
-        })
-      );
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: New Campaign");
+    expect(getOutput("project-id")).toBe("project123");
+    expect(getOutput("project-number")).toBe(1);
+    expect(getOutput("project-url")).toBe("https://github.com/orgs/testowner/projects/1");
+    expect(getOutput("campaign-id")).toMatch(/^new-campaign-[a-z0-9]{8}$/);
 
-      // Verify campaign label was added
-      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("createProjectV2"),
+      expect.objectContaining({ ownerId: "owner123", title: "New Campaign" })
+    );
+  });
+
+  it("respects a custom campaign id", async () => {
+    const output = { type: "update_project", project: "Custom Campaign", campaign_id: "custom-id-2025" };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([]),
+      {
+        createProjectV2: {
+          projectV2: {
+            id: "project456",
+            title: "Custom Campaign",
+            url: "https://github.com/orgs/testowner/projects/2",
+            number: 2,
+          },
+        },
+      },
+      linkResponse,
+    ]);
+
+    await updateProject(output);
+
+    expect(getOutput("campaign-id")).toBe("custom-id-2025");
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: Custom Campaign");
+  });
+
+  it("finds an existing project by title", async () => {
+    const output = { type: "update_project", project: "Existing Campaign" };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "existing-project-123", title: "Existing Campaign", number: 5 },
+      ]),
+      linkResponse,
+    ]);
+
+    await updateProject(output);
+
+    const createCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2"));
+    expect(createCall).toBeUndefined();
+  });
+
+  it("finds an existing project by number", async () => {
+    const output = { type: "update_project", project: "7" };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-by-number", title: "Bug Tracking", number: 7 },
+      ]),
+      linkResponse,
+    ]);
+
+    await updateProject(output);
+
+    const createCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2"));
+    expect(createCall).toBeUndefined();
+  });
+
+  it("adds an issue to a project board", async () => {
+    const output = { type: "update_project", project: "Bug Tracking", content_type: "issue", content_number: 42 };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project123", title: "Bug Tracking", number: 1 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-42"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item123" } } },
+    ]);
+
+    await updateProject(output);
+
+    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelCall).toEqual(
+      expect.objectContaining({
         owner: "testowner",
         repo: "testrepo",
         issue_number: 42,
-        labels: [expect.stringMatching(/campaign:bug-tracking-[a-z0-9]{8}/)],
-      });
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("item-id", "item123");
-    });
-
-    it("should skip adding issue if already on board", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Bug Tracking",
-            issue: 42,
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "project123", title: "Bug Tracking", number: 1 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "issue-id-42" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Item already exists on board
-          node: {
-            items: {
-              nodes: [
-                {
-                  id: "existing-item",
-                  content: { id: "issue-id-42" },
-                },
-              ],
-            },
-          },
-        });
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Should not add item again
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addProjectV2ItemById"), expect.anything());
-    });
+      })
+    );
+    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:bug-tracking-[a-z0-9]{8}$/)]);
+    expect(getOutput("item-id")).toBe("item123");
   });
 
-  describe("add pull request to project", () => {
-    it("should add PR to project board", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "PR Review Board",
-            pull_request: 99,
-          },
-        ],
-      };
+  it("skips adding an issue that already exists on the board", async () => {
+    const output = { type: "update_project", project: "Bug Tracking", content_type: "issue", content_number: 99 };
 
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "project789", title: "PR Review Board", number: 3 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Get PR ID
-          repository: {
-            pullRequest: { id: "pr-id-99" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addProjectV2ItemById: {
-            item: { id: "pr-item-99" },
-          },
-        });
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project123", title: "Bug Tracking", number: 1 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-99"),
+      existingItemResponse("issue-id-99", "item-existing"),
+    ]);
 
-      setAgentOutput(output);
+    await updateProject(output);
 
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
+    expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(getOutput("item-id")).toBe("item-existing");
+  });
 
-      // Verify PR was queried (not issue)
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("pullRequest(number: $number)"),
-        expect.objectContaining({
-          number: 99,
-        })
-      );
+  it("adds a pull request to the project board", async () => {
+    const output = { type: "update_project", project: "PR Review Board", content_type: "pull_request", content_number: 17 };
 
-      // Verify campaign label was added to PR
-      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-pr", title: "PR Review Board", number: 9 },
+      ]),
+      linkResponse,
+      pullRequestResponse("pr-id-17"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "pr-item" } } },
+    ]);
+
+    await updateProject(output);
+
+    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelCall).toEqual(
+      expect.objectContaining({
         owner: "testowner",
         repo: "testrepo",
-        issue_number: 99,
-        labels: [expect.stringMatching(/campaign:pr-review-board-[a-z0-9]{8}/)],
-      });
-    });
+        issue_number: 17,
+      })
+    );
+    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:pr-review-board-[a-z0-9]{8}$/)]);
   });
 
-  describe("update custom fields", () => {
-    it("should update text field on project item", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Field Test",
-            issue: 10,
-            fields: {
-              Status: "In Progress",
-            },
-          },
-        ],
-      };
+  it("updates an existing text field", async () => {
+    const output = {
+      type: "update_project",
+      project: "Field Test",
+      content_type: "issue",
+      content_number: 10,
+      fields: { Status: "In Progress" },
+    };
 
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "project999", title: "Field Test", number: 10 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "issue-id-10" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addProjectV2ItemById: {
-            item: { id: "item-10" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Get project fields
-          node: {
-            fields: {
-              nodes: [
-                {
-                  id: "field-status",
-                  name: "Status",
-                },
-              ],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Update field value
-          updateProjectV2ItemFieldValue: {
-            projectV2Item: { id: "item-10" },
-          },
-        });
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-field", title: "Field Test", number: 12 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-10"),
+      existingItemResponse("issue-id-10", "item-field"),
+      fieldsResponse([
+        { id: "field-status", name: "Status" },
+      ]),
+      updateFieldValueResponse(),
+    ]);
 
-      setAgentOutput(output);
+    await updateProject(output);
 
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Field update doesn't log, just completes successfully
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("updateProjectV2ItemFieldValue"),
-        expect.objectContaining({
-          fieldId: "field-status",
-        })
-      );
-    });
-
-    it("should handle single select field with options", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Priority Board",
-            issue: 15,
-            fields: {
-              Priority: "High",
-            },
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "priority-project", title: "Priority Board", number: 5 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "issue-id-15" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addProjectV2ItemById: {
-            item: { id: "item-15" },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Get project fields with options
-          node: {
-            fields: {
-              nodes: [
-                {
-                  id: "field-priority",
-                  name: "Priority",
-                  options: [
-                    { id: "option-low", name: "Low" },
-                    { id: "option-medium", name: "Medium" },
-                    { id: "option-high", name: "High" },
-                  ],
-                },
-              ],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          updateProjectV2ItemFieldValue: {
-            projectV2Item: { id: "item-15" },
-          },
-        });
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // Verify field was updated with correct option ID
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("updateProjectV2ItemFieldValue"),
-        expect.objectContaining({
-          fieldId: "field-priority",
-          value: { singleSelectOptionId: "option-high" },
-        })
-      );
-    });
-
-    it("should warn when field does not exist", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Test Project",
-            issue: 20,
-            fields: {
-              NonExistentField: "Some Value",
-            },
-          },
-        ],
-      };
-
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "test-project", title: "Test Project", number: 1 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "issue-id-20" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addProjectV2ItemById: {
-            item: { id: "item-20" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            fields: {
-              nodes: [
-                {
-                  id: "field-status",
-                  name: "Status",
-                },
-              ],
-            },
-          },
-        })
-        .mockRejectedValueOnce(new Error("Failed to create field"));
-
-      setAgentOutput(output);
-
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
-
-      // The script tries to create the field, and warns when it fails
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create field "NonExistentField"'));
-    });
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 
-  describe("error handling", () => {
-    it("should handle campaign label add failure gracefully", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Label Test",
-            issue: 50,
-          },
-        ],
-      };
+  it("updates a single select field when the option exists", async () => {
+    const output = {
+      type: "update_project",
+      project: "Priority Board",
+      content_type: "issue",
+      content_number: 15,
+      fields: { Priority: "High" },
+    };
 
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [{ id: "project-label", title: "Label Test", number: 2 }],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          // Link project to repo
-          linkProjectV2ToRepository: {
-            repository: { id: "repo123" },
-          },
-        })
-        .mockResolvedValueOnce({
-          repository: {
-            issue: { id: "issue-id-50" },
-          },
-        })
-        .mockResolvedValueOnce({
-          node: {
-            items: {
-              nodes: [],
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addProjectV2ItemById: {
-            item: { id: "item-50" },
-          },
-        });
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-priority", title: "Priority Board", number: 3 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-15"),
+      existingItemResponse("issue-id-15", "item-priority"),
+      fieldsResponse([
+        {
+          id: "field-priority",
+          name: "Priority",
+          options: [
+            { id: "opt-low", name: "Low" },
+            { id: "opt-high", name: "High" },
+          ],
+        },
+      ]),
+      updateFieldValueResponse(),
+    ]);
 
-      // Mock label addition to fail
-      mockGithub.rest.issues.addLabels.mockRejectedValueOnce(new Error("Label creation failed"));
+    await updateProject(output);
 
-      setAgentOutput(output);
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+  });
 
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
+  it("warns when a field cannot be created", async () => {
+    const output = {
+      type: "update_project",
+      project: "Test Project",
+      content_type: "issue",
+      content_number: 20,
+      fields: { NonExistentField: "Some Value" },
+    };
 
-      // Should warn but not fail
-      expect(mockCore.warning).toHaveBeenCalledWith("Failed to add label: Label creation failed");
-    });
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-test", title: "Test Project", number: 4 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-20"),
+      existingItemResponse("issue-id-20", "item-test"),
+      fieldsResponse([]),
+    ]);
 
-    it("should throw error on project creation failure", async () => {
-      const output = {
-        items: [
-          {
-            type: "update_project",
-            project: "Fail Project",
-          },
-        ],
-      };
+    mockGithub.graphql.mockRejectedValueOnce(new Error("Failed to create field"));
 
-      mockGithub.graphql
-        .mockResolvedValueOnce({
-          repository: {
-            id: "repo123",
-            owner: {
-              id: "owner123",
-              __typename: "Organization",
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          organization: {
-            projectsV2: {
-              nodes: [],
-            },
-          },
-        })
-        .mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
+    await updateProject(output);
 
-      setAgentOutput(output);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create field "NonExistentField"'));
+  });
 
-      await eval(`(async () => { ${updateProjectScript} })()`);
-      // No need to wait with eval
+  it("warns when adding the campaign label fails", async () => {
+    const output = { type: "update_project", project: "Label Test", content_type: "issue", content_number: 50 };
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process item 1:"));
-    });
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project-label", title: "Label Test", number: 11 },
+      ]),
+      linkResponse,
+      issueResponse("issue-id-50"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-label" } } },
+    ]);
+
+    mockGithub.rest.issues.addLabels.mockRejectedValueOnce(new Error("Labels disabled"));
+
+    await updateProject(output);
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
+  });
+
+  it("surfaces project creation failures", async () => {
+    const output = { type: "update_project", project: "Fail Project" };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([]),
+    ]);
+
+    mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
+
+    await expect(updateProject(output)).rejects.toThrow(/Insufficient permissions/);
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project"));
   });
 });

@@ -28,6 +28,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Issue** | `create-issue:` | Create GitHub issues | 1 | ✅ |
 | **Add Comment** | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
 | **Update Issue** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
+| **Update Project** | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
 | **Add Labels** | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
 | **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
@@ -125,6 +126,19 @@ safe-outputs:
     target: "*"               # Optional: "triggering" (default), "*", or number
     target-repo: "owner/repo" # Optional: cross-repository
 ```
+
+### Project Board Updates (`update-project:`)
+
+Manages GitHub Projects boards associated with the repository. The generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
+
+```yaml wrap
+safe-outputs:
+  update-project:
+    max: 20                         # Optional: max project operations (default: 10)
+    github-token: ${{ secrets.PROJECTS_PAT }} # Optional: token override with projects:write
+```
+
+Agent output for this safe output must include a `project` identifier (name, number, or project URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id` values. The job adds the referenced issue or pull request to the board, updates custom fields, applies a `campaign:<id>` label, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs for downstream jobs. Cross-repository targeting is not supported.
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -321,6 +335,10 @@ safe-outputs:
 ```
 
 See [Threat Detection Guide](/gh-aw/guides/threat-detection/) for details.
+
+## Campaign Workflows
+
+Campaign workflows combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps project boards synchronized with generated issues and pull requests. Downstream worker workflows can reuse the same identifier to update board status. For end-to-end guidance, see [Campaign Workflows](/gh-aw/guides/campaigns/).
 
 ## Related Documentation
 

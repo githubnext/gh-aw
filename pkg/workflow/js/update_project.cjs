@@ -434,15 +434,20 @@ async function updateProject(output) {
                     }) {
                       projectV2Field {
                         ... on ProjectV2Field {
-                  {
-                    projectId,
-                    name: normalizedFieldName,
-                    dataType: "TEXT",
-                  }
+                          id
+                          name
+                        }
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
                   }`,
                   {
                     projectId,
-                    name: fieldName,
+                    name: normalizedFieldName,
                     dataType: "TEXT",
                   }
                 );
@@ -466,17 +471,18 @@ async function updateProject(output) {
                         ... on ProjectV2SingleSelectField {
                           id
                           name
-                          options {
-                            id
+                          options { id name }
+                        }
+                        ... on ProjectV2Field {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }`,
                   {
                     projectId,
                     name: normalizedFieldName,
-                    dataType: "SINGLE_SELECT",
-                    options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
-                  }
-                  {
-                    projectId,
-                    name: fieldName,
                     dataType: "SINGLE_SELECT",
                     options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
                   }
@@ -595,7 +601,7 @@ async function updateProject(output) {
   }
 }
 
-(async () => {
+async function main() {
   const result = loadAgentOutput();
   if (!result.success) {
     return;
@@ -616,4 +622,14 @@ async function updateProject(output) {
       // Continue processing remaining items even if one fails
     }
   }
-})();
+}
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
+}
+
+// Run if executed directly
+if (require.main === module) {
+  main();
+}
