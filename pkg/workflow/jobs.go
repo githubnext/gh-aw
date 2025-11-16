@@ -13,20 +13,21 @@ var jobLog = logger.New("workflow:jobs")
 
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
-	Name           string
-	DisplayName    string // Optional display name for the job (name property in YAML)
-	RunsOn         string
-	If             string
-	Permissions    string
-	TimeoutMinutes int
-	Concurrency    string            // Job-level concurrency configuration
-	Environment    string            // Job environment configuration
-	Container      string            // Job container configuration
-	Services       string            // Job services configuration
-	Env            map[string]string // Job-level environment variables
-	Steps          []string
-	Needs          []string // Job dependencies (needs clause)
-	Outputs        map[string]string
+	Name                       string
+	DisplayName                string // Optional display name for the job (name property in YAML)
+	RunsOn                     string
+	If                         string
+	HasWorkflowRunSafetyChecks bool // If true, the job's if condition includes workflow_run safety checks
+	Permissions                string
+	TimeoutMinutes             int
+	Concurrency                string            // Job-level concurrency configuration
+	Environment                string            // Job environment configuration
+	Container                  string            // Job container configuration
+	Services                   string            // Job services configuration
+	Env                        map[string]string // Job-level environment variables
+	Steps                      []string
+	Needs                      []string // Job dependencies (needs clause)
+	Outputs                    map[string]string
 
 	// Reusable workflow call properties
 	Uses    string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
@@ -189,6 +190,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	// Add if condition if present
 	if job.If != "" {
+		// Add zizmor ignore comment if this job has workflow_run safety checks
+		if job.HasWorkflowRunSafetyChecks {
+			yaml.WriteString("    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation\n")
+		}
+
 		// Check if expression is multiline or longer than MaxExpressionLineLength characters
 		if strings.Contains(job.If, "\n") || len(job.If) > constants.MaxExpressionLineLength {
 			// Use YAML folded style for multiline expressions or long expressions

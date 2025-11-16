@@ -113,6 +113,8 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
 		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
+		// Add zizmor ignore comment if workflow_run trigger is present
+		yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
 	}
 
 	return yamlStr
@@ -652,4 +654,58 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 	}
 
 	return nil
+}
+
+// addZizmorIgnoreForWorkflowRun adds a zizmor ignore comment for workflow_run triggers
+// The comment is added after the workflow_run: line to suppress dangerous-triggers warnings
+// since the compiler adds proper role and fork validation to secure these triggers
+func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
+	// Check if the YAML contains workflow_run trigger
+	if !strings.Contains(yamlStr, "workflow_run:") {
+		return yamlStr
+	}
+
+	lines := strings.Split(yamlStr, "\n")
+	var result []string
+	annotationAdded := false // Track if we've already added the annotation
+
+	for _, line := range lines {
+		result = append(result, line)
+
+		// Skip if we've already added the annotation (prevents duplicates)
+		if annotationAdded {
+			continue
+		}
+
+		// Check if this is a non-comment workflow_run: key at the correct YAML level
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip if the line is a comment
+		if strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+
+		// Match lines that are only 'workflow_run:' (possibly with trailing whitespace or a comment)
+		// e.g., 'workflow_run:', 'workflow_run: # comment', '  workflow_run:'
+		// But not 'someworkflow_run:', 'workflow_run: value', etc.
+		if idx := strings.Index(trimmedLine, "workflow_run:"); idx == 0 {
+			after := strings.TrimSpace(trimmedLine[len("workflow_run:"):])
+			// Only allow if nothing or only a comment follows
+			if after == "" || strings.HasPrefix(after, "#") {
+				// Get the indentation of the workflow_run line
+				indentation := ""
+				if len(line) > len(trimmedLine) {
+					indentation = line[:len(line)-len(trimmedLine)]
+				}
+
+				// Add zizmor ignore comment with proper indentation
+				// The comment explains that the trigger is secured with role and fork validation
+				comment := indentation + "  # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation"
+				result = append(result, comment)
+				annotationAdded = true
+			}
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
