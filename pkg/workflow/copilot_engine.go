@@ -51,7 +51,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// First, get the setup Node.js step from npm steps
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@github/copilot",
-		constants.DefaultCopilotVersion,
+		string(constants.DefaultCopilotVersion),
 		"Install GitHub Copilot CLI",
 		"copilot",
 		workflowData,
@@ -179,7 +179,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var copilotCommand string
 	if isFirewallEnabled(workflowData) {
 		// When firewall is enabled, use version pinning with npx
-		copilotVersion := constants.DefaultCopilotVersion
+		copilotVersion := string(constants.DefaultCopilotVersion)
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
 		}
@@ -800,7 +800,7 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 
 	// Use default version if not specified to ensure reproducible builds
 	if version == "" {
-		version = constants.DefaultFirewallVersion
+		version = string(constants.DefaultFirewallVersion)
 	}
 
 	stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))

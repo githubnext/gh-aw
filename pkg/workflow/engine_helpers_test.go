@@ -18,7 +18,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 			name:           "with default version",
 			workflowData:   &WorkflowData{},
 			expectedSteps:  2, // Node.js setup + npm install
-			expectedInStep: constants.DefaultCopilotVersion,
+			expectedInStep: string(constants.DefaultCopilotVersion),
 		},
 		{
 			name: "with custom version from engine config",
@@ -38,7 +38,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 				},
 			},
 			expectedSteps:  2,
-			expectedInStep: constants.DefaultCopilotVersion,
+			expectedInStep: string(constants.DefaultCopilotVersion),
 		},
 	}
 
@@ -46,7 +46,7 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			steps := BuildStandardNpmEngineInstallSteps(
 				"@github/copilot",
-				constants.DefaultCopilotVersion,
+				string(constants.DefaultCopilotVersion),
 				"Install GitHub Copilot CLI",
 				"copilot",
 				tt.workflowData,
@@ -85,21 +85,21 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 		{
 			name:           "copilot engine",
 			packageName:    "@github/copilot",
-			defaultVersion: constants.DefaultCopilotVersion,
+			defaultVersion: string(constants.DefaultCopilotVersion),
 			stepName:       "Install GitHub Copilot CLI",
 			cacheKeyPrefix: "copilot",
 		},
 		{
 			name:           "codex engine",
 			packageName:    "@openai/codex",
-			defaultVersion: constants.DefaultCodexVersion,
+			defaultVersion: string(constants.DefaultCodexVersion),
 			stepName:       "Install Codex",
 			cacheKeyPrefix: "codex",
 		},
 		{
 			name:           "claude engine",
 			packageName:    "@anthropic-ai/claude-code",
-			defaultVersion: constants.DefaultClaudeCodeVersion,
+			defaultVersion: string(constants.DefaultClaudeCodeVersion),
 			stepName:       "Install Claude Code CLI",
 			cacheKeyPrefix: "claude",
 		},

@@ -26,7 +26,7 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			name:                 "Copilot with default version",
 			engineID:             "copilot",
 			explicitVersion:      "",
-			expectedAgentVersion: constants.DefaultCopilotVersion,
+			expectedAgentVersion: string(constants.DefaultCopilotVersion),
 			description:          "Should use default version when not provided",
 		},
 		{
@@ -40,7 +40,7 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			name:                 "Claude with default version",
 			engineID:             "claude",
 			explicitVersion:      "",
-			expectedAgentVersion: constants.DefaultClaudeCodeVersion,
+			expectedAgentVersion: string(constants.DefaultClaudeCodeVersion),
 			description:          "Should use default version when not provided",
 		},
 		{
@@ -54,7 +54,7 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			name:                 "Codex with default version",
 			engineID:             "codex",
 			explicitVersion:      "",
-			expectedAgentVersion: constants.DefaultCodexVersion,
+			expectedAgentVersion: string(constants.DefaultCodexVersion),
 			description:          "Should use default version when not provided",
 		},
 		{
@@ -135,7 +135,7 @@ func TestGetInstallationVersion(t *testing.T) {
 			name:            "Copilot without explicit version",
 			engineID:        "copilot",
 			explicitVersion: "",
-			expectedVersion: constants.DefaultCopilotVersion,
+			expectedVersion: string(constants.DefaultCopilotVersion),
 		},
 		{
 			name:            "Claude with explicit version",
@@ -147,7 +147,7 @@ func TestGetInstallationVersion(t *testing.T) {
 			name:            "Claude without explicit version",
 			engineID:        "claude",
 			explicitVersion: "",
-			expectedVersion: constants.DefaultClaudeCodeVersion,
+			expectedVersion: string(constants.DefaultClaudeCodeVersion),
 		},
 		{
 			name:            "Codex with explicit version",
@@ -159,7 +159,7 @@ func TestGetInstallationVersion(t *testing.T) {
 			name:            "Codex without explicit version",
 			engineID:        "codex",
 			explicitVersion: "",
-			expectedVersion: constants.DefaultCodexVersion,
+			expectedVersion: string(constants.DefaultCodexVersion),
 		},
 		{
 			name:            "Custom engine without version",

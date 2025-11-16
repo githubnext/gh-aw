@@ -224,7 +224,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {
-	githubDockerImageVersion := constants.DefaultGitHubMCPServerVersion // Default Docker image version
+	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
@@ -330,7 +330,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
-	playwrightDockerImageVersion := constants.DefaultPlaywrightVersion // Default Playwright package version
+	playwrightDockerImageVersion := string(constants.DefaultPlaywrightVersion) // Default Playwright package version
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {

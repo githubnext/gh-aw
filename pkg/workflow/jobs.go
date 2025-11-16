@@ -196,7 +196,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 		}
 
 		// Check if expression is multiline or longer than MaxExpressionLineLength characters
-		if strings.Contains(job.If, "\n") || len(job.If) > constants.MaxExpressionLineLength {
+		if strings.Contains(job.If, "\n") || len(job.If) > int(constants.MaxExpressionLineLength) {
 			// Use YAML folded style for multiline expressions or long expressions
 			yaml.WriteString("    if: >\n")
 

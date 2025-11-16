@@ -764,11 +764,11 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 	// Otherwise, use the default version for the engine
 	switch engine.GetID() {
 	case "copilot":
-		return constants.DefaultCopilotVersion
+		return string(constants.DefaultCopilotVersion)
 	case "claude":
-		return constants.DefaultClaudeCodeVersion
+		return string(constants.DefaultClaudeCodeVersion)
 	case "codex":
-		return constants.DefaultCodexVersion
+		return string(constants.DefaultCodexVersion)
 	default:
 		// Custom or unknown engines don't have a default version
 		return ""

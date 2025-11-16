@@ -804,7 +804,7 @@ func VisitExpressionTree(node ConditionNode, visitor func(expr *ExpressionNode) 
 // such as after || and && operators for better readability
 func BreakLongExpression(expression string) []string {
 	// If the expression is not too long, return as-is
-	if len(expression) <= constants.MaxExpressionLineLength {
+	if len(expression) <= int(constants.MaxExpressionLineLength) {
 		return []string{expression}
 	}
 
@@ -849,7 +849,7 @@ func BreakLongExpression(expression string) []string {
 				i += 2
 
 				// If the current line is getting long (>ExpressionBreakThreshold chars), break here
-				if len(strings.TrimSpace(current)) > constants.ExpressionBreakThreshold {
+				if len(strings.TrimSpace(current)) > int(constants.ExpressionBreakThreshold) {
 					lines = append(lines, strings.TrimSpace(current))
 					current = ""
 					// Skip whitespace after operator
@@ -874,7 +874,7 @@ func BreakLongExpression(expression string) []string {
 	// If we still have very long lines, try to break at parentheses
 	var finalLines []string
 	for _, line := range lines {
-		if len(line) > constants.MaxExpressionLineLength {
+		if len(line) > int(constants.MaxExpressionLineLength) {
 			subLines := BreakAtParentheses(line)
 			finalLines = append(finalLines, subLines...)
 		} else {
@@ -887,7 +887,7 @@ func BreakLongExpression(expression string) []string {
 
 // BreakAtParentheses attempts to break long lines at parentheses for function calls
 func BreakAtParentheses(expression string) []string {
-	if len(expression) <= constants.MaxExpressionLineLength {
+	if len(expression) <= int(constants.MaxExpressionLineLength) {
 		return []string{expression}
 	}
 

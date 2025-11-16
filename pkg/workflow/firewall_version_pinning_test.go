@@ -24,7 +24,7 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		}
 
 		// Should contain the default version
-		expectedVersion := constants.DefaultFirewallVersion
+		expectedVersion := string(constants.DefaultFirewallVersion)
 		if !strings.Contains(stepStr, expectedVersion) {
 			t.Errorf("Expected to find default version %s in installation step, but it was not found", expectedVersion)
 		}
@@ -52,7 +52,7 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		}
 
 		// Should NOT contain the default version
-		if strings.Contains(stepStr, constants.DefaultFirewallVersion) && constants.DefaultFirewallVersion != customVersion {
+		if strings.Contains(stepStr, string(constants.DefaultFirewallVersion)) && string(constants.DefaultFirewallVersion) != customVersion {
 			t.Error("Should use custom version instead of default version")
 		}
 
@@ -99,8 +99,8 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		}
 
 		// Verify it uses the default version
-		if !strings.Contains(awfStepStr, constants.DefaultFirewallVersion) {
-			t.Errorf("AWF installation step should use default version %s", constants.DefaultFirewallVersion)
+		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
+			t.Errorf("AWF installation step should use default version %s", string(constants.DefaultFirewallVersion))
 		}
 
 		// Verify it doesn't use dynamic LATEST_TAG
