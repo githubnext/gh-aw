@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       project_url:
-        description: 'GitHub project URL (e.g., https://github.com/users/username/projects/123)'
+        description: 'GitHub project URL (e.g., https://github.com/users/username/projects/123 or https://github.com/orgs/orgname/projects/123)'
         required: false
         default: 'https://github.com/orgs/githubnext/projects/53'
       max_issues:
@@ -34,7 +34,7 @@ tools:
 safe-outputs:
   update-project:
     max: 20
-    github-token: ${{ secrets.PROJECT_PAT }}
+    github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
   missing-tool:
 ---
 
