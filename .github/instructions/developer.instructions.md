@@ -147,15 +147,96 @@ graph TD
     G -->|No| H[Keep as is]
 ```
 
+### Case Study: Refactoring Large Files
+
+The refactoring of `pkg/parser/frontmatter.go` demonstrates applying file organization principles to a large monolithic file.
+
+#### Initial State
+- **Original file**: 1,907 lines (monolithic structure)
+- **Problem**: Difficult to navigate, understand, and maintain
+- **Goal**: Split into focused, maintainable modules
+
+#### Refactoring Approach
+
+```mermaid
+graph TD
+    A[frontmatter.go<br/>1,907 LOC] --> B[ansi_strip.go<br/>108 LOC]
+    A --> C[frontmatter_content.go<br/>284 LOC]
+    A --> D[remote_fetch.go<br/>258 LOC]
+    A --> E[workflow_update.go<br/>129 LOC]
+    A --> F[frontmatter.go<br/>1,166 LOC]
+
+    B --> G[ANSI escape<br/>sequence utilities]
+    C --> H[Frontmatter<br/>parsing & extraction]
+    D --> I[GitHub remote<br/>content fetching]
+    E --> J[Workflow file<br/>updates]
+    F --> K[Core frontmatter<br/>processing]
+
+    style B fill:#90EE90
+    style C fill:#90EE90
+    style D fill:#90EE90
+    style E fill:#90EE90
+    style F fill:#FFE4B5
+```
+
+#### Results
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Main file size | 1,907 LOC | 1,166 LOC | -741 LOC (-39%) |
+| Number of files | 1 | 5 | +4 files |
+| Average file size | 1,907 LOC | 233 LOC | -88% |
+| Test pass rate | 100% | 100% | No change ✓ |
+| Breaking changes | N/A | 0 | None ✓ |
+
+#### Modules Extracted
+
+1. **ansi_strip.go** (108 LOC)
+   - ANSI escape sequence stripping utilities
+   - Standalone, no dependencies
+   - Functions: `StripANSI()`, `isFinalCSIChar()`, `isCSIParameterChar()`
+
+2. **frontmatter_content.go** (284 LOC)
+   - Basic frontmatter parsing and extraction
+   - Pure functions without side effects
+   - Functions: `ExtractFrontmatterFromContent()`, `ExtractFrontmatterString()`, `ExtractMarkdownContent()`, etc.
+
+3. **remote_fetch.go** (258 LOC)
+   - GitHub remote content fetching
+   - GitHub API interactions and caching
+   - Functions: `downloadIncludeFromWorkflowSpec()`, `resolveRefToSHA()`, `downloadFileFromGitHub()`
+
+4. **workflow_update.go** (129 LOC)
+   - High-level workflow file updates
+   - Frontmatter manipulation and cron expression handling
+   - Functions: `UpdateWorkflowFrontmatter()`, `EnsureToolsSection()`, `QuoteCronExpressions()`
+
+#### Key Principles Applied
+
+- **Single Responsibility**: Each module handles one aspect of frontmatter processing
+- **Clear Boundaries**: Well-defined interfaces between modules
+- **Progressive Refactoring**: Extract standalone utilities first, then higher-level modules
+- **No Breaking Changes**: Maintain public API compatibility throughout
+- **Test-Driven Safety**: Run tests after each extraction
+
+#### Remaining Work
+
+Three complex modules remain in the original file (requiring future work):
+- **tool_sections.go** (~420 LOC): Tool configuration extraction and merging
+- **include_expander.go** (~430 LOC): Recursive include resolution with cycle detection
+- **frontmatter_imports.go** (~360 LOC): BFS import traversal and processing
+
+These remain due to high interdependency, stateful logic, and complex recursive algorithms.
+
 ### Anti-Patterns to Avoid
 
 #### God Files
-Single file doing everything - split by responsibility instead.
+Single file doing everything - split by responsibility instead. The frontmatter.go refactoring demonstrates how a 1,907-line "god file" can be systematically broken down.
 
 #### Vague Naming
 Avoid non-descriptive file names like `utils.go`, `helpers.go`, `misc.go`, `common.go`.
 
-Use specific names like `string_utils.go` or `engine_helpers.go` only when truly shared.
+Use specific names like `ansi_strip.go`, `remote_fetch.go`, or `workflow_update.go` that clearly indicate their purpose.
 
 #### Mixed Concerns
 Keep files focused on one domain. Don't mix unrelated functionality in one file.
