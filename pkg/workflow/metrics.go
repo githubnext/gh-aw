@@ -503,8 +503,9 @@ func FinalizeToolMetrics(
 }
 
 // FinalizeToolCallsAndSequence completes the tool call and sequence finalization.
-// This is a lighter version of FinalizeToolMetrics for engines that manage token usage
-// and turns separately (like Claude which extracts them from result entries).
+// Use this function when the engine extracts token usage and turns from structured result entries,
+// rather than accumulating them during line-by-line log parsing. This is a lighter version of
+// FinalizeToolMetrics for engines that do not need to finalize token usage and turns here.
 func FinalizeToolCallsAndSequence(
 	metrics *LogMetrics,
 	toolCallMap map[string]*ToolCallInfo,
