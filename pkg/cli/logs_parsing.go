@@ -22,18 +22,23 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var logsParsingLog = logger.New("cli:logs_parsing")
 
 // parseAwInfo reads and parses aw_info.json file, returning the parsed data
 // Handles cases where aw_info.json is a file or a directory containing the actual file
 func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
+	logsParsingLog.Printf("Parsing aw_info.json from: %s", infoFilePath)
 	var data []byte
 	var err error
 
 	// Check if the path exists and determine if it's a file or directory
 	stat, statErr := os.Stat(infoFilePath)
 	if statErr != nil {
+		logsParsingLog.Printf("Failed to stat aw_info.json: %v", statErr)
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
 		}
@@ -61,24 +66,28 @@ func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
 
 	var info AwInfo
 	if err := json.Unmarshal(data, &info); err != nil {
+		logsParsingLog.Printf("Failed to unmarshal aw_info.json: %v", err)
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
 		}
 		return nil, err
 	}
 
+	logsParsingLog.Printf("Successfully parsed aw_info.json with engine_id: %s", info.EngineID)
 	return &info, nil
 }
 
 // extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
 // Handles cases where aw_info.json is a file or a directory containing the actual file
 func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+	logsParsingLog.Printf("Extracting engine from aw_info.json: %s", infoFilePath)
 	info, err := parseAwInfo(infoFilePath, verbose)
 	if err != nil {
 		return nil
 	}
 
 	if info.EngineID == "" {
+		logsParsingLog.Print("No engine_id found in aw_info.json")
 		if verbose {
 			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
 		}
@@ -88,32 +97,39 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 	registry := workflow.GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine(info.EngineID)
 	if err != nil {
+		logsParsingLog.Printf("Unknown engine: %s", info.EngineID)
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", info.EngineID)))
 		}
 		return nil
 	}
 
+	logsParsingLog.Printf("Successfully extracted engine: %s", engine.GetID())
 	return engine
 }
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
 func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, isGitHubCopilotAgent bool, verbose bool) (LogMetrics, error) {
+	logsParsingLog.Printf("Parsing log file: %s, isGitHubCopilotAgent=%v", filePath, isGitHubCopilotAgent)
 	// Read the entire log file at once to avoid JSON parsing issues from chunked reading
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		logsParsingLog.Printf("Failed to read log file: %v", err)
 		return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
 	}
 
 	logContent := string(content)
+	logsParsingLog.Printf("Read %d bytes from log file", len(logContent))
 
 	// If this is a GitHub Copilot agent run, use the specialized parser
 	if isGitHubCopilotAgent {
+		logsParsingLog.Print("Using GitHub Copilot agent parser")
 		return ParseCopilotAgentLogMetrics(logContent, verbose), nil
 	}
 
 	// If we have a detected engine from aw_info.json, use it directly
 	if detectedEngine != nil {
+		logsParsingLog.Printf("Using detected engine: %s", detectedEngine.GetID())
 		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
 	}
 
@@ -206,8 +222,10 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 
 // parseAgentLog parses agent logs and generates a markdown summary
 func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
+	logsParsingLog.Printf("Parsing agent logs in: %s", runDir)
 	// Determine which parser script to use based on the engine
 	if engine == nil {
+		logsParsingLog.Print("No engine detected, skipping log parsing")
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
@@ -215,9 +233,12 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 	// Find the agent log file - use engine.GetLogFileForParsing() to determine location
 	agentLogPath, found := findAgentLogFile(runDir, engine)
 	if !found {
+		logsParsingLog.Print("No agent log file found")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
+
+	logsParsingLog.Printf("Found agent log file: %s", agentLogPath)
 
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
@@ -321,9 +342,11 @@ process.env.GH_AW_AGENT_OUTPUT = '%s';
 
 // parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
 func parseFirewallLogs(runDir string, verbose bool) error {
+	logsParsingLog.Printf("Parsing firewall logs in: %s", runDir)
 	// Get the firewall log parser script
 	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
 	if jsScript == "" {
+		logsParsingLog.Print("Failed to get firewall log parser script")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
 		}
@@ -341,9 +364,12 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 	var logsDir string
 	if fileutil.DirExists(squidLogsDir) {
 		logsDir = squidLogsDir
+		logsParsingLog.Printf("Found firewall logs in squid-logs directory")
 	} else if fileutil.DirExists(workflowLogsSquidDir) {
 		logsDir = workflowLogsSquidDir
+		logsParsingLog.Printf("Found firewall logs in workflow-logs/squid-logs directory")
 	} else {
+		logsParsingLog.Print("No firewall logs found, skipping parsing")
 		// No firewall logs found - this is not an error, just skip parsing
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))

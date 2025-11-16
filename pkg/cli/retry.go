@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var retryLog = logger.New("cli:retry")
 
 // RepeatOptions contains configuration for the repeat functionality
 type RepeatOptions struct {
@@ -30,16 +33,20 @@ type RepeatOptions struct {
 // ExecuteWithRepeat runs a function once, and optionally repeats it the specified number of times
 // with graceful signal handling for shutdown.
 func ExecuteWithRepeat(options RepeatOptions) error {
+	retryLog.Printf("Executing function with repeat count: %d", options.RepeatCount)
 	// Run the function once
 	if err := options.ExecuteFunc(); err != nil {
+		retryLog.Printf("Initial execution failed: %v", err)
 		return err
 	}
 
 	// If no repeat specified, we're done
 	if options.RepeatCount <= 0 {
+		retryLog.Print("No repeat requested, execution complete")
 		return nil
 	}
 
+	retryLog.Printf("Starting repeat mode for %d iterations", options.RepeatCount)
 	// Set up repeat mode
 	output := os.Stdout
 	if options.UseStderr {
@@ -61,15 +68,18 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 	for i := 1; i <= options.RepeatCount; i++ {
 		select {
 		case <-sigChan:
+			retryLog.Printf("Interrupt signal received at iteration %d/%d", i, options.RepeatCount)
 			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
 
 			// Execute cleanup function if provided
 			if options.CleanupFunc != nil {
+				retryLog.Print("Executing cleanup function")
 				options.CleanupFunc()
 			}
 
 			return nil
 		default:
+			retryLog.Printf("Starting iteration %d/%d", i, options.RepeatCount)
 			// Use provided repeat message or default
 			repeatMsg := options.RepeatMessage
 			if repeatMsg == "" {
@@ -83,11 +93,13 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 			fmt.Fprintln(output, console.FormatInfoMessage(repeatMsg))
 
 			if err := options.ExecuteFunc(); err != nil {
+				retryLog.Printf("Error during iteration %d: %v", i, err)
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Error during repeat %d/%d: %v", i, options.RepeatCount, err)))
 				// Continue running on error during repeat
 			}
 		}
 	}
 
+	retryLog.Printf("Completed all %d iterations successfully", options.RepeatCount)
 	return nil
 }
