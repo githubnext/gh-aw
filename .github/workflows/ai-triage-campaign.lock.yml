@@ -35,8 +35,6 @@
 
 name: "AI Triage Campaign"
 "on":
-  schedule:
-  - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
       max_issues:
