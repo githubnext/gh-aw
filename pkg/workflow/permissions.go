@@ -895,6 +895,14 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
+// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and repository-projects: write
+func NewPermissionsContentsReadProjectsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:       PermissionRead,
+		PermissionRepositoryProj: PermissionWrite,
+	})
+}
+
 // NewPermissionsContentsWritePRReadIssuesRead creates permissions with contents: write, pull-requests: read, issues: read
 func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{

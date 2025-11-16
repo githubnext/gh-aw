@@ -59,7 +59,8 @@ describe("create_agent_task.cjs", () => {
     global.exec = mockExec;
 
     // Import and execute the script
-    const scriptPath = `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/create_agent_task.cjs`;
+    const path = require("path");
+    const scriptPath = path.join(process.cwd(), "create_agent_task.cjs");
 
     // Clear the module cache to ensure fresh execution
     delete require.cache[require.resolve(scriptPath)];

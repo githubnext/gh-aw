@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 //go:embed js/create_agent_task.cjs
@@ -74,6 +75,30 @@ var logParserSharedScript string
 
 //go:embed js/update_activation_comment.cjs
 var updateActivationCommentScript string
+
+//go:embed js/update_project.cjs
+var updateProjectScriptSource string
+
+var (
+	updateProjectScript     string
+	updateProjectScriptOnce sync.Once
+)
+
+// getUpdateProjectScript returns the bundled update_project script
+// Bundling is performed on first access and cached for subsequent calls
+func getUpdateProjectScript() string {
+	updateProjectScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(updateProjectScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			updateProjectScript = updateProjectScriptSource
+		} else {
+			updateProjectScript = bundled
+		}
+	})
+	return updateProjectScript
+}
 
 //go:embed js/generate_footer.cjs
 var generateFooterScript string

@@ -2388,6 +2388,40 @@
             }
           ]
         },
+        "update-project": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that auto-detects whether to create a project (if missing), add issue/PR items, or update custom fields on existing items. Requires repository-projects: write permission. Safe output items produced by the agent use type=update_project and may include: project (board name), content_type (issue|pull_request), content_number, and a fields object mapping project field names to values.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of project operations to perform (default: 10). Each operation may add a project item, or update its fields.",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "max": 15
+                },
+                {
+                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
+                  "max": 15
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable project management with default configuration (max=10)"
+            }
+          ]
+        },
         "create-discussion": {
           "oneOf": [
             {

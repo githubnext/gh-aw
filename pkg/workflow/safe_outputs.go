@@ -265,6 +265,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateAgentTasks = agentTaskConfig
 			}
 
+			// Handle update-project (smart project board management)
+			updateProjectConfig := c.parseUpdateProjectConfig(outputMap)
+			if updateProjectConfig != nil {
+				config.UpdateProjects = updateProjectConfig
+			}
+
 			// Handle create-discussion
 			discussionsConfig := c.parseDiscussionsConfig(outputMap)
 			if discussionsConfig != nil {
@@ -783,6 +789,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
 			}
 			safeOutputsConfig["missing_tool"] = missingToolConfig
+		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			updateProjectConfig := map[string]any{}
+			if data.SafeOutputs.UpdateProjects.Max > 0 {
+				updateProjectConfig["max"] = data.SafeOutputs.UpdateProjects.Max
+			}
+			safeOutputsConfig["update_project"] = updateProjectConfig
 		}
 	}
 

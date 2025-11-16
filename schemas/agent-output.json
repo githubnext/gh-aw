@@ -36,7 +36,8 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"}
+        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
+        {"$ref": "#/$defs/UpdateProjectOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -303,6 +304,58 @@
         }
       },
       "required": ["type", "sarif"],
+      "additionalProperties": false
+    },
+    "UpdateProjectOutput": {
+      "title": "Update Project Output",
+      "description": "Output for unified project operations: create projects, add items (issues/PRs/drafts), and update item fields",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update_project"
+        },
+        "project": {
+          "type": "string",
+          "description": "Project title, number, or GitHub project URL",
+          "minLength": 1
+        },
+        "campaign_id": {
+          "type": "string",
+          "description": "Optional campaign ID for tracking (auto-generated if not provided). Format: slug-timestamp"
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["issue", "pull_request"],
+          "description": "Type of content to add to the project board"
+        },
+        "content_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue or PR number (preferred field)"
+        },
+        "issue": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number (legacy field, use content_number instead)"
+        },
+        "pull_request": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "PR number (legacy field, use content_number instead)"
+        },
+        "fields": {
+          "type": "object",
+          "description": "Custom project field values to set/update. Creates fields if missing.",
+          "additionalProperties": true
+        }
+      },
+      "required": ["type", "project"],
       "additionalProperties": false
     }
   }
