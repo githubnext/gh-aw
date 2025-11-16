@@ -11,7 +11,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var firewallLogLog = logger.New("cli:firewall_log")
 
 // Pre-compiled regexes for firewall log parsing (performance optimization)
 var (
@@ -275,8 +278,10 @@ func isRequestAllowed(decision, status string) bool {
 
 // parseFirewallLog parses a firewall log file and returns analysis
 func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
+	firewallLogLog.Printf("Parsing firewall log: %s", logPath)
 	file, err := os.Open(logPath)
 	if err != nil {
+		firewallLogLog.Printf("Failed to open firewall log: %v", err)
 		return nil, fmt.Errorf("failed to open firewall log: %w", err)
 	}
 	defer file.Close()
@@ -344,6 +349,11 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	sort.Strings(analysis.AllowedDomains)
 	sort.Strings(analysis.DeniedDomains)
 
+	if firewallLogLog.Enabled() {
+		firewallLogLog.Printf("Firewall log parsed: total=%d, allowed=%d, denied=%d, allowed_domains=%d, denied_domains=%d",
+			analysis.TotalRequests, analysis.AllowedRequests, analysis.DeniedRequests,
+			len(analysis.AllowedDomains), len(analysis.DeniedDomains))
+	}
 	return analysis, nil
 }
 
@@ -351,6 +361,7 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 // Firewall logs are stored in /tmp/gh-aw/squid-logs-{workflow-name}/ during execution
 // and uploaded as artifacts to the logs directory
 func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error) {
+	firewallLogLog.Printf("Analyzing firewall logs in: %s", runDir)
 	// Look for firewall logs in the run directory
 	// The logs could be in several locations depending on how they were uploaded
 
@@ -361,6 +372,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	// - firewall-logs-{workflow-name}
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
+		firewallLogLog.Printf("Failed to read run directory: %v", err)
 		return nil, fmt.Errorf("failed to read run directory: %w", err)
 	}
 
@@ -371,6 +383,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 		name := entry.Name()
 		if strings.HasPrefix(name, "squid-logs") || strings.HasPrefix(name, "firewall-logs") {
 			logsDir := filepath.Join(runDir, name)
+			firewallLogLog.Printf("Found firewall logs directory: %s", name)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs directory: %s", name)))
 			}
@@ -395,6 +408,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	}
 
 	if len(firewallLogs) == 0 {
+		firewallLogLog.Print("No firewall logs found")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s", runDir)))
 		}
@@ -402,6 +416,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	}
 
 	// Parse the first firewall log file found
+	firewallLogLog.Printf("Found %d firewall log files, analyzing first: %s", len(firewallLogs), filepath.Base(firewallLogs[0]))
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing firewall log: %s", filepath.Base(firewallLogs[0]))))
 	}

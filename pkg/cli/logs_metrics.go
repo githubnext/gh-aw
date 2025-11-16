@@ -21,8 +21,11 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var logsMetricsLog = logger.New("cli:logs_metrics")
 
 // Shared utilities are now in workflow package
 // extractJSONMetrics is available as an alias
@@ -31,6 +34,7 @@ var extractJSONMetrics = workflow.ExtractJSONMetrics
 // extractLogMetrics extracts metrics from downloaded log files
 // workflowPath is optional and can be provided to help detect GitHub Copilot agent runs
 func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
+	logsMetricsLog.Printf("Extracting log metrics from: %s", logDir)
 	var metrics LogMetrics
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
@@ -44,6 +48,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		detector = NewCopilotAgentDetector(logDir, verbose)
 	}
 	isGitHubCopilotAgent := detector.IsGitHubCopilotAgent()
+	logsMetricsLog.Printf("GitHub Copilot agent detected: %v", isGitHubCopilotAgent)
 
 	if isGitHubCopilotAgent && verbose {
 		fmt.Println(console.FormatInfoMessage("Detected GitHub Copilot agent run, using specialized parser"))
@@ -53,13 +58,17 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	var detectedEngine workflow.CodingAgentEngine
 	infoFilePath := filepath.Join(logDir, "aw_info.json")
 	if _, err := os.Stat(infoFilePath); err == nil {
+		logsMetricsLog.Print("Found aw_info.json, extracting engine")
 		// aw_info.json exists, try to extract engine information
 		if engine := extractEngineFromAwInfo(infoFilePath, verbose); engine != nil {
 			detectedEngine = engine
+			logsMetricsLog.Printf("Detected engine: %s", engine.GetID())
 			if verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
 			}
 		}
+	} else {
+		logsMetricsLog.Print("No aw_info.json found")
 	}
 
 	// Check for safe_output.jsonl artifact file
@@ -153,6 +162,10 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		return nil
 	})
 
+	if logsMetricsLog.Enabled() {
+		logsMetricsLog.Printf("Metrics extraction completed: tokens=%d, cost=%.4f, turns=%d, errors=%d",
+			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
+	}
 	return metrics, err
 }
 
@@ -174,6 +187,7 @@ func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 
 // extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
 func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingToolReport, error) {
+	logsMetricsLog.Printf("Extracting missing tools from run: %d", run.DatabaseID)
 	var missingTools []MissingToolReport
 
 	// Look for the safe output artifact file that contains structured JSON with items array
@@ -270,8 +284,12 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 		if verbose && len(missingTools) > 0 {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d missing tool reports in safe output artifact for run %d", len(missingTools), run.DatabaseID)))
 		}
-	} else if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+		logsMetricsLog.Printf("Found %d missing tool reports", len(missingTools))
+	} else {
+		logsMetricsLog.Print("No safe output artifact found")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+		}
 	}
 
 	return missingTools, nil
@@ -279,6 +297,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 
 // extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
 func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+	logsMetricsLog.Printf("Extracting MCP failures from run: %d", run.DatabaseID)
 	var mcpFailures []MCPFailureReport
 
 	// Look for agent output logs that contain the system init entry with MCP server status
@@ -321,6 +340,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 	if verbose && len(mcpFailures) > 0 {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server failures for run %d", len(mcpFailures), run.DatabaseID)))
 	}
+	logsMetricsLog.Printf("Found %d MCP failures", len(mcpFailures))
 
 	return mcpFailures, nil
 }

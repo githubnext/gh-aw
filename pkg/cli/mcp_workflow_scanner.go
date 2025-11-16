@@ -7,8 +7,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var mcpWorkflowScannerLog = logger.New("cli:mcp_workflow_scanner")
 
 // WorkflowMCPMetadata contains metadata about MCP servers in a workflow
 type WorkflowMCPMetadata struct {
@@ -22,17 +25,21 @@ type WorkflowMCPMetadata struct {
 // ScanWorkflowsForMCP scans workflow files for MCP configurations
 // Returns metadata for workflows that contain MCP servers
 func ScanWorkflowsForMCP(workflowsDir string, serverFilter string, verbose bool) ([]WorkflowMCPMetadata, error) {
+	mcpWorkflowScannerLog.Printf("Scanning workflows for MCP configurations: dir=%s, filter=%s", workflowsDir, serverFilter)
 	// Check if the workflows directory exists
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		mcpWorkflowScannerLog.Printf("Workflows directory not found: %s", workflowsDir)
 		return nil, fmt.Errorf("workflows directory not found: %s", workflowsDir)
 	}
 
 	// Find all .md files in the workflows directory
 	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
+		mcpWorkflowScannerLog.Printf("Failed to search for workflow files: %v", err)
 		return nil, fmt.Errorf("failed to search for workflow files: %w", err)
 	}
 
+	mcpWorkflowScannerLog.Printf("Found %d workflow files to scan", len(files))
 	var results []WorkflowMCPMetadata
 
 	for _, file := range files {
@@ -62,6 +69,7 @@ func ScanWorkflowsForMCP(workflowsDir string, serverFilter string, verbose bool)
 
 		if len(mcpConfigs) > 0 {
 			baseName := strings.TrimSuffix(filepath.Base(file), ".md")
+			mcpWorkflowScannerLog.Printf("Found MCP configuration in %s: %d servers", filepath.Base(file), len(mcpConfigs))
 			results = append(results, WorkflowMCPMetadata{
 				FilePath:    file,
 				FileName:    filepath.Base(file),
@@ -72,5 +80,6 @@ func ScanWorkflowsForMCP(workflowsDir string, serverFilter string, verbose bool)
 		}
 	}
 
+	mcpWorkflowScannerLog.Printf("Scan completed: found %d workflows with MCP configurations", len(results))
 	return results, nil
 }
