@@ -1045,11 +1045,13 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 	}
 
 	firewallAnalysis := &FirewallAnalysis{
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
+			DeniedDomains:  []string{"blocked.example.com:443"},
+		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
 		DeniedRequests:  3,
-		AllowedDomains:  []string{"api.github.com:443", "npmjs.org:443"},
-		DeniedDomains:   []string{"blocked.example.com:443"},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":      {Allowed: 5, Denied: 0},
 			"npmjs.org:443":           {Allowed: 2, Denied: 0},
@@ -1116,11 +1118,13 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 	}
 
 	firewallAnalysis := &FirewallAnalysis{
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{"api.github.com:443", "npmjs.org:443"},
+			DeniedDomains:  []string{"blocked.example.com:443"},
+		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
 		DeniedRequests:  3,
-		AllowedDomains:  []string{"api.github.com:443", "npmjs.org:443"},
-		DeniedDomains:   []string{"blocked.example.com:443"},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":      {Allowed: 5, Denied: 0},
 			"npmjs.org:443":           {Allowed: 2, Denied: 0},
@@ -1174,11 +1178,13 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 func TestRenderJSONWithFirewall(t *testing.T) {
 	// Create test audit data with firewall analysis
 	firewallAnalysis := &FirewallAnalysis{
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{"api.github.com:443"},
+			DeniedDomains:  []string{"blocked.example.com:443"},
+		},
 		TotalRequests:   10,
 		AllowedRequests: 7,
 		DeniedRequests:  3,
-		AllowedDomains:  []string{"api.github.com:443"},
-		DeniedDomains:   []string{"blocked.example.com:443"},
 		RequestsByDomain: map[string]DomainRequestStats{
 			"api.github.com:443":      {Allowed: 7, Denied: 0},
 			"blocked.example.com:443": {Allowed: 0, Denied: 3},

@@ -262,11 +262,13 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 			Errors:        []workflow.LogError{},
 		},
 		AccessAnalysis: &DomainAnalysis{
-			AllowedDomains: []string{"github.com", "api.github.com"},
-			DeniedDomains:  []string{},
-			TotalRequests:  10,
-			AllowedCount:   10,
-			DeniedCount:    0,
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: []string{"github.com", "api.github.com"},
+				DeniedDomains:  []string{},
+			},
+			TotalRequests: 10,
+			AllowedCount:  10,
+			DeniedCount:   0,
 		},
 		MissingTools: []MissingToolReport{
 			{

@@ -117,32 +117,11 @@ type FirewallLogEntry struct {
 // FirewallAnalysis represents analysis of firewall logs
 // This mirrors the structure from the JavaScript parser
 type FirewallAnalysis struct {
+	DomainBuckets
 	TotalRequests    int
 	AllowedRequests  int
 	DeniedRequests   int
-	AllowedDomains   []string
-	DeniedDomains    []string
 	RequestsByDomain map[string]DomainRequestStats
-}
-
-// GetAllowedDomains returns the list of allowed domains
-func (f *FirewallAnalysis) GetAllowedDomains() []string {
-	return f.AllowedDomains
-}
-
-// GetDeniedDomains returns the list of denied domains
-func (f *FirewallAnalysis) GetDeniedDomains() []string {
-	return f.DeniedDomains
-}
-
-// SetAllowedDomains sets the list of allowed domains
-func (f *FirewallAnalysis) SetAllowedDomains(domains []string) {
-	f.AllowedDomains = domains
-}
-
-// SetDeniedDomains sets the list of denied domains
-func (f *FirewallAnalysis) SetDeniedDomains(domains []string) {
-	f.DeniedDomains = domains
 }
 
 // AddMetrics adds metrics from another analysis
@@ -287,8 +266,10 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	defer file.Close()
 
 	analysis := &FirewallAnalysis{
-		AllowedDomains:   []string{},
-		DeniedDomains:    []string{},
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{},
+			DeniedDomains:  []string{},
+		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 
@@ -433,8 +414,10 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 		parseFirewallLog,
 		func() *FirewallAnalysis {
 			return &FirewallAnalysis{
-				AllowedDomains:   []string{},
-				DeniedDomains:    []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
 		},

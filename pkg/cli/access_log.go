@@ -28,31 +28,10 @@ type AccessLogEntry struct {
 
 // DomainAnalysis represents analysis of domains from access logs
 type DomainAnalysis struct {
-	AllowedDomains []string
-	DeniedDomains  []string
-	TotalRequests  int
-	AllowedCount   int
-	DeniedCount    int
-}
-
-// GetAllowedDomains returns the list of allowed domains
-func (d *DomainAnalysis) GetAllowedDomains() []string {
-	return d.AllowedDomains
-}
-
-// GetDeniedDomains returns the list of denied domains
-func (d *DomainAnalysis) GetDeniedDomains() []string {
-	return d.DeniedDomains
-}
-
-// SetAllowedDomains sets the list of allowed domains
-func (d *DomainAnalysis) SetAllowedDomains(domains []string) {
-	d.AllowedDomains = domains
-}
-
-// SetDeniedDomains sets the list of denied domains
-func (d *DomainAnalysis) SetDeniedDomains(domains []string) {
-	d.DeniedDomains = domains
+	DomainBuckets
+	TotalRequests int
+	AllowedCount  int
+	DeniedCount   int
 }
 
 // AddMetrics adds metrics from another analysis
@@ -73,8 +52,10 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	defer file.Close()
 
 	analysis := &DomainAnalysis{
-		AllowedDomains: []string{},
-		DeniedDomains:  []string{},
+		DomainBuckets: DomainBuckets{
+			AllowedDomains: []string{},
+			DeniedDomains:  []string{},
+		},
 	}
 
 	allowedDomainsSet := make(map[string]bool)
@@ -211,8 +192,10 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
 			return &DomainAnalysis{
-				AllowedDomains: []string{},
-				DeniedDomains:  []string{},
+				DomainBuckets: DomainBuckets{
+					AllowedDomains: []string{},
+					DeniedDomains:  []string{},
+				},
 			}
 		},
 	)
