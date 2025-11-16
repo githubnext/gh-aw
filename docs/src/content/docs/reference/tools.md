@@ -134,7 +134,10 @@ Enables browser automation using containerized Playwright with domain-based acce
 tools:
   playwright:
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access
+    version: "1.56.1"  # Optional: pin version (defaults to 1.56.1)
 ```
+
+**Version Pinning**: Defaults to version 1.56.1 for stability. Set `version: "latest"` to use the latest version or specify a different version number.
 
 **Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Supports wildcards like `*.example.com`.
 
