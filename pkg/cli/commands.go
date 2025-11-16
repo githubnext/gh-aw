@@ -114,7 +114,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		commandsLog.Printf("Failed to get working directory: %v", err)
-		return fmt.Errorf("failed to get current working directory: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to get current working directory: %v", err)))
+		return err
 	}
 
 	// Create .github/workflows directory if it doesn't exist
@@ -123,7 +124,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
 		commandsLog.Printf("Failed to create workflows directory: %v", err)
-		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to create .github/workflows directory: %v", err)))
+		return err
 	}
 
 	// Construct the destination file path
@@ -133,7 +135,14 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	// Check if destination file already exists
 	if _, err := os.Stat(destFile); err == nil && !force {
 		commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
-		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
+		fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+			fmt.Sprintf("Workflow file '%s' already exists", destFile),
+			[]string{
+				"Use --force to overwrite the existing file",
+				"Choose a different workflow name",
+			},
+		))
+		return errors.New("workflow file already exists")
 	}
 
 	// Create the template content
@@ -141,7 +150,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 
 	// Write the template to file
 	if err := os.WriteFile(destFile, []byte(template), 0644); err != nil {
-		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write workflow file '%s': %v", destFile, err)))
+		return err
 	}
 
 	fmt.Printf("Created new workflow: %s\n", destFile)

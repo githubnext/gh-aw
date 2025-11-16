@@ -2,10 +2,13 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -19,7 +22,15 @@ func ApplyJqFilter(jsonInput string, jqFilter string) (string, error) {
 	jqPath, err := exec.LookPath("jq")
 	if err != nil {
 		jqLog.Printf("jq not found in PATH")
-		return "", fmt.Errorf("jq not found in PATH")
+		fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+			"jq not found in PATH",
+			[]string{
+				"Install jq to use filter functionality",
+				"On macOS: brew install jq",
+				"On Ubuntu/Debian: sudo apt-get install jq",
+			},
+		))
+		return "", errors.New("jq not found in PATH")
 	}
 	jqLog.Printf("Found jq at: %s", jqPath)
 
@@ -32,7 +43,8 @@ func ApplyJqFilter(jsonInput string, jqFilter string) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		jqLog.Printf("jq filter failed: %v, stderr: %s", err, stderr.String())
-		return "", fmt.Errorf("jq filter failed: %w, stderr: %s", err, stderr.String())
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("jq filter failed: %v, stderr: %s", err, stderr.String())))
+		return "", err
 	}
 
 	jqLog.Printf("jq filter succeeded (output size: %d bytes)", stdout.Len())

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -30,7 +31,8 @@ func ensureMCPConfig(verbose bool) error {
 	// Create .vscode directory if it doesn't exist
 	vscodeDir := ".vscode"
 	if err := os.MkdirAll(vscodeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .vscode directory: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to create .vscode directory: %v", err)))
+		return err
 	}
 	mcpConfigLog.Printf("Ensured directory exists: %s", vscodeDir)
 
@@ -41,7 +43,8 @@ func ensureMCPConfig(verbose bool) error {
 	if data, err := os.ReadFile(mcpConfigPath); err == nil {
 		mcpConfigLog.Printf("Reading existing config from: %s", mcpConfigPath)
 		if err := json.Unmarshal(data, &config); err != nil {
-			return fmt.Errorf("failed to parse existing mcp.json: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse existing mcp.json: %v", err)))
+			return err
 		}
 	} else {
 		mcpConfigLog.Print("No existing config found, creating new one")
@@ -77,11 +80,13 @@ func ensureMCPConfig(verbose bool) error {
 	// Write config file with proper indentation
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal mcp.json: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to marshal mcp.json: %v", err)))
+		return err
 	}
 
 	if err := os.WriteFile(mcpConfigPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write mcp.json: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write mcp.json: %v", err)))
+		return err
 	}
 	mcpConfigLog.Printf("Wrote config to: %s", mcpConfigPath)
 

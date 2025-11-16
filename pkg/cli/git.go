@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -24,6 +26,7 @@ func findGitRoot() (string, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to find git root: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Not in a git repository or git command failed"))
 		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
 	}
 	gitRoot := strings.TrimSpace(string(output))
@@ -198,11 +201,19 @@ func checkCleanWorkingDirectory(verbose bool) error {
 	cmd := exec.Command("git", "status", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to check git status: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to check git status: %v", err)))
+		return err
 	}
 
 	if len(strings.TrimSpace(string(output))) > 0 {
-		return fmt.Errorf("working directory has uncommitted changes, please commit or stash them first")
+		fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+			"Working directory has uncommitted changes",
+			[]string{
+				"Commit your changes: git add . && git commit -m 'message'",
+				"Stash your changes: git stash",
+			},
+		))
+		return errors.New("working directory has uncommitted changes")
 	}
 
 	if verbose {
