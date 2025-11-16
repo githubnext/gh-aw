@@ -102,12 +102,27 @@ func TestDefaultGitHubTools(t *testing.T) {
 		t.Error("DefaultGitHubToolsRemote should not be empty")
 	}
 
+	if len(DefaultReadOnlyGitHubTools) == 0 {
+		t.Error("DefaultReadOnlyGitHubTools should not be empty")
+	}
+
 	// Test that DefaultGitHubTools defaults to local mode
 	if len(DefaultGitHubTools) != len(DefaultGitHubToolsLocal) {
 		t.Errorf("DefaultGitHubTools should default to DefaultGitHubToolsLocal")
 	}
 
-	// Test a few key tools are present in both local and remote
+	// Test that Local and Remote tools reference the same shared list
+	if len(DefaultGitHubToolsLocal) != len(DefaultReadOnlyGitHubTools) {
+		t.Errorf("DefaultGitHubToolsLocal should have same length as DefaultReadOnlyGitHubTools, got %d vs %d",
+			len(DefaultGitHubToolsLocal), len(DefaultReadOnlyGitHubTools))
+	}
+
+	if len(DefaultGitHubToolsRemote) != len(DefaultReadOnlyGitHubTools) {
+		t.Errorf("DefaultGitHubToolsRemote should have same length as DefaultReadOnlyGitHubTools, got %d vs %d",
+			len(DefaultGitHubToolsRemote), len(DefaultReadOnlyGitHubTools))
+	}
+
+	// Test a few key tools are present in all lists
 	requiredTools := []string{
 		"get_me",
 		"list_issues",
@@ -116,7 +131,11 @@ func TestDefaultGitHubTools(t *testing.T) {
 		"search_code",
 	}
 
-	for _, tools := range [][]string{DefaultGitHubToolsLocal, DefaultGitHubToolsRemote} {
+	for name, tools := range map[string][]string{
+		"DefaultGitHubToolsLocal":    DefaultGitHubToolsLocal,
+		"DefaultGitHubToolsRemote":   DefaultGitHubToolsRemote,
+		"DefaultReadOnlyGitHubTools": DefaultReadOnlyGitHubTools,
+	} {
 		toolsMap := make(map[string]bool)
 		for _, tool := range tools {
 			toolsMap[tool] = true
@@ -124,7 +143,7 @@ func TestDefaultGitHubTools(t *testing.T) {
 
 		for _, required := range requiredTools {
 			if !toolsMap[required] {
-				t.Errorf("GitHub tools missing required tool: %q", required)
+				t.Errorf("%s missing required tool: %q", name, required)
 			}
 		}
 	}
