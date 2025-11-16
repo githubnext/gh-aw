@@ -58,7 +58,7 @@ The import cache mechanism (`.github/aw/imports/`) continues to work with the fa
 
 ### Unit Tests
 ```bash
-cd /home/runner/work/gh-aw/gh-aw
+# From the repository root
 go test ./pkg/parser -run TestJSONParsing -v
 ```
 

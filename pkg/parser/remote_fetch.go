@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -266,26 +267,27 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 // This is a fallback for when gh CLI authentication is not available
 func resolveRefToSHAUnauthenticated(owner, repo, ref string) (string, error) {
 	remoteLog.Printf("Attempting to resolve ref %s to SHA for %s/%s using unauthenticated API", ref, owner, repo)
-	
+
 	// Use curl to make unauthenticated request
+	// -f flag makes curl fail on HTTP errors (404, 500, etc.)
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits/%s", owner, repo, ref)
-	cmd := exec.Command("curl", "-s", "-H", "Accept: application/vnd.github.v3+json", url)
-	
+	cmd := exec.Command("curl", "-s", "-f", "-H", "Accept: application/vnd.github.v3+json", url)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve ref using unauthenticated API: %w", err)
 	}
-	
+
 	// Parse JSON response
 	var response struct {
 		SHA     string `json:"sha"`
 		Message string `json:"message"`
 	}
-	
+
 	if err := json.Unmarshal(output, &response); err != nil {
 		return "", fmt.Errorf("failed to parse JSON response: %w", err)
 	}
-	
+
 	// Check for error message in response
 	if response.Message != "" {
 		if strings.Contains(response.Message, "Not Found") {
@@ -296,12 +298,12 @@ func resolveRefToSHAUnauthenticated(owner, repo, ref string) (string, error) {
 		}
 		return "", fmt.Errorf("GitHub API error: %s", response.Message)
 	}
-	
+
 	// Validate it's a valid SHA (40 hex characters)
 	if len(response.SHA) != 40 || !isHexString(response.SHA) {
 		return "", fmt.Errorf("invalid SHA format returned: %s", response.SHA)
 	}
-	
+
 	remoteLog.Printf("Successfully resolved ref %s to SHA %s using unauthenticated API", ref, response.SHA)
 	return response.SHA, nil
 }
@@ -310,27 +312,28 @@ func resolveRefToSHAUnauthenticated(owner, repo, ref string) (string, error) {
 // This is a fallback for when gh CLI authentication is not available
 func downloadFileFromGitHubUnauthenticated(owner, repo, path, ref string) ([]byte, error) {
 	remoteLog.Printf("Attempting to download %s/%s/%s@%s using unauthenticated API", owner, repo, path, ref)
-	
+
 	// Use curl to make unauthenticated request
+	// -f flag makes curl fail on HTTP errors (404, 500, etc.)
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref)
-	cmd := exec.Command("curl", "-s", "-H", "Accept: application/vnd.github.v3+json", url)
-	
+	cmd := exec.Command("curl", "-s", "-f", "-H", "Accept: application/vnd.github.v3+json", url)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch file using unauthenticated API: %w", err)
 	}
-	
+
 	// Parse JSON response
 	var response struct {
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 		Message  string `json:"message"`
 	}
-	
+
 	if err := json.Unmarshal(output, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
-	
+
 	// Check for error message in response
 	if response.Message != "" {
 		if strings.Contains(response.Message, "Not Found") {
@@ -341,29 +344,27 @@ func downloadFileFromGitHubUnauthenticated(owner, repo, path, ref string) ([]byt
 		}
 		return nil, fmt.Errorf("GitHub API error: %s", response.Message)
 	}
-	
+
 	// Verify encoding
 	if response.Encoding != "base64" {
 		return nil, fmt.Errorf("unexpected encoding: %s (expected base64)", response.Encoding)
 	}
-	
+
 	// Remove newlines and whitespace from base64 content
 	contentBase64 := strings.ReplaceAll(response.Content, "\n", "")
 	contentBase64 = strings.ReplaceAll(contentBase64, " ", "")
 	contentBase64 = strings.TrimSpace(contentBase64)
-	
+
 	if contentBase64 == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API")
 	}
-	
-	// Decode base64 content
-	decodeCmd := exec.Command("base64", "-d")
-	decodeCmd.Stdin = strings.NewReader(contentBase64)
-	content, err := decodeCmd.Output()
+
+	// Decode base64 content using Go's standard library (more portable than external base64 command)
+	content, err := base64.StdEncoding.DecodeString(contentBase64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}
-	
+
 	remoteLog.Printf("Successfully downloaded %s/%s/%s@%s using unauthenticated API (%d bytes)", owner, repo, path, ref, len(content))
 	return content, nil
 }

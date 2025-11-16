@@ -542,7 +542,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if err != nil {
 		return nil, err
 	}
-	
+
 	githubScriptPin, err := getRequiredActionPin("actions/github-script")
 	if err != nil {
 		return nil, err
