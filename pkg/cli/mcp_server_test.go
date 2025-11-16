@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestMCPServer_ListTools(t *testing.T) {
 	}
 
 	// Verify expected tools are present
-	expectedTools := []string{"status", "compile", "logs", "audit", "mcp-inspect", "add"}
+	expectedTools := []string{"status", "compile", "logs", "audit", "mcp-inspect", "add", "update"}
 	toolNames := make(map[string]bool)
 	for _, tool := range result.Tools {
 		toolNames[tool.Name] = true
@@ -606,4 +607,69 @@ This is the second test workflow.
 	} else {
 		t.Error("Expected text content from compile tool")
 	}
+}
+
+// TestMCPServer_UpdateToolSchema tests that the update tool has the correct schema
+func TestMCPServer_UpdateToolSchema(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(binaryPath, "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// List tools
+	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	// Find the update tool
+	var updateTool *mcp.Tool
+	for i := range result.Tools {
+		if result.Tools[i].Name == "update" {
+			updateTool = result.Tools[i]
+			break
+		}
+	}
+
+	if updateTool == nil {
+		t.Fatal("Update tool not found in MCP server tools")
+	}
+
+	// Verify the tool has a description
+	if updateTool.Description == "" {
+		t.Error("Update tool should have a description")
+	}
+
+	// Verify description mentions key functionality
+	if !strings.Contains(updateTool.Description, "workflows") {
+		t.Error("Update tool description should mention workflows")
+	}
+
+	// Verify the tool has input schema
+	if updateTool.InputSchema == nil {
+		t.Error("Update tool should have an input schema")
+	}
+
+	t.Logf("Update tool description: %s", updateTool.Description)
+	t.Logf("Update tool schema: %+v", updateTool.InputSchema)
 }
