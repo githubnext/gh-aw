@@ -537,18 +537,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
-	// Add shallow checkout for timestamp check
-	// Only checkout .github/workflows directory for minimal performance impact
-	steps = append(steps, "      - name: Checkout workflows\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sparse-checkout: |\n")
-	steps = append(steps, "            .github/workflows\n")
-	steps = append(steps, "          sparse-checkout-cone-mode: false\n")
-	steps = append(steps, "          fetch-depth: 1\n")
-	steps = append(steps, "          persist-credentials: false\n")
-
-	// Add timestamp check for lock file vs source file
+	// Add timestamp check for lock file vs source file using GitHub API
+	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	steps = append(steps, "        env:\n")
@@ -556,8 +546,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
-	// Add the JavaScript script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampScript)
+	// Add the JavaScript script with proper indentation (using API-based version)
+	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
 	steps = append(steps, formattedScript...)
 
 	// Use inlined compute-text script only if needed (no shared action)
@@ -643,10 +633,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
-	// Set permissions - activation job always needs contents:read for checkout step
+	// Set permissions - activation job always needs contents:read for GitHub API access
 	// Also add reaction permissions if reaction is configured and not "none"
 	permsMap := map[PermissionScope]PermissionLevel{
-		PermissionContents: PermissionRead, // Always needed for checkout step
+		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
 	}
 
 	if data.AIReaction != "" && data.AIReaction != "none" {
