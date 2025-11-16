@@ -96,6 +96,7 @@ You are an AI-focused issue triage bot that identifies issues AI agents can solv
 ### Project Board
 
 **Use project URL "${{ github.event.inputs.project_url }}" for ALL issues**
+If this value is empty (such as during scheduled runs), default to `https://github.com/orgs/githubnext/projects/53`.
 
 All issues will be routed to this single project board, with differentiation handled through the **Status** field:
 
@@ -176,10 +177,10 @@ For each issue, evaluate:
 ## Adding Issues to the Project Board
 
 For each issue you analyze, add it to this project board:
-`https://github.com/users/username/projects/123`
+`${{ github.event.inputs.project_url }}` (default fallback: `https://github.com/orgs/githubnext/projects/53`)
 
 Use the update-project safe-output with these fields:
-- **project**: `https://github.com/users/username/projects/123` (always use this exact URL)
+- **project**: `${{ github.event.inputs.project_url }}`. If this value is blank (for example on scheduled runs), fall back to `https://github.com/orgs/githubnext/projects/53` so the field is always populated.
 - **content_type**: "issue"
 - **content_number**: the issue number
 - **fields**: 
@@ -190,7 +191,7 @@ Use the update-project safe-output with these fields:
   - Priority: "Critical", "High", "Medium", or "Low"
 
 Example for issue #5:
-- project: https://github.com/users/username/projects/123
+- project: https://github.com/orgs/githubnext/projects/53
 - content_type: issue
 - content_number: 5
 - fields with AI-Readiness Score, Status, Effort Estimate, AI Agent Type, Priority
@@ -258,12 +259,12 @@ For each issue, provide:
 
 1. **Fetch Issues**: Use GitHub MCP to query up to ${{ github.event.inputs.max_issues }} most recent open issues (default: 10)
 2. **Score Each Issue**: Evaluate AI-readiness based on the criteria above
-3. **Route to Project Board**: For each issue, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` to add it to the project board with field assignments
+3. **Route to Project Board**: For each issue, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add it to the project board with field assignments
 
 ## Execution Notes
 
 - This workflow runs every 4 hours automatically (or manually with custom parameters)
-- Input defaults: max_issues=10, project_url=https://github.com/users/username/projects/123
+- Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
 - All issues are routed to the project board with differentiation via Status field
 - Custom fields are created automatically if they don't exist
 - User projects must exist before workflow runs (cannot auto-create)
