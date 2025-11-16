@@ -43,9 +43,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var schemaValidationLog = logger.New("workflow:schema_validation")
 
 // Cached compiled schema to avoid recompiling on every validation
 var (
@@ -57,6 +60,7 @@ var (
 // getCompiledSchema returns the compiled GitHub Actions schema, compiling it once and caching
 func getCompiledSchema() (*jsonschema.Schema, error) {
 	compiledSchemaOnce.Do(func() {
+		schemaValidationLog.Print("Compiling GitHub Actions schema (first time)")
 		// Parse the embedded schema
 		var schemaDoc any
 		if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
@@ -80,6 +84,7 @@ func getCompiledSchema() (*jsonschema.Schema, error) {
 		}
 
 		compiledSchema = schema
+		schemaValidationLog.Print("GitHub Actions schema compiled successfully")
 	})
 
 	return compiledSchema, schemaCompileError
@@ -87,6 +92,7 @@ func getCompiledSchema() (*jsonschema.Schema, error) {
 
 // validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
 func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
+	schemaValidationLog.Print("Validating workflow YAML against GitHub Actions schema")
 	// Convert YAML to any for JSON conversion
 	var workflowData any
 	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
@@ -114,9 +120,11 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	if err := schema.Validate(jsonObj); err != nil {
 		// Enhance error message with field-specific examples
 		enhancedErr := enhanceSchemaValidationError(err)
+		schemaValidationLog.Printf("Schema validation failed: %v", enhancedErr)
 		return fmt.Errorf("GitHub Actions schema validation failed: %w", enhancedErr)
 	}
 
+	schemaValidationLog.Print("Schema validation passed successfully")
 	return nil
 }
 

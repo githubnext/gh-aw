@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var safeJobsLog = logger.New("workflow:safe_jobs")
 
 // SafeJobConfig defines a safe job configuration with GitHub Actions job properties
 type SafeJobConfig struct {
@@ -207,6 +210,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		return nil
 	}
 
+	safeJobsLog.Printf("Building %d safe-jobs, threatDetectionEnabled=%v", len(data.SafeOutputs.Jobs), threatDetectionEnabled)
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		// Normalize job name to use underscores for consistency
 		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
@@ -325,6 +329,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		if err := c.jobManager.AddJob(job); err != nil {
 			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
 		}
+		safeJobsLog.Printf("Created safe-job: %s with %d dependencies", normalizedJobName, len(job.Needs))
 	}
 
 	return nil
