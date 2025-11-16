@@ -685,7 +685,7 @@ runs-on:
   labels: []
     # Array of strings
 
-# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 15
+# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20
 # minutes for agentic workflows. Has sensible defaults and can typically be
 # omitted.
 # (optional)
@@ -908,7 +908,8 @@ engine:
   model: "example-value"
 
   # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted.
+  # control costs. Has sensible defaults and can typically be omitted. Note: Only
+  # supported by the claude engine.
   # (optional)
   max-turns: 1
 
@@ -1330,6 +1331,29 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for managing GitHub Projects v2 boards. Smart tool that
+  # auto-detects whether to create a project (if missing), add issue/PR items, or
+  # update custom fields on existing items. Requires repository-projects: write
+  # permission. Safe output items produced by the agent use type=update_project and
+  # may include: project (board name), content_type (issue|pull_request),
+  # content_number, and a fields object mapping project field names to values.
+  update-project:
+    # Maximum number of project operations to perform (default: 10). Each operation
+    # may add a project item, or update its fields.
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable project management with default configuration (max=10)
+  update-project: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for creating GitHub discussions from agentic workflow
   # output
   create-discussion:
@@ -1404,7 +1428,10 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for creating GitHub pull requests from agentic workflow
-  # output
+  # output. Note: The max parameter is not supported for pull requests - workflows
+  # are always limited to creating 1 pull request per run. This design decision
+  # prevents workflow runs from creating excessive PRs and maintains repository
+  # integrity.
   create-pull-request:
     # Optional prefix for the pull request title
     # (optional)
