@@ -17,7 +17,7 @@ type Job struct {
 	DisplayName                string // Optional display name for the job (name property in YAML)
 	RunsOn                     string
 	If                         string
-	HasWorkflowRunSafetyChecks bool              // If true, the job's if condition includes workflow_run safety checks
+	HasWorkflowRunSafetyChecks bool // If true, the job's if condition includes workflow_run safety checks
 	Permissions                string
 	TimeoutMinutes             int
 	Concurrency                string            // Job-level concurrency configuration

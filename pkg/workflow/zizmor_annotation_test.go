@@ -48,6 +48,60 @@ func TestAddZizmorIgnoreForWorkflowRun(t *testing.T) {
       branches:
       - main`,
 		},
+		{
+			name: "workflow_run in comment should not get annotation",
+			input: `"on":
+  push:
+    # This is not a workflow_run: trigger
+    branches:
+    - main`,
+			expected: `"on":
+  push:
+    # This is not a workflow_run: trigger
+    branches:
+    - main`,
+		},
+		{
+			name: "workflow_run with inline comment gets annotation",
+			input: `"on":
+  workflow_run: # This is a workflow_run trigger
+    branches:
+    - main`,
+			expected: `"on":
+  workflow_run: # This is a workflow_run trigger
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
+    branches:
+    - main`,
+		},
+		{
+			name: "multiple workflow_run keys only annotates first",
+			input: `"on":
+  workflow_run:
+    branches:
+    - main
+  workflow_run:
+    branches:
+    - develop`,
+			expected: `"on":
+  workflow_run:
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
+    branches:
+    - main
+  workflow_run:
+    branches:
+    - develop`,
+		},
+		{
+			name: "workflow_run with value should not get annotation",
+			input: `"on":
+  push:
+    branches:
+    - workflow_run: something`,
+			expected: `"on":
+  push:
+    branches:
+    - workflow_run: something`,
+		},
 	}
 
 	for _, tt := range tests {
