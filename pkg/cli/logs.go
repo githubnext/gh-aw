@@ -1472,7 +1472,6 @@ func contains(slice []string, item string) bool {
 
 // extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
 
-
 // displayDetailedMissingToolsBreakdown shows missing tools organized by workflow (verbose mode)
 func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed Missing Tools Breakdown"))
