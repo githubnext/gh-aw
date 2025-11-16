@@ -665,14 +665,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	job := &Job{
-		Name:        constants.ActivationJobName,
-		If:          activationCondition,
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: permissions,
-		Environment: environment,
-		Steps:       steps,
-		Outputs:     outputs,
-		Needs:       activationNeeds, // Depend on pre-activation job if it exists
+		Name:                       constants.ActivationJobName,
+		If:                         activationCondition,
+		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
+		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions:                permissions,
+		Environment:                environment,
+		Steps:                      steps,
+		Outputs:                    outputs,
+		Needs:                      activationNeeds, // Depend on pre-activation job if it exists
 	}
 
 	return job, nil

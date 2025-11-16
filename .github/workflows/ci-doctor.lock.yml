@@ -48,6 +48,7 @@
 name: "CI Failure Doctor"
 "on":
   workflow_run:
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     branches:
     - main
     types:
@@ -70,6 +71,7 @@ run-name: "CI Failure Doctor"
 jobs:
   activation:
     needs: pre_activation
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
       ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.conclusion == 'failure')) &&
       ((github.event_name != 'workflow_run') || ((github.event.workflow_run.repository.id == github.repository_id) &&

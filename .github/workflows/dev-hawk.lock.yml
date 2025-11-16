@@ -38,6 +38,7 @@
 name: "Dev Hawk"
 "on":
   workflow_run:
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     branches:
     - copilot/*
     types:
@@ -58,6 +59,7 @@ run-name: "Dev Hawk"
 jobs:
   activation:
     needs: pre_activation
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
       ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.event == 'workflow_dispatch')) &&
       ((github.event_name != 'workflow_run') || ((github.event.workflow_run.repository.id == github.repository_id) &&

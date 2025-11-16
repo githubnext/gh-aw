@@ -113,6 +113,8 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
 		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
+		// Add zizmor ignore comment if workflow_run trigger is present
+		yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
 	}
 
 	return yamlStr
@@ -652,4 +654,38 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 	}
 
 	return nil
+}
+
+// addZizmorIgnoreForWorkflowRun adds a zizmor ignore comment for workflow_run triggers
+// The comment is added after the workflow_run: line to suppress dangerous-triggers warnings
+// since the compiler adds proper role and fork validation to secure these triggers
+func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
+	// Check if the YAML contains workflow_run trigger
+	if !strings.Contains(yamlStr, "workflow_run:") {
+		return yamlStr
+	}
+
+	lines := strings.Split(yamlStr, "\n")
+	var result []string
+
+	for _, line := range lines {
+		result = append(result, line)
+
+		// Check if this is the workflow_run: line
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "workflow_run:" {
+			// Get the indentation of the workflow_run line
+			indentation := ""
+			if len(line) > len(trimmedLine) {
+				indentation = line[:len(line)-len(trimmedLine)]
+			}
+
+			// Add zizmor ignore comment with proper indentation
+			// The comment explains that the trigger is secured with role and fork validation
+			comment := indentation + "  # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation"
+			result = append(result, comment)
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
