@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestLocalWorkflowTrialMode tests the local workflow installation for trial mode

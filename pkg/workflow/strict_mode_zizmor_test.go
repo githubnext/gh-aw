@@ -50,6 +50,7 @@ network:
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {

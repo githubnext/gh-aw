@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestAddCommandUpdatesGitAttributes tests that the add command updates .gitattributes by default

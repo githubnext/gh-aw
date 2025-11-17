@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestTaskJobGenerationFix tests that task job is only generated when required

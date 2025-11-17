@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/testutil"
-
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 

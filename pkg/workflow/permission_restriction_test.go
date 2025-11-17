@@ -270,6 +270,7 @@ Test workflow content.`
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "command-workflow.md")
+	var err error
 	err = os.WriteFile(testFile, []byte(frontmatter), 0644)
 	if err != nil {
 		t.Fatal(err)

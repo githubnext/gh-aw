@@ -55,6 +55,7 @@ This is a test workflow.`,
 			tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
 			testFile := filepath.Join(tmpDir, "test.md")
+			var err error
 			err = os.WriteFile(testFile, []byte(tt.frontmatter), 0644)
 			if err != nil {
 				t.Fatal(err)
@@ -100,6 +101,7 @@ This is a test workflow.`
 	tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
 	testFile := filepath.Join(tmpDir, "test.md")
+	var err error
 	err = os.WriteFile(testFile, []byte(frontmatter), 0644)
 	if err != nil {
 		t.Fatal(err)

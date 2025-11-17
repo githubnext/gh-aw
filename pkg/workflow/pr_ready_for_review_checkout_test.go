@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestPRCheckout verifies that PR branch checkout is added for pull_request events

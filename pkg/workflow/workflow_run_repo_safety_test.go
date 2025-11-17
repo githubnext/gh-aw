@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestWorkflowRunRepoSafetyCheck tests that workflow_run triggers get repository safety checks

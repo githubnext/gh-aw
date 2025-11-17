@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestSafeOutputsPromptIncludedWhenEnabled(t *testing.T) {
