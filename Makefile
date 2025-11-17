@@ -111,9 +111,39 @@ clean:
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-* coverage.out coverage.html
 	go clean
 
+# Check Node.js version
+.PHONY: check-node-version
+check-node-version:
+	@if ! command -v node >/dev/null 2>&1; then \
+		echo "Error: Node.js is not installed."; \
+		echo ""; \
+		echo "This project requires Node.js 24 or higher."; \
+		echo "Please install Node.js 24+ and try again."; \
+		echo ""; \
+		echo "For installation instructions, see:"; \
+		echo "  https://github.com/githubnext/gh-aw/blob/main/CONTRIBUTING.md#prerequisites"; \
+		exit 1; \
+	fi; \
+	NODE_VERSION=$$(node --version); \
+	NODE_VERSION_NUM=$$(echo "$$NODE_VERSION" | sed 's/v//'); \
+	NODE_MAJOR=$$(echo "$$NODE_VERSION_NUM" | cut -d. -f1); \
+	if [ "$$NODE_MAJOR" -lt 24 ]; then \
+		echo "Error: Node.js version $$NODE_VERSION is not supported."; \
+		echo ""; \
+		echo "This project requires Node.js 24 or higher."; \
+		echo "Your current version: $$NODE_VERSION"; \
+		echo ""; \
+		echo "Please upgrade Node.js and try again."; \
+		echo ""; \
+		echo "For installation instructions, see:"; \
+		echo "  https://github.com/githubnext/gh-aw/blob/main/CONTRIBUTING.md#prerequisites"; \
+		exit 1; \
+	fi; \
+	echo "✓ Node.js version check passed ($$NODE_VERSION)"
+
 # Install dependencies
 .PHONY: deps
-deps:
+deps: check-node-version
 	go mod download
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
@@ -122,7 +152,7 @@ deps:
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: deps download-github-actions-schema
+deps-dev: check-node-version deps download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	cd pkg/workflow/js && npm ci
 
@@ -308,6 +338,7 @@ help:
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
+	@echo "  check-node-version - Check Node.js version (24 or higher required)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js"
