@@ -40,7 +40,7 @@ This command provides tools for transferring pull requests from one repository
 to another, including the code changes, title, and description.
 
 Available subcommands:
-  transfer   - Transfer a pull request from one repository to another`,
+  transfer  Transfer a pull request from one repository to another`,
 		Run: func(cmd *cobra.Command, args []string) {
 			_ = cmd.Help()
 		},
