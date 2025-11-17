@@ -444,7 +444,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
-	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
+	compileCmd.Flags().Bool("strict", false, "Enable strict mode validation (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields)")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
