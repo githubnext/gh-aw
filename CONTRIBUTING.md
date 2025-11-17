@@ -103,6 +103,16 @@ return fmt.Errorf("invalid format")
 
 For complete guidelines, see [Error Message Style Guide](.github/instructions/error-messages.instructions.md).
 
+#### Deprecation Policy
+
+When deprecating fields, features, or APIs, follow the structured deprecation lifecycle:
+
+1. **Stage 1 (Mark)**: Mark as deprecated in schema (minimum 3 releases)
+2. **Stage 2 (Warn)**: Emit runtime warnings (minimum 3 releases)
+3. **Stage 3 (Remove)**: Remove in major version release
+
+The deprecation process ensures users have adequate time to migrate (minimum 6 releases total). For complete guidelines, timelines, and the exemplary `timeout_minutes` case study, see [Deprecation Policy](.github/instructions/deprecation.instructions.md).
+
 #### Console Output
 When adding CLI output, always use the styled console functions from `pkg/console`:
 
