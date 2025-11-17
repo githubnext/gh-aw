@@ -118,7 +118,7 @@ deps:
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
-	npm install -g prettier
+	cd dev && npm install
 
 # Install development tools (including linter)
 .PHONY: deps-dev
@@ -134,7 +134,7 @@ download-github-actions-schema:
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
 	@echo "Formatting schema with prettier..."
-	@prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
+	@dev/node_modules/.bin/prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
@@ -174,7 +174,7 @@ fmt-cjs:
 # Format JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	prettier --write 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null
+	dev/node_modules/.bin/prettier --write 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null
 
 # Check formatting
 .PHONY: fmt-check
@@ -192,7 +192,7 @@ fmt-check-cjs:
 # Check JSON file formatting in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-check-json
 fmt-check-json:
-	@if ! prettier --check 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
+	@if ! dev/node_modules/.bin/prettier --check 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
 		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
 		exit 1; \
 	fi

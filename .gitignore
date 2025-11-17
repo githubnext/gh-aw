@@ -92,3 +92,6 @@ test_*.sh
 aw.patch
 
 pkg/cli/.github/aw/actions-lock.json
+
+# Dev dependencies
+dev/node_modules/dev/node_modules/

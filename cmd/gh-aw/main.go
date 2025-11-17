@@ -450,6 +450,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
 
+	// Create dev-deps command
+	devDepsCmd := cli.NewDevDepsCommand()
+
 	// Create commands that need group assignment
 	mcpCmd := cli.NewMCPCommand()
 	logsCmd := cli.NewLogsCommand()
@@ -465,6 +468,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
+	devDepsCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -485,6 +489,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(devDepsCmd)
 	rootCmd.AddCommand(enableCmd)
 	rootCmd.AddCommand(disableCmd)
 	rootCmd.AddCommand(logsCmd)

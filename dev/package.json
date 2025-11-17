@@ -1,0 +1,12 @@
+{
+  "name": "gh-aw-dev-deps",
+  "version": "1.0.0",
+  "description": "Development dependencies for gh-aw",
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "scripts": {
+    "format": "prettier --write '../pkg/**/*.json' '!../pkg/workflow/js/**/*.json' --ignore-path /dev/null"
+  }
+}
