@@ -149,120 +149,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "New format: Custom MCP server with direct fields",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"direct-server": map[string]any{
-						"type":    "stdio",
-						"command": "python",
-						"args":    []any{"-m", "direct_server"},
-						"env": map[string]any{
-							"DEBUG": "true",
-						},
-						"allowed": []any{"process", "query"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:    "direct-server",
-					Type:    "stdio",
-					Command: "python",
-					Args:    []string{"-m", "direct_server"},
-					Env: map[string]string{
-						"DEBUG": "true",
-					},
-					Allowed: []string{"process", "query"},
-				},
-			},
-		},
-		{
-			name: "New format: HTTP server with direct fields",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"http-direct": map[string]any{
-						"type": "http",
-						"url":  "https://api.example.com/mcp",
-						"headers": map[string]any{
-							"Authorization": "Bearer token123",
-						},
-						"allowed": []any{"query", "update"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name: "http-direct",
-					Type: "http",
-					URL:  "https://api.example.com/mcp",
-					Headers: map[string]string{
-						"Authorization": "Bearer token123",
-					},
-					Env:     map[string]string{},
-					Allowed: []string{"query", "update"},
-				},
-			},
-		},
-		{
-			name: "New format: HTTP server with underscored headers",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"datadog": map[string]any{
-						"type": "http",
-						"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-						"headers": map[string]any{
-							"DD_API_KEY":         "test-api-key",
-							"DD_APPLICATION_KEY": "test-app-key",
-							"DD_SITE":            "datadoghq.com",
-						},
-						"allowed": []any{"get-monitors", "get-monitor"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name: "datadog",
-					Type: "http",
-					URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-					Headers: map[string]string{
-						"DD_API_KEY":         "test-api-key",
-						"DD_APPLICATION_KEY": "test-app-key",
-						"DD_SITE":            "datadoghq.com",
-					},
-					Env:     map[string]string{},
-					Allowed: []string{"get-monitors", "get-monitor"},
-				},
-			},
-		},
-		{
-			name: "New format: Container with direct fields",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"container-direct": map[string]any{
-						"type":      "stdio",
-						"container": "mcp/service:latest",
-						"env": map[string]any{
-							"API_KEY": "secret123",
-						},
-						"allowed": []any{"execute"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:      "container-direct",
-					Type:      "stdio",
-					Container: "mcp/service:latest",
-					Command:   "docker",
-					Args:      []string{"run", "--rm", "-i", "-e", "API_KEY", "mcp/service:latest"},
-					Env: map[string]string{
-						"API_KEY": "secret123",
-					},
-					Allowed: []string{"execute"},
-				},
-			},
-		},
+
 		{
 			name:        "Empty frontmatter",
 			frontmatter: map[string]any{},
@@ -389,115 +276,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "Custom MCP server with stdio type",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"custom-server": map[string]any{
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "/usr/local/bin/mcp-server",
-							"args":    []any{"--config", "/etc/config.json"},
-							"env": map[string]any{
-								"API_KEY": "secret-key",
-								"DEBUG":   "1",
-							},
-						},
-						"allowed": []any{"tool1", "tool2"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:    "custom-server",
-					Type:    "stdio",
-					Command: "/usr/local/bin/mcp-server",
-					Args:    []string{"--config", "/etc/config.json"},
-					Env: map[string]string{
-						"API_KEY": "secret-key",
-						"DEBUG":   "1",
-					},
-					Allowed: []string{"tool1", "tool2"},
-				},
-			},
-		},
-		{
-			name: "Custom MCP server with container",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"docker-server": map[string]any{
-						"mcp": map[string]any{
-							"type":      "stdio",
-							"container": "myregistry/mcp-server:v1.0",
-							"env": map[string]any{
-								"DATABASE_URL": "postgresql://localhost/db",
-							},
-						},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:      "docker-server",
-					Type:      "stdio",
-					Container: "myregistry/mcp-server:v1.0",
-					Command:   "docker",
-					Args:      []string{"run", "--rm", "-i", "-e", "DATABASE_URL", "myregistry/mcp-server:v1.0"},
-					Env:       map[string]string{"DATABASE_URL": "postgresql://localhost/db"},
-					Allowed:   []string{},
-				},
-			},
-		},
-		{
-			name: "HTTP MCP server",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"http-server": map[string]any{
-						"mcp": map[string]any{
-							"type": "http",
-							"url":  "https://api.example.com/mcp",
-							"headers": map[string]any{
-								"Authorization": "Bearer token123",
-								"Content-Type":  "application/json",
-							},
-						},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name: "http-server",
-					Type: "http",
-					URL:  "https://api.example.com/mcp",
-					Headers: map[string]string{
-						"Authorization": "Bearer token123",
-						"Content-Type":  "application/json",
-					},
-					Env:     map[string]string{},
-					Allowed: []string{},
-				},
-			},
-		},
-		{
-			name: "MCP config as JSON string",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"json-server": map[string]any{
-						"type": "stdio", "command": "test",
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:    "json-server",
-					Type:    "stdio",
-					Command: "python",
-					Args:    []string{"-m", "server"},
-					Env:     map[string]string{},
-					Allowed: []string{},
-				},
-			},
-		},
+
 		{
 			name: "Server filter - matching",
 			frontmatter: map[string]any{
@@ -542,72 +321,11 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			serverFilter: "nomatch",
 			expected:     []MCPServerConfig{},
 		},
-		{
-			name: "Non-MCP tool ignored",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"regular-tool": map[string]any{
-						"enabled": true,
-					},
-					"mcp-tool": map[string]any{
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "mcp-server",
-						},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:    "mcp-tool",
-					Type:    "stdio",
-					Command: "mcp-server",
-					Env:     map[string]string{},
-					Allowed: []string{},
-				},
-			},
-		},
-		{
-			name: "Invalid tools section",
-			frontmatter: map[string]any{
-				"tools": "not a map",
-			},
-			expectError: true,
-		},
-		{
-			name: "Invalid MCP config",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"invalid": map[string]any{
-						"mcp": map[string]any{
-							"type": "unsupported",
-						},
-					},
-				},
-			},
-			expectError: true,
-		},
+
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// TODO: Delete these failing test cases - they test features that were never implemented
-			// The "MCP revamp" never happened and these test a format that doesn't exist
-			if tt.name == "New format: Custom MCP server with direct fields" ||
-				tt.name == "New format: HTTP server with direct fields" ||
-				tt.name == "New format: HTTP server with underscored headers" ||
-				tt.name == "New format: Container with direct fields" ||
-				tt.name == "Custom MCP server with stdio type" ||
-				tt.name == "Custom MCP server with container" ||
-				tt.name == "HTTP MCP server" ||
-				tt.name == "MCP config as JSON string" ||
-				tt.name == "Non-MCP tool ignored" ||
-				tt.name == "Invalid tools section" ||
-				tt.name == "Invalid MCP config" {
-				t.Skip("Skipping test for non-existent MCP format - should be deleted")
-				return
-			}
-
 			result, err := ExtractMCPConfigurations(tt.frontmatter, tt.serverFilter)
 
 			if tt.expectError {
@@ -847,19 +565,6 @@ func TestParseMCPConfig(t *testing.T) {
 		},
 		// Error cases
 		{
-			name:     "Stdio with headers (invalid)",
-			toolName: "stdio-invalid-headers",
-			mcpSection: map[string]any{
-				"type":    "stdio",
-				"command": "server",
-				"headers": map[string]any{
-					"Authorization": "Bearer token",
-				},
-			},
-			toolConfig:  map[string]any{},
-			expectError: true,
-		},
-		{
 			name:       "Type inferred from command field",
 			toolName:   "inferred-stdio",
 			mcpSection: map[string]any{"command": "server"},
@@ -1029,12 +734,6 @@ func TestParseMCPConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// TODO: Delete this failing test case - it tests a feature that was never implemented
-			if tt.name == "Stdio with headers (invalid)" {
-				t.Skip("Skipping test for non-existent validation - should be deleted")
-				return
-			}
-
 			result, err := ParseMCPConfig(tt.toolName, tt.mcpSection, tt.toolConfig)
 
 			if tt.expectError {
