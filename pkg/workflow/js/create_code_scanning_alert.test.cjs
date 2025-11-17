@@ -127,7 +127,7 @@ describe("create_code_scanning_alert.cjs", () => {
       setAgentOutput("invalid json");
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
     });
 
     it("should handle missing items array", async () => {

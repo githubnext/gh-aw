@@ -154,7 +154,6 @@ deps: check-node-version
 .PHONY: deps-dev
 deps-dev: check-node-version deps download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	cd pkg/workflow/js && npm ci
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
