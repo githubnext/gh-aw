@@ -49,6 +49,7 @@ For detailed development setup instructions, see the [Development Guide](DEVGUID
 
 ### Prerequisites
 - Go 1.24.5 or later
+- Node.js 24 or higher (check with `node --version`)
 - GitHub CLI (`gh`) installed and authenticated
 - Git
 
