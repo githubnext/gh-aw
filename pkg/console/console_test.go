@@ -440,7 +440,7 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to compile",
-				"  invalid syntax",
+				"invalid syntax",
 			},
 		},
 		{
@@ -449,9 +449,9 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to update workflow",
-				"  failed to compile",
-				"    failed to parse",
-				"      invalid field",
+				"failed to compile",
+				"failed to parse",
+				"invalid field",
 			},
 		},
 		{
@@ -460,14 +460,14 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to compile updated workflow",
-				"  .github/workflows/daily-team-status.md",
-				"    error",
-				"      failed to process imports from frontmatter",
-				"        failed to resolve import",
-				"          failed to download include from",
-				"            failed to fetch file content from",
-				"              gh",
-				"                gh execution failed",
+				".github/workflows/daily-team-status.md",
+				"error",
+				"failed to process imports from frontmatter",
+				"failed to resolve import",
+				"failed to download include from",
+				"failed to fetch file content from",
+				"gh",
+				"gh execution failed",
 			},
 		},
 		{
