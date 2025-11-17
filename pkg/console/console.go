@@ -435,6 +435,43 @@ func FormatErrorMessage(message string) string {
 	return applyStyle(errorStyle, "✗ ") + message
 }
 
+// FormatNestedError formats an error message with nested errors shown on separate lines
+// It splits the error message by ": " to separate nested errors and formats each level with
+// appropriate indentation to improve readability.
+//
+// Example input:  "failed to compile: failed to parse: invalid syntax"
+// Example output:
+//   ✗ failed to compile
+//     failed to parse
+//     invalid syntax
+func FormatNestedError(message string) string {
+	if message == "" {
+		return ""
+	}
+
+	// Split the error message by ": " to separate nested errors
+	parts := strings.Split(message, ": ")
+	if len(parts) <= 1 {
+		// No nested errors, return simple formatted message
+		return FormatErrorMessage(message)
+	}
+
+	var output strings.Builder
+	for i, part := range parts {
+		if i == 0 {
+			// First part gets the error icon
+			output.WriteString(FormatErrorMessage(part))
+		} else {
+			// Nested parts get indentation
+			output.WriteString("\n")
+			output.WriteString(strings.Repeat(" ", 2*i)) // 2 spaces per nesting level
+			output.WriteString(part)
+		}
+	}
+
+	return output.String()
+}
+
 // FormatErrorWithSuggestions formats an error message with actionable suggestions
 func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	var output strings.Builder

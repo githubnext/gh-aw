@@ -418,3 +418,98 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestFormatNestedError(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		expected []string // Substrings that should be present in output
+		notExpected []string // Substrings that should NOT be present
+	}{
+		{
+			name:    "simple error without nesting",
+			message: "file not found",
+			expected: []string{
+				"✗",
+				"file not found",
+			},
+		},
+		{
+			name:    "nested error with two levels",
+			message: "failed to compile: invalid syntax",
+			expected: []string{
+				"✗",
+				"failed to compile",
+				"  invalid syntax",
+			},
+		},
+		{
+			name:    "deeply nested error",
+			message: "failed to update workflow: failed to compile: failed to parse: invalid field",
+			expected: []string{
+				"✗",
+				"failed to update workflow",
+				"  failed to compile",
+				"    failed to parse",
+				"      invalid field",
+			},
+		},
+		{
+			name: "real example from problem statement",
+			message: "failed to compile updated workflow: .github/workflows/daily-team-status.md:1:1: error: failed to process imports from frontmatter: failed to resolve import 'githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3': failed to download include from githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3: failed to fetch file content from githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3: gh: Not Found (HTTP 404): gh execution failed: exit status 1",
+			expected: []string{
+				"✗",
+				"failed to compile updated workflow",
+				"  .github/workflows/daily-team-status.md",
+				"    error",
+				"      failed to process imports from frontmatter",
+				"        failed to resolve import",
+				"          failed to download include from",
+				"            failed to fetch file content from",
+				"              gh",
+				"                gh execution failed",
+			},
+		},
+		{
+			name:    "empty message",
+			message: "",
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := FormatNestedError(tt.message)
+
+			// For empty message, expect empty output
+			if tt.message == "" {
+				if output != "" {
+					t.Errorf("Expected empty output for empty message, got: %s", output)
+				}
+				return
+			}
+
+			// Check for expected substrings
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+
+			// Check for NOT expected substrings
+			for _, notExpected := range tt.notExpected {
+				if strings.Contains(output, notExpected) {
+					t.Errorf("Expected output NOT to contain '%s', but got:\n%s", notExpected, output)
+				}
+			}
+
+			// Verify nested parts appear on separate lines
+			if strings.Contains(tt.message, ": ") {
+				lines := strings.Split(output, "\n")
+				if len(lines) <= 1 {
+					t.Errorf("Expected nested error to have multiple lines, got: %s", output)
+				}
+			}
+		})
+	}
+}

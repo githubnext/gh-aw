@@ -322,7 +322,11 @@ func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure
 	if len(failedUpdates) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
 		for _, failure := range failedUpdates {
-			fmt.Fprintf(os.Stderr, "  %s %s: %s\n", console.FormatErrorMessage("✗"), failure.Name, failure.Error)
+			// Format the error with proper nesting for better readability
+			formattedError := console.FormatNestedError(failure.Error)
+			// Add extra indentation to align with the list
+			indentedError := strings.ReplaceAll(formattedError, "\n", "\n  ")
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", failure.Name, indentedError)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
