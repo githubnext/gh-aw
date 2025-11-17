@@ -707,9 +707,9 @@ func TestUpdateWorkflow_OverrideMode(t *testing.T) {
 		// This test verifies that in override mode (merge=false),
 		// the update function would replace local content with upstream content
 		// We're testing the logic path, not the full integration
-		
+
 		merge := false // Default override mode
-		
+
 		if merge {
 			t.Error("Expected merge to be false in override mode")
 		}
@@ -728,9 +728,9 @@ func TestUpdateWorkflow_MergeMode(t *testing.T) {
 		// This test verifies that in merge mode (merge=true),
 		// the update function would perform a 3-way merge
 		// We're testing the logic path, not the full integration
-		
+
 		merge := true // Merge mode enabled
-		
+
 		if !merge {
 			t.Error("Expected merge to be true in merge mode")
 		}
