@@ -321,7 +321,6 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			serverFilter: "nomatch",
 			expected:     []MCPServerConfig{},
 		},
-
 	}
 
 	for _, tt := range tests {
