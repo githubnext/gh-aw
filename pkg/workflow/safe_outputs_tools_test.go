@@ -15,13 +15,13 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 		expectedTools []string
 	}{
 		{
-			name: "nil safe outputs returns empty array",
-			safeOutputs: nil,
+			name:          "nil safe outputs returns empty array",
+			safeOutputs:   nil,
 			expectedTools: []string{},
 		},
 		{
-			name: "empty safe outputs returns empty array",
-			safeOutputs: &SafeOutputsConfig{},
+			name:          "empty safe outputs returns empty array",
+			safeOutputs:   &SafeOutputsConfig{},
 			expectedTools: []string{},
 		},
 		{
@@ -236,16 +236,16 @@ func TestGenerateFilteredToolsJSONValidStructure(t *testing.T) {
 	// Check inputSchema structure
 	inputSchema, ok := createIssueTool["inputSchema"].(map[string]any)
 	require.True(t, ok, "inputSchema should be a map")
-	
+
 	assert.Equal(t, "object", inputSchema["type"], "inputSchema type should be object")
-	
+
 	properties, ok := inputSchema["properties"].(map[string]any)
 	require.True(t, ok, "properties should be a map")
-	
+
 	// Verify required properties exist
 	assert.Contains(t, properties, "title", "Should have title property")
 	assert.Contains(t, properties, "body", "Should have body property")
-	
+
 	// Verify required field
 	required, ok := inputSchema["required"].([]any)
 	require.True(t, ok, "required should be an array")
