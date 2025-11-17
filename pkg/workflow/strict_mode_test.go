@@ -39,7 +39,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
@@ -96,7 +96,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
@@ -114,7 +114,7 @@ permissions:
   contents: write
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -128,7 +128,7 @@ engine: copilot
 on: push
 permissions:
   issues: write
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -142,7 +142,7 @@ engine: copilot
 on: push
 permissions:
   pull-requests: write
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -154,7 +154,7 @@ engine: copilot
 			name: "no permissions specified allowed in strict mode",
 			content: `---
 on: push
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -166,7 +166,7 @@ engine: copilot
 			content: `---
 on: push
 permissions: write
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -179,7 +179,7 @@ engine: copilot
 			content: `---
 on: push
 permissions: write-all
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -193,7 +193,7 @@ engine: copilot
 			content: `---
 on: push
 permissions: read-all
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
@@ -211,7 +211,7 @@ permissions:
   contents: write # NOT IN STRICT MODE
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 ---
 
@@ -266,7 +266,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network: defaults
 ---
@@ -282,7 +282,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
@@ -301,7 +301,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
@@ -320,7 +320,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network: {}
 ---
@@ -375,7 +375,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   github:
@@ -433,7 +433,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: ["echo", "ls", "pwd"]
@@ -453,7 +453,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash:
@@ -473,7 +473,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: []
@@ -493,7 +493,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: ["*"]
@@ -513,7 +513,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: [":*"]
@@ -533,7 +533,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: ["echo", "ls", "*", "pwd"]
@@ -553,7 +553,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 tools:
   bash: ["git:*", "npm:*"]
@@ -687,7 +687,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-timeout_minutes: 10
+timeout-minutes: 10
 engine: copilot
 network:
   allowed:
