@@ -172,11 +172,7 @@ golint:
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run; \
 	else \
-		echo "golangci-lint is not installed. Install it with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
-		echo "Or on macOS with Homebrew:"; \
-		echo "  brew install golangci-lint"; \
-		echo "For other platforms, see: https://golangci-lint.run/usage/install/"; \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
 
