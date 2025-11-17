@@ -17,8 +17,6 @@ var mcpListToolsLog = logger.New("cli:mcp_list_tools")
 const (
 	// maxDescriptionLength is the maximum length for tool descriptions before truncation
 	maxDescriptionLength = 60
-	// truncationLength is the length at which to truncate descriptions (leaving room for "...")
-	truncationLength = 57
 )
 
 // ListToolsForMCP lists available tools for a specific MCP server
@@ -144,85 +142,24 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
-	// Create a map for quick lookup of allowed tools from workflow configuration
-	allowedMap := make(map[string]bool)
-
-	// Check for wildcard "*" which means all tools are allowed
-	hasWildcard := false
-	for _, allowed := range info.Config.Allowed {
-		if allowed == "*" {
-			hasWildcard = true
-		}
-		allowedMap[allowed] = true
+	// Configure options based on verbose flag
+	opts := MCPToolTableOptions{
+		ShowSummary: true,
 	}
 
 	if verbose {
-		// Detailed table with full descriptions
-		headers := []string{"Tool Name", "Allow", "Description"}
-		rows := make([][]string, 0, len(info.Tools))
-
-		for _, tool := range info.Tools {
-			// In verbose mode, show full descriptions without truncation
-			description := tool.Description
-
-			// Determine status
-			status := "🚫"
-			if len(info.Config.Allowed) == 0 || hasWildcard {
-				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
-				status = "✅"
-			} else if allowedMap[tool.Name] {
-				status = "✅"
-			}
-
-			rows = append(rows, []string{tool.Name, status, description})
-		}
-
-		table := console.RenderTable(console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		})
-		fmt.Print(table)
-
-		// Display summary
-		allowedCount := 0
-		for _, tool := range info.Tools {
-			if len(info.Config.Allowed) == 0 || hasWildcard || allowedMap[tool.Name] {
-				allowedCount++
-			}
-		}
-		fmt.Printf("\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
-			allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
+		// In verbose mode, show full descriptions without truncation
+		opts.TruncateLength = 0
+		opts.ShowVerboseHint = false
 	} else {
-		// Compact table with truncated descriptions for single-line display
-		headers := []string{"Tool Name", "Allow", "Description"}
-		rows := make([][]string, 0, len(info.Tools))
-
-		for _, tool := range info.Tools {
-			// In non-verbose mode, truncate descriptions to keep tools on single lines
-			description := tool.Description
-			if len(description) > maxDescriptionLength {
-				description = description[:truncationLength] + "..."
-			}
-
-			// Determine status
-			status := "🚫"
-			if len(info.Config.Allowed) == 0 || hasWildcard {
-				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
-				status = "✅"
-			} else if allowedMap[tool.Name] {
-				status = "✅"
-			}
-
-			rows = append(rows, []string{tool.Name, status, description})
-		}
-
-		table := console.RenderTable(console.TableConfig{
-			Headers: headers,
-			Rows:    rows,
-		})
-		fmt.Print(table)
-		fmt.Printf("\nRun with --verbose for detailed information\n")
+		// In non-verbose mode, truncate descriptions to keep tools on single lines
+		opts.TruncateLength = maxDescriptionLength
+		opts.ShowVerboseHint = true
 	}
+
+	// Render the table using the shared helper
+	table := renderMCPToolTable(info, opts)
+	fmt.Print(table)
 }
 
 // NewMCPListToolsSubcommand creates the mcp list-tools subcommand
