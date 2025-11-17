@@ -325,48 +325,17 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 		} else {
 			fmt.Printf("\n%s\n", headerStyle.Render("🛠️  Tool Access Status"))
 
-			// Create a map for quick lookup of allowed tools
-			allowedMap := make(map[string]bool)
-			for _, allowed := range info.Config.Allowed {
-				allowedMap[allowed] = true
+			// Configure options for inspect command
+			// Use a slightly shorter truncation length than list-tools for better fit
+			opts := MCPToolTableOptions{
+				TruncateLength:  50,
+				ShowSummary:     true,
+				ShowVerboseHint: false,
 			}
 
-			headers := []string{"Tool Name", "Allow", "Description"}
-			rows := make([][]string, 0, len(info.Tools))
-
-			for _, tool := range info.Tools {
-				description := tool.Description
-				if len(description) > 50 {
-					description = description[:47] + "..."
-				}
-
-				// Determine status
-				status := "🚫"
-				if len(info.Config.Allowed) == 0 {
-					// If no allowed list is specified, assume all tools are allowed
-					status = "✅"
-				} else if allowedMap[tool.Name] {
-					status = "✅"
-				}
-
-				rows = append(rows, []string{tool.Name, status, description})
-			}
-
-			table := console.RenderTable(console.TableConfig{
-				Headers: headers,
-				Rows:    rows,
-			})
+			// Render the table using the shared helper
+			table := renderMCPToolTable(info, opts)
 			fmt.Print(table)
-
-			// Display summary
-			allowedCount := 0
-			for _, tool := range info.Tools {
-				if len(info.Config.Allowed) == 0 || allowedMap[tool.Name] {
-					allowedCount++
-				}
-			}
-			fmt.Printf("\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
-				allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
 
 			// Add helpful hint about how to allow tools in workflow frontmatter
 			displayToolAllowanceHint(info)
