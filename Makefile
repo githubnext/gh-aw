@@ -122,9 +122,16 @@ deps:
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: deps download-github-actions-schema
+deps-dev: deps deps-node download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	cd pkg/workflow/js && npm ci
+
+# Install npm and nodejs
+.PHONY: deps-node
+deps-node:
+	sudo apt install -y nodejs npm
+	node -v
+	npm -v
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
