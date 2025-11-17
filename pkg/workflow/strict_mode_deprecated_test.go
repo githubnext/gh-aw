@@ -80,12 +80,12 @@ engine: copilot
 			}
 
 			compiler := NewCompiler(false, "", "")
-			
+
 			// Determine if we should enable strict mode based on test name
 			if strings.Contains(tt.name, "strict mode") && !strings.Contains(tt.name, "non-strict") {
 				compiler.SetStrictMode(true)
 			}
-			
+
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
@@ -137,18 +137,18 @@ network:
 	}
 
 	errorMsg := err.Error()
-	
+
 	// Check that error message includes:
 	// 1. Mentions deprecated fields
 	if !strings.Contains(errorMsg, "deprecated") {
 		t.Errorf("Error message should mention 'deprecated': %s", errorMsg)
 	}
-	
+
 	// 2. Mentions the specific field
 	if !strings.Contains(errorMsg, "timeout_minutes") {
 		t.Errorf("Error message should mention 'timeout_minutes': %s", errorMsg)
 	}
-	
+
 	// 3. Provides replacement suggestion
 	if !strings.Contains(errorMsg, "timeout-minutes") {
 		t.Errorf("Error message should suggest 'timeout-minutes': %s", errorMsg)
