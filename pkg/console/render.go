@@ -478,25 +478,25 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 			if val.CanInterface() {
 				switch v := val.Interface().(type) {
 				case int:
-					return formatFileSize(int64(v))
+					return FormatFileSize(int64(v))
 				case int64:
-					return formatFileSize(v)
+					return FormatFileSize(v)
 				case int32:
-					return formatFileSize(int64(v))
+					return FormatFileSize(int64(v))
 				case uint:
-					return formatFileSize(int64(v))
+					return FormatFileSize(int64(v))
 				case uint64:
-					return formatFileSize(int64(v))
+					return FormatFileSize(int64(v))
 				case uint32:
-					return formatFileSize(int64(v))
+					return FormatFileSize(int64(v))
 				}
 			}
 			// Fallback for integer kinds
 			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64 {
-				return formatFileSize(val.Int())
+				return FormatFileSize(val.Int())
 			}
 			if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
-				return formatFileSize(int64(val.Uint()))
+				return FormatFileSize(int64(val.Uint()))
 			}
 		}
 	}
@@ -511,32 +511,6 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 	}
 
 	return baseValue
-}
-
-// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
-func formatFileSize(size int64) string {
-	if size == 0 {
-		return "0 B"
-	}
-
-	const unit = 1024
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	units := []string{"KB", "MB", "GB", "TB"}
-	if exp >= len(units) {
-		exp = len(units) - 1
-		div = int64(1) << (10 * (exp + 1))
-	}
-
-	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 // FormatNumber formats large numbers in a human-readable way (e.g., "1k", "1.2k", "1.12M")
