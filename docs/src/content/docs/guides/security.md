@@ -178,9 +178,18 @@ network:
 
 Or via CLI: `gh aw compile --strict`
 
-**Enforces**: write permissions blocked (use `safe-outputs`), explicit network configuration required, no network wildcards, MCP network configuration required.
+**Enforcement Areas:**
 
-**Benefits**: Minimizes attack surface, ensures compliance, improves auditability. CLI flag takes precedence over frontmatter. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#strict-mode-strict).
+Strict mode enforces the following security constraints:
+
+1. **Write Permissions**: Blocks `contents:write`, `issues:write`, and `pull-requests:write`. Use `safe-outputs` instead.
+2. **Network Configuration**: Requires explicit network configuration (no implicit defaults).
+3. **Network Wildcards**: Refuses wildcard `*` in `network.allowed` domains.
+4. **MCP Network**: Requires network configuration for custom MCP servers with containers.
+5. **Action Pinning**: Enforces GitHub Actions to be pinned to specific commit SHAs.
+6. **Deprecated Fields**: Refuses use of deprecated frontmatter fields.
+
+**Benefits**: Minimizes attack surface, ensures compliance, improves auditability. CLI flag takes precedence over frontmatter and applies to all workflows. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#strict-mode-strict) and [CLI Commands](/gh-aw/setup/cli/#compile) for complete documentation.
 
 #### Limit workflow longevity by `stop-after:`
 

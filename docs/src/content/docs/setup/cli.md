@@ -141,12 +141,46 @@ Remote imports are automatically cached in `.github/aw/imports/` for offline com
 | Option | Description |
 |--------|-------------|
 | `--validate` | Schema validation and container checks |
-| `--strict` | Requires timeouts, explicit network config, blocks write permissions |
+| `--strict` | Enable strict mode validation for all workflows |
 | `--zizmor` | Security scanning with [zizmor](https://github.com/woodruffw/zizmor) |
 | `--dependabot` | Generate npm/pip/Go manifests and update dependabot.yml |
 | `--json` | Output validation results in machine-readable JSON format |
 | `--watch` | Auto-recompile on file changes |
 | `--purge` | Remove orphaned `.lock.yml` files |
+
+**Strict Mode (`--strict`):**
+
+The `--strict` flag enables enhanced security validation for all workflows during compilation. This flag is recommended for production workflows that require strict security compliance.
+
+When enabled, strict mode enforces:
+
+1. **No Write Permissions**: Blocks `contents:write`, `issues:write`, and `pull-requests:write` permissions. Use [safe-outputs](/gh-aw/reference/safe-outputs/) instead.
+
+2. **Explicit Network Configuration**: Requires explicit `network` configuration. No implicit defaults allowed.
+
+3. **No Network Wildcards**: Refuses wildcard `*` in `network.allowed` domains. Use explicit domains or ecosystem identifiers.
+
+4. **MCP Server Network**: Requires network configuration for custom MCP servers with containers.
+
+5. **Action Pinning**: Enforces GitHub Actions to be pinned to specific commit SHAs.
+
+6. **No Deprecated Fields**: Refuses deprecated frontmatter fields.
+
+**Precedence:** The `--strict` CLI flag applies to all workflows being compiled and takes precedence over individual workflow `strict` frontmatter fields. Workflows cannot opt-out of strict mode when the CLI flag is set.
+
+**Example:**
+```bash wrap
+# Enable strict mode for all workflows
+gh aw compile --strict
+
+# Strict mode with security scanning (fails on findings)
+gh aw compile --strict --zizmor
+
+# Validate schema and enforce strict mode
+gh aw compile --validate --strict
+```
+
+See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for frontmatter configuration and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for best practices.
 
 ### Testing
 
