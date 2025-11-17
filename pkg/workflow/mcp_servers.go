@@ -330,7 +330,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
-	playwrightDockerImageVersion := string(constants.DefaultPlaywrightVersion) // Default Playwright package version
+	playwrightDockerImageVersion := string(constants.DefaultPlaywrightBrowserVersion) // Default Playwright browser Docker image version
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
@@ -340,6 +340,13 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 		}
 	}
 	return playwrightDockerImageVersion
+}
+
+// getPlaywrightMCPPackageVersion extracts version setting for the @playwright/mcp NPM package
+// This is separate from the Docker image version because they follow different versioning schemes
+func getPlaywrightMCPPackageVersion(playwrightTool any) string {
+	// Always use the default @playwright/mcp package version.
+	return string(constants.DefaultPlaywrightMCPVersion)
 }
 
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
@@ -384,15 +391,17 @@ func generatePlaywrightAllowedDomains(playwrightTool any) []string {
 
 // PlaywrightDockerArgs represents the common Docker arguments for Playwright container
 type PlaywrightDockerArgs struct {
-	ImageVersion   string
-	AllowedDomains []string
+	ImageVersion      string // Version for Docker image (mcr.microsoft.com/playwright:version)
+	MCPPackageVersion string // Version for NPM package (@playwright/mcp@version)
+	AllowedDomains    []string
 }
 
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
 func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
 	return PlaywrightDockerArgs{
-		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
-		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool),
+		ImageVersion:      getPlaywrightDockerImageVersion(playwrightTool),
+		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightTool),
+		AllowedDomains:    generatePlaywrightAllowedDomains(playwrightTool),
 	}
 }
 

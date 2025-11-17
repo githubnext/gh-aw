@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigWithOptions verifies the shared Playwright config helper
@@ -20,7 +22,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0",
+				"version": "v1.45.0", // Docker image version (does not affect NPM package)
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -29,7 +31,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"type": "local"`,
 				`"command": "npx"`,
-				`"args": ["@playwright/mcp@v1.45.0"`,
+				`"args": ["@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`, // Always uses default NPM package version
 				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 				`"tools": ["*"]`,
 				`              }`,
@@ -48,7 +50,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"command": "npx"`,
 				`"args": [`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`              },`,
@@ -269,7 +271,7 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 				`[mcp_servers.playwright]`,
 				`command = "npx"`,
 				`args = [`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},
