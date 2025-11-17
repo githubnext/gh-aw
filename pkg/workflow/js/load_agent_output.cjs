@@ -36,7 +36,7 @@ function loadAgentOutput() {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
     const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-    core.setFailed(errorMessage);
+    core.error(errorMessage);
     return { success: false, error: errorMessage };
   }
 
@@ -54,7 +54,7 @@ function loadAgentOutput() {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
     const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-    core.setFailed(errorMessage);
+    core.error(errorMessage);
     return { success: false, error: errorMessage };
   }
 
