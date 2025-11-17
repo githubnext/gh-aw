@@ -226,6 +226,9 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile
 - Add new files for new features rather than extending existing ones
 - Use console formatting instead of plain fmt.* for CLI output
 
+### Go Code Style
+- **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
+
 ### GitHub Actions Integration  
 For JavaScript files in `pkg/workflow/js/*.cjs`:
 - Use `core.info`, `core.warning`, `core.error` (not console.log)
