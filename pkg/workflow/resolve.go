@@ -105,10 +105,30 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 // normalizeWorkflowName removes .md and .lock.yml extensions from workflow names
 // to get the base workflow identifier.
 //
-// Examples:
-//   - "weekly-research" -> "weekly-research"
-//   - "weekly-research.md" -> "weekly-research"
-//   - "weekly-research.lock.yml" -> "weekly-research"
+// This is a NORMALIZE function (format standardization pattern). Use this when
+// converting between workflow file names and workflow IDs. Do NOT use this for
+// character validation - use SanitizeWorkflowName or SanitizeIdentifier instead.
+//
+// The function standardizes input by removing file extensions, allowing users to
+// reference workflows by any of these equivalent forms:
+//   - "weekly-research"           (base identifier)
+//   - "weekly-research.md"        (markdown file)
+//   - "weekly-research.lock.yml"  (compiled workflow)
+//
+// This normalization enables flexible workflow references while maintaining a
+// canonical base identifier for file lookups and resolution.
+//
+// Example inputs and outputs:
+//
+//	normalizeWorkflowName("weekly-research")           // returns "weekly-research"
+//	normalizeWorkflowName("weekly-research.md")        // returns "weekly-research"
+//	normalizeWorkflowName("weekly-research.lock.yml")  // returns "weekly-research"
+//
+// Note: This function assumes the input is already a valid identifier. It does NOT
+// perform character validation or sanitization. If the input might contain invalid
+// characters, sanitize it first with SanitizeWorkflowName.
+//
+// See package documentation for guidance on when to use sanitize vs normalize patterns.
 func normalizeWorkflowName(name string) string {
 	resolveLog.Printf("Normalizing workflow name: %s", name)
 
