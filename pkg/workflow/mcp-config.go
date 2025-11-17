@@ -36,8 +36,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 
 	// Determine version to use - respect version configuration if provided
-	playwrightPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightVersion)
-	if includeCopilotFields && args.MCPPackageVersion != "" && args.MCPPackageVersion != string(constants.DefaultPlaywrightVersion) {
+	playwrightPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion)
+	if includeCopilotFields && args.MCPPackageVersion != "" && args.MCPPackageVersion != string(constants.DefaultPlaywrightMCPVersion) {
 		playwrightPackage = "@playwright/mcp@" + args.MCPPackageVersion
 	}
 
@@ -203,7 +203,7 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"npx\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@" + string(constants.DefaultPlaywrightVersion) + "\",\n")
+	yaml.WriteString("            \"@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion) + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {

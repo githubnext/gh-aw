@@ -25,7 +25,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-origins"`,
@@ -52,7 +52,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 			},
 			wantEnding: "},\n",
 		},

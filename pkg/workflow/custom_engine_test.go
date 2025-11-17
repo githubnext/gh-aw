@@ -302,7 +302,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightVersion)) {
+	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightMCPVersion)) {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
@@ -353,7 +353,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightVersion)) {
+	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightMCPVersion)) {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
