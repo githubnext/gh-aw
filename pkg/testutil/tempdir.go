@@ -15,32 +15,16 @@ var (
 )
 
 // GetTestRunDir returns the unique directory for this test run.
-// It creates a "test-runs" directory in the repo root with a unique subdirectory
+// It creates a directory in the system temp directory with a unique subdirectory
 // based on the current timestamp and process ID.
+// This ensures test directories are completely isolated from any git repository.
 func GetTestRunDir() string {
 	testRunDirOnce.Do(func() {
-		// Get the repository root (assuming we're in pkg/testutil)
-		wd, err := os.Getwd()
-		if err != nil {
-			panic(fmt.Sprintf("failed to get working directory: %v", err))
-		}
+		// Use system temp directory to avoid git repository issues
+		systemTempDir := os.TempDir()
 
-		// Navigate up to find the repo root (contains go.mod)
-		repoRoot := wd
-		for {
-			if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err == nil {
-				break
-			}
-			parent := filepath.Dir(repoRoot)
-			if parent == repoRoot {
-				// Reached filesystem root without finding go.mod
-				panic("failed to find repository root (go.mod)")
-			}
-			repoRoot = parent
-		}
-
-		// Create test-runs directory in repo root
-		testRunsDir := filepath.Join(repoRoot, "test-runs")
+		// Create gh-aw-test-runs directory in system temp
+		testRunsDir := filepath.Join(systemTempDir, "gh-aw-test-runs")
 		if err := os.MkdirAll(testRunsDir, 0755); err != nil {
 			panic(fmt.Sprintf("failed to create test-runs directory: %v", err))
 		}
@@ -61,7 +45,7 @@ func GetTestRunDir() string {
 // TempDir creates a temporary directory for testing within the test run directory.
 // It automatically cleans up the directory when the test completes.
 // This replaces the use of os.MkdirTemp or t.TempDir() to ensure all test
-// artifacts are isolated in a known location.
+// artifacts are isolated in a known location outside any git repository.
 func TempDir(t *testing.T, pattern string) string {
 	t.Helper()
 

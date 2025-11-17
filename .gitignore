@@ -93,5 +93,5 @@ aw.patch
 
 pkg/cli/.github/aw/actions-lock.json
 
-# Test run artifacts
+# Test run artifacts (legacy - now uses system temp)
 test-runs/

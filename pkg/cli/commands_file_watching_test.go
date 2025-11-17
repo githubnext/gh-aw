@@ -23,7 +23,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -48,7 +48,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 			t.Fatalf("Failed to init git repo: %v", initErr)
 		}
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -75,7 +75,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("nonexistent.md", compiler, false)
 		if err == nil {
