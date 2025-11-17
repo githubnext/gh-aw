@@ -2,58 +2,61 @@
 
 Thank you for your interest in contributing to GitHub Agentic Workflows! We welcome contributions from the community and are excited to work with you.
 
-## 🚀 Quick Start for Contributors
-
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/your-username/gh-aw.git
-   cd gh-aw
-   ```
-
-2. **Set up the development environment**
-   ```bash
-   # Install dependencies
-   make deps-dev
-   
-   # Build the project
-   make build
-   
-   # Run tests to ensure everything works
-   make test
-   ```
-
-3. **Make your changes and test them**
-   ```bash
-   # Format your code
-   make fmt
-   
-   # Run linter
-   make lint
-   
-   # Run tests
-   make test
-   
-   # Compile workflows to ensure compatibility
-   make recompile
-   ```
-
-4. **Submit your contribution**
-   - Create a new branch for your feature or fix
-   - Make your changes
-   - Run `make agent-finish` to ensure all checks pass
-   - Submit a pull request
-
-## 🛠️ Development Setup
-
 For detailed development setup instructions, see the [Development Guide](DEVGUIDE.md).
 
+## 🚀 Quick Start for Contributors
+
 ### Prerequisites
+
 - Go 1.24.5 or later
 - Node.js 24 or higher (check with `node --version`)
 - GitHub CLI (`gh`) installed and authenticated
 - Git
 
+### Setup and Build
+
+- Fork <https://github.com/githubnext/gh-aw/> and clone the repository
+
+```bash
+git clone https://github.com/your-username/gh-aw.git
+cd gh-aw
+```
+
+- **Set up the development environment**
+
+```bash
+# Install dependencies
+make deps-dev
+
+# Build the project
+make build
+```
+
+- **Make your changes and test them**
+
+```bash
+# Format your code
+make fmt
+
+# Run linter
+make lint
+
+# Run tests
+make test
+
+# Compile workflows to ensure compatibility
+make recompile
+```
+
+## **Submit your contribution**
+
+- Create a new branch for your feature or fix
+- Make your changes
+- Run `make agent-finish` to ensure all checks pass
+- Submit a pull request
+
 ### Build Commands
+
 - `make deps` - Install basic dependencies
 - `make deps-dev` - Install development dependencies (including linter)
 - `make build` - Build the binary
@@ -65,11 +68,13 @@ For detailed development setup instructions, see the [Development Guide](DEVGUID
 ## 📝 How to Contribute
 
 ### Reporting Issues
+
 - Use the GitHub issue tracker to report bugs
 - Include detailed steps to reproduce the issue
 - Include version information (`./gh-aw version`)
 
 ### Suggesting Features
+
 - Open an issue describing your feature request
 - Explain the use case and how it would benefit users
 - Include examples if applicable
@@ -77,6 +82,7 @@ For detailed development setup instructions, see the [Development Guide](DEVGUID
 ### Contributing Code
 
 #### Code Style
+
 - Follow Go best practices and idioms
 - Use `make fmt` to format your code
 - Ensure `make lint` passes without errors
@@ -96,6 +102,7 @@ return fmt.Errorf("invalid format")
 ```
 
 **Key guidelines:**
+
 - Validation errors should include examples showing correct usage
 - Use proper YAML formatting in examples
 - Show actual values/types for debugging (use `%T`, `%v`, `%s`)
@@ -105,6 +112,7 @@ return fmt.Errorf("invalid format")
 For complete guidelines, see [Error Message Style Guide](.github/instructions/error-messages.instructions.md).
 
 #### Console Output
+
 When adding CLI output, always use the styled console functions from `pkg/console`:
 
 ```go
@@ -140,18 +148,21 @@ Follow these principles when organizing code:
    - Keep files under 500 lines when possible
 
 **File Placement**:
+
 - Place new CLI commands in `pkg/cli/`
 - Place workflow processing logic in `pkg/workflow/`
 - Add tests alongside your code (e.g., `feature.go` and `feature_test.go`)
 - Use descriptive test names: `feature_scenario_test.go`, `feature_integration_test.go`
 
 **When to Create a New File**:
+
 - Implementing a new safe output type → `create_<entity>.go`
 - Adding a new AI engine → `<engine>_engine.go`
 - Building a distinct feature module → `<feature>.go`
 - Current file exceeds 800 lines → Split by logical boundaries
 
 **File Size Guidelines**:
+
 - Small files (50-200 lines): Utilities, simple features
 - Medium files (200-500 lines): Most feature implementations
 - Large files (500-800 lines): Complex features (consider splitting)
@@ -164,6 +175,7 @@ For detailed guidance, see [Code Organization Patterns](specs/code-organization.
 When adding validation logic, follow the established architecture:
 
 **Centralized validation** (`pkg/workflow/validation.go`):
+
 - Cross-cutting concerns spanning multiple domains
 - Core workflow integrity checks
 - GitHub Actions compatibility validation
@@ -171,6 +183,7 @@ When adding validation logic, follow the established architecture:
 - Repository-level feature detection
 
 **Domain-specific validation** (dedicated files):
+
 - `strict_mode_validation.go` - Security and strict mode enforcement
 - `pip_validation.go` - Python package validation
 - `npm_validation.go` - NPM package validation
@@ -181,6 +194,7 @@ When adding validation logic, follow the established architecture:
 - `template.go` - Template structure validation
 
 **When to create a new validation file**:
+
 - Validating a new external ecosystem (e.g., Ruby gems, Java packages)
 - Complex domain-specific validation logic (> 100 lines)
 - Security-focused validation requiring dedicated focus
@@ -188,11 +202,13 @@ When adding validation logic, follow the established architecture:
 For detailed validation architecture and decision tree, see [specs/validation-architecture.md](specs/validation-architecture.md).
 
 ### Documentation
+
 - Update documentation for any new features
 - Add examples where helpful
 - Ensure documentation is clear and concise
 
 ### Testing
+
 - Write unit tests for new functionality
 - Ensure all tests pass (`make test`)
 - Test manually with real workflows when possible

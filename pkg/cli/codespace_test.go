@@ -48,6 +48,9 @@ func TestIsRunningInCodespace(t *testing.T) {
 			// Set test value
 			if tt.envValue != "" {
 				t.Setenv("CODESPACES", tt.envValue)
+			} else {
+				// Explicitly unset the variable for the "not set" test case
+				t.Setenv("CODESPACES", "")
 			}
 
 			got := isRunningInCodespace()

@@ -15,6 +15,11 @@ var jqLog = logger.New("cli:jq")
 func ApplyJqFilter(jsonInput string, jqFilter string) (string, error) {
 	jqLog.Printf("Applying jq filter: %s (input size: %d bytes)", jqFilter, len(jsonInput))
 
+	// Validate filter is not empty
+	if jqFilter == "" {
+		return "", fmt.Errorf("jq filter cannot be empty")
+	}
+
 	// Check if jq is available
 	jqPath, err := exec.LookPath("jq")
 	if err != nil {
