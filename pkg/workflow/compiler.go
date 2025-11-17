@@ -1163,7 +1163,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 
 	// Extract cache-memory config and check for errors
-	cacheMemoryConfig, err := c.extractCacheMemoryConfig(tools) // Use merged tools to support imports
+	// Use the backward compatibility wrapper to avoid changing all call sites at once
+	cacheMemoryConfig, err := c.extractCacheMemoryConfigFromMap(tools) // Use merged tools to support imports
 	if err != nil {
 		return nil, err
 	}

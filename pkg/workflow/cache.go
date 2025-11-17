@@ -32,15 +32,17 @@ func generateDefaultCacheKey(cacheID string) string {
 }
 
 // extractCacheMemoryConfig extracts cache-memory configuration from tools section
-func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
-	cacheMemoryValue, exists := tools["cache-memory"]
-	if !exists {
+// Updated to use ToolsConfig instead of map[string]any
+func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMemoryConfig, error) {
+	// Check if cache-memory tool is configured
+	if toolsConfig == nil || toolsConfig.CacheMemory == nil {
 		return nil, nil
 	}
 
-	cacheLog.Print("Extracting cache-memory configuration from tools")
+	cacheLog.Print("Extracting cache-memory configuration from ToolsConfig")
 
 	config := &CacheMemoryConfig{}
+	cacheMemoryValue := toolsConfig.CacheMemory.Raw
 
 	// Handle nil value (simple enable with defaults) - same as true
 	// This handles the case where cache-memory: is specified without a value
@@ -181,6 +183,16 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 	}
 
 	return nil, nil
+}
+
+// extractCacheMemoryConfigFromMap is a backward compatibility wrapper for extractCacheMemoryConfig
+// that accepts map[string]any instead of *ToolsConfig. This allows gradual migration of calling code.
+func (c *Compiler) extractCacheMemoryConfigFromMap(tools map[string]any) (*CacheMemoryConfig, error) {
+	toolsConfig, err := ParseToolsConfig(tools)
+	if err != nil {
+		return nil, err
+	}
+	return c.extractCacheMemoryConfig(toolsConfig)
 }
 
 // generateCacheSteps generates cache steps for the workflow based on cache configuration

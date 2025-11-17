@@ -200,7 +200,7 @@ func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (
 	topTools = c.applyDefaultTools(topTools, safeOutputs)
 
 	// Extract cache-memory config
-	cacheMemoryConfig, _ := c.extractCacheMemoryConfig(topTools)
+	cacheMemoryConfig, _ := c.extractCacheMemoryConfigFromMap(topTools)
 
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{

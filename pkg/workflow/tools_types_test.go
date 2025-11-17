@@ -467,3 +467,120 @@ func TestExtractRuntimesFromFrontmatter(t *testing.T) {
 		t.Error("unexpected 'github' key in result")
 	}
 }
+
+func TestParseToolsConfig(t *testing.T) {
+	t.Run("parses valid tools map", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github":    map[string]any{"allowed": []any{"get_issue"}},
+			"bash":      []any{"echo", "ls"},
+			"edit":      nil,
+			"my-custom": map[string]any{"command": "node"},
+		}
+
+		config, err := ParseToolsConfig(toolsMap)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if !config.HasTool("github") {
+			t.Error("expected GitHub tool to be set")
+		}
+		if !config.HasTool("bash") {
+			t.Error("expected Bash tool to be set")
+		}
+		if !config.HasTool("edit") {
+			t.Error("expected Edit tool to be set")
+		}
+		if !config.HasTool("my-custom") {
+			t.Error("expected my-custom tool to be set")
+		}
+	})
+
+	t.Run("handles nil map", func(t *testing.T) {
+		config, err := ParseToolsConfig(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if config == nil {
+			t.Fatal("expected non-nil config")
+		}
+
+		if len(config.GetToolNames()) != 0 {
+			t.Errorf("expected 0 tools, got %d", len(config.GetToolNames()))
+		}
+	})
+}
+
+func TestToolsConfigToMap(t *testing.T) {
+	t.Run("converts ToolsConfig back to map", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"get_issue", "create_issue"},
+				"mode":    "remote",
+			},
+			"bash":      []any{"echo"},
+			"edit":      nil,
+			"my-custom": map[string]any{"command": "node"},
+		}
+
+		config, _ := ParseToolsConfig(toolsMap)
+		result := config.ToMap()
+
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		// GitHub should be present
+		if _, ok := result["github"]; !ok {
+			t.Error("expected 'github' key in result")
+		}
+
+		// Bash should be present
+		if _, ok := result["bash"]; !ok {
+			t.Error("expected 'bash' key in result")
+		}
+
+		// Edit should be present
+		if _, ok := result["edit"]; !ok {
+			t.Error("expected 'edit' key in result")
+		}
+
+		// Custom tool should be present
+		if _, ok := result["my-custom"]; !ok {
+			t.Error("expected 'my-custom' key in result")
+		}
+	})
+
+	t.Run("handles nil ToolsConfig", func(t *testing.T) {
+		var config *ToolsConfig
+		result := config.ToMap()
+
+		if result == nil {
+			t.Fatal("expected non-nil result")
+		}
+
+		if len(result) != 0 {
+			t.Errorf("expected empty map, got %d entries", len(result))
+		}
+	})
+
+	t.Run("ToMap preserves raw map when available", func(t *testing.T) {
+		// Create a ToolsConfig with a raw map
+		toolsMap := map[string]any{
+			"github": map[string]any{"allowed": []any{"get_issue"}},
+		}
+
+		config := NewTools(toolsMap)
+		result := config.ToMap()
+
+		// Should return the raw map, which is identical to the input
+		if len(result) != len(toolsMap) {
+			t.Errorf("expected %d entries, got %d", len(toolsMap), len(result))
+		}
+	})
+}

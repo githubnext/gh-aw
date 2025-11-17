@@ -183,33 +183,80 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 
 // expandNeutralToolsToCodexTools converts neutral tools to Codex-specific tools format
 // This ensures that playwright tools get the same allowlist as the copilot agent
-func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[string]any {
-	result := make(map[string]any)
+// Updated to use ToolsConfig instead of map[string]any
+func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *ToolsConfig {
+	if toolsConfig == nil {
+		return &ToolsConfig{
+			Custom: make(map[string]any),
+			raw:    make(map[string]any),
+		}
+	}
 
-	// Copy all existing tools
-	for key, value := range tools {
-		result[key] = value
+	// Create a copy of the tools config
+	result := &ToolsConfig{
+		GitHub:           toolsConfig.GitHub,
+		Bash:             toolsConfig.Bash,
+		WebFetch:         toolsConfig.WebFetch,
+		WebSearch:        toolsConfig.WebSearch,
+		Edit:             toolsConfig.Edit,
+		Playwright:       toolsConfig.Playwright,
+		AgenticWorkflows: toolsConfig.AgenticWorkflows,
+		CacheMemory:      toolsConfig.CacheMemory,
+		SafetyPrompt:     toolsConfig.SafetyPrompt,
+		Timeout:          toolsConfig.Timeout,
+		StartupTimeout:   toolsConfig.StartupTimeout,
+		Custom:           make(map[string]any),
+		raw:              make(map[string]any),
+	}
+
+	// Copy custom tools
+	for key, value := range toolsConfig.Custom {
+		result.Custom[key] = value
+	}
+
+	// Copy raw map
+	for key, value := range toolsConfig.raw {
+		result.raw[key] = value
 	}
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
-	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		// Create playwright as an MCP tool with the same tools available as copilot agent
+	if toolsConfig.Playwright != nil {
+		// Create an updated Playwright config with the allowed tools
+		playwrightConfig := &PlaywrightToolConfig{
+			Version:        toolsConfig.Playwright.Version,
+			AllowedDomains: toolsConfig.Playwright.AllowedDomains,
+			Args:           toolsConfig.Playwright.Args,
+		}
+
+		result.Playwright = playwrightConfig
+
+		// Also update the Custom map entry for playwright with allowed tools list
 		playwrightMCP := map[string]any{
 			"allowed": GetCopilotAgentPlaywrightTools(),
 		}
-		// If the original playwright tool has additional configuration (like version),
-		// preserve it while adding the allowed tools
-		if playwrightConfig, ok := tools["playwright"].(map[string]any); ok {
-			for key, value := range playwrightConfig {
-				playwrightMCP[key] = value
-			}
+		if playwrightConfig.Version != "" {
+			playwrightMCP["version"] = playwrightConfig.Version
 		}
-		// Always set the allowed tools to match copilot agent
-		playwrightMCP["allowed"] = GetCopilotAgentPlaywrightTools()
-		result["playwright"] = playwrightMCP
+		if len(playwrightConfig.AllowedDomains) > 0 {
+			playwrightMCP["allowed_domains"] = playwrightConfig.AllowedDomains
+		}
+		if len(playwrightConfig.Args) > 0 {
+			playwrightMCP["args"] = playwrightConfig.Args
+		}
+
+		// Update raw map for backward compatibility
+		result.raw["playwright"] = playwrightMCP
 	}
 
 	return result
+}
+
+// expandNeutralToolsToCodexToolsFromMap is a backward compatibility wrapper
+// that accepts map[string]any instead of *ToolsConfig
+func (e *CodexEngine) expandNeutralToolsToCodexToolsFromMap(tools map[string]any) map[string]any {
+	toolsConfig, _ := ParseToolsConfig(tools)
+	result := e.expandNeutralToolsToCodexTools(toolsConfig)
+	return result.ToMap()
 }
 
 // renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
@@ -306,7 +353,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
-	expandedTools := e.expandNeutralToolsToCodexTools(tools)
+	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
 
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
