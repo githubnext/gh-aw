@@ -40,6 +40,9 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
+//go:embed js/safe_outputs_tools.json
+var safeOutputsToolsJSON string
+
 //go:embed js/interpolate_prompt.cjs
 var interpolatePromptScript string
 
@@ -558,4 +561,9 @@ func GetLogParserBootstrap() string {
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
+}
+
+// GetSafeOutputsToolsJSON returns the JSON content for the safe outputs tools definitions
+func GetSafeOutputsToolsJSON() string {
+	return safeOutputsToolsJSON
 }
