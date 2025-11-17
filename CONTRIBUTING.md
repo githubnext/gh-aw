@@ -111,7 +111,7 @@ When deprecating fields, features, or APIs, follow the structured deprecation li
 2. **Stage 2 (Warn)**: Emit runtime warnings (minimum 3 releases)
 3. **Stage 3 (Remove)**: Remove in major version release
 
-The deprecation process ensures users have adequate time to migrate (minimum 6 releases total). For complete guidelines, timelines, and the exemplary `timeout_minutes` case study, see [Deprecation Policy](.github/instructions/deprecation.instructions.md).
+The deprecation process ensures users have adequate time to migrate (minimum 6 releases total). For complete guidelines, timelines, and the exemplary `timeout_minutes` case study, see [Deprecation Policy](specs/deprecation-policy.md).
 
 #### Console Output
 When adding CLI output, always use the styled console functions from `pkg/console`:

@@ -284,8 +284,8 @@ Users should expect:
 
 - [Semantic Versioning](https://semver.org/)
 - [GitHub Actions Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
-- [Error Message Style Guide](.github/instructions/error-messages.instructions.md)
-- [Developer Instructions](.github/instructions/developer.instructions.md)
+- [Error Message Style Guide](../.github/instructions/error-messages.instructions.md)
+- [Developer Instructions](../.github/instructions/developer.instructions.md)
 
 ## Questions?
 
