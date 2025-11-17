@@ -571,6 +571,12 @@ func TestNewWorkflow(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:          "create workflow with .md extension (should normalize)",
+			workflowName:  "test-with-ext.md",
+			force:         false,
+			expectedError: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -592,7 +598,9 @@ func TestNewWorkflow(t *testing.T) {
 
 			// If no error expected, verify the file was created
 			if !test.expectedError {
-				filePath := ".github/workflows/" + test.workflowName + ".md"
+				// Normalize the workflow name for file path (remove .md if present)
+				normalizedName := strings.TrimSuffix(test.workflowName, ".md")
+				filePath := ".github/workflows/" + normalizedName + ".md"
 				if _, err := os.Stat(filePath); os.IsNotExist(err) {
 					t.Errorf("Expected workflow file was not created: %s", filePath)
 				}
@@ -609,7 +617,7 @@ func TestNewWorkflow(t *testing.T) {
 						"on:",
 						"permissions:",
 						"safe-outputs:",
-						"# " + test.workflowName,
+						"# " + normalizedName,
 						"workflow_dispatch:",
 					}
 					for _, element := range expectedElements {

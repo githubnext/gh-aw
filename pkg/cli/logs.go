@@ -312,11 +312,12 @@ Downloaded artifacts include:
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
 The workflow-id is the basename of the markdown file without the .md extension.
-For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
+You can provide either the workflow-id (e.g., 'weekly-research') or the full filename (e.g., 'weekly-research.md').
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
   ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific workflow
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research.md        # Download logs (alternative format)
   ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
   ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
   ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date

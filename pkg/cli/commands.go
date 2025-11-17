@@ -106,6 +106,11 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	commandsLog.Printf("Creating new workflow: name=%s, force=%v", workflowName, force)
 
+	// Normalize the workflow name by removing .md extension if present
+	// This ensures consistent behavior whether user provides "my-workflow" or "my-workflow.md"
+	workflowName = strings.TrimSuffix(workflowName, ".md")
+	commandsLog.Printf("Normalized workflow name: %s", workflowName)
+
 	if verbose {
 		fmt.Printf("Creating new workflow: %s\n", workflowName)
 	}
