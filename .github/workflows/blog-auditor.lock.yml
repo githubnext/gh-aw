@@ -1176,7 +1176,7 @@ jobs:
               "playwright": {
                 "command": "npx",
                 "args": [
-                  "@playwright/mcp@1.56.1",
+                  "@playwright/mcp@0.0.47",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
                   "--allowed-origins",

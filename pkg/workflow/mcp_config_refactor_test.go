@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigWithOptions verifies the shared Playwright config helper
@@ -48,7 +50,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"command": "npx"`,
 				`"args": [`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`              },`,
@@ -269,7 +271,7 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 				`[mcp_servers.playwright]`,
 				`command = "npx"`,
 				`args = [`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},

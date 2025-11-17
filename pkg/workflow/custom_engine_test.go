@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
@@ -301,7 +302,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@1.56.1") {
+	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightVersion)) {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
@@ -352,7 +353,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 	}
 
 	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@1.56.1") {
+	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightVersion)) {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 

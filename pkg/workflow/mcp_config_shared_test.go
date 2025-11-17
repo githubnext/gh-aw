@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigShared tests the shared renderPlaywrightMCPConfig function
@@ -23,7 +25,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-origins"`,
@@ -50,7 +52,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "npx"`,
-				`"@playwright/mcp@1.56.1"`,
+				`"@playwright/mcp@` + string(constants.DefaultPlaywrightVersion) + `"`,
 			},
 			wantEnding: "},\n",
 		},

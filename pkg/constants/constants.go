@@ -41,7 +41,10 @@ const DefaultGitHubMCPServerVersion Version = "v0.20.2"
 const DefaultFirewallVersion Version = "v0.1.1"
 
 // DefaultPlaywrightVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightVersion Version = "1.56.1"
+const DefaultPlaywrightVersion Version = "0.0.47"
+
+// DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
+const DefaultPlaywrightBrowserVersion Version = "v1.56.1"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"

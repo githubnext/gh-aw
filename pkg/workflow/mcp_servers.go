@@ -330,7 +330,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
-	playwrightDockerImageVersion := string(constants.DefaultPlaywrightVersion) // Default Playwright package version
+	playwrightDockerImageVersion := string(constants.DefaultPlaywrightBrowserVersion) // Default Playwright browser Docker image version
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
