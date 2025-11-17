@@ -27,7 +27,6 @@ func TestMCPInspectPlaywrightIntegration(t *testing.T) {
 			engineConfig: `engine: copilot
 tools:
   playwright:
-    version: "v1.56.1"
     allowed_domains:
       - "localhost"
       - "example.com"`,
@@ -38,7 +37,6 @@ tools:
 			engineConfig: `engine: claude
 tools:
   playwright:
-    version: "v1.56.1"
     allowed_domains:
       - "localhost"
       - "example.com"`,
@@ -49,7 +47,6 @@ tools:
 			engineConfig: `engine: codex
 tools:
   playwright:
-    version: "v1.56.1"
     allowed_domains:
       - "localhost"
       - "example.com"`,
@@ -136,7 +133,6 @@ permissions:
 engine: copilot
 tools:
   playwright:
-    version: "v1.56.1"
     allowed_domains:
       - "localhost"
 ---
@@ -188,64 +184,5 @@ Test workflow for playwright tools inspection.
 		} else {
 			t.Logf("Warning: Command failed with: %v", err)
 		}
-	}
-}
-
-// TestMCPInspectPlaywrightVersions tests playwright version configuration
-// across different engines
-func TestMCPInspectPlaywrightVersions(t *testing.T) {
-	setup := setupIntegrationTest(t)
-	defer setup.cleanup()
-
-	versions := []struct {
-		version string
-		valid   bool
-	}{
-		{"v1.56.1", true},
-		{"v1.55.0", true},
-		{"latest", true},
-	}
-
-	for _, tc := range versions {
-		t.Run("version_"+tc.version, func(t *testing.T) {
-			workflowContent := `---
-on: workflow_dispatch
-permissions:
-  contents: read
-engine: copilot
-tools:
-  playwright:
-    version: "` + tc.version + `"
-    allowed_domains:
-      - "localhost"
----
-
-# Test Playwright Version ` + tc.version + `
-
-Test workflow for playwright version configuration.
-`
-
-			workflowFile := filepath.Join(setup.workflowsDir, "test-playwright-version-"+strings.ReplaceAll(tc.version, ".", "-")+".md")
-			if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-				t.Fatalf("Failed to create test workflow file: %v", err)
-			}
-
-			// Run mcp inspect to validate configuration
-			cmd := exec.Command(setup.binaryPath, "mcp", "inspect", filepath.Base(workflowFile[:len(workflowFile)-3]), "--verbose")
-			cmd.Dir = setup.tempDir
-
-			output, err := cmd.CombinedOutput()
-			outputStr := string(output)
-
-			if tc.valid {
-				// Check that validation passed
-				if strings.Contains(outputStr, "Frontmatter validation passed") ||
-					strings.Contains(outputStr, "MCP configuration validation passed") {
-					t.Logf("✓ Version %s validated successfully", tc.version)
-				} else if err != nil {
-					t.Logf("Warning: Version %s validation had issues: %v", tc.version, err)
-				}
-			}
-		})
 	}
 }
