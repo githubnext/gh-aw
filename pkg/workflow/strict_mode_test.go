@@ -64,8 +64,7 @@ network:
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -231,8 +230,7 @@ engine: copilot
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -337,8 +335,7 @@ network: {}
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -392,8 +389,7 @@ tools:
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -568,8 +564,7 @@ network:
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -705,8 +700,7 @@ engine: copilot
 
 			compiler := NewCompiler(false, "", "")
 			// Do NOT set strict mode via CLI - let frontmatter control it
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")
@@ -744,8 +738,7 @@ engine: copilot
 
 	compiler := NewCompiler(false, "", "")
 	compiler.SetStrictMode(true) // CLI flag sets strict mode
-	var err error
-	err = compiler.CompileWorkflow(testFile)
+	err := compiler.CompileWorkflow(testFile)
 
 	// Should fail because CLI flag enforces strict mode and write permission is not allowed
 	if err == nil {
@@ -893,8 +886,7 @@ network:
 
 			compiler := NewCompiler(false, "", "")
 			compiler.SetStrictMode(true)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")

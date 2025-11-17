@@ -1609,9 +1609,7 @@ This workflow tests validation of empty allowed labels.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow - should fail with empty allowed labels
-	var err error
-
-	err = compiler.CompileWorkflow(testFile)
+	err := compiler.CompileWorkflow(testFile)
 	if err == nil {
 		t.Fatal("Expected error when compiling workflow with empty allowed labels")
 	}

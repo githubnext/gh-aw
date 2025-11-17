@@ -123,8 +123,7 @@ tools:
 
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetStrictMode(tt.strict)
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			// Restore stderr
 			w.Close()
@@ -203,8 +202,7 @@ tools:
 
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetStrictMode(false)
-	var err error
-	err = compiler.CompileWorkflow(testFile)
+	err := compiler.CompileWorkflow(testFile)
 
 	// Restore stderr
 	w.Close()

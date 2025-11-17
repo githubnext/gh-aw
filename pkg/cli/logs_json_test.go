@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
-	"time"
 )
 
 // TestBuildLogsData tests the structured data creation for logs

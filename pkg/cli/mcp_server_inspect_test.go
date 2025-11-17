@@ -6,10 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

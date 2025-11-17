@@ -112,8 +112,7 @@ This should succeed because no max-turns is specified.`,
 			compiler.SetSkipValidation(false)
 
 			// Try to compile the workflow
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
 				// We expect an error

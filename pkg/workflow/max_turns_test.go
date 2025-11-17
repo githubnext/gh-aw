@@ -239,8 +239,7 @@ engine:
 
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected compilation to fail but it succeeded")

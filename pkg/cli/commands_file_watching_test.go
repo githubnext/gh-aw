@@ -7,10 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 

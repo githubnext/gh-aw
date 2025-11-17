@@ -1416,8 +1416,7 @@ This should fail due to conflicting MCP configurations.
 
 	// Compile the workflow - this should produce an error due to conflicting configurations
 	compiler := NewCompiler(false, "", "test")
-	var err error
-	err = compiler.CompileWorkflow(mainFile)
+	err := compiler.CompileWorkflow(mainFile)
 
 	// We expect this to fail due to conflicting MCP configurations
 	if err == nil {
@@ -4692,8 +4691,7 @@ engine: claude
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)

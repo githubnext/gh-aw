@@ -129,8 +129,7 @@ tools:
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -189,8 +188,7 @@ safe-outputs:
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -247,8 +245,7 @@ safe-outputs:
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -305,8 +302,7 @@ tools:
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			var err error
-			err = compiler.CompileWorkflow(testFile)
+			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
 				if err == nil {
@@ -341,8 +337,7 @@ github-token: ghp_actualSecretInPlainText
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	var err error
-	err = compiler.CompileWorkflow(testFile)
+	err := compiler.CompileWorkflow(testFile)
 
 	if err == nil {
 		t.Fatal("Expected validation error, got none")
@@ -383,8 +378,7 @@ safe-outputs:
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	var err error
-	err = compiler.CompileWorkflow(testFile)
+	err := compiler.CompileWorkflow(testFile)
 
 	// Should fail due to plaintext token in github tool
 	if err == nil {
