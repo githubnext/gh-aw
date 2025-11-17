@@ -30,6 +30,10 @@ The command:
 2. Updates workflows using the 'source' field in the workflow frontmatter
 3. Compiles each workflow immediately after update
 
+By default, the update command replaces local workflow files with the latest version from the source
+repository, overriding any local changes. Use the --merge flag to preserve local changes by performing
+a 3-way merge between the base version, your local changes, and the latest upstream version.
+
 For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
 - If the ref is a branch, it fetches the latest commit from that branch
@@ -43,6 +47,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
   ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh-aw updates and update specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
+  ` + constants.CLIExtensionPrefix + ` update --merge           # Update with 3-way merge to preserve local changes
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
   ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
   ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory`,
@@ -55,13 +60,14 @@ Examples:
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
+			mergeFlag, _ := cmd.Flags().GetBool("merge")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
-			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter); err != nil {
+			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -75,6 +81,7 @@ Examples:
 	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the updated workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')")
+	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
 
 	return cmd
 }
@@ -124,8 +131,8 @@ func checkExtensionUpdate(verbose bool) error {
 // 1. Check for gh-aw extension updates
 // 2. Update workflows from source repositories (compiles each workflow after update)
 // 3. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v", workflowNames, allowMajor, force, createPR)
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v", workflowNames, allowMajor, force, createPR, merge)
 
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
@@ -134,7 +141,7 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 
 	// Step 2: Update workflows from source repositories
 	// Note: Each workflow is compiled immediately after update
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter); err != nil {
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, merge); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
@@ -232,8 +239,8 @@ func createUpdatePR(verbose bool) error {
 }
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v", workflowsDir, workflowNames)
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, merge bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, merge=%v", workflowsDir, workflowNames, merge)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -263,7 +270,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	// Update each workflow
 	for _, wf := range workflows {
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter); err != nil {
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, merge); err != nil {
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
 				Error: err.Error(),
@@ -563,8 +570,8 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string) error {
-	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v", wf.Name, wf.SourceSpec, force)
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, merge bool) error {
+	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, merge=%v", wf.Name, wf.SourceSpec, force, merge)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
@@ -629,16 +636,6 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return nil
 	}
 
-	// Download the base version (current ref from source)
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading base version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, currentRef)))
-	}
-
-	baseContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to download base workflow: %w", err)
-	}
-
 	// Download the latest version
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading latest version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef)))
@@ -649,47 +646,107 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return fmt.Errorf("failed to download workflow: %w", err)
 	}
 
-	// Read current workflow content
-	currentContent, err := os.ReadFile(wf.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read current workflow: %w", err)
-	}
+	var finalContent string
+	var hasConflicts bool
 
-	// Perform 3-way merge using git merge-file
-	updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
-	mergedContent, hasConflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
-	if err != nil {
-		updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
-		return fmt.Errorf("failed to merge workflow content: %w", err)
-	}
+	// Decide whether to merge or override
+	if merge {
+		// Merge mode: perform 3-way merge to preserve local changes
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Using merge mode to preserve local changes"))
+		}
 
-	if hasConflicts {
-		updateLog.Printf("Merge conflicts detected in workflow: %s", wf.Name)
+		// Download the base version (current ref from source)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading base version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, currentRef)))
+		}
+
+		baseContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to download base workflow: %w", err)
+		}
+
+		// Read current workflow content
+		currentContent, err := os.ReadFile(wf.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read current workflow: %w", err)
+		}
+
+		// Perform 3-way merge using git merge-file
+		updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
+		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
+		if err != nil {
+			updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
+			return fmt.Errorf("failed to merge workflow content: %w", err)
+		}
+
+		finalContent = mergedContent
+		hasConflicts = conflicts
+
+		if hasConflicts {
+			updateLog.Printf("Merge conflicts detected in workflow: %s", wf.Name)
+		}
+	} else {
+		// Override mode (default): replace local file with new content from source
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Using override mode - local changes will be replaced"))
+		}
+
+		// Update the source field in the new content with the new ref
+		newWithUpdatedSource, err := UpdateFieldInFrontmatter(string(newContent), "source", fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef))
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))
+			}
+			// Continue with original new content
+			finalContent = string(newContent)
+		} else {
+			finalContent = newWithUpdatedSource
+		}
+
+		// Process @include directives if present
+		workflow := &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: sourceSpec.Repo,
+				Version:  latestRef,
+			},
+			WorkflowPath: sourceSpec.Path,
+		}
+
+		processedContent, err := processIncludesInContent(finalContent, workflow, latestRef, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+			}
+			// Continue with unprocessed content
+		} else {
+			finalContent = processedContent
+		}
 	}
 
 	// Handle stop-after field modifications
 	if noStopAfter {
 		// Remove stop-after field if requested
-		cleanedContent, err := RemoveFieldFromOnTrigger(mergedContent, "stop-after")
+		cleanedContent, err := RemoveFieldFromOnTrigger(finalContent, "stop-after")
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove stop-after field: %v", err)))
 			}
 		} else {
-			mergedContent = cleanedContent
+			finalContent = cleanedContent
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
 			}
 		}
 	} else if stopAfter != "" {
 		// Set custom stop-after value if provided
-		updatedContent, err := SetFieldInOnTrigger(mergedContent, "stop-after", stopAfter)
+		updatedContent, err := SetFieldInOnTrigger(finalContent, "stop-after", stopAfter)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
 			}
 		} else {
-			mergedContent = updatedContent
+			finalContent = updatedContent
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", stopAfter)))
 			}
@@ -697,7 +754,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	// Write updated content
-	if err := os.WriteFile(wf.Path, []byte(mergedContent), 0644); err != nil {
+	if err := os.WriteFile(wf.Path, []byte(finalContent), 0644); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
 	}
 
