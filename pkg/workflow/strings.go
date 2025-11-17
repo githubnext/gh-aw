@@ -1,3 +1,57 @@
+// Package workflow provides utilities for processing GitHub Agentic Workflows.
+//
+// # String Processing Patterns
+//
+// This package implements two distinct patterns for string processing:
+//
+// ## Sanitize Pattern: Character Validity
+//
+// Sanitize functions remove or replace invalid characters to create valid identifiers,
+// file names, or artifact names. Use sanitize functions when you need to ensure a string
+// contains only valid characters for a specific context.
+//
+// Functions:
+//   - SanitizeName: Configurable sanitization with character preservation options
+//   - SanitizeWorkflowName: Sanitizes for artifact names and file paths (preserves dots, underscores)
+//   - SanitizeIdentifier (workflow_name.go): Creates clean identifiers for user agents
+//
+// Example:
+//
+//	// User input with invalid characters
+//	input := "My Workflow: Test/Build"
+//	result := SanitizeWorkflowName(input)
+//	// Returns: "my-workflow-test-build"
+//
+// ## Normalize Pattern: Format Standardization
+//
+// Normalize functions standardize format by removing extensions, converting between
+// naming conventions, or applying consistent formatting rules. Use normalize functions
+// when converting between different representations of the same logical entity.
+//
+// Functions:
+//   - normalizeWorkflowName (resolve.go): Removes file extensions (.md, .lock.yml)
+//   - normalizeSafeOutputIdentifier (safe_outputs.go): Converts dashes to underscores
+//
+// Example:
+//
+//	// File name to base identifier
+//	input := "weekly-research.md"
+//	result := normalizeWorkflowName(input)
+//	// Returns: "weekly-research"
+//
+// ## When to Use Each Pattern
+//
+// Use SANITIZE when:
+//   - Processing user input that may contain invalid characters
+//   - Creating identifiers, artifact names, or file paths
+//   - Need to ensure character validity for a specific context
+//
+// Use NORMALIZE when:
+//   - Converting between file names and identifiers (removing extensions)
+//   - Standardizing naming conventions (dashes to underscores)
+//   - Input is already valid but needs format conversion
+//
+// See specs/string-sanitization-normalization.md for detailed guidance.
 package workflow
 
 import (
@@ -145,15 +199,23 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 // It converts the name to lowercase and replaces or removes characters that are invalid
 // in YAML artifact names or filesystem paths.
 //
+// This is a SANITIZE function (character validity pattern). Use this when processing
+// user input or workflow names that may contain invalid characters. Do NOT use this
+// for removing file extensions - use normalizeWorkflowName (resolve.go) instead.
+//
 // The function performs the following transformations:
 //   - Converts to lowercase
 //   - Replaces colons, slashes, backslashes, and spaces with hyphens
 //   - Replaces any remaining special characters (except dots, underscores, and hyphens) with hyphens
 //   - Consolidates multiple consecutive hyphens into a single hyphen
 //
-// Example:
+// Example inputs and outputs:
 //
-//	SanitizeWorkflowName("My Workflow: Test/Build") // returns "my-workflow-test-build"
+//	SanitizeWorkflowName("My Workflow: Test/Build")  // returns "my-workflow-test-build"
+//	SanitizeWorkflowName("Weekly Research v2.0")     // returns "weekly-research-v2.0"
+//	SanitizeWorkflowName("test_workflow")            // returns "test_workflow"
+//
+// See package documentation for guidance on when to use sanitize vs normalize patterns.
 func SanitizeWorkflowName(name string) string {
 	return SanitizeName(name, &SanitizeOptions{
 		PreserveSpecialChars: []rune{'.', '_', '-'},
