@@ -391,8 +391,8 @@ func generatePlaywrightAllowedDomains(playwrightTool any) []string {
 
 // PlaywrightDockerArgs represents the common Docker arguments for Playwright container
 type PlaywrightDockerArgs struct {
-	ImageVersion      string   // Version for Docker image (mcr.microsoft.com/playwright:version)
-	MCPPackageVersion string   // Version for NPM package (@playwright/mcp@version)
+	ImageVersion      string // Version for Docker image (mcr.microsoft.com/playwright:version)
+	MCPPackageVersion string // Version for NPM package (@playwright/mcp@version)
 	AllowedDomains    []string
 }
 

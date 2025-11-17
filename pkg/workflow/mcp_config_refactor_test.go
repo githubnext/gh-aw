@@ -22,7 +22,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0",
+				"version": "v1.45.0", // Docker image version (does not affect NPM package)
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -31,7 +31,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"type": "local"`,
 				`"command": "npx"`,
-				`"args": ["@playwright/mcp@v1.45.0"`,
+				`"args": ["@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`, // Always uses default NPM package version
 				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 				`"tools": ["*"]`,
 				`              }`,

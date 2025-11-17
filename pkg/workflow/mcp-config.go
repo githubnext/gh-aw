@@ -35,11 +35,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
 
-	// Determine version to use - respect version configuration if provided
+	// Always use the default Playwright MCP NPM package version
 	playwrightPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion)
-	if includeCopilotFields && args.MCPPackageVersion != "" && args.MCPPackageVersion != string(constants.DefaultPlaywrightMCPVersion) {
-		playwrightPackage = "@playwright/mcp@" + args.MCPPackageVersion
-	}
 
 	yaml.WriteString("              \"playwright\": {\n")
 
