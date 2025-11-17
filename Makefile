@@ -118,7 +118,29 @@ deps:
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
-	npm install -g prettier
+	@if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then \
+		npm install -g prettier; \
+	else \
+		echo ""; \
+		echo "Node.js and npm are required but not installed."; \
+		echo "Please install Node.js (version 24 or later recommended) using one of these methods:"; \
+		echo ""; \
+		echo "Using nvm (recommended):"; \
+		echo "  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash"; \
+		echo "  source ~/.bashrc  # or source ~/.zshrc"; \
+		echo "  nvm install 24"; \
+		echo ""; \
+		echo "On Ubuntu/Debian:"; \
+		echo "  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -"; \
+		echo "  sudo apt-get install -y nodejs"; \
+		echo ""; \
+		echo "On macOS with Homebrew:"; \
+		echo "  brew install node"; \
+		echo ""; \
+		echo "For other platforms, see: https://nodejs.org/en/download/package-manager"; \
+		echo ""; \
+		exit 1; \
+	fi
 
 # Install development tools (including linter)
 .PHONY: deps-dev

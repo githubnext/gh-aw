@@ -2,6 +2,15 @@
 
 ## Development Environment Setup
 
+### Prerequisites
+
+Before setting up the development environment, ensure you have the following installed:
+
+- **Go 1.24.5 or later** - Required for building the Go application
+- **Node.js 24 or later** (with npm) - Required for JavaScript tooling and prettier
+- **GitHub CLI (`gh`)** - Required for GitHub integration, must be authenticated
+- **Git** - Required for version control
+
 ### 1. Clone and Setup Repository
 
 ```bash
