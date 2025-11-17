@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 const (
@@ -23,11 +25,7 @@ func TestCompileWithInvalidContainerImage(t *testing.T) {
 	}
 
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "container-validation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "container-validation-test")
 
 	// Create a workflow with an invalid container image
 	workflowContent := `---
@@ -55,7 +53,7 @@ This workflow has an invalid container image.
 	compiler.SetSkipValidation(false) // Ensure validation is enabled
 
 	// Compile the workflow - this should succeed with a warning, not fail with an error
-	err = compiler.CompileWorkflow(workflowFile)
+	err := compiler.CompileWorkflow(workflowFile)
 
 	// The compilation should succeed (no error returned) despite invalid container
 	if err != nil {
@@ -78,11 +76,7 @@ func TestCompileWithInvalidContainerValidationDisabled(t *testing.T) {
 	}
 
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "container-validation-disabled-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "container-validation-disabled-test")
 
 	// Create a workflow with an invalid container image
 	workflowContent := `---
@@ -110,7 +104,7 @@ This workflow has an invalid container image.
 	compiler.SetSkipValidation(true) // Disable validation
 
 	// Compile the workflow - this should succeed without validation
-	err = compiler.CompileWorkflow(workflowFile)
+	err := compiler.CompileWorkflow(workflowFile)
 
 	// The compilation should succeed (no error returned)
 	if err != nil {

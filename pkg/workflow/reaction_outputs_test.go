@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestReactionJobOutputs tests that the add_reaction job includes comment outputs
 func TestReactionJobOutputs(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-outputs-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-outputs-test")
 
 	// Create a test markdown file with reaction
 	testContent := `---
@@ -94,11 +92,7 @@ This workflow should generate add_reaction job with comment outputs.
 // TestReactionJobWorkflowName tests that the add_reaction job includes GH_AW_WORKFLOW_NAME environment variable
 func TestReactionJobWorkflowName(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-workflow-name-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-workflow-name-test")
 
 	// Create a test markdown file with reaction and a specific workflow name
 	testContent := `---

@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExtractActionsFromLockFile(t *testing.T) {
 	// Create a temporary lock file with test content
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -18,7 +20,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
       - name: Run tests
         run: npm test
@@ -69,7 +71,7 @@ jobs:
 
 func TestExtractActionsFromLockFileNoDuplicates(t *testing.T) {
 	// Create a temporary lock file with duplicate actions
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -79,12 +81,12 @@ jobs:
   test1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
   test2:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 `
 
@@ -106,14 +108,14 @@ jobs:
 
 func TestCheckActionSHAUpdates(t *testing.T) {
 	// Create a test action cache
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
 	// Create test actions with known SHAs
 	actions := []ActionUsage{
 		{
 			Repo:    "actions/checkout",
-			SHA:     "08c6903cd8c0fde910a37f88322edcfb5dd907a8", // Current SHA
+			SHA:     "93cb6efe18208431cddfb8368fd83d5badbf9bfd", // Current SHA
 			Version: "v5",
 		},
 		{
@@ -125,7 +127,7 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 
 	// Pre-populate the cache with known values
 	// For actions/checkout@v5, use the same SHA (up to date)
-	cache.Set("actions/checkout", "v5", "08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 	// For actions/setup-node@v6, use a different SHA (needs update)
 	cache.Set("actions/setup-node", "v6", "newsha0000000000000000000000000000000000")
 
@@ -153,7 +155,7 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 
 func TestExtractActionsFromLockFileNoActions(t *testing.T) {
 	// Create a temporary lock file with no actions
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `

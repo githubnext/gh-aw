@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCompileJSONOutput tests the JSON output flag functionality
 func TestCompileJSONOutput(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 
 	// Create a simple test workflow
@@ -84,7 +86,7 @@ This is a test workflow for JSON output.
 // TestCompileJSONOutputWithError tests JSON output with validation errors
 func TestCompileJSONOutputWithError(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := filepath.Join(tmpDir, "invalid-workflow.md")
 
 	// Create a workflow with a validation error
@@ -173,7 +175,7 @@ This workflow has an invalid field.
 // TestCompileJSONOutputMultipleWorkflows tests JSON output with multiple workflows
 func TestCompileJSONOutputMultipleWorkflows(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	validFile := filepath.Join(tmpDir, "valid.md")
 	validContent := `---

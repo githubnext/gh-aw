@@ -3,6 +3,8 @@ package cli
 import (
 	"os"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestExtractWorkflowDescription tests the ExtractWorkflowDescription function
@@ -128,7 +130,7 @@ on: push
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary file
-			tmpFile := t.TempDir() + "/test-workflow.md"
+			tmpFile := testutil.TempDir(t, "test-*") + "/test-workflow.md"
 			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCopilotEngine(t *testing.T) {
@@ -871,11 +873,7 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 
 func TestCopilotEngineLogParsingUsesCorrectLogFile(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "copilot-log-parsing-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "copilot-log-parsing-test")
 
 	// Create a test workflow with Copilot engine
 	testContent := `---

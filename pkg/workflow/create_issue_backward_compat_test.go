@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCreateIssueBackwardCompatibility ensures existing workflows without assignees still compile correctly
 func TestCreateIssueBackwardCompatibility(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "backward-compat-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "backward-compat-test")
 
 	// Test with an existing workflow format (no assignees)
 	testContent := `---
@@ -46,8 +44,7 @@ This workflow uses the old format without assignees and should continue to work.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Legacy workflow should compile without errors: %v", err)
 	}
 
@@ -87,11 +84,7 @@ This workflow uses the old format without assignees and should continue to work.
 // TestCreateIssueMinimalConfiguration ensures minimal configuration still works
 func TestCreateIssueMinimalConfiguration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "minimal-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "minimal-config-test")
 
 	// Test with minimal configuration (just enabling create-issue)
 	testContent := `---
@@ -119,8 +112,7 @@ Create an issue with minimal configuration.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Minimal workflow should compile without errors: %v", err)
 	}
 

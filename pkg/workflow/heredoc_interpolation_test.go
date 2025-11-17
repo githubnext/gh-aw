@@ -5,17 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestHeredocInterpolation verifies that PROMPT_EOF heredoc delimiter is quoted
 // to prevent bash variable interpolation. Variables are interpolated using github-script instead.
 func TestHeredocInterpolation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "heredoc-interpolation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "heredoc-interpolation-test")
 
 	// Workflow with markdown content containing GitHub expressions
 	// These should be extracted and replaced with ${GH_AW_EXPR_...} references
@@ -40,8 +38,7 @@ Actor: ${{ github.actor }}
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -97,11 +94,7 @@ Actor: ${{ github.actor }}
 
 // TestHeredocInterpolationMainPrompt tests that the main prompt content uses quoted delimiter
 func TestHeredocInterpolationMainPrompt(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "heredoc-main-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "heredoc-main-test")
 
 	testContent := `---
 on: issues
@@ -122,8 +115,7 @@ Actor: ${{ github.actor }}
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

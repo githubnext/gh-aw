@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCreateIssueWorkflowCompilationWithAssignees tests end-to-end workflow compilation with assignees
 func TestCreateIssueWorkflowCompilationWithAssignees(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "assignees-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "assignees-test")
 
 	testContent := `---
 name: Test Assignees Feature
@@ -45,8 +43,7 @@ This is a test workflow that should create an issue and assign it to multiple us
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -105,8 +102,8 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected checkout step for gh CLI in compiled workflow")
 	}
 
-	if !strings.Contains(compiledStr, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
-		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 in compiled workflow")
+	if !strings.Contains(compiledStr, "uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
+		t.Error("Expected checkout to use actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd in compiled workflow")
 	}
 
 	// Verify checkout step is conditional on issue creation
@@ -135,11 +132,7 @@ This is a test workflow that should create an issue and assign it to multiple us
 // TestCreateIssueWorkflowCompilationWithoutAssignees tests that workflows without assignees still work
 func TestCreateIssueWorkflowCompilationWithoutAssignees(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "no-assignees-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "no-assignees-test")
 
 	testContent := `---
 name: Test Without Assignees
@@ -169,8 +162,7 @@ This workflow should compile successfully without assignees configuration.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -200,11 +192,7 @@ This workflow should compile successfully without assignees configuration.
 // TestCreateIssueWorkflowWithCopilotAssignee tests that "copilot" is mapped to "@copilot"
 func TestCreateIssueWorkflowWithCopilotAssignee(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "copilot-assignee-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "copilot-assignee-test")
 
 	testContent := `---
 name: Test Copilot Assignee
@@ -232,8 +220,7 @@ Create an issue and assign to copilot.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -265,11 +252,7 @@ Create an issue and assign to copilot.
 // TestCreateIssueWorkflowWithStringAssignee tests that single string assignee works
 func TestCreateIssueWorkflowWithStringAssignee(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "string-assignee-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "string-assignee-test")
 
 	testContent := `---
 name: Test String Assignee
@@ -297,8 +280,7 @@ Create an issue with a single assignee.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

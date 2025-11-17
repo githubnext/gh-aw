@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestInitRepository(t *testing.T) {
@@ -29,7 +31,7 @@ func TestInitRepository(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for testing
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 
 			// Change to temp directory
 			oldWd, err := os.Getwd()
@@ -98,7 +100,7 @@ func TestInitRepository(t *testing.T) {
 
 func TestInitRepository_Idempotent(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()
@@ -149,7 +151,7 @@ func TestInitRepository_Idempotent(t *testing.T) {
 
 func TestInitRepository_Verbose(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()

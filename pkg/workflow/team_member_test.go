@@ -6,17 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestTeamMemberCheckForCommandWorkflows tests that team member checks are only added to command workflows
 func TestTeamMemberCheckForCommandWorkflows(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-team-member-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-team-member-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -122,8 +120,7 @@ Test workflow content.`,
 			}
 
 			// Compile the workflow
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 

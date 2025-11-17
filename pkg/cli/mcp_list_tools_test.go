@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -13,7 +15,7 @@ import (
 
 func TestListToolsForMCP(t *testing.T) {
 	// Create a temporary directory for test workflows
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
@@ -140,7 +142,7 @@ This workflow has no GitHub MCP server.`
 
 func TestFindWorkflowsWithMCPServer(t *testing.T) {
 	// Create a temporary directory for test workflows
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {

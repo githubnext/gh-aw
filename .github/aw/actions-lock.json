@@ -13,7 +13,7 @@
     "actions/checkout@v5": {
       "repo": "actions/checkout",
       "version": "v5",
-      "sha": "08c6903cd8c0fde910a37f88322edcfb5dd907a8"
+      "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     },
     "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",

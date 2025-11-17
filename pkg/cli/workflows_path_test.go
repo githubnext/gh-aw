@@ -4,12 +4,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestReadWorkflowFileWithRelativePath tests that readWorkflowFile correctly handles relative paths on all platforms
 func TestReadWorkflowFileWithRelativePath(t *testing.T) {
 	// Create a temporary directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
@@ -43,7 +45,7 @@ func TestReadWorkflowFileWithRelativePath(t *testing.T) {
 // TestReadWorkflowFileWithAbsolutePath tests that readWorkflowFile correctly handles absolute paths
 func TestReadWorkflowFileWithAbsolutePath(t *testing.T) {
 	// Create a temporary directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
@@ -76,7 +78,7 @@ func TestReadWorkflowFileWithAbsolutePath(t *testing.T) {
 // TestReadWorkflowFilePathSeparators tests that the function works correctly regardless of path separator
 func TestReadWorkflowFilePathSeparators(t *testing.T) {
 	// Create a temporary directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
@@ -115,7 +117,7 @@ func TestReadWorkflowFilePathSeparators(t *testing.T) {
 // TestReadWorkflowFileNonExistent tests error handling for non-existent files
 func TestReadWorkflowFileNonExistent(t *testing.T) {
 	// Create a temporary directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
@@ -133,7 +135,7 @@ func TestReadWorkflowFileNonExistent(t *testing.T) {
 // experienced "workflow not found" errors due to path separator mismatches
 func TestWorkflowResolutionWindowsCompatibility(t *testing.T) {
 	// Create a temporary directory structure that mimics the user's setup
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)

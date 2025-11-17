@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestNewInitCommand(t *testing.T) {
@@ -62,7 +64,7 @@ func TestInitCommandHelp(t *testing.T) {
 }
 
 func TestInitRepositoryBasic(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -110,7 +112,7 @@ func TestInitRepositoryBasic(t *testing.T) {
 }
 
 func TestInitRepositoryWithMCP(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -153,7 +155,7 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 }
 
 func TestInitRepositoryVerbose(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -189,7 +191,7 @@ func TestInitRepositoryVerbose(t *testing.T) {
 }
 
 func TestInitRepositoryNotInGitRepo(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -214,7 +216,7 @@ func TestInitRepositoryNotInGitRepo(t *testing.T) {
 }
 
 func TestInitRepositoryIdempotent(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -265,7 +267,7 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 }
 
 func TestInitRepositoryWithMCPIdempotent(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -312,7 +314,7 @@ func TestInitRepositoryWithMCPIdempotent(t *testing.T) {
 }
 
 func TestInitRepositoryCreatesDirectories(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -379,7 +381,7 @@ func TestInitCommandFlagValidation(t *testing.T) {
 }
 
 func TestInitRepositoryErrorHandling(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -407,7 +409,7 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 }
 
 func TestInitRepositoryWithExistingFiles(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {

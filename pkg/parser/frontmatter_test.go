@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
@@ -1934,7 +1936,7 @@ func TestProcessIncludesWithCycleDetection(t *testing.T) {
 
 func TestProcessImportsFromFrontmatter(t *testing.T) {
 	// Create temp directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a test include file
 	includeFile := filepath.Join(tempDir, "include.md")

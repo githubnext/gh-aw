@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // Tests for artifact unfold rule implementation
@@ -110,7 +112,7 @@ func TestFlattenSingleFileArtifacts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Setup test structure
 			if err := tt.setup(tmpDir); err != nil {
@@ -170,7 +172,7 @@ func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
 
 func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 	// Test that flattening works correctly for typical audit artifact files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create artifact structure as it would be downloaded by gh run download
 	artifacts := map[string]string{
@@ -253,7 +255,7 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 
 func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 	// Simulate what the audit command does - check that it can find artifacts after flattening
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create realistic artifact structure before flattening
 	testArtifacts := map[string]string{

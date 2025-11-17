@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestAddCommandRequiresArguments verifies that the add command requires at least one argument
@@ -21,7 +23,7 @@ func TestAddCommandRequiresArguments(t *testing.T) {
 	}()
 
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}

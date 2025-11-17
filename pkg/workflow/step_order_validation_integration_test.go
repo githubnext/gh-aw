@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestStepOrderingValidation_SecretRedactionBeforeUploads verifies that the compiler
 // generates secret redaction step before any artifact uploads after agent execution
 func TestStepOrderingValidation_SecretRedactionBeforeUploads(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "step-order-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "step-order-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -41,8 +39,7 @@ This workflow has a secret reference and safe-outputs.
 	}
 
 	// Compile should succeed - secret redaction should be added before uploads
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed (should have succeeded with proper step ordering): %v", err)
 	}
 
@@ -81,11 +78,7 @@ This workflow has a secret reference and safe-outputs.
 // TestStepOrderingValidation_NoSecretsStillHasRedaction verifies that even when
 // no secrets are detected at compile time, a secret redaction step is still generated
 func TestStepOrderingValidation_NoSecretsStillHasRedaction(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "step-order-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "step-order-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -111,8 +104,7 @@ This workflow has no secret references.
 	}
 
 	// Compile should succeed - secret redaction should still be added (as a no-op)
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed (should have succeeded with proper step ordering): %v", err)
 	}
 
@@ -136,11 +128,7 @@ This workflow has no secret references.
 // paths are covered by secret redaction (i.e., they're under /tmp/gh-aw/ with
 // scannable extensions)
 func TestStepOrderingValidation_UploadedPathsCoverage(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "step-order-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "step-order-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -166,8 +154,7 @@ This workflow uploads artifacts.
 	}
 
 	// Compile should succeed - all uploaded paths should be scannable
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 

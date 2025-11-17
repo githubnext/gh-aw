@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -17,12 +18,12 @@ import (
 func TestWatchAndCompileWorkflows(t *testing.T) {
 	t.Run("watch function requires git repository", func(t *testing.T) {
 		// Create a temporary directory without git
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		oldDir, _ := os.Getwd()
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -36,7 +37,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 	t.Run("watch function requires workflows directory", func(t *testing.T) {
 		// Create a git repository without workflows directory
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		oldDir, _ := os.Getwd()
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
@@ -47,7 +48,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 			t.Fatalf("Failed to init git repo: %v", initErr)
 		}
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -61,7 +62,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 	t.Run("watch function checks specific file exists", func(t *testing.T) {
 		// Create a git repository with workflows directory
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		oldDir, _ := os.Getwd()
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
@@ -74,7 +75,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
-		compiler := &workflow.Compiler{}
+		compiler := workflow.NewCompiler(false, "", "test")
 
 		err := watchAndCompileWorkflows("nonexistent.md", compiler, false)
 		if err == nil {
@@ -88,7 +89,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 	t.Run("watch function setup with valid directory", func(t *testing.T) {
 		// Create a git repository with workflows directory
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		oldDir, _ := os.Getwd()
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
@@ -134,7 +135,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 // This covers pkg/cli/commands.go:790
 func TestCompileAllWorkflowFiles(t *testing.T) {
 	t.Run("compile all with no markdown files", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -150,7 +151,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 	})
 
 	t.Run("compile all with markdown files", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -201,7 +202,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 	})
 
 	t.Run("compile all with compilation errors", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -223,7 +224,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 	})
 
 	t.Run("compile all verbose mode", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -249,7 +250,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 // This covers pkg/cli/commands.go:837
 func TestCompileModifiedFiles(t *testing.T) {
 	t.Run("compile modified files basic functionality", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -299,7 +300,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 	})
 
 	t.Run("compile modified files verbose mode", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -321,7 +322,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 // This covers pkg/cli/commands.go:888
 func TestHandleFileDeleted(t *testing.T) {
 	t.Run("handle deleted markdown file", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -342,7 +343,7 @@ func TestHandleFileDeleted(t *testing.T) {
 	})
 
 	t.Run("handle deleted non-markdown file", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 
 		// Test with a non-markdown file
 		txtFile := filepath.Join(tempDir, "test.txt")
@@ -352,7 +353,7 @@ func TestHandleFileDeleted(t *testing.T) {
 	})
 
 	t.Run("handle deleted file without corresponding lock", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -363,7 +364,7 @@ func TestHandleFileDeleted(t *testing.T) {
 	})
 
 	t.Run("handle deleted file verbose mode", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -378,7 +379,7 @@ func TestHandleFileDeleted(t *testing.T) {
 	})
 
 	t.Run("handle deleted file with permission error", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -402,7 +403,7 @@ func TestHandleFileDeleted(t *testing.T) {
 // TestCompileSingleFile tests the compileSingleFile helper function
 func TestCompileSingleFile(t *testing.T) {
 	t.Run("compile single file successfully", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -437,7 +438,7 @@ func TestCompileSingleFile(t *testing.T) {
 	})
 
 	t.Run("compile single file with error", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -474,7 +475,7 @@ func TestCompileSingleFile(t *testing.T) {
 	})
 
 	t.Run("compile single file with checkExists true and file exists", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -499,7 +500,7 @@ func TestCompileSingleFile(t *testing.T) {
 	})
 
 	t.Run("compile single file with checkExists true and file does not exist", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -522,7 +523,7 @@ func TestCompileSingleFile(t *testing.T) {
 	})
 
 	t.Run("compile single file verbose mode", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 

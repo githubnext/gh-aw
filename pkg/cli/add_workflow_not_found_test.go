@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestDisplayAvailableWorkflows tests that displayAvailableWorkflows shows the list of available workflows
 func TestDisplayAvailableWorkflows(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -84,7 +86,7 @@ on: push
 // TestDisplayAvailableWorkflowsWithVersion tests displayAvailableWorkflows with a version
 func TestDisplayAvailableWorkflowsWithVersion(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -136,7 +138,7 @@ on: push
 // TestDisplayAvailableWorkflowsNoWorkflows tests when no workflows are found
 func TestDisplayAvailableWorkflowsNoWorkflows(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -175,7 +177,7 @@ func TestDisplayAvailableWorkflowsNoWorkflows(t *testing.T) {
 // TestDisplayAvailableWorkflowsPackageNotFound tests when package is not found
 func TestDisplayAvailableWorkflowsPackageNotFound(t *testing.T) {
 	// Create a temporary packages directory
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)

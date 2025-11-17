@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestPushToPullRequestBranchConfigParsing(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with push-to-pull-request-branch configuration
 	testMarkdown := `---
@@ -93,7 +95,7 @@ Please make changes and push them to the feature branch.
 
 func TestPushToPullRequestBranchWithTargetAsterisk(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with target: "*"
 	testMarkdown := `---
@@ -145,7 +147,7 @@ This workflow allows pushing to any pull request.
 
 func TestPushToPullRequestBranchDefaultBranch(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file without branch configuration
 	testMarkdown := `---
@@ -194,7 +196,7 @@ This workflow uses the default branch value.
 
 func TestPushToPullRequestBranchNullConfig(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with null configuration (push-to-pull-request-branch: with no value)
 	testMarkdown := `---
@@ -247,7 +249,7 @@ This workflow uses null configuration which should default to "triggering".
 
 func TestPushToPullRequestBranchMinimalConfig(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with minimal configuration
 	testMarkdown := `---
@@ -317,7 +319,7 @@ This workflow has minimal push-to-pull-request-branch configuration.
 
 func TestPushToPullRequestBranchWithIfNoChangesError(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with if-no-changes: error
 	testMarkdown := `---
@@ -365,7 +367,7 @@ This workflow fails when there are no changes.
 
 func TestPushToPullRequestBranchWithIfNoChangesIgnore(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with if-no-changes: ignore
 	testMarkdown := `---
@@ -412,7 +414,7 @@ This workflow ignores when there are no changes.
 
 func TestPushToPullRequestBranchDefaultIfNoChanges(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file without if-no-changes (should default to "warn")
 	testMarkdown := `---
@@ -458,7 +460,7 @@ This workflow uses default if-no-changes behavior.
 
 func TestPushToPullRequestBranchExplicitTriggering(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with explicit "triggering" branch
 	testMarkdown := `---
@@ -510,7 +512,7 @@ This workflow explicitly sets branch to "triggering".
 
 func TestPushToPullRequestBranchWithTitlePrefix(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with title-prefix configuration
 	testMarkdown := `---
@@ -558,7 +560,7 @@ This workflow validates PR title prefix.
 
 func TestPushToPullRequestBranchWithLabels(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with labels configuration
 	testMarkdown := `---
@@ -606,7 +608,7 @@ This workflow validates PR labels.
 
 func TestPushToPullRequestBranchWithTitlePrefixAndLabels(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with both title-prefix and labels configuration
 	testMarkdown := `---
@@ -658,7 +660,7 @@ This workflow validates both PR title prefix and labels.
 
 func TestPushToPullRequestBranchWithCommitTitleSuffix(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with commit-title-suffix configuration
 	testMarkdown := `---
@@ -706,7 +708,7 @@ This workflow appends a suffix to commit titles.
 
 func TestPushToPullRequestBranchNoWorkingDirectory(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with push-to-pull-request-branch configuration
 	testMarkdown := `---
@@ -792,7 +794,7 @@ since it's not supported by actions/github-script.
 
 func TestPushToPullRequestBranchActivationCommentEnvVars(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with push-to-pull-request-branch configuration
 	testMarkdown := `---

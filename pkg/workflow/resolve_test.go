@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
@@ -67,7 +69,7 @@ func TestNormalizeWorkflowName(t *testing.T) {
 
 func TestResolveWorkflowName(t *testing.T) {
 	// Create a temporary directory with workflow files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
@@ -163,7 +165,7 @@ func TestResolveWorkflowName(t *testing.T) {
 
 func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 	// Create a temporary directory with workflow files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
@@ -192,7 +194,7 @@ func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 
 func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 	// Create a temporary directory with workflow files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
@@ -229,7 +231,7 @@ func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 
 func TestResolveWorkflowName_MissingNameField(t *testing.T) {
 	// Create a temporary directory with workflow files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {

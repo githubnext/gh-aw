@@ -7,15 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestIndividualGitHubTokenIntegration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "individual-github-token-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "individual-github-token-test")
 
 	t.Run("create-issue uses individual github-token in generated workflow", func(t *testing.T) {
 		testContent := `---

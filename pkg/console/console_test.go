@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestFormatError(t *testing.T) {
@@ -315,7 +317,7 @@ func TestToRelativePath(t *testing.T) {
 
 func TestFormatErrorWithAbsolutePaths(t *testing.T) {
 	// Create a temporary directory and file
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	tmpFile := filepath.Join(tmpDir, "test.md")
 
 	err := CompilerError{

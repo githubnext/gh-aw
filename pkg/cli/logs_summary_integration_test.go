@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // TestRunSummaryCachingBehavior tests the complete caching behavior of run summaries
 func TestRunSummaryCachingBehavior(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-99999")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -156,7 +157,7 @@ func TestRunSummaryCachingBehavior(t *testing.T) {
 
 // TestRunSummaryPreventsReprocessing tests that summary files prevent redundant processing
 func TestRunSummaryPreventsReprocessing(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-88888")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -210,7 +211,7 @@ func TestRunSummaryPreventsReprocessing(t *testing.T) {
 
 // TestListArtifactsExcludesSummary verifies that the summary file itself is not listed as an artifact
 func TestListArtifactsExcludesSummary(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-77777")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)

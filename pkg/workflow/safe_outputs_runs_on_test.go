@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
@@ -50,21 +52,17 @@ This is a test workflow.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory and file
-			tmpDir, err := os.MkdirTemp("", "workflow-runs-on-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
 			testFile := filepath.Join(tmpDir, "test.md")
+			var err error
 			err = os.WriteFile(testFile, []byte(tt.frontmatter), 0644)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -100,21 +98,17 @@ safe-outputs:
 This is a test workflow.`
 
 	// Create temporary directory and file
-	tmpDir, err := os.MkdirTemp("", "workflow-runs-on-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
 	testFile := filepath.Join(tmpDir, "test.md")
+	var err error
 	err = os.WriteFile(testFile, []byte(frontmatter), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

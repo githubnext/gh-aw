@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestPreActivationJob tests that pre-activation job is created correctly and combines membership and stop-time checks
 func TestPreActivationJob(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "pre-activation-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "pre-activation-job-test")
 
 	compiler := NewCompiler(false, "", "test")
 

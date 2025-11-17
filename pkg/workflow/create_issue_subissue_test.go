@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCreateIssueSubissueFeature tests that the create_issue.js script includes subissue functionality
@@ -69,11 +71,7 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 // TestCreateIssueWorkflowCompilation tests that workflows with safe-outputs.create-issue still compile correctly
 func TestCreateIssueWorkflowCompilationWithSubissue(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "subissue-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "subissue-test")
 
 	testContent := `---
 name: Test Subissue Feature  
@@ -102,8 +100,7 @@ Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow with output.create-issue: %v", err)
 	}
 

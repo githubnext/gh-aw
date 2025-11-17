@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestSourceFieldRendering tests that the source field from frontmatter
 // is correctly rendered as a comment in the generated lock file
 func TestSourceFieldRendering(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "source-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "source-test")
 
 	compiler := NewCompiler(false, "", "test")
 

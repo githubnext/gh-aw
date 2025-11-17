@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestGitHubMCPConfiguration(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "mcp-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "mcp-config-test")
 
 	compiler := NewCompiler(false, "", "test")
 

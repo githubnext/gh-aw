@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestNoStopTimeIntegration tests the --no-stop-after functionality end-to-end
@@ -24,7 +26,7 @@ permissions:
 This workflow has a stop-after field that should be removed.`
 
 	// Create temporary directory for test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Write test workflow
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")

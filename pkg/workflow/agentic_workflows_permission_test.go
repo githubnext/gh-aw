@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestAgenticWorkflowsPermissionValidation(t *testing.T) {
@@ -78,7 +80,7 @@ tools:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temp directory
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 			workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 			if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 				t.Fatalf("Failed to create workflows directory: %v", err)

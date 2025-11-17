@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExpandIncludesForEngines(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create include file with engine specification
 	includeContent := `---
@@ -52,7 +54,7 @@ Some content here.
 
 func TestExpandIncludesForEnginesObjectFormat(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create include file with object-format engine specification
 	includeContent := `---
@@ -102,7 +104,7 @@ Some content here.
 
 func TestExpandIncludesForEnginesNoEngine(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create include file without engine specification
 	includeContent := `---
@@ -140,7 +142,7 @@ Some content here.
 
 func TestExpandIncludesForEnginesMultipleIncludes(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create first include file with engine
 	include1Content := `---
@@ -206,7 +208,7 @@ More content.
 
 func TestExpandIncludesForEnginesOptionalMissing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create main markdown content with optional include directive to non-existent file
 	mainContent := `# Main Workflow

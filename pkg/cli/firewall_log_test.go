@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -234,7 +236,7 @@ func TestIsRequestAllowed(t *testing.T) {
 
 func TestParseFirewallLog(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create test firewall log content
 	testLogContent := `1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"
@@ -308,7 +310,7 @@ func TestParseFirewallLog(t *testing.T) {
 
 func TestParseFirewallLogMalformedLines(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create test firewall log with various malformed lines
 	testLogContent := `# Comment line
@@ -344,7 +346,7 @@ Invalid line with not enough fields
 
 func TestParseFirewallLogPartialMissingFields(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create test firewall log with partial/missing fields
 	testLogContent := `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
@@ -380,7 +382,7 @@ func TestParseFirewallLogPartialMissingFields(t *testing.T) {
 
 func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "firewall-logs")
 	err := os.MkdirAll(logsDir, 0755)
 	if err != nil {
@@ -498,7 +500,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 
 func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
 	// Create a temporary directory structure that mimics actual workflow artifact layout
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a directory with workflow-specific suffix (like squid-logs-smoke-copilot-firewall)
 	logsDir := filepath.Join(tmpDir, "squid-logs-smoke-copilot-firewall")

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -532,7 +533,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 
 func TestGenerateAuditReportArtifacts(t *testing.T) {
 	// Create temporary directory with test artifacts
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create test artifact files
 	artifacts := []string{
@@ -603,7 +604,7 @@ func TestBuildAuditData(t *testing.T) {
 		Turns:         5,
 		ErrorCount:    2,
 		WarningCount:  1,
-		LogsPath:      t.TempDir(),
+		LogsPath:      testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{
@@ -851,7 +852,7 @@ func TestRenderJSON(t *testing.T) {
 
 func TestAuditCachingBehavior(t *testing.T) {
 	// Create a temporary directory for test artifacts
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	runOutputDir := filepath.Join(tempDir, "run-12345")
 	if err := os.MkdirAll(runOutputDir, 0755); err != nil {
 		t.Fatalf("Failed to create run directory: %v", err)
@@ -941,7 +942,7 @@ func TestAuditCachingBehavior(t *testing.T) {
 
 func TestAuditParseFlagBehavior(t *testing.T) {
 	// Create a temporary directory for test artifacts
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tempDir, "run-12345")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create run directory: %v", err)
@@ -1035,7 +1036,7 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 		Turns:         5,
 		ErrorCount:    0,
 		WarningCount:  0,
-		LogsPath:      t.TempDir(),
+		LogsPath:      testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{

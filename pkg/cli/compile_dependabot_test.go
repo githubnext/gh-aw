@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -18,7 +20,7 @@ func TestCompileDependabotIntegration(t *testing.T) {
 	}
 
 	// Create temp directory for test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("failed to create workflows directory: %v", err)
@@ -142,7 +144,7 @@ This workflow uses npx to run Playwright MCP.
 
 func TestCompileDependabotNoDependencies(t *testing.T) {
 	// Create temp directory for test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("failed to create workflows directory: %v", err)
@@ -205,7 +207,7 @@ This workflow does not use npm.
 
 func TestCompileDependabotPreserveExisting(t *testing.T) {
 	// Create temp directory for test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	githubDir := filepath.Join(tempDir, ".github")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
@@ -311,7 +313,7 @@ steps:
 
 func TestCompileDependabotMergeExistingNpm(t *testing.T) {
 	// Create temp directory for test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
 	githubDir := filepath.Join(tempDir, ".github")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {

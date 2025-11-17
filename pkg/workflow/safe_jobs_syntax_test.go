@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestOldSafeJobsSyntaxRejected verifies that the old top-level safe-jobs syntax is rejected
@@ -12,7 +14,7 @@ func TestOldSafeJobsSyntaxRejected(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
 	// Create a temporary workflow file with old safe-jobs syntax
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-old-syntax.md")
 	content := `---
 on: issues
@@ -53,7 +55,7 @@ func TestNewSafeOutputsJobsSyntaxAccepted(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
 	// Create a temporary workflow file with new safe-outputs.jobs syntax
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-new-syntax.md")
 	content := `---
 on: issues

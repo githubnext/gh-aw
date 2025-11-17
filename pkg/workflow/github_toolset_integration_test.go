@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestGitHubToolsetIntegration(t *testing.T) {
@@ -119,7 +121,7 @@ This workflow combines toolsets with read-only mode.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 			mdPath := filepath.Join(tempDir, "test-workflow.md")
 
 			// Write workflow file
@@ -177,7 +179,7 @@ This workflow tests remote mode with array toolsets.
 `
 
 	// Create temporary directory for test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	mdPath := filepath.Join(tempDir, "test-workflow.md")
 
 	// Write workflow file
@@ -315,7 +317,7 @@ Remote mode with toolsets and read-only.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 			mdPath := filepath.Join(tempDir, "test-workflow.md")
 
 			// Write workflow file

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestEngineConcurrencyIntegration(t *testing.T) {
@@ -127,7 +129,7 @@ Test content`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory and file
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(workflowPath, []byte(tt.markdown), 0644); err != nil {
 				t.Fatalf("Failed to write test workflow: %v", err)

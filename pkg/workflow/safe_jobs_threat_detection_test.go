@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestSafeOutputsJobsEnableThreatDetectionByDefault verifies that when safe-outputs.jobs
@@ -319,7 +321,7 @@ Test workflow content
 `
 
 	// Create temporary test file
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := tmpDir + "/test-safe-jobs.md"
 	if err := os.WriteFile(testFile, []byte(markdown), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)

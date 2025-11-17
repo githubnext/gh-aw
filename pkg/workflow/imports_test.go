@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestCompileWorkflowWithImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared tool file
 	sharedToolPath := filepath.Join(tempDir, "shared-tool.md")
@@ -79,7 +81,7 @@ This is a test workflow.
 
 func TestCompileWorkflowWithMultipleImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create first shared tool file
 	sharedTool1Path := filepath.Join(tempDir, "shared-tool-1.md")
@@ -170,7 +172,7 @@ This is a test workflow with multiple imports.
 
 func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared mcp-servers file (like tavily-mcp.md)
 	sharedMCPPath := filepath.Join(tempDir, "shared-mcp.md")

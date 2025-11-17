@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func min(a, b int) int {
@@ -23,7 +25,7 @@ func max(a, b int) int {
 
 func TestGitPatchGeneration(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test markdown file with minimal agentic workflow
 	testMarkdown := `---

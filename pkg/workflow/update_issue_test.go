@@ -4,15 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestUpdateIssueConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-update-issue-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-update-issue-test")
 
 	// Test case with basic update-issue configuration
 	testContent := `---
@@ -79,11 +77,7 @@ This workflow tests the update-issue configuration parsing.
 
 func TestUpdateIssueConfigWithAllOptions(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-update-issue-all-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-update-issue-all-test")
 
 	// Test case with all options configured
 	testContent := `---
@@ -155,11 +149,7 @@ This workflow tests the update-issue configuration with all options.
 
 func TestUpdateIssueConfigTargetParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-update-issue-target-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-update-issue-target-test")
 
 	// Test case with specific target number
 	testContent := `---

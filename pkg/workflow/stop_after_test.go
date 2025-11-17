@@ -189,7 +189,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
-		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		err := compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)
 		}
@@ -212,7 +212,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
-		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		err := compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)
 		}
@@ -243,7 +243,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
-		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+		err := compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)
 		}

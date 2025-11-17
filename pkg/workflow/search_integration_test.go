@@ -7,13 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestWebSearchValidationForCopilot tests that when a Copilot workflow uses web-search,
 // compilation succeeds but emits a warning with documentation link
 func TestWebSearchValidationForCopilot(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that uses web-search with Copilot engine (which doesn't support web-search)
 	workflowContent := `---
@@ -81,7 +83,7 @@ Search the web for information.
 // compilation succeeds (because Claude has native support)
 func TestWebSearchValidationForClaude(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that uses web-search with Claude engine (which supports web-search)
 	workflowContent := `---
@@ -136,7 +138,7 @@ Search the web for information.
 // compilation succeeds (because Codex has native support)
 func TestWebSearchValidationForCodex(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that uses web-search with Codex engine (which supports web-search)
 	workflowContent := `---
@@ -180,7 +182,7 @@ Search the web for information.
 // compilation succeeds regardless of engine support
 func TestNoWebSearchNoValidation(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that doesn't use web-search with Copilot engine
 	workflowContent := `---

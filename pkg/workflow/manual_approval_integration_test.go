@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestManualApprovalEnvironmentInActivationJob(t *testing.T) {
@@ -64,7 +66,7 @@ engine: copilot
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for testing
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			mdFile := tmpDir + "/test-workflow.md"
 			lockFile := tmpDir + "/test-workflow.lock.yml"
 

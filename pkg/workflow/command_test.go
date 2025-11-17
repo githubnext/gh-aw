@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestPullRequestCommentEvent tests the new pull_request_comment event identifier
@@ -103,11 +105,7 @@ func TestMergeEventsForYAML(t *testing.T) {
 // TestEventAwareCommandConditions tests that command conditions are properly applied only to comment-related events
 func TestEventAwareCommandConditions(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-event-aware-command-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-event-aware-command-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -279,11 +277,7 @@ This test validates that command conditions are applied correctly based on event
 // TestCommandEventsFiltering tests that the events field filters which events the command is active on
 func TestCommandEventsFiltering(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-command-events-filtering-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-command-events-filtering-test")
 
 	compiler := NewCompiler(false, "", "test")
 

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCommentEnvVarsOnlyWithReaction verifies that GH_AW_COMMENT_ID and GH_AW_COMMENT_REPO
@@ -109,7 +111,7 @@ Should NOT have comment env vars.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for the test
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Write the test file
 			mdFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -218,7 +220,7 @@ Should NOT have comment outputs in activation job.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for the test
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Write the test file
 			mdFile := filepath.Join(tmpDir, "test-workflow.md")

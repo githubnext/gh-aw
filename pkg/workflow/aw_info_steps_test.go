@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestAwInfoStepsFirewall(t *testing.T) {
@@ -77,11 +79,7 @@ This workflow tests that firewall type is empty when not configured.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test files
-			tmpDir, err := os.MkdirTemp("", "aw-info-steps-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "aw-info-steps-test")
 
 			// Create test file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")

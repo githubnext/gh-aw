@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestDockerImagePredownload(t *testing.T) {
@@ -102,11 +104,7 @@ Test workflow with custom MCP container.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test files
-			tmpDir, err := os.MkdirTemp("", "docker-predownload-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "docker-predownload-test")
 
 			// Write test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -115,8 +113,7 @@ Test workflow with custom MCP container.`,
 			}
 
 			compiler := NewCompiler(false, "", "test-version")
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -158,11 +155,7 @@ tools:
 Test workflow.`
 
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "docker-predownload-ordering-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "docker-predownload-ordering-test")
 
 	// Write test workflow file
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -171,8 +164,7 @@ Test workflow.`
 	}
 
 	compiler := NewCompiler(false, "", "test-version")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

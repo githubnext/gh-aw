@@ -6,16 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestActivationAndAddReactionJobsPermissions(t *testing.T) {
 	// Test that activation job has correct permissions when reaction is configured
-	tmpDir, err := os.MkdirTemp("", "permissions-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "permissions-test")
 
 	// Create a test workflow with reaction configured (reaction step is now in activation job)
 	testContent := `---
@@ -44,8 +42,7 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

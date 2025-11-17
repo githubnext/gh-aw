@@ -6,13 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // TestRecursiveImports tests that imports from imported files are also processed
 func TestRecursiveImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create base shared file (level 2)
 	baseSharedPath := filepath.Join(tempDir, "base-shared.md")
@@ -113,7 +115,7 @@ This workflow tests recursive imports.
 // TestCyclicImports tests that cyclic imports are detected and handled properly
 func TestCyclicImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create file A that imports B
 	fileAPath := filepath.Join(tempDir, "file-a.md")
@@ -195,7 +197,7 @@ This workflow tests cyclic import detection.
 // Main imports A and B, both A and B import C - C should be processed only once
 func TestDiamondImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create file C (bottom of diamond)
 	fileCPath := filepath.Join(tempDir, "file-c.md")
@@ -295,7 +297,7 @@ This workflow tests diamond import pattern.
 // TestImportOrdering tests that imports are processed in BFS order
 func TestImportOrdering(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a complex import graph:
 	//   Main -> A, B

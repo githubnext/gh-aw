@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestWebFetchMCPServerAddition tests that when a Codex workflow uses web-fetch,
 // the web-fetch MCP server is automatically added
 func TestWebFetchMCPServerAddition(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that uses web-fetch with Codex engine (which doesn't support web-fetch natively)
 	workflowContent := `---
@@ -74,7 +76,7 @@ Fetch content from the web.
 // the web-fetch MCP server is NOT added (because Claude has native support)
 func TestWebFetchNotAddedForClaudeEngine(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that uses web-fetch with Claude engine (which supports web-fetch natively)
 	workflowContent := `---
@@ -139,7 +141,7 @@ Fetch content from the web.
 // the web-fetch MCP server is not added
 func TestNoWebFetchNoMCPFetchServer(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow that doesn't use web-fetch
 	workflowContent := `---

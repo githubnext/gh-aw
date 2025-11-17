@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestMainJobEnvironmentVariables(t *testing.T) {
@@ -113,7 +115,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 
 func TestMainJobEnvironmentVariablesIntegration(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow file with safe outputs and custom env vars
 	workflowContent := `---

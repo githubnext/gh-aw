@@ -7,16 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestCodexAIConfiguration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "codex-ai-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "codex-ai-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -254,11 +252,7 @@ This is a test workflow.
 
 func TestCodexMCPConfigGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "codex-mcp-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "codex-mcp-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -467,7 +461,7 @@ This is a test workflow for MCP configuration with different AI engines.
 }
 
 func TestCodexConfigField(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {

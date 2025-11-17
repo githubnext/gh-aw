@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCollectPackageIncludesRecursive tests the recursive include dependency collection
@@ -97,7 +99,7 @@ on: push
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temp directory for test
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Setup test files
 			for path, content := range tt.setupFiles {
@@ -145,7 +147,7 @@ on: push
 
 // TestCollectPackageIncludesRecursive_CircularReference tests handling of circular includes
 func TestCollectPackageIncludesRecursive_CircularReference(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create circular reference: a.md includes b.md, b.md includes a.md
 	aContent := `@include b.md
@@ -297,8 +299,8 @@ func TestCopyIncludeDependenciesFromPackageWithForce(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temp directories
-			sourceDir := t.TempDir()
-			targetDir := t.TempDir()
+			sourceDir := testutil.TempDir(t, "test-*")
+			targetDir := testutil.TempDir(t, "test-*")
 
 			// Setup source files
 			for path, content := range tt.setupSourceFiles {
@@ -385,8 +387,8 @@ func TestCopyIncludeDependenciesFromPackageWithForce(t *testing.T) {
 
 // TestCopyIncludeDependenciesFromPackageWithForce_FileTracker tests file tracking
 func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
-	sourceDir := t.TempDir()
-	targetDir := t.TempDir()
+	sourceDir := testutil.TempDir(t, "test-*")
+	targetDir := testutil.TempDir(t, "test-*")
 
 	// Create source file
 	sourceFile := filepath.Join(sourceDir, "file.md")

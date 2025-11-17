@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCalculateDirectorySize(t *testing.T) {
@@ -18,7 +19,7 @@ func TestCalculateDirectorySize(t *testing.T) {
 		{
 			name: "empty directory",
 			setup: func(t *testing.T) string {
-				dir := t.TempDir()
+				dir := testutil.TempDir(t, "test-*")
 				return dir
 			},
 			expected: 0,
@@ -26,7 +27,7 @@ func TestCalculateDirectorySize(t *testing.T) {
 		{
 			name: "single file",
 			setup: func(t *testing.T) string {
-				dir := t.TempDir()
+				dir := testutil.TempDir(t, "test-*")
 				err := os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello"), 0644)
 				if err != nil {
 					t.Fatal(err)
@@ -38,7 +39,7 @@ func TestCalculateDirectorySize(t *testing.T) {
 		{
 			name: "multiple files in nested directories",
 			setup: func(t *testing.T) string {
-				dir := t.TempDir()
+				dir := testutil.TempDir(t, "test-*")
 				// File 1: 10 bytes
 				err := os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("0123456789"), 0644)
 				if err != nil {

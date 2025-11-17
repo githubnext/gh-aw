@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCollectSecretReferences(t *testing.T) {
@@ -79,11 +81,7 @@ func TestCollectSecretReferences(t *testing.T) {
 
 func TestSecretRedactionStepGeneration(t *testing.T) {
 	// Create a temporary directory for test
-	tmpDir, err := os.MkdirTemp("", "secret-redaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "secret-redaction-test")
 
 	// Create a test workflow file
 	testWorkflow := `---

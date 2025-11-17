@@ -8,15 +8,12 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestAgenticOutputCollection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "agentic-output-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "agentic-output-test")
 
 	// Test case with agentic output collection for Claude engine
 	testContent := `---
@@ -47,8 +44,7 @@ This workflow tests the agentic output collection functionality.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with agentic output: %v", err)
 	}
 
@@ -117,11 +113,7 @@ This workflow tests the agentic output collection functionality.
 
 func TestCodexEngineWithOutputSteps(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "codex-no-output-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "codex-no-output-test")
 
 	// Test case with Codex engine (should have GH_AW_SAFE_OUTPUTS but no engine output collection)
 	testContent := `---
@@ -152,8 +144,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with Codex: %v", err)
 	}
 
@@ -246,11 +237,7 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 
 func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "engine-output-cleanup-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "engine-output-cleanup-test")
 
 	// Create a test markdown file with Copilot engine (which declares /tmp/gh-aw/.h-aw/.copilot/logs/ as output file)
 	testContent := `---

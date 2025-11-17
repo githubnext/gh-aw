@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestInitRepository_WithMCP(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()
@@ -104,7 +106,7 @@ func TestInitRepository_WithMCP(t *testing.T) {
 
 func TestInitRepository_MCP_Idempotent(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()
@@ -156,7 +158,7 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 
 func TestEnsureMCPConfig_UpdatesExisting(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()
@@ -219,7 +221,7 @@ func TestEnsureMCPConfig_UpdatesExisting(t *testing.T) {
 
 func TestEnsureCopilotSetupSteps_InjectsStep(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()
@@ -298,7 +300,7 @@ jobs:
 
 func TestEnsureCopilotSetupSteps_SkipsWhenStepExists(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory
 	oldWd, err := os.Getwd()

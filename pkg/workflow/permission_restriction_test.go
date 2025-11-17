@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestDefaultPermissionRestriction tests the new default permission restrictions from issue #567
 func TestDefaultPermissionRestriction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-permission-restriction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-permission-restriction-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -213,8 +211,7 @@ Test workflow content.`,
 			}
 
 			// Compile the workflow
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -255,11 +252,7 @@ Test workflow content.`,
 // TestCommandWorkflowStillWorks tests that existing command workflows still work with the new logic
 func TestCommandWorkflowStillWorks(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-command-compatibility-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-command-compatibility-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -277,14 +270,14 @@ Test workflow content.`
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "command-workflow.md")
+	var err error
 	err = os.WriteFile(testFile, []byte(frontmatter), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

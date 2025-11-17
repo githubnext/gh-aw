@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestEnsureCopilotInstructions(t *testing.T) {
@@ -34,7 +36,7 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for testing
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 
 			// Change to temp directory and initialize git repo for findGitRoot to work
 			oldWd, _ := os.Getwd()
@@ -95,7 +97,7 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 
 func TestEnsureCopilotInstructions_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to temp directory and initialize git repo for findGitRoot to work
 	oldWd, _ := os.Getwd()

@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestActionSHAValidationIntegration tests the complete SHA validation flow
 func TestActionSHAValidationIntegration(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create an actions-lock.json cache file with test data
 	cacheDir := filepath.Join(tmpDir, ".github", "aw")
@@ -22,7 +24,7 @@ func TestActionSHAValidationIntegration(t *testing.T) {
 	cache := NewActionCache(tmpDir)
 
 	// Pre-populate cache with "current" SHAs
-	cache.Set("actions/checkout", "v5", "08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 	cache.Set("actions/setup-node", "v6", "2028fbc5c25fe9cf00d9f06a71cc4710d4507903")
 
 	// Save the cache
@@ -39,7 +41,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 `
 
@@ -84,7 +86,7 @@ jobs:
 
 // TestActionSHAValidationWithMissingCache tests validation when cache doesn't exist
 func TestActionSHAValidationWithMissingCache(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a lock file
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
@@ -95,7 +97,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
@@ -114,7 +116,7 @@ jobs:
 
 // TestExtractActionsFromRealLockFile tests extraction from a realistic lock file
 func TestExtractActionsFromRealLockFile(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "realistic.lock.yml")
 
 	// Create a more realistic lock file with multiple jobs and steps
@@ -134,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           fetch-depth: 0
 
@@ -150,7 +152,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - name: Upload artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
@@ -193,7 +195,7 @@ jobs:
 
 // TestValidationMessageFormat tests that validation messages are properly formatted
 func TestValidationMessageFormat(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -203,7 +205,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
@@ -211,7 +213,7 @@ jobs:
 	}
 
 	cache := NewActionCache(tmpDir)
-	cache.Set("actions/checkout", "v5", "08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 
 	// Capture stderr output to verify message format
 	// Note: In a real scenario, we'd redirect stderr, but for this test
@@ -224,7 +226,7 @@ jobs:
 
 // TestActionUsageVersionPopulation tests that version is populated from action_pins.json
 func TestActionUsageVersionPopulation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	// Use an action that exists in action_pins.json
@@ -235,7 +237,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {

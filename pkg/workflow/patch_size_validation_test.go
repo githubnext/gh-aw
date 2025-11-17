@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestMaximumPatchSizeEnvironmentVariable(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "patch-size-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "patch-size-test")
 
 	tests := []struct {
 		name                 string
@@ -84,8 +82,7 @@ This workflow tests custom 2MB patch size configuration.`,
 
 			// Compile workflow
 			compiler := NewCompiler(false, "", "test")
-			err = compiler.CompileWorkflow(mdFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -129,11 +126,7 @@ This workflow tests custom 2MB patch size configuration.`,
 
 func TestPatchSizeWithInvalidValues(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "patch-size-invalid-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "patch-size-invalid-test")
 
 	tests := []struct {
 		name               string
@@ -181,8 +174,7 @@ This workflow tests large valid patch size configuration.`,
 
 			// Compile workflow
 			compiler := NewCompiler(false, "", "test")
-			err = compiler.CompileWorkflow(mdFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 

@@ -7,15 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCustomEngineWorkflowCompilation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "custom-engine-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-engine-test")
 
 	tests := []struct {
 		name             string
@@ -141,11 +139,7 @@ Simple custom workflow with one step.`,
 
 func TestCustomEngineWithoutSteps(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "custom-engine-no-steps-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-engine-no-steps-test")
 
 	content := `---
 on: push
@@ -165,8 +159,7 @@ This workflow uses the custom engine but doesn't define any steps.`
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetSkipValidation(true)
 
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

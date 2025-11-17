@@ -42,8 +42,7 @@ Check the failed workflow and provide analysis.`
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
 
-	err = compiler.CompileWorkflow(workflowFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestPRReviewCommentConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-pr-review-comment-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-pr-review-comment-test")
 
 	t.Run("basic PR review comment configuration", func(t *testing.T) {
 		// Test case with basic create-pull-request-review-comment configuration
@@ -230,11 +228,7 @@ This workflow tests invalid side value handling.
 
 func TestPRReviewCommentJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "pr-review-comment-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "pr-review-comment-job-test")
 
 	t.Run("generate PR review comment job", func(t *testing.T) {
 		testContent := `---

@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCommandConditionPrecision tests that command conditions check the correct body field for each event type
 func TestCommandConditionPrecision(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "workflow-command-precision-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-command-precision-test")
 
 	compiler := NewCompiler(false, "", "test")
 

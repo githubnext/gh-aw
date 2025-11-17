@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestActionCache(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	cache := NewActionCache(tmpDir)
 
@@ -33,7 +35,7 @@ func TestActionCache(t *testing.T) {
 
 func TestActionCacheSaveLoad(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create and populate cache
 	cache1 := NewActionCache(tmpDir)
@@ -73,7 +75,7 @@ func TestActionCacheSaveLoad(t *testing.T) {
 
 func TestActionCacheLoadNonExistent(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	cache := NewActionCache(tmpDir)
 
@@ -90,7 +92,7 @@ func TestActionCacheLoadNonExistent(t *testing.T) {
 }
 
 func TestActionCacheGetCachePath(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
 	expectedPath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
@@ -101,7 +103,7 @@ func TestActionCacheGetCachePath(t *testing.T) {
 
 func TestActionCacheTrailingNewline(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create and populate cache
 	cache := NewActionCache(tmpDir)
@@ -128,7 +130,7 @@ func TestActionCacheTrailingNewline(t *testing.T) {
 
 func TestActionCacheSortedEntries(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create cache and add entries in non-alphabetical order
 	cache := NewActionCache(tmpDir)

@@ -7,16 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestCompileWorkflowExpressionSizeValidation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "expression-size-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "expression-size-test")
 
 	t.Run("workflow with normal expression sizes should compile successfully", func(t *testing.T) {
 		// Create a workflow with normal-sized expressions

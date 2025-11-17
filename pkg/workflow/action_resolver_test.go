@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExtractBaseRepo(t *testing.T) {
@@ -44,7 +46,7 @@ func TestExtractBaseRepo(t *testing.T) {
 
 func TestActionResolverCache(t *testing.T) {
 	// Create a cache and resolver
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 	resolver := NewActionResolver(cache)
 

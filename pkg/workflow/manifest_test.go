@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestManifestRendering tests that imported and included files are correctly rendered
 // as comments in the generated lock file
 func TestManifestRendering(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "manifest-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "manifest-test")
 
 	// Create shared directory
 	sharedDir := filepath.Join(tmpDir, "shared")
@@ -200,11 +198,7 @@ Handle the issue.`,
 
 // TestManifestIncludeOrdering tests that included files are rendered in alphabetical order
 func TestManifestIncludeOrdering(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "manifest-order-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "manifest-order-test")
 
 	// Create shared directory
 	sharedDir := filepath.Join(tmpDir, "shared")
@@ -250,8 +244,7 @@ Handle the issue.`
 	}
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 

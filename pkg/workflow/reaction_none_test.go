@@ -6,16 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestCommandWorkflowWithReactionNone(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-none-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-none-test")
 
 	// Create a test markdown file with command and reaction: none
 	testContent := `---
@@ -102,11 +100,7 @@ Test command workflow with reaction explicitly disabled.
 
 func TestCommandWorkflowDefaultReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-default-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-default-test")
 
 	// Create a test markdown file with command but no explicit reaction
 	testContent := `---
@@ -193,11 +187,7 @@ Test command workflow with default (eyes) reaction.
 
 func TestCommandWorkflowExplicitReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-explicit-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-explicit-test")
 
 	// Create a test markdown file with command and explicit reaction
 	testContent := `---

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -13,7 +15,7 @@ import (
 // fields can be used in included files without schema validation errors
 func TestMCPFieldsInIncludedFiles(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create an included file with MCP server using all three fields
 	includedFilePath := filepath.Join(tempDir, "mcp-with-fields.md")
@@ -79,7 +81,7 @@ This workflow imports an MCP server with entrypointArgs, headers, and url fields
 
 // TestEntrypointArgsInIncludedFile specifically tests entrypointArgs field
 func TestEntrypointArgsInIncludedFile(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	includedFilePath := filepath.Join(tempDir, "mcp-entrypoint.md")
 	includedFileContent := `---
@@ -128,7 +130,7 @@ imports:
 
 // TestHeadersInIncludedFile specifically tests headers field
 func TestHeadersInIncludedFile(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	includedFilePath := filepath.Join(tempDir, "mcp-headers.md")
 	includedFileContent := `---
@@ -180,7 +182,7 @@ imports:
 
 // TestURLInIncludedFile specifically tests url field
 func TestURLInIncludedFile(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	includedFilePath := filepath.Join(tempDir, "mcp-url.md")
 	includedFileContent := `---

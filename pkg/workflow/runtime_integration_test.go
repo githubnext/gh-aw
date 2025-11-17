@@ -221,8 +221,7 @@ Test workflow with runtime overrides applied to steps.
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -281,8 +280,7 @@ Test workflow with custom setup action.
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

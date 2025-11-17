@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExtractMCPFailuresFromSafeOutputsServer(t *testing.T) {
@@ -14,7 +16,7 @@ func TestExtractMCPFailuresFromSafeOutputsServer(t *testing.T) {
 {"type":"result","subtype":"success","is_error":false,"duration_ms":7173,"duration_api_ms":8795,"num_turns":1,"result":"I cannot call a ` + "`draw pelican`" + ` tool or any other missing tool, as I don't have access to tools that don't exist in my available toolset. Additionally, I don't have a ` + "`missing-tool`" + ` tool available to report this missing functionality.\\n\\nThe tools I have access to are the standard file system operations (Read, Write, Edit, etc.), GitHub API tools (mcp__github__*), search tools (Grep, Glob), and other development utilities listed in my function definitions.\\n\\nIf you need to test the missing-tool safe output functionality as described in the workflow, you would need to run the actual GitHub Actions workflow that contains the custom engine implementation shown in the markdown file.","session_id":"d5d6d3c4-b04d-4b41-ba8e-6de4e93648bb","total_cost_usd":0.2987599,"usage":{"input_tokens":6,"cache_creation_input_tokens":78962,"cache_read_input_tokens":0,"output_tokens":152,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"},"permission_denials":[]}`
 
 	// Create a temporary directory structure
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-17701181429")
 	err := os.MkdirAll(runDir, 0755)
 	if err != nil {
@@ -77,7 +79,7 @@ func TestExtractMCPFailuresFromLogFileDirectly(t *testing.T) {
 	}
 
 	// Create a temporary file for this test
-	tmpFile := filepath.Join(t.TempDir(), "test.log")
+	tmpFile := filepath.Join(testutil.TempDir(t, "test-*"), "test.log")
 	err := os.WriteFile(tmpFile, []byte(logContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write temporary log file: %v", err)

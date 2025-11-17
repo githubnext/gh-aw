@@ -7,14 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestTopLevelGitHubTokenPrecedence(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "github-token-precedence-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "github-token-precedence-test")
 
 	t.Run("top-level github-token used when no safe-outputs token", func(t *testing.T) {
 		testContent := `---

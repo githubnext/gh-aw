@@ -4,16 +4,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestLabelFilter tests the label name filter functionality for labeled/unlabeled events
 func TestLabelFilter(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "label-filter-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "label-filter-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -208,11 +206,7 @@ tools:
 
 // TestLabelFilterCommentedOut tests that the names field is commented out in the final YAML
 func TestLabelFilterCommentedOut(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "label-filter-comment-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "label-filter-comment-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -238,8 +232,7 @@ tools:
 		t.Fatal(err)
 	}
 
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
