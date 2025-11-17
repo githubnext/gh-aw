@@ -397,7 +397,7 @@ Users must now configure a Personal Access Token (PAT) as either `GH_AW_COPILOT_
 
 #### Fix add_comment to auto-detect discussion context and use GraphQL API
 
-**Breaking Change**: Removed the `discussion: true` configuration option. The add_comment safe-output now automatically detects discussion contexts from event types (`discussion` or `discussion_comment`) and uses the appropriate API without requiring explicit configuration.
+**Enhancement**: The `discussion: true` configuration option is now optional with automatic context detection. The add_comment safe-output automatically detects discussion contexts from event types (`discussion` or `discussion_comment`) and uses the appropriate GraphQL API without requiring explicit configuration. The `discussion: true` field remains supported for backward compatibility and can still be used when manual specification is preferred. Existing workflows using this field continue to work without modification.
 
 
 ### Bug Fixes
