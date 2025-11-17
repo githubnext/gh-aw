@@ -11,11 +11,12 @@ on:
   workflow_dispatch:
 jobs:
   test:
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-test
+      group: ci-${{ github.ref }}-test
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -39,8 +40,10 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Run tests with coverage
-        run: make test-coverage
+      - name: Run unit tests with coverage
+        run: |
+          go test -v -count=1 -timeout=3m -tags '!integration' -coverprofile=coverage.out ./...
+          go tool cover -html=coverage.out -o coverage.html
 
       # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
       - name: Upload coverage report
@@ -50,12 +53,46 @@ jobs:
           path: coverage.html
           retention-days: 7
 
-  build:
+  integration:
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-build
+      group: ci-${{ github.ref }}-integration
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run integration tests
+        run: go test -v -timeout=3m -tags 'integration' ./...
+
+  build:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-build
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -98,11 +135,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
+    needs: [lint]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-js
+      group: ci-${{ github.ref }}-js
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -126,11 +164,12 @@ jobs:
       - name: Run tests
         run: cd pkg/workflow/js && npm test
   bench:
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-bench
+      group: ci-${{ github.ref }}-bench
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -171,7 +210,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-lint
+      group: ci-${{ github.ref }}-lint
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -209,11 +248,12 @@ jobs:
         run: make lint-errors
 
   fuzz:
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-fuzz
+      group: ci-${{ github.ref }}-fuzz
       cancel-in-progress: true
     steps:
       - name: Checkout code
