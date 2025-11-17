@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestFileTracker_CreationAndTracking(t *testing.T) {

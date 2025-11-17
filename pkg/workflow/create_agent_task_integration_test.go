@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAgentTaskWorkflowCompilation(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow file
 	workflowContent := `---
@@ -103,7 +105,7 @@ Create a GitHub Copilot agent task to improve the code quality.
 
 func TestAgentTaskWorkflowWithTargetRepo(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow file with target-repo
 	workflowContent := `---

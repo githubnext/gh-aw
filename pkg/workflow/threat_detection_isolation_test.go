@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestThreatDetectionIsolation(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Create a temporary directory for the test workflow
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-isolation.md")
 
 	workflowContent := `---

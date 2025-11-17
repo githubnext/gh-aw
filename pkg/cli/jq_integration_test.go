@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -27,7 +29,7 @@ func TestMCPServer_StatusToolWithJq(t *testing.T) {
 	}
 
 	// Create a temporary directory with a workflow file
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)

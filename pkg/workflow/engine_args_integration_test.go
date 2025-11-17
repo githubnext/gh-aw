@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestEngineArgsIntegration(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow with engine args
 	workflowContent := `---
@@ -32,8 +34,7 @@ This is a test workflow to verify engine args injection.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -64,7 +65,7 @@ This is a test workflow to verify engine args injection.
 
 func TestEngineArgsIntegrationMultipleArgs(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow with multiple engine args
 	workflowContent := `---
@@ -87,8 +88,7 @@ This is a test workflow to verify multiple engine args injection.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -122,7 +122,7 @@ This is a test workflow to verify multiple engine args injection.
 
 func TestEngineArgsIntegrationNoArgs(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow without engine args
 	workflowContent := `---
@@ -144,8 +144,7 @@ This is a test workflow without engine args.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -171,7 +170,7 @@ This is a test workflow without engine args.
 
 func TestEngineArgsIntegrationClaude(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow with claude engine args
 	workflowContent := `---
@@ -194,8 +193,7 @@ This is a test workflow to verify claude engine args injection.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -219,7 +217,7 @@ This is a test workflow to verify claude engine args injection.
 
 func TestEngineArgsIntegrationCodex(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test workflow with codex engine args
 	workflowContent := `---
@@ -242,8 +240,7 @@ This is a test workflow to verify codex engine args injection.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

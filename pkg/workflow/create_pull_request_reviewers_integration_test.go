@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCreatePullRequestWorkflowCompilationWithReviewers tests end-to-end workflow compilation with reviewers
@@ -44,8 +46,7 @@ Create a pull request with reviewers.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -140,8 +141,7 @@ Create a pull request with a single reviewer.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -204,8 +204,7 @@ Create a pull request without reviewers.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

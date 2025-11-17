@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestListWorkflowsWithMetadata tests that listWorkflowsWithMetadata extracts workflow metadata correctly
 func TestListWorkflowsWithMetadata(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -125,7 +127,7 @@ This workflow generates a weekly summary.
 // TestHandleRepoOnlySpecTableDisplay tests that handleRepoOnlySpec displays workflows as a table
 func TestHandleRepoOnlySpecTableDisplay(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)

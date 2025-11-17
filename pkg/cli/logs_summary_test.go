@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -12,7 +14,7 @@ import (
 
 func TestSaveAndLoadRunSummary(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-12345")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -89,7 +91,7 @@ func TestSaveAndLoadRunSummary(t *testing.T) {
 
 func TestLoadRunSummaryVersionMismatch(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-12345")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -130,7 +132,7 @@ func TestLoadRunSummaryVersionMismatch(t *testing.T) {
 
 func TestLoadRunSummaryMissingFile(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-12345")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -148,7 +150,7 @@ func TestLoadRunSummaryMissingFile(t *testing.T) {
 
 func TestLoadRunSummaryInvalidJSON(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-12345")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -172,7 +174,7 @@ func TestLoadRunSummaryInvalidJSON(t *testing.T) {
 
 func TestListArtifacts(t *testing.T) {
 	// Create a temporary directory structure for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tmpDir, "run-12345")
 
 	// Create some test files and directories

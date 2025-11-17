@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCollectUsedActionPins tests the collectUsedActionPins function
@@ -226,11 +228,7 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 // TestPinnedActionsCommentInGeneratedYAML tests that the pinned actions comment appears in generated YAML
 func TestPinnedActionsCommentInGeneratedYAML(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "pinned-actions-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "pinned-actions-test")
 
 	// Create a simple workflow
 	workflow := `---

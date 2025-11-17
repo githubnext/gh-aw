@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestParseImportDirective(t *testing.T) {
@@ -171,7 +173,7 @@ func TestParseImportDirective(t *testing.T) {
 
 func TestProcessIncludesWithNewSyntax(t *testing.T) {
 	// Create temporary test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create test file with markdown content
 	testFile := tempDir + "/test.md"

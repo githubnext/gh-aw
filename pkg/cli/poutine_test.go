@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestParseAndDisplayPoutineOutput(t *testing.T) {
@@ -292,7 +294,7 @@ func TestParseAndDisplayPoutineOutput(t *testing.T) {
 
 func TestEnsurePoutineConfig(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	t.Run("creates config file when it doesn't exist", func(t *testing.T) {
 		err := ensurePoutineConfig(tmpDir)
@@ -329,7 +331,7 @@ func TestEnsurePoutineConfig(t *testing.T) {
 
 	t.Run("does not overwrite existing config file", func(t *testing.T) {
 		// Create a different temporary directory
-		tmpDir2 := t.TempDir()
+		tmpDir2 := testutil.TempDir(t, "test-*")
 		configPath := filepath.Join(tmpDir2, ".poutine.yml")
 
 		// Create a custom config file

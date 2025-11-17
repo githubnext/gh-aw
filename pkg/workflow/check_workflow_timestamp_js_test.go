@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestWorkflowTimestampCheckUsesJavaScript verifies that the workflow timestamp check uses JavaScript instead of inline bash
 func TestWorkflowTimestampCheckUsesJavaScript(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "workflow-timestamp-js-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-timestamp-js-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -32,8 +30,7 @@ This is a test workflow to verify timestamp checking uses JavaScript.
 		t.Fatal(err)
 	}
 
-	err = compiler.CompileWorkflow(workflowFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 

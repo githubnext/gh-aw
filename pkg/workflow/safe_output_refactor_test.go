@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCreatePRReviewCommentUsesHelper verifies that create_pr_review_comment.go
@@ -289,11 +291,7 @@ safe-outputs:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test files
-			tmpDir, err := os.MkdirTemp("", "refactor-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "refactor-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
@@ -302,8 +300,7 @@ safe-outputs:
 
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "test")
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -409,11 +406,7 @@ safe-outputs:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test files
-			tmpDir, err := os.MkdirTemp("", "presteps-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "presteps-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
@@ -422,8 +415,7 @@ safe-outputs:
 
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "test")
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 

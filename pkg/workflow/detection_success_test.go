@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestDetectionJobHasSuccessOutput verifies that the detection job has a success output
 func TestDetectionJobHasSuccessOutput(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 
 	frontmatter := `---
@@ -70,7 +72,7 @@ Create an issue.
 
 // TestSafeOutputJobsCheckDetectionSuccess verifies that safe output jobs check detection success
 func TestSafeOutputJobsCheckDetectionSuccess(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 
 	frontmatter := `---

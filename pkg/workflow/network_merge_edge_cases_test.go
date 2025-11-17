@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestNetworkMergeEdgeCases(t *testing.T) {
 	t.Run("duplicate domains are deduplicated", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 
 		// Create shared file with overlapping domain
 		sharedPath := filepath.Join(tempDir, "shared.md")
@@ -69,7 +71,7 @@ imports:
 	})
 
 	t.Run("empty network in import is handled", func(t *testing.T) {
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 
 		// Create shared file with empty network
 		sharedPath := filepath.Join(tempDir, "shared.md")

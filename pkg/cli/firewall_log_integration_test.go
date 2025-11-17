@@ -4,12 +4,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestFirewallLogIntegration tests the complete firewall log analysis pipeline
 func TestFirewallLogIntegration(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	runDir := filepath.Join(tempDir, "run-12345")
 	err := os.MkdirAll(runDir, 0755)
 	if err != nil {

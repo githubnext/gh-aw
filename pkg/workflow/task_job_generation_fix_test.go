@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestTaskJobGenerationFix tests that task job is only generated when required
@@ -39,8 +41,7 @@ Do some simple work.`
 
 		// Compile the workflow
 		compiler := NewCompiler(false, "", "test")
-		err = compiler.CompileWorkflow(workflowFile)
-		if err != nil {
+		if err := compiler.CompileWorkflow(workflowFile); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
 		}
 
@@ -96,8 +97,7 @@ Do some work.`
 
 		// Compile the workflow
 		compiler := NewCompiler(false, "", "test")
-		err = compiler.CompileWorkflow(workflowFile)
-		if err != nil {
+		if err := compiler.CompileWorkflow(workflowFile); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
 		}
 
@@ -144,8 +144,7 @@ Do conditional work.`
 
 		// Compile the workflow
 		compiler := NewCompiler(false, "", "test")
-		err = compiler.CompileWorkflow(workflowFile)
-		if err != nil {
+		if err := compiler.CompileWorkflow(workflowFile); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
 		}
 

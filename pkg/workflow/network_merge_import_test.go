@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestNetworkMergeWithImports(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared file with network configuration
 	sharedNetworkPath := filepath.Join(tempDir, "shared-network.md")

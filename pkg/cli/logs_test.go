@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -78,7 +80,7 @@ func TestFormatNumber(t *testing.T) {
 
 func TestParseLogFileWithoutAwInfo(t *testing.T) {
 	// Create a temporary log file
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test.log")
 
 	logContent := `2024-01-15T10:30:00Z Starting workflow execution
@@ -182,7 +184,7 @@ func TestExtractJSONMetrics(t *testing.T) {
 
 func TestParseLogFileWithJSON(t *testing.T) {
 	// Create a temporary log file with mixed JSON and text format
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-mixed.log")
 
 	logContent := `2024-01-15T10:30:00Z Starting workflow execution
@@ -259,7 +261,7 @@ func TestConvertToFloat(t *testing.T) {
 }
 
 func TestDirExists(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test existing directory
 	if !fileutil.DirExists(tmpDir) {
@@ -285,7 +287,7 @@ func TestDirExists(t *testing.T) {
 }
 
 func TestIsDirEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test empty directory
 	emptyDir := filepath.Join(tmpDir, "empty")
@@ -414,7 +416,7 @@ func TestExtractJSONCost(t *testing.T) {
 
 func TestParseLogFileWithClaudeResult(t *testing.T) {
 	// Create a temporary log file with the exact Claude result format from the issue
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-claude.log")
 
 	// This is the exact JSON format provided in the issue (compacted to single line)
@@ -460,7 +462,7 @@ Claude processing request...
 
 func TestParseLogFileWithCodexFormat(t *testing.T) {
 	// Create a temporary log file with the Codex output format from the issue
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex.log")
 
 	// This is the exact Codex format provided in the issue with thinking sections added
@@ -504,7 +506,7 @@ Now I need to wait for the user's response.
 
 func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
 	// Create a temporary log file with multiple Codex token entries
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-tokens.log")
 
 	// Simulate the exact Codex format from the issue
@@ -538,7 +540,7 @@ I've posted the PR summary comment with analysis and recommendations. Let me kno
 
 func TestParseLogFileWithCodexRustFormat(t *testing.T) {
 	// Create a temporary log file with the new Rust-based Codex format
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-rust.log")
 
 	// This simulates the new Rust format from the Codex engine
@@ -612,7 +614,7 @@ tokens used: 15234
 
 func TestParseLogFileWithCodexMixedFormats(t *testing.T) {
 	// Create a temporary log file with mixed old TypeScript and new Rust formats
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-codex-mixed.log")
 
 	// Mix both formats to test backward compatibility
@@ -677,7 +679,7 @@ tokens used: 10000
 
 func TestParseLogFileWithMixedTokenFormats(t *testing.T) {
 	// Create a temporary log file with mixed token formats
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-mixed-tokens.log")
 
 	// Mix of Codex and non-Codex formats - should prioritize Codex summing
@@ -711,7 +713,7 @@ token_count: 10000`
 }
 
 func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test Case 1: aw_info.json as a regular file
 	awInfoFile := filepath.Join(tmpDir, "aw_info.json")
@@ -844,7 +846,7 @@ func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
 
 func TestParseLogFileWithNonCodexTokensOnly(t *testing.T) {
 	// Create a temporary log file with only non-Codex token formats
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	logFile := filepath.Join(tmpDir, "test-generic-tokens.log")
 
 	// Only non-Codex formats - should keep maximum behavior
@@ -1024,7 +1026,7 @@ func TestFormatFileSize(t *testing.T) {
 
 func TestExtractLogMetricsWithAwOutputFile(t *testing.T) {
 	// Create a temporary directory with safe_output.jsonl
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create safe_output.jsonl file
 	awOutputPath := filepath.Join(tmpDir, "safe_output.jsonl")
@@ -1219,7 +1221,7 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 
 func TestFindAgentLogFile(t *testing.T) {
 	// Create a temporary directory structure for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test 1: Copilot engine with agent_output directory
 	t.Run("Copilot engine uses agent_output", func(t *testing.T) {
@@ -1333,7 +1335,7 @@ func TestFindAgentLogFile(t *testing.T) {
 
 func TestUnzipFile(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test zip file
 	zipPath := filepath.Join(tmpDir, "test.zip")
@@ -1415,7 +1417,7 @@ func TestUnzipFile(t *testing.T) {
 
 func TestUnzipFileZipSlipPrevention(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a test zip file with a malicious path
 	zipPath := filepath.Join(tmpDir, "malicious.zip")
@@ -1468,7 +1470,7 @@ func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
 	// Note: This test cannot fully test downloadWorkflowRunLogs without GitHub CLI authentication
 	// So we test the directory creation and unzipFile behavior that mimics the workflow
 
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a mock workflow logs zip file similar to what GitHub API returns
 	zipPath := filepath.Join(tmpDir, "workflow-logs.zip")

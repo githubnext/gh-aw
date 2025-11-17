@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // Test the host repo slug processing logic with dot notation
@@ -354,7 +356,7 @@ No modifications needed.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 
 			// Create workflow file
 			workflowName := "test-workflow"
@@ -445,7 +447,7 @@ steps:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 
 			// Create workflow file
 			workflowName := "test-workflow"

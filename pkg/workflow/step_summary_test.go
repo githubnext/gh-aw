@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestStepSummaryIncludesProcessedOutput(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "step-summary-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "step-summary-test")
 
 	// Test case with Claude engine
 	testContent := `---
@@ -43,8 +41,7 @@ This workflow tests that the step summary includes both JSONL and processed outp
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -72,11 +69,7 @@ This workflow tests that the step summary includes both JSONL and processed outp
 
 func TestStepSummaryIncludesAgenticRunInfo(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "agentic-run-info-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "agentic-run-info-test")
 
 	// Test case with Claude engine including extended configuration
 	testContent := `---
@@ -107,8 +100,7 @@ This workflow tests that the step summary includes agentic run information.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 

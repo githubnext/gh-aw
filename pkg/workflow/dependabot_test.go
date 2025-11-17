@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/goccy/go-yaml"
 )
 
@@ -147,7 +149,7 @@ func TestCollectNpmDependencies(t *testing.T) {
 
 func TestGeneratePackageJSON(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	packageJSONPath := filepath.Join(tempDir, "package.json")
 
 	deps := []NpmDependency{
@@ -199,7 +201,7 @@ func TestGeneratePackageJSON(t *testing.T) {
 
 func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	packageJSONPath := filepath.Join(tempDir, "package.json")
 
 	// Create existing package.json with some fields
@@ -257,7 +259,7 @@ func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 
 func TestGenerateDependabotConfig(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
 	ecosystems := map[string]bool{"npm": true}
@@ -306,7 +308,7 @@ func TestGenerateDependabotConfig(t *testing.T) {
 
 func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
 	// Create existing dependabot.yml with npm entry
@@ -342,7 +344,7 @@ func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 
 func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 	compiler := NewCompiler(true, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Workflow with no npm dependencies
 	workflows := []*WorkflowData{
@@ -365,7 +367,7 @@ func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 
 func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	compiler := NewCompiler(true, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
 
@@ -402,7 +404,7 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 	compiler := NewCompiler(true, "", "test")
 	compiler.SetStrictMode(true)
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
 
@@ -560,7 +562,7 @@ func TestCollectPipDependencies(t *testing.T) {
 
 func TestGenerateRequirementsTxt(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	requirementsPath := filepath.Join(tempDir, "requirements.txt")
 
 	deps := []PipDependency{
@@ -715,7 +717,7 @@ func TestCollectGoDependencies(t *testing.T) {
 
 func TestGenerateGoMod(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	goModPath := filepath.Join(tempDir, "go.mod")
 
 	deps := []GoDependency{
@@ -759,7 +761,7 @@ func TestGenerateGoMod(t *testing.T) {
 
 func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
 	ecosystems := map[string]bool{
@@ -819,7 +821,7 @@ func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
 
 func TestGenerateDependabotManifests_AllEcosystems(t *testing.T) {
 	compiler := NewCompiler(true, "", "test")
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
 

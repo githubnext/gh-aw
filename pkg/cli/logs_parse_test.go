@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -16,7 +18,7 @@ func TestParseAgentLog(t *testing.T) {
 	}
 
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a mock agent-stdio.log file with Claude log format
 	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
@@ -79,7 +81,7 @@ func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
 	}
 
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a mock agent_output directory with a log file
 	agentOutputDir := filepath.Join(tempDir, "agent_output")
@@ -132,7 +134,7 @@ func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
 
 func TestParseAgentLogNoAgentOutput(t *testing.T) {
 	// Create a temporary directory without agent logs
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Get the Claude engine
 	registry := workflow.GetGlobalEngineRegistry()
@@ -156,7 +158,7 @@ func TestParseAgentLogNoAgentOutput(t *testing.T) {
 
 func TestParseAgentLogNoEngine(t *testing.T) {
 	// Create a temporary directory with agent-stdio.log
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
 	if err := os.WriteFile(agentStdioPath, []byte("[]"), 0644); err != nil {

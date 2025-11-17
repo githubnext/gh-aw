@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestAddCommentTargetRepoIntegration(t *testing.T) {
@@ -84,7 +86,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for this test
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 			workflowPath := tempDir + "/test-workflow.md"
 
 			// Create a simple workflow content

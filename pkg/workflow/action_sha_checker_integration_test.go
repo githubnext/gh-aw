@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestActionSHAValidationIntegration tests the complete SHA validation flow
 func TestActionSHAValidationIntegration(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create an actions-lock.json cache file with test data
 	cacheDir := filepath.Join(tmpDir, ".github", "aw")
@@ -84,7 +86,7 @@ jobs:
 
 // TestActionSHAValidationWithMissingCache tests validation when cache doesn't exist
 func TestActionSHAValidationWithMissingCache(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a lock file
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
@@ -114,7 +116,7 @@ jobs:
 
 // TestExtractActionsFromRealLockFile tests extraction from a realistic lock file
 func TestExtractActionsFromRealLockFile(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "realistic.lock.yml")
 
 	// Create a more realistic lock file with multiple jobs and steps
@@ -193,7 +195,7 @@ jobs:
 
 // TestValidationMessageFormat tests that validation messages are properly formatted
 func TestValidationMessageFormat(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -224,7 +226,7 @@ jobs:
 
 // TestActionUsageVersionPopulation tests that version is populated from action_pins.json
 func TestActionUsageVersionPopulation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	// Use an action that exists in action_pins.json

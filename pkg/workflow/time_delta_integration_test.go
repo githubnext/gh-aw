@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 )
 
@@ -112,7 +114,7 @@ on:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary files
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			mdFile := tmpDir + "/test-workflow.md"
 			lockFile := tmpDir + "/test-workflow.lock.yml"
 
@@ -125,8 +127,7 @@ on:
 
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "test-version")
-			err = compiler.CompileWorkflow(mdFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 
@@ -237,7 +238,7 @@ func TestStopTimeResolutionError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			mdFile := tmpDir + "/test-workflow.md"
 
 			content := fmt.Sprintf(`---

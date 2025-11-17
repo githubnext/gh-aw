@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // Note: The following tests exist in other test files and are not duplicated here:
@@ -18,7 +20,7 @@ import (
 // - TestStageGitAttributesIfChanged (tests conditional staging during compilation)
 
 func TestGetCurrentBranch(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -68,7 +70,7 @@ func TestGetCurrentBranch(t *testing.T) {
 }
 
 func TestGetCurrentBranchNotInRepo(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -90,7 +92,7 @@ func TestGetCurrentBranchNotInRepo(t *testing.T) {
 }
 
 func TestCreateAndSwitchBranch(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -141,7 +143,7 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 }
 
 func TestSwitchBranch(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -203,7 +205,7 @@ func TestSwitchBranch(t *testing.T) {
 }
 
 func TestCommitChanges(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -259,7 +261,7 @@ func TestCommitChanges(t *testing.T) {
 func TestPushBranchNotImplemented(t *testing.T) {
 	// This test verifies the function signature exists
 	// We skip actual push testing as it requires remote repository setup
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {

@@ -5,12 +5,14 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestAddWorkflowsFromCurrentRepository tests that adding workflows from the current repository is prevented
 func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 	// Create a temporary git repository to simulate being in a repository
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Initialize a proper git repository
 	initCmd := exec.Command("git", "init")
@@ -99,7 +101,7 @@ func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 // TestAddWorkflowsFromCurrentRepositoryMultiple tests prevention for multiple workflows
 func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
 	// Create a temporary git repository to simulate being in a repository
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Initialize a proper git repository
 	initCmd := exec.Command("git", "init")
@@ -200,7 +202,7 @@ func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
 // TestAddWorkflowsFromCurrentRepositoryNotInGitRepo tests behavior when not in a git repository
 func TestAddWorkflowsFromCurrentRepositoryNotInGitRepo(t *testing.T) {
 	// Create a temporary directory without .git
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Change to the temp directory
 	oldDir, err := os.Getwd()

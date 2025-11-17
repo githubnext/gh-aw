@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestSecureMarkdownRendering_Integration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "secure-markdown-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "secure-markdown-test")
 
 	// Simple workflow with GitHub expressions
 	testContent := `---
@@ -39,8 +37,7 @@ Run ID: ${{ github.run_id }}
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

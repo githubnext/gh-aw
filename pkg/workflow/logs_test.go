@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestClaudeExecutionLogCapture(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "log-capture-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "log-capture-test")
 
 	testContent := `---
 on: push
@@ -33,8 +31,7 @@ This is a test workflow.`
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 

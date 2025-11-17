@@ -8,16 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
 
 func TestCompileWorkflow(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-test")
 
 	// Create a test markdown file with basic frontmatter
 	testContent := `---
@@ -90,11 +87,7 @@ This is a test workflow for compilation.
 
 func TestEmptyMarkdownContentError(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "empty-markdown-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "empty-markdown-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -272,11 +265,7 @@ func TestWorkflowDataStructure(t *testing.T) {
 
 func TestOnSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-on-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-on-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -390,11 +379,7 @@ This is a test workflow.
 
 func TestCommandSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-command-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-command-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -515,11 +500,7 @@ This is a test workflow for command triggering.
 
 func TestCommandWithOtherEvents(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-command-merge-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-command-merge-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -713,11 +694,7 @@ This is a test workflow for command merging with other events.
 
 func TestRunsOnSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-runs-on-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -955,11 +932,7 @@ func TestGenerateCustomMCPClaudeWorkflowConfig(t *testing.T) {
 
 func TestMergeAllowedListsFromMultipleIncludes(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "multiple-includes-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "multiple-includes-test")
 
 	// Create first include file with Bash tools (new format)
 	include1Content := `---
@@ -1031,8 +1004,7 @@ This is a simple test workflow with Bash tools.
 
 	// Compile the simple workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(simpleFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(simpleFile); err != nil {
 		t.Fatalf("Unexpected error compiling simple workflow: %v", err)
 	}
 
@@ -1062,8 +1034,7 @@ This is a simple test workflow with Bash tools.
 	}
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(mainFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -1105,11 +1076,7 @@ This is a simple test workflow with Bash tools.
 
 func TestMergeCustomMCPFromMultipleIncludes(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-includes-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-mcp-includes-test")
 
 	// Create first include file with custom MCP server
 	include1Content := `---
@@ -1204,8 +1171,7 @@ Final content.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(mainFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -1296,11 +1262,7 @@ Final content.
 
 func TestCustomMCPOnlyInIncludes(t *testing.T) {
 	// Test case where custom MCPs are only defined in includes, not in main file
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-includes-only-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-mcp-includes-only-test")
 
 	// Create include file with custom MCP server
 	includeContent := `---
@@ -1344,8 +1306,7 @@ Content using custom API from include.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(mainFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -1385,11 +1346,7 @@ Content using custom API from include.
 
 func TestCustomMCPMergingConflictDetection(t *testing.T) {
 	// Test that conflicting MCP configurations result in errors
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-conflict-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-mcp-conflict-test")
 
 	// Create first include file with custom MCP server
 	include1Content := `---
@@ -1459,6 +1416,7 @@ This should fail due to conflicting MCP configurations.
 
 	// Compile the workflow - this should produce an error due to conflicting configurations
 	compiler := NewCompiler(false, "", "test")
+	var err error
 	err = compiler.CompileWorkflow(mainFile)
 
 	// We expect this to fail due to conflicting MCP configurations
@@ -1475,11 +1433,7 @@ This should fail due to conflicting MCP configurations.
 
 func TestCustomMCPMergingFromMultipleIncludes(t *testing.T) {
 	// Test that tools from imports with the same MCP server name get merged
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-merge-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-mcp-merge-test")
 
 	// Create first include file with custom MCP server
 	include1Content := `---
@@ -1543,8 +1497,7 @@ This should merge the allowed lists from both imports.
 
 	// Compile the workflow - this should succeed
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(mainFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with compatible MCPs: %v", err)
 	}
 
@@ -1579,11 +1532,7 @@ This should merge the allowed lists from both imports.
 
 func TestWorkflowNameWithColon(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-test")
 
 	// Create a test markdown file with a header containing a colon
 	testContent := `---
@@ -1611,8 +1560,7 @@ This is a test workflow with a colon in the header.
 	compiler := NewCompiler(false, "", "test")
 
 	// Test compilation
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 
@@ -1732,11 +1680,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 func TestCompileWorkflowWithNestedEnv_NoOrphanedEnv(t *testing.T) {
 	// This test verifies that workflows with nested env sections (like mcp-servers.*.env)
 	// don't create orphaned env blocks in the generated YAML
-	tmpDir, err := os.MkdirTemp("", "nested-env-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "nested-env-test")
 
 	// Create a workflow with nested env (similar to the original bug report)
 	testContent := `---
@@ -1773,8 +1717,7 @@ This is a test workflow with nested env.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -1829,7 +1772,7 @@ This is a test workflow with nested env.
 
 func TestGeneratedDisclaimerInLockFile(t *testing.T) {
 	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a simple test workflow
 	testContent := `---
@@ -2037,11 +1980,7 @@ func TestValidationCanBeSkipped(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Test via CompileWorkflow - should succeed because validation is skipped by default
-	tmpDir, err := os.MkdirTemp("", "validation-skip-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "validation-skip-test")
 
 	testContent := `---
 name: Test Workflow
@@ -2057,8 +1996,7 @@ on: push
 	compiler.customOutput = tmpDir
 
 	// This should succeed because validation is skipped by default
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Errorf("CompileWorkflow() should succeed when validation is skipped, but got error: %v", err)
 	}
 }
@@ -2141,7 +2079,7 @@ func TestGenerateJobName(t *testing.T) {
 func TestNetworkPermissionsDefaultBehavior(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	t.Run("no network field defaults to full access", func(t *testing.T) {
 		testContent := `---
@@ -2333,11 +2271,7 @@ This is a test workflow with network permissions and codex engine.
 
 func TestMCPImageField(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "mcp-container-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "mcp-container-test")
 
 	tests := []struct {
 		name           string
@@ -2468,11 +2402,7 @@ This is a test workflow for container field.
 
 func TestAIReactionWorkflow(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-test")
 
 	// Create a test markdown file with reaction
 	testContent := `---
@@ -2562,11 +2492,7 @@ Test workflow with reaction.
 // TestAIReactionWorkflowWithoutReaction tests that workflows without explicit reaction do not create reaction actions
 func TestAIReactionWorkflowWithoutReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "no-reaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "no-reaction-test")
 
 	// Create a test markdown file without explicit reaction (should not create reaction action)
 	testContent := `---
@@ -2644,11 +2570,7 @@ Test workflow without explicit reaction (should not create reaction action).
 // TestAIReactionWithCommentEditFunctionality tests that the enhanced reaction script includes comment creation
 func TestAIReactionWithCommentEditFunctionality(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "reaction-edit-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "reaction-edit-test")
 
 	// Create a test markdown file with reaction
 	testContent := `---
@@ -2734,11 +2656,7 @@ Test workflow with reaction and comment creation.
 // TestCommandReactionWithCommentEdit tests command workflows with reaction and comment editing
 func TestCommandReactionWithCommentEdit(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "command-reaction-edit-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "command-reaction-edit-test")
 
 	// Create a test markdown file with command and reaction
 	testContent := `---
@@ -2808,11 +2726,7 @@ Test command workflow with reaction and comment editing.
 // TestCommandTriggerDefaultReaction tests that command triggers automatically enable "eyes" reaction
 func TestCommandTriggerDefaultReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "command-default-reaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "command-default-reaction-test")
 
 	// Create a test markdown file with command but NO explicit reaction
 	testContent := `---
@@ -2887,11 +2801,7 @@ Test command workflow that should automatically get "eyes" reaction.
 // TestCommandTriggerCustomReaction tests that command triggers allow custom reaction override
 func TestCommandTriggerCustomReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "command-custom-reaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "command-custom-reaction-test")
 
 	// Create a test markdown file with command and custom reaction
 	testContent := `---
@@ -2956,11 +2866,7 @@ Test command workflow with custom reaction override.
 // TestInvalidReactionValue tests that invalid reaction values are rejected
 func TestInvalidReactionValue(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "invalid-reaction-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "invalid-reaction-test")
 
 	// Test invalid reaction value
 	testContent := `---
@@ -2990,6 +2896,7 @@ Test workflow with invalid reaction value.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow - should fail with validation error
+	var err error
 	_, err = compiler.ParseWorkflowFile(testFile)
 	if err == nil {
 		t.Fatal("Expected error for invalid reaction value, but got none")
@@ -3012,11 +2919,7 @@ Test workflow with invalid reaction value.
 // TestPullRequestDraftFilter tests the pull_request draft: false filter functionality
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "draft-filter-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "draft-filter-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -3198,11 +3101,7 @@ This is a test workflow for draft filtering.
 // TestDraftFieldCommentingInOnSection specifically tests that the draft field is commented out in the on section
 func TestDraftFieldCommentingInOnSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "draft-commenting-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "draft-commenting-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -3391,11 +3290,7 @@ This workflow tests that draft fields are properly commented out in the on secti
 // produce properly formatted error messages with file:line:column information
 func TestCompileWorkflowWithInvalidYAML(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "invalid-yaml-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "invalid-yaml-test")
 
 	tests := []struct {
 		name                string
@@ -3942,7 +3837,7 @@ tools:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for test files
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Create test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -3986,11 +3881,7 @@ tools:
 
 func TestPostStepsGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "post-steps-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "post-steps-test")
 
 	// Test case with both steps and post-steps
 	testContent := `---
@@ -4029,8 +3920,7 @@ This workflow tests the post-steps functionality.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with post-steps: %v", err)
 	}
 
@@ -4080,11 +3970,7 @@ This workflow tests the post-steps functionality.
 
 func TestPostStepsOnly(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "post-steps-only-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "post-steps-only-test")
 
 	// Test case with only post-steps (no pre-steps)
 	testContent := `---
@@ -4115,8 +4001,7 @@ This workflow tests post-steps without pre-steps.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with post-steps only: %v", err)
 	}
 
@@ -4154,11 +4039,7 @@ This workflow tests post-steps without pre-steps.
 
 func TestDefaultPermissions(t *testing.T) {
 	// Test that workflows without permissions in frontmatter get default permissions applied
-	tmpDir, err := os.MkdirTemp("", "default-permissions-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "default-permissions-test")
 
 	// Create a test workflow WITHOUT permissions specified in frontmatter
 	testContent := `---
@@ -4184,8 +4065,7 @@ This workflow should get default permissions applied automatically.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -4266,11 +4146,7 @@ This workflow should get default permissions applied automatically.
 
 func TestCustomPermissionsOverrideDefaults(t *testing.T) {
 	// Test that custom permissions in frontmatter override default permissions
-	tmpDir, err := os.MkdirTemp("", "custom-permissions-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-permissions-test")
 
 	// Create a test workflow WITH custom permissions specified in frontmatter
 	testContent := `---
@@ -4299,8 +4175,7 @@ This workflow has custom permissions that should override defaults.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -4395,11 +4270,7 @@ This workflow has custom permissions that should override defaults.
 
 func TestCustomStepsIndentation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "steps-indentation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "steps-indentation-test")
 
 	tests := []struct {
 		name        string
@@ -4468,8 +4339,7 @@ engine: claude
 			compiler := NewCompiler(false, "", "test")
 
 			// Compile the workflow
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Unexpected error compiling workflow: %v", err)
 			}
 
@@ -4520,11 +4390,7 @@ engine: claude
 
 func TestStopAfterCompiledAway(t *testing.T) {
 	// Test that stop-after is properly compiled away and doesn't appear in final YAML
-	tmpDir, err := os.MkdirTemp("", "stop-after-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "stop-after-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -4775,11 +4641,7 @@ This workflow tests that stop-after is properly compiled away.
 }
 
 func TestCustomStepsEdgeCases(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "steps-edge-cases-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "steps-edge-cases-test")
 
 	tests := []struct {
 		name        string
@@ -4830,6 +4692,7 @@ engine: claude
 			}
 
 			compiler := NewCompiler(false, "", "test")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
@@ -4953,11 +4816,7 @@ func TestAccessLogUploadConditional(t *testing.T) {
 // TestPullRequestForksArrayFilter tests the pull_request forks: []string filter functionality with glob support
 func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "forks-array-filter-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "forks-array-filter-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -5256,11 +5115,7 @@ This is a test workflow for forks array filtering with glob support.
 // TestForksArrayFieldCommentingInOnSection specifically tests that the forks array field is commented out in the on section
 func TestForksArrayFieldCommentingInOnSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "forks-array-commenting-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "forks-array-commenting-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -5540,11 +5395,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 // TestDescriptionFieldRendering tests that the description field from frontmatter
 // is correctly rendered as comments in the generated lock file
 func TestDescriptionFieldRendering(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "description-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "description-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -5710,11 +5561,7 @@ This is a test workflow to verify description field rendering.
 // to prevent YAML parsers from interpreting it as a boolean value
 func TestOnSectionWithQuotes(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "on-quotes-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "on-quotes-test")
 
 	tests := []struct {
 		name        string
@@ -5858,11 +5705,7 @@ func extractJobSection(yamlContent, jobName string) string {
 
 func TestPostStepsIndentationFix(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "post-steps-indentation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "post-steps-indentation-test")
 
 	// Test case with various post-steps configurations
 	testContent := `---
@@ -5904,8 +5747,7 @@ Test post-steps indentation fix.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 
@@ -5970,11 +5812,7 @@ Test post-steps indentation fix.
 
 func TestPromptUploadArtifact(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "prompt-upload-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "prompt-upload-test")
 
 	// Create a test markdown file with basic frontmatter
 	testContent := `---
@@ -5997,8 +5835,7 @@ This workflow should generate a step to upload the prompt as an artifact.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

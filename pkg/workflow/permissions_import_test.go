@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
@@ -92,7 +94,7 @@ func TestValidateIncludedPermissions(t *testing.T) {
 
 func TestPermissionsImportIntegration(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	sharedDir := filepath.Join(tempDir, ".github", "workflows", "shared")
 	if err := os.MkdirAll(sharedDir, 0755); err != nil {
 		t.Fatalf("Failed to create shared directory: %v", err)

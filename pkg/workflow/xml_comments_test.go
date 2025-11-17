@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestRemoveXMLComments(t *testing.T) {
@@ -299,11 +301,7 @@ func TestSplitContentIntoChunks(t *testing.T) {
 
 func TestCompileWorkflowWithChunking(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "chunking-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "chunking-test")
 
 	compiler := NewCompiler(false, "", "test")
 
@@ -329,8 +327,7 @@ This is a normal-sized workflow that should compile successfully.`
 		t.Fatal(err)
 	}
 
-	err = compiler.CompileWorkflow(normalFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(normalFile); err != nil {
 		t.Errorf("Normal workflow should compile successfully, got error: %v", err)
 	}
 
@@ -354,8 +351,7 @@ This is a normal-sized workflow that should compile successfully.`
 		t.Fatal(err)
 	}
 
-	err = compiler.CompileWorkflow(longFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(longFile); err != nil {
 		t.Errorf("Long workflow should now compile successfully with chunking, got error: %v", err)
 	}
 

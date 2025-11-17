@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/goccy/go-yaml"
 )
 
@@ -127,7 +129,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			originalDir, err := os.Getwd()
 			if err != nil {
@@ -391,7 +393,7 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 }
 
 func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -490,7 +492,7 @@ func TestWorkflowStepStructure(t *testing.T) {
 }
 
 func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {

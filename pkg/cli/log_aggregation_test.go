@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // Test that DomainAnalysis implements LogAnalysis interface
@@ -161,7 +163,7 @@ func TestFirewallAnalysisAddMetrics(t *testing.T) {
 
 func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	accessLogsDir := filepath.Join(tempDir, "access.log")
 	err := os.MkdirAll(accessLogsDir, 0755)
 	if err != nil {
@@ -236,7 +238,7 @@ func TestAggregateLogFilesWithAccessLogs(t *testing.T) {
 
 func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "firewall-logs")
 	err := os.MkdirAll(logsDir, 0755)
 	if err != nil {
@@ -311,7 +313,7 @@ func TestAggregateLogFilesWithFirewallLogs(t *testing.T) {
 
 func TestAggregateLogFilesNoFiles(t *testing.T) {
 	// Create a temporary directory with no log files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Test with access logs
 	analysis, err := aggregateLogFiles(
@@ -340,7 +342,7 @@ func TestAggregateLogFilesNoFiles(t *testing.T) {
 
 func TestAggregateLogFilesWithParseErrors(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	logsDir := filepath.Join(tempDir, "logs")
 	err := os.MkdirAll(logsDir, 0755)
 	if err != nil {

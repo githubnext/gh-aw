@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestParseAwInfo(t *testing.T) {
 	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	t.Run("staged true as boolean", func(t *testing.T) {
 		// Create aw_info.json with staged: true as boolean

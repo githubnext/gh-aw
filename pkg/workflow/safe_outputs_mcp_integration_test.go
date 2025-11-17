@@ -7,15 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestSafeOutputsMCPServerIntegration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "safe-outputs-integration-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "safe-outputs-integration-test")
 
 	// Create a test markdown file with safe-outputs configuration
 	testContent := `---
@@ -39,8 +37,7 @@ Test safe outputs workflow with MCP server integration.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 
@@ -88,11 +85,7 @@ Test safe outputs workflow with MCP server integration.
 
 func TestSafeOutputsMCPServerDisabled(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "safe-outputs-disabled-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "safe-outputs-disabled-test")
 
 	// Create a test markdown file without safe-outputs configuration
 	testContent := `---
@@ -112,8 +105,7 @@ Test workflow without safe outputs.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 
@@ -145,11 +137,7 @@ Test workflow without safe outputs.
 
 func TestSafeOutputsMCPServerCodex(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "safe-outputs-codex-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "safe-outputs-codex-test")
 
 	// Create a test markdown file with safe-outputs configuration for Codex
 	testContent := `---
@@ -172,8 +160,7 @@ Test safe outputs workflow with Codex engine.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 

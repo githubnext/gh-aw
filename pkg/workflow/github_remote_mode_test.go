@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestGitHubRemoteModeConfiguration(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "github-remote-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "github-remote-test")
 
 	compiler := NewCompiler(false, "", "test")
 

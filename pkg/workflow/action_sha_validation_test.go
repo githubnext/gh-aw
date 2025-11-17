@@ -6,12 +6,14 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestGeneratedWorkflowsUseSHAs ensures that all generated workflows use SHAs instead of version tags
 func TestGeneratedWorkflowsUseSHAs(t *testing.T) {
 	// Create a test workflow file
-	testDir := t.TempDir()
+	testDir := testutil.TempDir(t, "test-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflowContent := `---
@@ -34,8 +36,7 @@ This is a test workflow to verify SHA pinning.
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -75,7 +76,7 @@ This is a test workflow to verify SHA pinning.
 
 // TestCompileWorkflowActionReferences tests that commonly used actions are pinned to SHAs
 func TestCompileWorkflowActionReferences(t *testing.T) {
-	testDir := t.TempDir()
+	testDir := testutil.TempDir(t, "test-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflowContent := `---
@@ -101,8 +102,7 @@ Create issues based on input.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -138,7 +138,7 @@ Create issues based on input.
 
 // TestNoVersionTagsInLockFiles is a regression test to ensure version tags are not used
 func TestNoVersionTagsInLockFiles(t *testing.T) {
-	testDir := t.TempDir()
+	testDir := testutil.TempDir(t, "test-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflowContent := `---
@@ -160,8 +160,7 @@ Just a simple test workflow.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

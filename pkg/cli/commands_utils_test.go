@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExtractWorkflowNameFromFile(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
 		name        string
@@ -479,8 +481,8 @@ Shared content`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary source and target directories
-			sourceDir := t.TempDir()
-			targetDir := t.TempDir()
+			sourceDir := testutil.TempDir(t, "test-*")
+			targetDir := testutil.TempDir(t, "test-*")
 
 			// Create source files
 			for path, content := range tt.sourceFiles {
@@ -571,7 +573,7 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 		{
 			name: "nonexistent source directory",
 			setup: func() (string, string, func()) {
-				targetDir := t.TempDir()
+				targetDir := testutil.TempDir(t, "test-*")
 				return "/nonexistent/source", targetDir, func() {}
 			},
 			expectError: true,
@@ -580,8 +582,8 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 		{
 			name: "permission denied on target directory",
 			setup: func() (string, string, func()) {
-				sourceDir := t.TempDir()
-				targetDir := t.TempDir()
+				sourceDir := testutil.TempDir(t, "test-*")
+				targetDir := testutil.TempDir(t, "test-*")
 
 				// Create a source file
 				sourceFile := filepath.Join(sourceDir, "test.md")
@@ -775,7 +777,7 @@ Just plain markdown content.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary test file
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			filePath := filepath.Join(tmpDir, "test-workflow.md")
 
 			err := os.WriteFile(filePath, []byte(tt.content), 0644)

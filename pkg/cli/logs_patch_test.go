@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestLogsPatchArtifactHandling(t *testing.T) {
 	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a mock log directory structure with artifacts
 	logDir := filepath.Join(tmpDir, "mock-run-123")

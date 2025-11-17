@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCheckoutPersistCredentials(t *testing.T) {
@@ -119,11 +121,7 @@ engine: claude
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "checkout-persist-credentials-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "checkout-persist-credentials-test")
 
 			// Create test workflow file
 			testContent := tt.frontmatter + "\n\n# Test Workflow\n\nThis is a test workflow to check persist-credentials.\n"
@@ -135,8 +133,7 @@ engine: claude
 			compiler := NewCompiler(false, "", "test")
 
 			// Compile the workflow
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
@@ -186,7 +188,7 @@ Test compilation with invalid engine.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Initialize git repository in tmp directory
 			if err := initTestGitRepo(tmpDir); err != nil {
@@ -289,7 +291,7 @@ func TestStageWorkflowChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Setup repository
 			if err := tt.setupRepo(tmpDir); err != nil {
@@ -368,7 +370,7 @@ func TestStageGitAttributesIfChanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Setup repository
 			if err := tt.setupRepo(tmpDir); err != nil {
@@ -492,7 +494,7 @@ This is a test workflow for backward compatibility.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Initialize git repository in tmp directory
 			if err := initTestGitRepo(tmpDir); err != nil {

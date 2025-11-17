@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestConcurrencyRules(t *testing.T) {
 	// Test the new concurrency rules for pull_request and alias workflows
-	tmpDir, err := os.MkdirTemp("", "concurrency-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "concurrency-test")
 
 	compiler := NewCompiler(false, "", "test")
 

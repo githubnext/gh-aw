@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestOutputConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-config-test")
 
 	// Test case with create-issue configuration
 	testContent := `---
@@ -77,11 +75,7 @@ This workflow tests the output configuration parsing.
 
 func TestOutputConfigEmpty(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-config-empty-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-config-empty-test")
 
 	// Test case without output configuration
 	testContent := `---
@@ -119,11 +113,7 @@ This workflow has no output configuration.
 
 func TestOutputConfigNull(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-config-null-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-config-null-test")
 
 	// Test case with null values for create-issue and create-pull-request
 	testContent := `---
@@ -204,11 +194,7 @@ This workflow tests the null output configuration parsing.
 
 func TestOutputIssueJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-issue-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-issue-job-test")
 
 	// Test case with create-issue configuration
 	testContent := `---
@@ -240,8 +226,7 @@ This workflow tests the create-issue job generation.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output issue: %v", err)
 	}
 
@@ -292,11 +277,7 @@ This workflow tests the create-issue job generation.
 
 func TestOutputCommentConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-config-test")
 
 	// Test case with output.add-comment configuration
 	testContent := `---
@@ -342,11 +323,7 @@ This workflow tests the output.add-comment configuration parsing.
 
 func TestOutputCommentConfigParsingNull(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-config-null-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-config-null-test")
 
 	// Test case with output.add-comment: null (no {} brackets)
 	testContent := `---
@@ -392,11 +369,7 @@ This workflow tests the output.add-comment configuration parsing with null value
 
 func TestOutputCommentConfigTargetParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-target-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-target-test")
 
 	// Test case with target: "*"
 	testContent := `---
@@ -447,11 +420,7 @@ This workflow tests the output.add-comment target configuration parsing.
 
 func TestOutputCommentMaxTargetParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-max-target-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-max-target-test")
 
 	// Test case with max and target configuration
 	testContent := `---
@@ -507,11 +476,7 @@ This workflow tests the add-comment max and target configuration parsing.
 
 func TestOutputCommentJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-job-test")
 
 	// Test case with output.add-comment configuration
 	testContent := `---
@@ -543,8 +508,7 @@ This workflow tests the add_comment job generation.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output comment: %v", err)
 	}
 
@@ -609,11 +573,7 @@ This workflow tests the add_comment job generation.
 
 func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-skip-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-comment-skip-test")
 
 	// Test case with add-comment configuration but push trigger (not issue/PR)
 	testContent := `---
@@ -640,8 +600,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output comment: %v", err)
 	}
 
@@ -682,11 +641,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 
 func TestOutputPullRequestConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-pr-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-pr-config-test")
 
 	// Test case with create-pull-request configuration
 	testContent := `---
@@ -750,11 +705,7 @@ This workflow tests the output pull request configuration parsing.
 
 func TestOutputPullRequestJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-pr-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-pr-job-test")
 
 	// Test case with create-pull-request configuration
 	testContent := `---
@@ -786,8 +737,7 @@ This workflow tests the create_pull_request job generation.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output create-pull-request: %v", err)
 	}
 
@@ -864,11 +814,7 @@ This workflow tests the create_pull_request job generation.
 
 func TestOutputPullRequestDraftFalse(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-pr-draft-false-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-pr-draft-false-test")
 
 	// Test case with create-pull-request configuration with draft: false
 	testContent := `---
@@ -901,8 +847,7 @@ This workflow tests the create_pull_request job generation with draft: false.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output pull-request draft: false: %v", err)
 	}
 
@@ -940,11 +885,7 @@ This workflow tests the create_pull_request job generation with draft: false.
 
 func TestOutputPullRequestDraftTrue(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-pr-draft-true-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-pr-draft-true-test")
 
 	// Test case with create-pull-request configuration with draft: true
 	testContent := `---
@@ -977,8 +918,7 @@ This workflow tests the create_pull_request job generation with draft: true.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output pull-request draft: true: %v", err)
 	}
 
@@ -1016,11 +956,7 @@ This workflow tests the create_pull_request job generation with draft: true.
 
 func TestOutputLabelConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-config-test")
 
 	// Test case with add-labels configuration
 	testContent := `---
@@ -1079,11 +1015,7 @@ This workflow tests the output labels configuration parsing.
 
 func TestOutputLabelJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-job-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-job-test")
 
 	// Test case with add-labels configuration
 	testContent := `---
@@ -1116,8 +1048,7 @@ This workflow tests the add_labels job generation.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output labels: %v", err)
 	}
 
@@ -1189,11 +1120,7 @@ This workflow tests the add_labels job generation.
 
 func TestOutputLabelJobGenerationNoAllowedLabels(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-no-allowed-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-no-allowed-test")
 
 	// Test workflow with no allowed labels (any labels permitted)
 	testContent := `---
@@ -1224,8 +1151,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -1275,11 +1201,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 
 func TestOutputLabelJobGenerationNullConfig(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-null-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-null-config-test")
 
 	// Test workflow with null add-labels configuration
 	testContent := `---
@@ -1309,8 +1231,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -1365,11 +1286,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 
 func TestOutputLabelConfigNullParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-null-parsing-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-null-parsing-test")
 
 	// Test case with null add-labels configuration
 	testContent := `---
@@ -1425,11 +1342,7 @@ This workflow tests the output labels null configuration parsing.
 
 func TestOutputLabelConfigMaxCountParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-max-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-max-test")
 
 	// Test case with add-labels configuration including max
 	testContent := `---
@@ -1495,11 +1408,7 @@ This workflow tests the output labels max configuration parsing.
 
 func TestOutputLabelConfigDefaultMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-default-max-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-default-max-test")
 
 	// Test case with add-labels configuration without max (should use default)
 	testContent := `---
@@ -1542,11 +1451,7 @@ This workflow tests the default max behavior.
 
 func TestOutputLabelJobGenerationWithMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-job-max-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-job-max-test")
 
 	// Test case with add-labels configuration including max
 	testContent := `---
@@ -1580,8 +1485,7 @@ This workflow tests the add_labels job generation with max.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output labels max: %v", err)
 	}
 
@@ -1614,11 +1518,7 @@ This workflow tests the add_labels job generation with max.
 
 func TestOutputLabelJobGenerationWithDefaultMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-job-default-max-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-job-default-max-test")
 
 	// Test case with add-labels configuration without max (should use default of 3)
 	testContent := `---
@@ -1651,8 +1551,7 @@ This workflow tests the add_labels job generation with default max.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with output labels default max: %v", err)
 	}
 
@@ -1680,11 +1579,7 @@ This workflow tests the add_labels job generation with default max.
 
 func TestOutputLabelConfigValidation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-validation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-validation-test")
 
 	// Test case with empty allowed labels (should fail)
 	testContent := `---
@@ -1714,6 +1609,8 @@ This workflow tests validation of empty allowed labels.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow - should fail with empty allowed labels
+	var err error
+
 	err = compiler.CompileWorkflow(testFile)
 	if err == nil {
 		t.Fatal("Expected error when compiling workflow with empty allowed labels")
@@ -1726,11 +1623,7 @@ This workflow tests validation of empty allowed labels.
 
 func TestOutputLabelConfigMissingAllowed(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-missing-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "output-label-missing-test")
 
 	// Test case with missing allowed field (should now succeed)
 	testContent := `---
@@ -1759,8 +1652,7 @@ This workflow tests that missing allowed field is now optional.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow - should now succeed with missing allowed labels
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Expected compilation to succeed with missing allowed labels, got error: %v", err)
 	}
 
@@ -1773,11 +1665,7 @@ This workflow tests that missing allowed field is now optional.
 
 func TestCreatePullRequestIfNoChangesConfig(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "create-pr-if-no-changes-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "create-pr-if-no-changes-test")
 
 	// Test case with create-pull-request if-no-changes configuration
 	testContent := `---
@@ -1860,8 +1748,7 @@ This workflow tests the default if-no-changes behavior.
 	}
 
 	// Test compilation with the if-no-changes configuration
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow with if-no-changes config: %v", err)
 	}
 

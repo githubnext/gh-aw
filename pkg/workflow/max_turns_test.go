@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestMaxTurnsCompilation(t *testing.T) {
@@ -87,11 +89,7 @@ This workflow tests max-turns with timeout.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for the test
-			tmpDir, err := os.MkdirTemp("", "max-turns-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "max-turns-test")
 
 			// Create the test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -231,11 +229,7 @@ engine:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for the test
-			tmpDir, err := os.MkdirTemp("", "max-turns-validation-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "max-turns-validation-test")
 
 			// Create the test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -245,6 +239,7 @@ engine:
 
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
@@ -277,11 +272,7 @@ engine:
 This tests max-turns feature with custom engine.`
 
 	// Create a temporary directory for the test
-	tmpDir, err := os.MkdirTemp("", "custom-max-turns-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "custom-max-turns-test")
 
 	// Create the test workflow file
 	testFile := filepath.Join(tmpDir, "test-workflow.md")

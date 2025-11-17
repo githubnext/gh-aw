@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestAccessLogParsing(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create test access.log content
 	testLogContent := `1701234567.123    180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api/data - HIER_DIRECT/93.184.216.34 text/html
@@ -51,7 +53,7 @@ func TestAccessLogParsing(t *testing.T) {
 
 func TestMultipleAccessLogAnalysis(t *testing.T) {
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	accessLogsDir := filepath.Join(tempDir, "access.log")
 	err := os.MkdirAll(accessLogsDir, 0755)
 	if err != nil {
@@ -112,7 +114,7 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 
 func TestAnalyzeAccessLogsDirectory(t *testing.T) {
 	// Create a temporary directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Test case 1: Multiple access logs in access-logs subdirectory
 	accessLogsDir := filepath.Join(tempDir, "run1", "access.log")

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestActivationJobNoCheckoutStep tests that the activation job uses GitHub API
@@ -57,11 +59,7 @@ engine: claude
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "activation-checkout-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "activation-checkout-test")
 
 			testContent := tt.frontmatter + "\n\n# Test Workflow\n\nTest workflow content."
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -72,8 +70,7 @@ engine: claude
 			compiler := NewCompiler(false, "", "test")
 
 			// Compile the workflow
-			err = compiler.CompileWorkflow(testFile)
-			if err != nil {
+			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
 

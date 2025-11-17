@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestFileExists(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test with existing file
 	testFile := filepath.Join(tmpDir, "testfile.txt")
@@ -39,7 +41,7 @@ func TestFileExists(t *testing.T) {
 
 func TestDirExists(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test with existing directory
 	testDir := filepath.Join(tmpDir, "testdir")
@@ -70,7 +72,7 @@ func TestDirExists(t *testing.T) {
 
 func TestIsDirEmpty(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test with empty directory
 	emptyDir := filepath.Join(tmpDir, "empty")
@@ -106,7 +108,7 @@ func TestIsDirEmpty(t *testing.T) {
 
 func TestCopyFile(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test successful copy
 	srcFile := filepath.Join(tmpDir, "source.txt")
@@ -150,7 +152,7 @@ func TestCopyFile(t *testing.T) {
 
 func TestCalculateDirectorySize(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Test with empty directory
 	emptyDir := filepath.Join(tmpDir, "empty")

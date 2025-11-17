@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestPermissionsWarningInNonStrictMode tests that under-provisioned permissions
@@ -107,11 +109,7 @@ tools:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "permissions-warning-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "permissions-warning-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -125,6 +123,7 @@ tools:
 
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetStrictMode(tt.strict)
+   var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			// Restore stderr
@@ -177,11 +176,7 @@ tools:
 // TestPermissionsWarningMessageFormat tests that the warning message format
 // includes both options for fixing the issue
 func TestPermissionsWarningMessageFormat(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "permissions-warning-format-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "permissions-warning-format-test")
 
 	content := `---
 on: push
@@ -208,6 +203,7 @@ tools:
 
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetStrictMode(false)
+ var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	// Restore stderr

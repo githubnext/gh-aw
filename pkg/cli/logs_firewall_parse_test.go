@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestParseFirewallLogs(t *testing.T) {
@@ -15,7 +17,7 @@ func TestParseFirewallLogs(t *testing.T) {
 	}
 
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a mock squid-logs directory
 	squidLogsDir := filepath.Join(tempDir, "squid-logs")
@@ -75,7 +77,7 @@ func TestParseFirewallLogsInWorkflowLogsSubdir(t *testing.T) {
 	}
 
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create squid-logs in workflow-logs subdirectory (alternative location)
 	workflowLogsDir := filepath.Join(tempDir, "workflow-logs")
@@ -115,7 +117,7 @@ func TestParseFirewallLogsInWorkflowLogsSubdir(t *testing.T) {
 
 func TestParseFirewallLogsNoLogs(t *testing.T) {
 	// Create a temporary directory without any firewall logs
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Run the parser - should not fail, just skip
 	err := parseFirewallLogs(tempDir, true)
@@ -137,7 +139,7 @@ func TestParseFirewallLogsEmptyDirectory(t *testing.T) {
 	}
 
 	// Create a temporary directory for the test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create an empty squid-logs directory
 	squidLogsDir := filepath.Join(tempDir, "squid-logs")

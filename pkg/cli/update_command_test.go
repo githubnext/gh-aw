@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestMergeWorkflowContent_CleanMerge tests a merge with truly non-overlapping changes
@@ -291,7 +293,7 @@ source: old/repo/workflow.md@v1.0.0
 // TestMergeWorkflowContent_Integration tests the merge with temporary files
 func TestMergeWorkflowContent_Integration(t *testing.T) {
 	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	base := `---
 on: push
@@ -359,7 +361,7 @@ Base content with upstream notes.`
 // TestFindWorkflowsWithSource_CustomDirectory tests that findWorkflowsWithSource works with custom directories
 func TestFindWorkflowsWithSource_CustomDirectory(t *testing.T) {
 	// Create a temporary directory structure
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
 	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
 		t.Fatalf("Failed to create custom workflow directory: %v", err)
@@ -420,7 +422,7 @@ No source field.`
 // TestUpdateWorkflows_CustomDirectory tests that UpdateWorkflows respects custom directory parameter
 func TestUpdateWorkflows_CustomDirectory(t *testing.T) {
 	// Create a temporary directory structure
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
 	if err := os.MkdirAll(customWorkflowDir, 0755); err != nil {
 		t.Fatalf("Failed to create custom workflow directory: %v", err)
@@ -650,7 +652,7 @@ source: test/repo/workflow.md@v1.0.0
 // TestCompileWorkflowWithRefresh tests that compileWorkflowWithRefresh properly passes refreshStopTime
 func TestCompileWorkflowWithRefresh(t *testing.T) {
 	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a simple workflow file
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")

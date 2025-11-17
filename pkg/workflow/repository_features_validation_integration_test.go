@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestRepositoryFeaturesValidationIntegration tests the repository features validation
@@ -124,7 +126,7 @@ func TestCompileWorkflowWithRepositoryFeatureValidation(t *testing.T) {
 	}
 
 	// Create a temporary workflow with create-discussion
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowPath := tempDir + "/test-discussion.md"
 
 	workflowContent := `---

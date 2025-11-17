@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCompileWorkflowsWithCustomWorkflowDir tests the --workflows-dir flag functionality

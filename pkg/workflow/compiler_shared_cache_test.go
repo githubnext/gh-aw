@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCompilerSharedActionCache(t *testing.T) {
 	// Create a temporary directory for test workflows
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Change to the temp directory so the cache path is consistent
 	t.Chdir(tmpDir)
@@ -51,7 +53,7 @@ func TestCompilerSharedActionCache(t *testing.T) {
 
 func TestCompilerSharedCacheAcrossWorkflows(t *testing.T) {
 	// Create a temporary directory for test
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Change to the temp directory
 	t.Chdir(tmpDir)

@@ -7,16 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestCompileWorkflowFileSizeValidation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "file-size-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "file-size-test")
 
 	t.Run("workflow under 1MB should compile successfully", func(t *testing.T) {
 		// Create a normal workflow that should be well under 1MB

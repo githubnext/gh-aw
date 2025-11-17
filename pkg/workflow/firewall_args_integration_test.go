@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestFirewallArgsIntegration tests that custom AWF args appear in compiled workflows
 func TestFirewallArgsIntegration(t *testing.T) {
 	t.Run("workflow with custom firewall args compiles correctly", func(t *testing.T) {
 		// Create temporary directory for test
-		tmpDir := t.TempDir()
+		tmpDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 		err := os.MkdirAll(workflowsDir, 0755)
 		if err != nil {
@@ -44,8 +46,7 @@ Test workflow with custom AWF arguments.
 		compiler := NewCompiler(false, "", "test-firewall-args")
 		compiler.SetSkipValidation(true)
 
-		err = compiler.CompileWorkflow(workflowPath)
-		if err != nil {
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
 		}
 
@@ -87,7 +88,7 @@ Test workflow with custom AWF arguments.
 
 	t.Run("workflow without custom args uses only default flags", func(t *testing.T) {
 		// Create temporary directory for test
-		tmpDir := t.TempDir()
+		tmpDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 		err := os.MkdirAll(workflowsDir, 0755)
 		if err != nil {
@@ -119,8 +120,7 @@ Test workflow without custom AWF arguments.
 		compiler := NewCompiler(false, "", "test-no-custom-args")
 		compiler.SetSkipValidation(true)
 
-		err = compiler.CompileWorkflow(workflowPath)
-		if err != nil {
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
 		}
 

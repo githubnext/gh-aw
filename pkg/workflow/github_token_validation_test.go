@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestGitHubTokenValidation(t *testing.T) {
@@ -105,11 +107,7 @@ func TestGitHubTokenValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "github-token-validation-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "github-token-validation-test")
 
 			testContent := `---
 name: Test GitHub Token Validation
@@ -131,6 +129,7 @@ tools:
 			}
 
 			compiler := NewCompiler(false, "", "test")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -168,11 +167,7 @@ func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "safe-outputs-token-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "safe-outputs-token-test")
 
 			testContent := `---
 name: Test Safe-Outputs Token Validation
@@ -194,6 +189,7 @@ safe-outputs:
 			}
 
 			compiler := NewCompiler(false, "", "test")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -229,11 +225,7 @@ func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "individual-token-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "individual-token-test")
 
 			testContent := `---
 name: Test Individual Safe-Output Token
@@ -255,6 +247,7 @@ safe-outputs:
 			}
 
 			compiler := NewCompiler(false, "", "test")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -290,11 +283,7 @@ func TestGitHubTokenValidationInGitHubTool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "github-tool-token-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "github-tool-token-test")
 
 			testContent := `---
 name: Test GitHub Tool Token
@@ -316,6 +305,7 @@ tools:
 			}
 
 			compiler := NewCompiler(false, "", "test")
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -332,11 +322,7 @@ tools:
 }
 
 func TestGitHubTokenValidationErrorMessage(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "error-message-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "error-message-test")
 
 	testContent := `---
 name: Test Error Message
@@ -355,6 +341,7 @@ github-token: ghp_actualSecretInPlainText
 	}
 
 	compiler := NewCompiler(false, "", "test")
+			var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	if err == nil {
@@ -369,11 +356,7 @@ github-token: ghp_actualSecretInPlainText
 }
 
 func TestMultipleGitHubTokenValidations(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "multiple-tokens-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "multiple-tokens-test")
 
 	// Test that validation catches errors in any of the token locations
 	testContent := `---
@@ -400,6 +383,7 @@ safe-outputs:
 	}
 
 	compiler := NewCompiler(false, "", "test")
+			var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	// Should fail due to plaintext token in github tool

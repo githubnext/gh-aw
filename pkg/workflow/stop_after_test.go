@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 )
 
@@ -189,6 +191,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
+		var err error
 		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)
@@ -212,6 +215,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
+		var err error
 		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)
@@ -243,6 +247,7 @@ jobs:
 		}
 
 		workflowData := &WorkflowData{}
+		var err error
 		err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
 		if err != nil {
 			t.Fatalf("processStopAfterConfiguration failed: %v", err)

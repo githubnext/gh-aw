@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestStrictModeTimeout(t *testing.T) {
@@ -53,11 +55,7 @@ network:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-timeout-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-timeout-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -223,11 +221,7 @@ engine: copilot
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-permissions-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-permissions-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -332,11 +326,7 @@ network: {}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-network-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-network-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -390,11 +380,7 @@ tools:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-mcp-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-mcp-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -569,11 +555,7 @@ network:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-bash-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-bash-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -618,11 +600,7 @@ network:
 
 # Test Workflow`
 
-	tmpDir, err := os.MkdirTemp("", "non-strict-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "non-strict-test")
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
@@ -631,9 +609,7 @@ network:
 
 	compiler := NewCompiler(false, "", "")
 	// Do NOT set strict mode - should allow everything
-	err = compiler.CompileWorkflow(testFile)
-
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Errorf("Non-strict mode should allow all configurations, but got error: %v", err)
 	}
 }
@@ -715,11 +691,7 @@ engine: copilot
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "frontmatter-strict-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "frontmatter-strict-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
@@ -757,11 +729,7 @@ engine: copilot
 
 # Test Workflow`
 
-	tmpDir, err := os.MkdirTemp("", "cli-precedence-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "cli-precedence-test")
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
@@ -782,11 +750,7 @@ engine: copilot
 
 func TestStrictModeIsolation(t *testing.T) {
 	// Test that strict mode in one workflow doesn't affect other workflows
-	tmpDir, err := os.MkdirTemp("", "strict-isolation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "strict-isolation-test")
 
 	// First workflow with strict: true (should succeed now without timeout)
 	strictWorkflow := `---
@@ -830,15 +794,13 @@ engine: copilot
 	// Do NOT set strict mode via CLI - let frontmatter control it
 
 	// Compile strict workflow first - should succeed now
-	err = compiler.CompileWorkflow(strictFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(strictFile); err != nil {
 		t.Errorf("Expected strict workflow to succeed, but it failed: %v", err)
 	}
 
 	// Compile non-strict workflow second - should also succeed
 	// This tests that strict mode from first workflow doesn't leak
-	err = compiler.CompileWorkflow(nonStrictFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(nonStrictFile); err != nil {
 		t.Errorf("Expected non-strict workflow to succeed, but it failed: %v", err)
 	}
 }
@@ -915,11 +877,7 @@ network:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "strict-github-workflow-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "strict-github-workflow-test")
 
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {

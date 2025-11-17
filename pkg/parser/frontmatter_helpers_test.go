@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestUpdateWorkflowFrontmatter(t *testing.T) {
 	// Create a temporary directory for test files
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
 		name            string

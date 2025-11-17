@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestHTTPMCPServerRequiresURL tests that HTTP MCP servers require a url field
@@ -70,7 +72,7 @@ mcp-servers:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary workflow file
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 			workflowPath := filepath.Join(tmpDir, "test.md")
 			if err := os.WriteFile(workflowPath, []byte(tt.workflow), 0644); err != nil {
 				t.Fatalf("Failed to write workflow file: %v", err)

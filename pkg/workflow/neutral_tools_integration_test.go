@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestNeutralToolsIntegration(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetSkipValidation(true) // Skip schema validation for this test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	workflowContent := `---
 on:
@@ -43,8 +45,7 @@ Test workflow with neutral tools format.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -103,7 +104,7 @@ Test workflow with neutral tools format.
 func TestBackwardCompatibilityWithClaudeFormat(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetSkipValidation(true) // Skip schema validation for this test
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	workflowContent := `---
 on:
@@ -128,8 +129,7 @@ Test workflow with legacy Claude tools format.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

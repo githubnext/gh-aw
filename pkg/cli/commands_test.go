@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -89,7 +91,7 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 
 	t.Run("purge flag acceptance without specific files", func(t *testing.T) {
 		// Create temporary directory structure for testing
-		tempDir := t.TempDir()
+		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
@@ -375,7 +377,7 @@ func TestRunWorkflowsOnGitHub(t *testing.T) {
 
 func TestAllCommandsExist(t *testing.T) {
 	// Create a minimal test environment to avoid expensive workflow compilation
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tempDir, ".github/workflows")
 	os.MkdirAll(workflowsDir, 0755)
 

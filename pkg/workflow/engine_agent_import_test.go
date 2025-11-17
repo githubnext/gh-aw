@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestCopilotEngineWithAgentFromImports tests that copilot engine includes --agent flag when agent file is imported

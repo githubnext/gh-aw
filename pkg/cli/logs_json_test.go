@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 )
 
 // TestBuildLogsData tests the structured data creation for logs
 func TestBuildLogsData(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample processed runs
 	processedRuns := []ProcessedRun{
@@ -121,7 +123,7 @@ func TestBuildLogsData(t *testing.T) {
 
 // TestRenderLogsJSON tests JSON output rendering
 func TestRenderLogsJSON(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample logs data
 	logsData := LogsData{
@@ -263,7 +265,7 @@ func TestBuildMissingToolsSummary(t *testing.T) {
 
 // TestBuildLogsDataWithContinuation tests continuation field in logs data
 func TestBuildLogsDataWithContinuation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create sample processed runs
 	processedRuns := []ProcessedRun{
@@ -354,7 +356,7 @@ func TestBuildLogsDataWithContinuation(t *testing.T) {
 
 // TestBuildLogsDataWithoutContinuation tests that continuation is omitted when nil
 func TestBuildLogsDataWithoutContinuation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	processedRuns := []ProcessedRun{
 		{

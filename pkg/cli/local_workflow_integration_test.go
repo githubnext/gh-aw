@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestLocalWorkflowIntegration(t *testing.T) {
 	// Create a temporary directory
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 	originalWd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)

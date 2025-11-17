@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestEnsureMCPConfig(t *testing.T) {
@@ -108,7 +110,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tmpDir := t.TempDir()
+			tmpDir := testutil.TempDir(t, "test-*")
 
 			// Change to temp directory
 			originalDir, err := os.Getwd()
@@ -302,7 +304,7 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 }
 
 func TestEnsureMCPConfigDirectoryCreation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -342,7 +344,7 @@ func TestEnsureMCPConfigDirectoryCreation(t *testing.T) {
 }
 
 func TestMCPConfigFilePermissions(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
 	if err != nil {

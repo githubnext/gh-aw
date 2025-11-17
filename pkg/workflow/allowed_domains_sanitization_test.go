@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestAllowedDomainsFromNetworkConfig tests that GH_AW_ALLOWED_DOMAINS is computed
@@ -166,11 +168,7 @@ Test workflow with ecosystem identifiers.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for test
-			tmpDir, err := os.MkdirTemp("", "allowed-domains-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "allowed-domains-test")
 
 			// Create a test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -300,11 +298,7 @@ Test that empty allowed-domains falls back to network config.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for test
-			tmpDir, err := os.MkdirTemp("", "manual-domains-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "manual-domains-test")
 
 			// Create a test workflow file
 			testFile := filepath.Join(tmpDir, "test-workflow.md")

@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestGitConfigurationInMainJob verifies that git configuration step is included in the main agentic job
 func TestGitConfigurationInMainJob(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "git-config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "git-config-test")
 
 	// Create a simple test workflow
 	testContent := `---

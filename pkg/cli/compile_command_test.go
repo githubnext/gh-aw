@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -263,7 +265,7 @@ func TestCompileWorkflows_WorkflowDirValidation(t *testing.T) {
 // TestCompileWorkflowDataWithValidation_NoEmit tests validation without emission
 func TestCompileWorkflowDataWithValidation_NoEmit(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := filepath.Join(tmpDir, "test.md")
 
 	// Create a simple test workflow
@@ -319,7 +321,7 @@ This is a test workflow.
 // TestCompileWorkflowWithValidation_YAMLValidation tests YAML validation
 func TestCompileWorkflowWithValidation_YAMLValidation(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := filepath.Join(tmpDir, "test.md")
 
 	// Create a simple test workflow
@@ -453,7 +455,7 @@ func TestCompileWorkflows_EmptyMarkdownFiles(t *testing.T) {
 
 // TestCompileWorkflows_TrialMode tests trial mode configuration
 func TestCompileWorkflows_TrialMode(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	testFile := filepath.Join(tmpDir, "test.md")
 
 	// Create a simple test workflow

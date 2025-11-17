@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestTemplateRenderingStep(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "template-rendering-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-rendering-test")
 
 	// Test case with conditional blocks that use GitHub expressions
 	testContent := `---
@@ -57,8 +55,7 @@ Normal content here.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -121,11 +118,7 @@ func TestTemplateRenderingStepSkipped(t *testing.T) {
 	// even when the user's markdown doesn't have conditionals.
 
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "template-rendering-skip-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-rendering-skip-test")
 
 	// Test case WITHOUT conditional blocks in user's markdown
 	// Note: GitHub tools are added by default, so GitHub context will still be added
@@ -154,8 +147,7 @@ Normal content without conditionals.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -181,11 +173,7 @@ Normal content without conditionals.
 
 func TestTemplateRenderingStepWithGitHubTool(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "template-rendering-github-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-rendering-github-test")
 
 	// Test case WITHOUT conditional blocks in markdown but WITH GitHub tool
 	testContent := `---
@@ -213,8 +201,7 @@ Normal content without conditionals in markdown.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

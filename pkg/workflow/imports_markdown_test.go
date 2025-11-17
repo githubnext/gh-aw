@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestImportsMarkdownPrepending tests that markdown content from imported files
 // is correctly prepended to the main workflow content in the generated lock file
 func TestImportsMarkdownPrepending(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "imports-markdown-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "imports-markdown-test")
 
 	// Create shared directory
 	sharedDir := filepath.Join(tmpDir, "shared")
@@ -157,11 +155,7 @@ This is the main workflow content.`,
 // TestImportsWithIncludesCombination tests that imports from frontmatter and @include directives
 // work together correctly, with imports prepended first
 func TestImportsWithIncludesCombination(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "imports-includes-combo-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "imports-includes-combo-test")
 
 	// Create shared directory
 	sharedDir := filepath.Join(tmpDir, "shared")
@@ -212,8 +206,7 @@ This is the main workflow content.`
 	}
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
 

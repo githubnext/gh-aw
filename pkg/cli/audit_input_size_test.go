@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -106,7 +108,7 @@ func TestAuditDataJSONIncludesInputSizes(t *testing.T) {
 		Event:        "push",
 		HeadBranch:   "main",
 		URL:          "https://github.com/test/repo/actions/runs/888999",
-		LogsPath:     t.TempDir(),
+		LogsPath:     testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{

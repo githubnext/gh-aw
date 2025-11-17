@@ -5,16 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestWorkflowRunBranchValidation tests the validation of workflow_run triggers with and without branch restrictions
 func TestWorkflowRunBranchValidation(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-run-validation-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-run-validation-test")
 
 	tests := []struct {
 		name          string
@@ -215,11 +213,7 @@ Test workflow content.`,
 // TestWorkflowRunBranchValidationEdgeCases tests edge cases for workflow_run validation
 func TestWorkflowRunBranchValidationEdgeCases(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-run-validation-edge-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "workflow-run-validation-edge-test")
 
 	tests := []struct {
 		name         string

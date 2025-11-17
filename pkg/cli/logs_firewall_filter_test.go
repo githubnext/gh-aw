@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestParseAwInfo_FirewallField verifies that the firewall field is correctly parsed from aw_info.json
@@ -83,7 +85,7 @@ func TestParseAwInfo_FirewallField(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary file with the JSON content
-			tempDir := t.TempDir()
+			tempDir := testutil.TempDir(t, "test-*")
 			awInfoPath := filepath.Join(tempDir, "aw_info.json")
 
 			err := os.WriteFile(awInfoPath, []byte(tt.jsonContent), 0644)

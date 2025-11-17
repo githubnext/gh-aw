@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/testutil"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestExtractMissingToolsFromRun tests extracting missing tools from safe output artifact files
 func TestExtractMissingToolsFromRun(t *testing.T) {
 	// Create a temporary directory structure
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	testRun := WorkflowRun{
 		DatabaseID:   67890,

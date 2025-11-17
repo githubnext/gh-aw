@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCacheMemoryImportOnly(t *testing.T) {
 	// Create a temporary directory
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared workflow directory
 	sharedDir := filepath.Join(tmpDir, ".github", "workflows", "shared")

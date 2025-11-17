@@ -5,17 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestTemplateExpressionWrappingIntegration verifies end-to-end compilation
 // with template expressions that should be wrapped
 func TestTemplateExpressionWrappingIntegration(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "template-expression-integration")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-expression-integration")
 
 	// Real-world example workflow with template conditionals
 	testContent := `---
@@ -72,8 +70,7 @@ ${{ needs.activation.outputs.text }}
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -125,11 +122,7 @@ ${{ needs.activation.outputs.text }}
 // TestTemplateExpressionAlreadyWrapped verifies that already-wrapped expressions
 // are not double-wrapped
 func TestTemplateExpressionAlreadyWrapped(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "template-already-wrapped")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-already-wrapped")
 
 	// Workflow with pre-wrapped expressions
 	testContent := `---
@@ -159,8 +152,7 @@ This expression needs wrapping.
 
 	compiler := NewCompiler(false, "", "test")
 
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
@@ -191,11 +183,7 @@ This expression needs wrapping.
 // TestTemplateWithMixedExpressionsAndLiterals verifies correct handling
 // of template conditionals with both GitHub expressions and literal values
 func TestTemplateWithMixedExpressionsAndLiterals(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "template-mixed")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := testutil.TempDir(t, "template-mixed")
 
 	testContent := `---
 on: issues
@@ -236,8 +224,7 @@ Steps expression - will be wrapped.
 
 	compiler := NewCompiler(false, "", "test")
 
-	err = compiler.CompileWorkflow(testFile)
-	if err != nil {
+	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 

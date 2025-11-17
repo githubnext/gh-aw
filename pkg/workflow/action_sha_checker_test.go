@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestExtractActionsFromLockFile(t *testing.T) {
 	// Create a temporary lock file with test content
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -69,7 +71,7 @@ jobs:
 
 func TestExtractActionsFromLockFileNoDuplicates(t *testing.T) {
 	// Create a temporary lock file with duplicate actions
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `
@@ -106,7 +108,7 @@ jobs:
 
 func TestCheckActionSHAUpdates(t *testing.T) {
 	// Create a test action cache
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
 
 	// Create test actions with known SHAs
@@ -153,7 +155,7 @@ func TestCheckActionSHAUpdates(t *testing.T) {
 
 func TestExtractActionsFromLockFileNoActions(t *testing.T) {
 	// Create a temporary lock file with no actions
-	tmpDir := t.TempDir()
+	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	lockContent := `

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestParseWorkflowSpecWithWildcard tests parsing workflow specs with wildcards
@@ -101,7 +103,7 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 // TestDiscoverWorkflowsInPackage tests discovering workflows in an installed package
 func TestDiscoverWorkflowsInPackage(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -174,7 +176,7 @@ on: push
 // TestDiscoverWorkflowsInPackage_NotFound tests behavior when package is not found
 func TestDiscoverWorkflowsInPackage_NotFound(t *testing.T) {
 	// Create a temporary packages directory
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -193,7 +195,7 @@ func TestDiscoverWorkflowsInPackage_NotFound(t *testing.T) {
 // TestDiscoverWorkflowsInPackage_EmptyPackage tests behavior with empty package
 func TestDiscoverWorkflowsInPackage_EmptyPackage(t *testing.T) {
 	// Create a temporary packages directory
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -218,7 +220,7 @@ func TestDiscoverWorkflowsInPackage_EmptyPackage(t *testing.T) {
 // TestExpandWildcardWorkflows tests expanding wildcard workflow specifications
 func TestExpandWildcardWorkflows(t *testing.T) {
 	// Create a temporary packages directory structure
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -360,7 +362,7 @@ on: push
 // TestExpandWildcardWorkflows_ErrorHandling tests error cases for wildcard expansion
 func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
 	// Create a temporary packages directory
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override packages directory for testing
 	t.Setenv("HOME", tempDir)
@@ -412,7 +414,7 @@ func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
 // existing workflows emit warnings and are skipped instead of erroring
 func TestAddWorkflowWithTracking_WildcardDuplicateHandling(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+	tempDir := testutil.TempDir(t, "test-*")
 
 	// Override HOME for package discovery
 	t.Setenv("HOME", tempDir)

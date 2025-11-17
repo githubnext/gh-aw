@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestMaxTurnsValidationWithUnsupportedEngine(t *testing.T) {
@@ -97,16 +99,11 @@ This should succeed because no max-turns is specified.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for the test
-			tmpDir, err := os.MkdirTemp("", "max-turns-validation-test")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(tmpDir)
+			tmpDir := testutil.TempDir(t, "max-turns-validation-test")
 
 			// Create a test workflow file
 			testFile := filepath.Join(tmpDir, "test.md")
-			err = os.WriteFile(testFile, []byte(tt.content), 0644)
-			if err != nil {
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
 				t.Fatal(err)
 			}
 
@@ -115,6 +112,7 @@ This should succeed because no max-turns is specified.`,
 			compiler.SetSkipValidation(false)
 
 			// Try to compile the workflow
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
