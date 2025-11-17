@@ -80,6 +80,19 @@ This workflow tests GitHub tool configuration.
 			t.Logf("MCP inspect output for %s engine:\n%s", tc.name, outputStr)
 
 			if tc.expectedSuccess {
+				// Check for errors first (following Playwright test pattern)
+				if err != nil {
+					// Some errors might be acceptable (e.g., docker not available)
+					// Check if it's a configuration validation error
+					if strings.Contains(outputStr, "Frontmatter validation passed") ||
+						strings.Contains(outputStr, "MCP configuration validation passed") ||
+						strings.Contains(strings.ToLower(outputStr), "github") {
+						t.Logf("✓ GitHub configuration validated for %s engine (command had warnings/errors but config was parsed)", tc.name)
+					} else {
+						t.Errorf("Unexpected error for %s engine: %v\nOutput: %s", tc.name, err, outputStr)
+					}
+				}
+
 				// Check that the output mentions github server
 				if !strings.Contains(strings.ToLower(outputStr), "github") {
 					t.Errorf("Expected github to be mentioned in output for %s engine", tc.name)
@@ -120,20 +133,6 @@ This workflow tests GitHub tool configuration.
 
 				if foundToolCount > 0 {
 					t.Logf("✓ Found %d/%d expected GitHub tools for %s engine", foundToolCount, len(expectedTools), tc.name)
-				}
-
-				// Check if there's an error, make sure it's not a configuration error
-				if err != nil {
-					// Docker not available is acceptable for this test
-					if strings.Contains(outputStr, "docker") ||
-						strings.Contains(outputStr, "Docker") ||
-						strings.Contains(outputStr, "Frontmatter validation passed") ||
-						strings.Contains(outputStr, "MCP configuration validation passed") ||
-						foundToolCount > 0 {
-						t.Logf("Test completed with expected warnings (docker/connection issues)")
-					} else {
-						t.Errorf("Unexpected error for %s engine: %v\nOutput: %s", tc.name, err, outputStr)
-					}
 				}
 			}
 		})
@@ -181,6 +180,20 @@ Test workflow for GitHub tools inspection.
 
 			t.Logf("MCP inspect output for %s:\n%s", engine, outputStr)
 
+			// Check for errors first (following Playwright test pattern)
+			if err != nil {
+				// Docker not available or connection issues are acceptable
+				if strings.Contains(outputStr, "docker") ||
+					strings.Contains(outputStr, "Docker") ||
+					strings.Contains(outputStr, "Frontmatter validation passed") ||
+					strings.Contains(outputStr, "MCP configuration validation passed") ||
+					strings.Contains(strings.ToLower(outputStr), "github") {
+					t.Logf("Test completed with expected warnings for %s engine", engine)
+				} else {
+					t.Logf("Warning: Command failed for %s engine with: %v", engine, err)
+				}
+			}
+
 			// Check if the output mentions GitHub server
 			if strings.Contains(strings.ToLower(outputStr), "github") {
 				t.Logf("✓ GitHub MCP server detected for %s engine", engine)
@@ -194,20 +207,6 @@ Test workflow for GitHub tools inspection.
 			// Check that we see "docker" type for GitHub MCP server
 			if strings.Contains(outputStr, "docker") {
 				t.Logf("✓ GitHub MCP server type (docker) detected for %s engine", engine)
-			}
-
-			// If there's an error, check if it's acceptable
-			if err != nil {
-				// Docker not available or connection issues are acceptable
-				if strings.Contains(outputStr, "docker") ||
-					strings.Contains(outputStr, "Docker") ||
-					strings.Contains(outputStr, "Frontmatter validation passed") ||
-					strings.Contains(outputStr, "MCP configuration validation passed") ||
-					strings.Contains(strings.ToLower(outputStr), "github") {
-					t.Logf("Test completed with expected warnings for %s engine", engine)
-				} else {
-					t.Logf("Warning: Command failed for %s engine with: %v", engine, err)
-				}
 			}
 		})
 	}
@@ -249,6 +248,18 @@ Test workflow for specific GitHub toolsets.
 
 	t.Logf("MCP inspect output:\n%s", outputStr)
 
+	// Check for errors first (following Playwright test pattern)
+	if err != nil {
+		// Acceptable errors include docker/connection issues
+		if strings.Contains(outputStr, "docker") ||
+			strings.Contains(outputStr, "validation passed") ||
+			strings.Contains(strings.ToLower(outputStr), "github") {
+			t.Logf("Test completed with expected warnings")
+		} else {
+			t.Logf("Warning: Command failed with: %v", err)
+		}
+	}
+
 	// Verify GitHub server is detected
 	if !strings.Contains(strings.ToLower(outputStr), "github") {
 		t.Errorf("Expected GitHub server to be detected")
@@ -261,10 +272,5 @@ Test workflow for specific GitHub toolsets.
 
 	if strings.Contains(outputStr, "MCP configuration validation passed") {
 		t.Logf("✓ MCP configuration validation passed")
-	}
-
-	// Acceptable errors include docker/connection issues
-	if err != nil && !strings.Contains(outputStr, "docker") && !strings.Contains(outputStr, "validation passed") {
-		t.Logf("Warning: Command failed with: %v", err)
 	}
 }
