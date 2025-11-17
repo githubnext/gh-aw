@@ -441,9 +441,10 @@ func FormatErrorMessage(message string) string {
 //
 // Example input:  "failed to compile: failed to parse: invalid syntax"
 // Example output:
-//   ✗ failed to compile
-//     failed to parse
-//     invalid syntax
+//
+//	✗ failed to compile
+//	  failed to parse
+//	  invalid syntax
 func FormatNestedError(message string) string {
 	if message == "" {
 		return ""

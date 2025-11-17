@@ -421,9 +421,9 @@ func TestClearScreen(t *testing.T) {
 
 func TestFormatNestedError(t *testing.T) {
 	tests := []struct {
-		name     string
-		message  string
-		expected []string // Substrings that should be present in output
+		name        string
+		message     string
+		expected    []string // Substrings that should be present in output
 		notExpected []string // Substrings that should NOT be present
 	}{
 		{
@@ -455,7 +455,7 @@ func TestFormatNestedError(t *testing.T) {
 			},
 		},
 		{
-			name: "real example from problem statement",
+			name:    "real example from problem statement",
 			message: "failed to compile updated workflow: .github/workflows/daily-team-status.md:1:1: error: failed to process imports from frontmatter: failed to resolve import 'githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3': failed to download include from githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3: failed to fetch file content from githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3: gh: Not Found (HTTP 404): gh execution failed: exit status 1",
 			expected: []string{
 				"✗",
@@ -471,8 +471,8 @@ func TestFormatNestedError(t *testing.T) {
 			},
 		},
 		{
-			name:    "empty message",
-			message: "",
+			name:     "empty message",
+			message:  "",
 			expected: []string{},
 		},
 	}
