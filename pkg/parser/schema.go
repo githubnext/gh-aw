@@ -28,6 +28,47 @@ var includedFileSchema string
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
 
+// SchemaVersion represents the version information for a schema
+type SchemaVersion struct {
+	Version string `json:"version"`
+	ID      string `json:"$id"`
+}
+
+// GetMainWorkflowSchemaVersion returns the version of the main workflow schema
+func GetMainWorkflowSchemaVersion() (SchemaVersion, error) {
+	return getSchemaVersion(mainWorkflowSchema)
+}
+
+// GetIncludedFileSchemaVersion returns the version of the included file schema
+func GetIncludedFileSchemaVersion() (SchemaVersion, error) {
+	return getSchemaVersion(includedFileSchema)
+}
+
+// GetMCPConfigSchemaVersion returns the version of the MCP config schema
+func GetMCPConfigSchemaVersion() (SchemaVersion, error) {
+	return getSchemaVersion(mcpConfigSchema)
+}
+
+// getSchemaVersion extracts version information from a schema JSON string
+func getSchemaVersion(schemaJSON string) (SchemaVersion, error) {
+	var schemaDoc map[string]any
+	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		return SchemaVersion{}, fmt.Errorf("failed to parse schema JSON: %w", err)
+	}
+
+	version := SchemaVersion{}
+
+	if v, ok := schemaDoc["version"].(string); ok {
+		version.Version = v
+	}
+
+	if id, ok := schemaDoc["$id"].(string); ok {
+		version.ID = id
+	}
+
+	return version, nil
+}
+
 // filterIgnoredFields removes ignored fields from frontmatter without warnings
 // NOTE: This function is kept for backward compatibility but currently does nothing
 // as all previously ignored fields (description, applyTo) are now validated by the schema
