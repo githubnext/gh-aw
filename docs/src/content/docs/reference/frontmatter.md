@@ -183,9 +183,32 @@ Enables enhanced validation for production workflows, enforcing security constra
 strict: true  # Enable (default: false)
 ```
 
-Strict mode enforces: (1) no write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead), (2) explicit network configuration required, (3) no wildcard `*` in `network.allowed`, (4) network configuration for custom MCP servers with containers.
+**Enforcement Areas:**
 
-Enable with `strict: true` in frontmatter or `gh aw compile --strict` (CLI flag applies to all workflows and takes precedence). Use for production workflows requiring enhanced security validation or security policy compliance.
+Strict mode enforces the following security constraints:
+
+1. **Write Permissions**: Refuses `contents:write`, `issues:write`, and `pull-requests:write` permissions. Use [safe-outputs](/gh-aw/reference/safe-outputs/) instead for GitHub API write operations.
+
+2. **Network Configuration**: Requires explicit network configuration. No implicit defaults allowed. See [Network Permissions](/gh-aw/reference/network/).
+
+3. **Network Wildcards**: Refuses wildcard `*` in `network.allowed` domains. Specify explicit domains or use ecosystem identifiers.
+
+4. **MCP Network**: Requires network configuration for custom MCP servers with containers.
+
+5. **Action Pinning**: Enforces GitHub Actions to be pinned to specific commit SHAs instead of tags or branches.
+
+6. **Deprecated Fields**: Refuses use of deprecated frontmatter fields.
+
+**Enabling Strict Mode:**
+
+Strict mode can be enabled in two ways:
+
+- **Frontmatter field**: `strict: true` (per-workflow control)
+- **CLI flag**: `gh aw compile --strict` (applies to all workflows, takes precedence)
+
+The CLI flag enables strict mode for all workflows being compiled and cannot be overridden by individual workflow frontmatter. The frontmatter field allows per-workflow strict mode but cannot disable strict mode when the CLI flag is set.
+
+See [CLI Commands](/gh-aw/setup/cli/#compile) for detailed `--strict` flag documentation and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for security best practices.
 
 ### Feature Flags (`features:`)
 
