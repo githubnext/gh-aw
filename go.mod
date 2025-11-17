@@ -10,9 +10,9 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/goccy/go-yaml v1.18.0
-	github.com/google/jsonschema-go v0.2.1-0.20250825175020-748c325cec76
+	github.com/google/jsonschema-go v0.3.0
 	github.com/mattn/go-isatty v0.0.20
-	github.com/modelcontextprotocol/go-sdk v0.4.0
+	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.10.1
@@ -57,6 +57,7 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect

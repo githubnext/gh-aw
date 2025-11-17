@@ -182,31 +182,21 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 
 	// Test 2: Call with missing workflows parameter (should fail)
 	t.Run("MissingWorkflows", func(t *testing.T) {
-		callResult, err := session.CallTool(ctx, &mcp.CallToolParams{
+		_, err := session.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "add",
 			Arguments: map[string]any{},
 		})
 
-		if err != nil {
-			t.Fatalf("Failed to call add tool: %v", err)
+		// MCP SDK v1.1.0 validates parameters before calling the tool,
+		// so we expect an error from CallTool itself
+		if err == nil {
+			t.Fatal("Expected error when calling add tool with missing workflows parameter")
 		}
 
-		// Verify we got error output
-		if len(callResult.Content) == 0 {
-			t.Fatal("add tool returned no content")
-		}
-
-		// Extract text content
-		var outputText string
-		for _, content := range callResult.Content {
-			if textContent, ok := content.(*mcp.TextContent); ok {
-				outputText += textContent.Text
-			}
-		}
-
-		// Should contain error message
-		if !strings.Contains(outputText, "Error") && !strings.Contains(outputText, "error") && !strings.Contains(outputText, "required") {
-			t.Errorf("Expected error message for missing workflows, got: %s", outputText)
+		// Verify the error message mentions the missing required parameter
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "workflows") && !strings.Contains(errMsg, "required") {
+			t.Errorf("Expected error message to mention missing 'workflows' parameter, got: %s", errMsg)
 		}
 	})
 }
