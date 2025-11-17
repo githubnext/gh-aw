@@ -1083,7 +1083,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "npx",
-                "args": ["@playwright/mcp@v1.56.1", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-origins", "localhost:*;127.0.0.1:*;localhost;127.0.0.1"],
+                "args": ["@playwright/mcp@0.0.47", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-origins", "localhost:*;127.0.0.1:*;localhost;127.0.0.1"],
                 "tools": ["*"]
               },
               "safeoutputs": {

@@ -37,8 +37,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	// Determine version to use - respect version configuration if provided
 	playwrightPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightVersion)
-	if includeCopilotFields && args.ImageVersion != "" && args.ImageVersion != string(constants.DefaultPlaywrightVersion) {
-		playwrightPackage = "@playwright/mcp@" + args.ImageVersion
+	if includeCopilotFields && args.MCPPackageVersion != "" && args.MCPPackageVersion != string(constants.DefaultPlaywrightVersion) {
+		playwrightPackage = "@playwright/mcp@" + args.MCPPackageVersion
 	}
 
 	yaml.WriteString("              \"playwright\": {\n")
