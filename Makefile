@@ -118,6 +118,7 @@ deps:
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
+	cd pkg/workflow/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
