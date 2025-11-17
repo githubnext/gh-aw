@@ -22,6 +22,9 @@
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
     "format:cjs": "prettier --write '**/*.cjs' '**/*.ts' '**/*.json'",
-    "lint:cjs": "prettier --check '**/*.cjs' '**/*.ts' '**/*.json'"
+    "lint:cjs": "prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
+    "format:schema": "prettier --write ../../workflow/schemas/github-workflow.json --ignore-path /dev/null",
+    "format:pkg-json": "prettier --write '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null",
+    "check:pkg-json": "prettier --check '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null"
   }
 }
