@@ -175,7 +175,7 @@ func TestExtractActionRepo(t *testing.T) {
 		},
 		{
 			name:     "action with SHA",
-			uses:     "actions/setup-node@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			uses:     "actions/setup-node@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			expected: "actions/setup-node",
 		},
 		{
@@ -219,8 +219,8 @@ func TestExtractActionVersion(t *testing.T) {
 		},
 		{
 			name:     "action with SHA",
-			uses:     "actions/setup-node@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
-			expected: "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			uses:     "actions/setup-node@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
+			expected: "93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 		},
 		{
 			name:     "action with subpath and version",
@@ -264,7 +264,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -300,10 +300,10 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with already pinned SHA",
 			stepMap: map[string]any{
 				"name": "Checkout",
-				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+				"uses": "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
 		},
 	}
 

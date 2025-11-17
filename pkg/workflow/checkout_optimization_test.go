@@ -125,7 +125,7 @@ permissions:
   pull-requests: read
 steps:
   - name: Custom checkout
-    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+    uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
     with:
       token: ${{ secrets.CUSTOM_TOKEN }}
   - name: Setup
@@ -266,7 +266,7 @@ engine: claude
 				}
 
 				agentJobSection := lockContentStr[agentJobStart:agentJobEnd]
-				hasCheckout := strings.Contains(agentJobSection, "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+				hasCheckout := strings.Contains(agentJobSection, "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 
 				if hasCheckout != tt.expectedHasCheckout {
 					t.Errorf("%s: Expected hasCheckout=%v in agent job, got %v\nAgent job section:\n%s",
@@ -311,7 +311,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		{
 			name:        "contents read permission, custom steps with checkout",
 			permissions: "permissions:\n  contents: read",
-			customSteps: "steps:\n  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			customSteps: "steps:\n  - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			expected:    false,
 		},
 		{

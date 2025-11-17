@@ -22,7 +22,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `,
 			expected: map[string]string{
 				"actions/checkout": "v5",
@@ -35,7 +35,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
 `,
@@ -52,9 +52,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `,
 			expected: map[string]string{
 				"actions/checkout":   "v5",
@@ -144,13 +144,13 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 				"actions/checkout": {
 					Repo:    "actions/checkout",
 					Version: "v5",
-					SHA:     "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+					SHA:     "93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 				},
 			},
 			expectedContains: []string{
 				"# Pinned GitHub Actions:",
-				"#   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)",
-				"#     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+				"#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)",
+				"#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			},
 		},
 		{
@@ -164,7 +164,7 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 				"actions/checkout": {
 					Repo:    "actions/checkout",
 					Version: "v5",
-					SHA:     "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+					SHA:     "93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 				},
 				"actions/cache": {
 					Repo:    "actions/cache",

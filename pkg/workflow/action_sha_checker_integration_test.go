@@ -24,7 +24,7 @@ func TestActionSHAValidationIntegration(t *testing.T) {
 	cache := NewActionCache(tmpDir)
 
 	// Pre-populate cache with "current" SHAs
-	cache.Set("actions/checkout", "v5", "08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 	cache.Set("actions/setup-node", "v6", "2028fbc5c25fe9cf00d9f06a71cc4710d4507903")
 
 	// Save the cache
@@ -41,7 +41,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 `
 
@@ -97,7 +97,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           fetch-depth: 0
 
@@ -152,7 +152,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - name: Upload artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
@@ -205,7 +205,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
@@ -213,7 +213,7 @@ jobs:
 	}
 
 	cache := NewActionCache(tmpDir)
-	cache.Set("actions/checkout", "v5", "08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
 
 	// Capture stderr output to verify message format
 	// Note: In a real scenario, we'd redirect stderr, but for this test
@@ -237,7 +237,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
