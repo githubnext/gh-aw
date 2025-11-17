@@ -345,16 +345,8 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 // getPlaywrightMCPPackageVersion extracts version setting for the @playwright/mcp NPM package
 // This is separate from the Docker image version because they follow different versioning schemes
 func getPlaywrightMCPPackageVersion(playwrightTool any) string {
-	mcpPackageVersion := string(constants.DefaultPlaywrightMCPVersion) // Default @playwright/mcp package version
-	// Extract version setting from tool properties
-	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["version"]; exists {
-			if stringValue, ok := versionSetting.(string); ok {
-				mcpPackageVersion = stringValue
-			}
-		}
-	}
-	return mcpPackageVersion
+	// Always use the default @playwright/mcp package version.
+	return string(constants.DefaultPlaywrightMCPVersion)
 }
 
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
