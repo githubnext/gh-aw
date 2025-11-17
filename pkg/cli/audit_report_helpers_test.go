@@ -4,11 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestCalculateDirectorySize(t *testing.T) {

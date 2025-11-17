@@ -123,7 +123,7 @@ tools:
 
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetStrictMode(tt.strict)
-   var err error
+			var err error
 			err = compiler.CompileWorkflow(testFile)
 
 			// Restore stderr
@@ -203,7 +203,7 @@ tools:
 
 	compiler := NewCompiler(false, "", "test")
 	compiler.SetStrictMode(false)
- var err error
+	var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	// Restore stderr

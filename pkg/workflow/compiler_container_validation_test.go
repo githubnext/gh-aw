@@ -53,8 +53,7 @@ This workflow has an invalid container image.
 	compiler.SetSkipValidation(false) // Ensure validation is enabled
 
 	// Compile the workflow - this should succeed with a warning, not fail with an error
-	var err error
-	err = compiler.CompileWorkflow(workflowFile)
+	err := compiler.CompileWorkflow(workflowFile)
 
 	// The compilation should succeed (no error returned) despite invalid container
 	if err != nil {
@@ -105,8 +104,7 @@ This workflow has an invalid container image.
 	compiler.SetSkipValidation(true) // Disable validation
 
 	// Compile the workflow - this should succeed without validation
-	var err error
-	err = compiler.CompileWorkflow(workflowFile)
+	err := compiler.CompileWorkflow(workflowFile)
 
 	// The compilation should succeed (no error returned)
 	if err != nil {

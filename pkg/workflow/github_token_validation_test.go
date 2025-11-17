@@ -341,7 +341,7 @@ github-token: ghp_actualSecretInPlainText
 	}
 
 	compiler := NewCompiler(false, "", "test")
-			var err error
+	var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	if err == nil {
@@ -383,7 +383,7 @@ safe-outputs:
 	}
 
 	compiler := NewCompiler(false, "", "test")
-			var err error
+	var err error
 	err = compiler.CompileWorkflow(testFile)
 
 	// Should fail due to plaintext token in github tool
