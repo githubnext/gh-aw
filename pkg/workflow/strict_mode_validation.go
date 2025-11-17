@@ -40,8 +40,10 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var strictModeValidationLog = logger.New("workflow:strict_mode_validation")
@@ -136,6 +138,38 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 	return nil
 }
 
+// validateStrictDeprecatedFields refuses deprecated fields in strict mode
+func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) error {
+	// Get the list of deprecated fields from the schema
+	deprecatedFields, err := parser.GetMainWorkflowDeprecatedFields()
+	if err != nil {
+		strictModeValidationLog.Printf("Failed to get deprecated fields: %v", err)
+		// Don't fail compilation if we can't load deprecated fields list
+		return nil
+	}
+
+	// Check if any deprecated fields are present in the frontmatter
+	foundDeprecated := parser.FindDeprecatedFieldsInFrontmatter(frontmatter, deprecatedFields)
+
+	if len(foundDeprecated) > 0 {
+		// Build error message with all deprecated fields
+		var errorMessages []string
+		for _, field := range foundDeprecated {
+			message := fmt.Sprintf("Field '%s' is deprecated", field.Name)
+			if field.Replacement != "" {
+				message += fmt.Sprintf(". Use '%s' instead", field.Replacement)
+			}
+			errorMessages = append(errorMessages, message)
+		}
+
+		strictModeValidationLog.Printf("Deprecated fields found: %v", errorMessages)
+		return fmt.Errorf("strict mode: deprecated fields are not allowed. %s", strings.Join(errorMessages, ". "))
+	}
+
+	strictModeValidationLog.Printf("No deprecated fields found")
+	return nil
+}
+
 // validateStrictMode performs strict mode validations on the workflow
 //
 // This is the main orchestrator that calls individual validation functions.
@@ -143,6 +177,7 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 //  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  2. validateStrictNetwork() - Requires explicit network configuration
 //  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
+//  4. validateStrictDeprecatedFields() - Refuses deprecated fields
 //
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
@@ -167,6 +202,11 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 
 	// 3. Require network configuration on custom MCP servers
 	if err := c.validateStrictMCPNetwork(frontmatter); err != nil {
+		return err
+	}
+
+	// 4. Refuse deprecated fields
+	if err := c.validateStrictDeprecatedFields(frontmatter); err != nil {
 		return err
 	}
 
