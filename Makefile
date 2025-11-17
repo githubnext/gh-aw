@@ -134,7 +134,7 @@ download-github-actions-schema:
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
 	@echo "Formatting schema with prettier..."
-	@cd pkg/workflow/js && npx prettier --write ../../workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
+	@cd pkg/workflow/js && npm run format:schema >/dev/null 2>&1
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
@@ -174,7 +174,7 @@ fmt-cjs:
 # Format JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	cd pkg/workflow/js && npx prettier --write '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null
+	cd pkg/workflow/js && npm run format:pkg-json
 
 # Check formatting
 .PHONY: fmt-check
@@ -192,7 +192,7 @@ fmt-check-cjs:
 # Check JSON file formatting in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-check-json
 fmt-check-json:
-	@if ! cd pkg/workflow/js && npx prettier --check '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
+	@if ! cd pkg/workflow/js && npm run check:pkg-json 2>&1 | grep -q "All matched files use Prettier code style"; then \
 		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
 		exit 1; \
 	fi
