@@ -49,7 +49,7 @@ For detailed help on any command, use:
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new [workflow-base-name]",
+	Use:   "new [workflow-id]",
 	Short: "Create a new workflow Markdown file with example configuration",
 	Long: `Create a new workflow Markdown file with commented examples and explanations of all available options.
 
@@ -63,10 +63,14 @@ When called with a workflow name, creates a template file with comprehensive exa
 - Tools configuration (github, claude, mcps)
 - All frontmatter options with explanations
 
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide either the workflow-id (e.g., 'my-workflow') or the full filename (e.g., 'my-workflow.md').
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` new                      # Interactive mode
   ` + constants.CLIExtensionPrefix + ` new --interactive        # Interactive mode (explicit)
   ` + constants.CLIExtensionPrefix + ` new my-workflow          # Create template file
+  ` + constants.CLIExtensionPrefix + ` new my-workflow.md       # Create template file (alternative format)
   ` + constants.CLIExtensionPrefix + ` new issue-handler --force`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -105,8 +109,16 @@ Examples:
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [pattern]",
+	Use:   "remove [workflow-id-pattern]",
 	Short: "Remove workflow files matching the given name prefix",
+	Long: `Remove workflow files matching the given workflow-id pattern.
+
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` remove my-workflow       # Remove specific workflow
+  ` + constants.CLIExtensionPrefix + ` remove test-             # Remove all workflows starting with 'test-'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var pattern string
 		if len(args) > 0 {
@@ -125,9 +137,13 @@ var enableCmd = &cobra.Command{
 	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor         # Enable specific workflow
+  ` + constants.CLIExtensionPrefix + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -144,9 +160,13 @@ var disableCmd = &cobra.Command{
 	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor         # Disable specific workflow
+  ` + constants.CLIExtensionPrefix + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -262,8 +282,12 @@ The workflows must have been added as actions and compiled.
 This command only works with workflows that have workflow_dispatch triggers.
 It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide either the workflow-id (e.g., 'daily-perf-improver') or the full filename (e.g., 'daily-perf-improver.md').
+
 Examples:
   gh aw run daily-perf-improver
+  gh aw run daily-perf-improver.md   # Alternative format
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,

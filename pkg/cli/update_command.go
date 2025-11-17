@@ -35,9 +35,13 @@ For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a branch, it fetches the latest commit from that branch
 - Otherwise, it fetches the latest commit from the default branch
 
+The workflow-id is the basename of the markdown file without the .md extension.
+You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` update                    # Check gh-aw updates and update all workflows
   ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh-aw updates and update specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
   ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
