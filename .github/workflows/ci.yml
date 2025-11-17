@@ -39,8 +39,10 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Run tests with coverage
-        run: make test-coverage
+      - name: Run unit tests with coverage
+        run: |
+          go test -v -count=1 -timeout=3m -tags '!integration' -coverprofile=coverage.out ./...
+          go tool cover -html=coverage.out -o coverage.html
 
       # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
       - name: Upload coverage report
