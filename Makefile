@@ -137,6 +137,18 @@ download-github-actions-schema:
 	@cd pkg/workflow/js && npm run format:schema >/dev/null 2>&1
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
+# Install minimal dependencies required for linting
+.PHONY: lint-deps
+lint-deps:
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	@if [ ! -d pkg/workflow/js/node_modules ] || [ pkg/workflow/js/package-lock.json -nt pkg/workflow/js/node_modules ]; then \
+		echo "Installing npm packages..."; \
+		cd pkg/workflow/js && npm ci; \
+	fi
+
 # Run linter
 .PHONY: golint
 golint:
@@ -215,7 +227,7 @@ lint-errors:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint
+lint: lint-deps fmt-check fmt-check-json lint-cjs golint
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -308,7 +320,9 @@ help:
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
-	@echo "  lint             - Run linter"
+	@echo "  deps-dev         - Install development tools (including linter)"
+	@echo "  lint-deps        - Install minimal dependencies required for linting"
+	@echo "  lint             - Run linter (automatically installs dependencies)"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js"
 	@echo "  fmt-json         - Format JSON files in pkg directory (excluding pkg/workflow/js)"
