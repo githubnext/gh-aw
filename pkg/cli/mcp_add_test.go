@@ -403,8 +403,8 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		Transport: "stdio",
 		Command:   "npx",
 		Args:      []string{"test-server"},
-		Config: map[string]interface{}{
-			"env": map[string]interface{}{
+		Config: map[string]any{
+			"env": map[string]any{
 				"TEST_TOKEN": "${TEST_TOKEN}",
 			},
 		},
@@ -456,7 +456,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 		Transport: "stdio",
 		Command:   "npx",
 		Args:      []string{"test-server"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"container": "test-image:latest",
 		},
 	}

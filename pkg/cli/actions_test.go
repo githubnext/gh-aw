@@ -7,13 +7,13 @@ import (
 func TestConvertToGitHubActionsEnv(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       interface{}
+		input       any
 		envMetadata []EnvironmentVariable
 		expected    map[string]string
 	}{
 		{
 			name: "shell syntax conversion with secret metadata",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"API_TOKEN":    "${API_TOKEN}",
 				"NOTION_TOKEN": "${NOTION_TOKEN}",
 			},
@@ -28,7 +28,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name: "shell syntax conversion with mixed secret and env metadata",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"API_TOKEN": "${API_TOKEN}",
 				"LOG_LEVEL": "${LOG_LEVEL}",
 			},
@@ -43,7 +43,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name: "shell syntax conversion without metadata defaults to secrets",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"API_TOKEN":    "${API_TOKEN}",
 				"NOTION_TOKEN": "${NOTION_TOKEN}",
 			},
@@ -55,7 +55,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name: "mixed syntax",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"API_TOKEN":  "${API_TOKEN}",
 				"PLAIN_VAR":  "plain_value",
 				"GITHUB_VAR": "${{ secrets.EXISTING }}",
@@ -71,7 +71,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name: "no shell syntax",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"PLAIN_VAR": "plain_value",
 				"NUMBER":    "123",
 			},
@@ -83,7 +83,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name:        "empty input",
-			input:       map[string]interface{}{},
+			input:       map[string]any{},
 			envMetadata: []EnvironmentVariable{},
 			expected:    map[string]string{},
 		},
@@ -95,7 +95,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 		},
 		{
 			name: "non-string values ignored",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"STRING_VAR": "${TOKEN}",
 				"INT_VAR":    123,
 				"BOOL_VAR":   true,

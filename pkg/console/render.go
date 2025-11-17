@@ -19,7 +19,7 @@ import (
 // - `console:"header:Column Name"` - Sets the column header name for table columns
 // - `console:"omitempty"` - Skips zero values
 // - `console:"-"` - Skips the field entirely
-func RenderStruct(v interface{}) string {
+func RenderStruct(v any) string {
 	var output strings.Builder
 	renderValue(reflect.ValueOf(v), "", &output, 0)
 	return output.String()

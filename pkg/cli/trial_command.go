@@ -24,13 +24,13 @@ var trialLog = logger.New("cli:trial_command")
 
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
-	WorkflowName string                 `json:"workflow_name"`
-	RunID        string                 `json:"run_id"`
-	SafeOutputs  map[string]interface{} `json:"safe_outputs"`
+	WorkflowName string         `json:"workflow_name"`
+	RunID        string         `json:"run_id"`
+	SafeOutputs  map[string]any `json:"safe_outputs"`
 	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
-	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
-	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
-	Timestamp           time.Time              `json:"timestamp"`
+	AgenticRunInfo      map[string]any `json:"agentic_run_info,omitempty"`
+	AdditionalArtifacts map[string]any `json:"additional_artifacts,omitempty"`
+	Timestamp           time.Time      `json:"timestamp"`
 }
 
 // CombinedTrialResult represents the combined results of multiple workflow trials
@@ -1469,10 +1469,10 @@ func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose b
 
 // TrialArtifacts represents all artifacts downloaded from a workflow run
 type TrialArtifacts struct {
-	SafeOutputs map[string]interface{} `json:"safe_outputs"`
+	SafeOutputs map[string]any `json:"safe_outputs"`
 	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
-	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
-	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
+	AgenticRunInfo      map[string]any `json:"agentic_run_info,omitempty"`
+	AdditionalArtifacts map[string]any `json:"additional_artifacts,omitempty"`
 }
 
 // downloadAllArtifacts downloads and parses all available artifacts from a workflow run
@@ -1503,7 +1503,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	}
 
 	artifacts := &TrialArtifacts{
-		AdditionalArtifacts: make(map[string]interface{}),
+		AdditionalArtifacts: make(map[string]any),
 	}
 
 	// Walk through all downloaded artifacts
@@ -1571,7 +1571,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 }
 
 // parseJSONArtifact parses a JSON artifact file and returns the parsed content
-func parseJSONArtifact(filePath string, verbose bool) map[string]interface{} {
+func parseJSONArtifact(filePath string, verbose bool) map[string]any {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		if verbose {
@@ -1580,7 +1580,7 @@ func parseJSONArtifact(filePath string, verbose bool) map[string]interface{} {
 		return nil
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(content, &parsed); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse JSON artifact %s: %v", filePath, err)))
@@ -1613,7 +1613,7 @@ func readTextArtifact(filePath string, verbose bool) string {
 }
 
 // saveTrialResult saves a trial result to a JSON file
-func saveTrialResult(filename string, result interface{}, verbose bool) error {
+func saveTrialResult(filename string, result any, verbose bool) error {
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal result to JSON: %w", err)

@@ -210,7 +210,7 @@ func TestParseConsoleTag(t *testing.T) {
 func TestIsZeroValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected bool
 	}{
 		{"zero int", 0, true},
@@ -238,7 +238,7 @@ func TestIsZeroValue(t *testing.T) {
 func TestFormatFieldValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected string
 	}{
 		{"integer", 42, "42"},

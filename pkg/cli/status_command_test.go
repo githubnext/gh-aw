@@ -64,7 +64,7 @@ func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
 	}
 
 	// Verify JSON contains expected fields
-	var unmarshaled map[string]interface{}
+	var unmarshaled map[string]any
 	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
 		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
 	}
 
 	// Verify "on" field is included
-	onField, ok := unmarshaled["on"].(map[string]interface{})
+	onField, ok := unmarshaled["on"].(map[string]any)
 	if !ok {
 		t.Fatalf("Expected 'on' to be a map, got %T", unmarshaled["on"])
 	}

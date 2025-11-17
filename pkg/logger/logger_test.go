@@ -167,7 +167,7 @@ func TestLogger_Printf(t *testing.T) {
 		debugEnv  string
 		namespace string
 		format    string
-		args      []interface{}
+		args      []any
 		wantLog   bool
 	}{
 		{
@@ -175,7 +175,7 @@ func TestLogger_Printf(t *testing.T) {
 			debugEnv:  "*",
 			namespace: "test:logger",
 			format:    "hello %s",
-			args:      []interface{}{"world"},
+			args:      []any{"world"},
 			wantLog:   true,
 		},
 		{
@@ -183,7 +183,7 @@ func TestLogger_Printf(t *testing.T) {
 			debugEnv:  "",
 			namespace: "test:logger",
 			format:    "hello %s",
-			args:      []interface{}{"world"},
+			args:      []any{"world"},
 			wantLog:   false,
 		},
 	}

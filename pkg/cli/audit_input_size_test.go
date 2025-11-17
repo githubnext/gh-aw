@@ -189,7 +189,7 @@ func TestToolUsageInfoStructure(t *testing.T) {
 		t.Fatalf("Failed to marshal tool info: %v", err)
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(jsonData, &parsed); err != nil {
 		t.Fatalf("Failed to unmarshal tool info: %v", err)
 	}
