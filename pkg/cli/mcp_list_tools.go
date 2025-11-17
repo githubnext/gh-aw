@@ -17,8 +17,6 @@ var mcpListToolsLog = logger.New("cli:mcp_list_tools")
 const (
 	// maxDescriptionLength is the maximum length for tool descriptions before truncation
 	maxDescriptionLength = 60
-	// truncationLength is the length at which to truncate descriptions (leaving room for "...")
-	truncationLength = 57
 )
 
 // ListToolsForMCP lists available tools for a specific MCP server
