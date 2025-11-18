@@ -6,16 +6,21 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
 
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
 // frontmatterLineOffset is the line number where the frontmatter content begins (1-based)
 func (c *Compiler) createFrontmatterError(filePath, content string, err error, frontmatterLineOffset int) error {
+	frontmatterErrorLog.Printf("Creating frontmatter error for file: %s, offset: %d", filePath, frontmatterLineOffset)
 	lines := strings.Split(content, "\n")
 
 	// Check if this is a YAML parsing error that we can enhance
 	if strings.Contains(err.Error(), "failed to parse frontmatter:") {
+		frontmatterErrorLog.Print("Detected wrapped YAML parsing error")
 		// Extract the inner YAML error
 		parts := strings.SplitN(err.Error(), "failed to parse frontmatter: ", 2)
 		if len(parts) > 1 {
@@ -23,6 +28,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			line, column, message := parser.ExtractYAMLError(yamlErr, frontmatterLineOffset)
 
 			if line > 0 || column > 0 {
+				frontmatterErrorLog.Printf("Extracted YAML error at line %d, column %d", line, column)
 				// Create context lines around the error
 				var context []string
 				startLine := max(1, line-2)
@@ -52,10 +58,12 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			}
 		}
 	} else {
+		frontmatterErrorLog.Print("Attempting direct YAML error extraction")
 		// Try to extract YAML error directly from the original error
 		line, column, message := parser.ExtractYAMLError(err, frontmatterLineOffset)
 
 		if line > 0 || column > 0 {
+			frontmatterErrorLog.Printf("Extracted YAML error at line %d, column %d", line, column)
 			// Create context lines around the error
 			var context []string
 			startLine := max(1, line-2)
@@ -86,5 +94,6 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 	}
 
 	// Fallback to original error
+	frontmatterErrorLog.Printf("Using fallback error message: %v", err)
 	return fmt.Errorf("failed to extract frontmatter: %w", err)
 }

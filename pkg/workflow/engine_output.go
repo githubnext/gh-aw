@@ -3,11 +3,18 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var engineOutputLog = logger.New("workflow:engine_output")
 
 // generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/gh-aw/ files
 // Returns the YAML string and whether a cleanup step was generated
 func generateCleanupStep(outputFiles []string) (string, bool) {
+	if engineOutputLog.Enabled() {
+		engineOutputLog.Printf("Generating cleanup step for %d output files", len(outputFiles))
+	}
 	// Filter to get only workspace files (exclude /tmp/gh-aw/ files)
 	var workspaceFiles []string
 	for _, file := range outputFiles {
@@ -18,8 +25,11 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 
 	// Only generate cleanup step if there are workspace files to delete
 	if len(workspaceFiles) == 0 {
+		engineOutputLog.Print("No workspace files to clean up")
 		return "", false
 	}
+
+	engineOutputLog.Printf("Generated cleanup step for %d workspace files", len(workspaceFiles))
 
 	var yaml strings.Builder
 	yaml.WriteString("      - name: Clean up engine output files\n")
@@ -35,8 +45,11 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
 	outputFiles := engine.GetDeclaredOutputFiles()
 	if len(outputFiles) == 0 {
+		engineOutputLog.Print("No engine output files to collect")
 		return
 	}
+
+	engineOutputLog.Printf("Generating engine output collection step for %d files", len(outputFiles))
 
 	// Note: Secret redaction is now handled earlier in the compilation flow,
 	// before any artifact uploads. This ensures all files are scanned before upload.

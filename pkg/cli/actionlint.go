@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var actionlintLog = logger.New("cli:actionlint")
 
 // actionlintError represents a single error from actionlint JSON output
 type actionlintError struct {
@@ -26,11 +29,12 @@ type actionlintError struct {
 // ensureActionlintConfig creates .github/actionlint.yaml to configure custom runner labels if it doesn't exist
 func ensureActionlintConfig(gitRoot string) error {
 	configPath := filepath.Join(gitRoot, ".github", "actionlint.yaml")
+	actionlintLog.Printf("Ensuring actionlint config at: %s", configPath)
 
 	// Check if config already exists
 	if _, err := os.Stat(configPath); err == nil {
 		// Config exists, do not update it
-		compileLog.Print("actionlint.yaml already exists, skipping creation")
+		actionlintLog.Print("actionlint.yaml already exists, skipping creation")
 		return nil
 	}
 
@@ -55,13 +59,13 @@ self-hosted-runner:
 		return fmt.Errorf("failed to write actionlint.yaml: %w", err)
 	}
 
-	compileLog.Printf("Created actionlint.yaml at %s", configPath)
+	actionlintLog.Printf("Created actionlint.yaml at %s", configPath)
 	return nil
 }
 
 // runActionlintOnFile runs the actionlint linter on a single .lock.yml file using Docker
 func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
-	compileLog.Printf("Running actionlint linter on %s", lockFile)
+	actionlintLog.Printf("Running actionlint on file: %s (verbose=%t, strict=%t)", lockFile, verbose, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := findGitRoot()
@@ -111,7 +115,7 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	// Parse and reformat the output, get total error count
 	totalErrors, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)
 	if parseErr != nil {
-		compileLog.Printf("Failed to parse actionlint output: %v", parseErr)
+		actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
 		// Fall back to showing raw output
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
@@ -129,7 +133,7 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 		// Other codes = actual errors
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
-			compileLog.Printf("Actionlint exited with code %d", exitCode)
+			actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
 			// Exit code 1 indicates errors were found
 			if exitCode == 1 {
 				// In strict mode, errors are treated as compilation failures
@@ -154,6 +158,7 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, error) {
 	// Skip if no output
 	if stdout == "" || strings.TrimSpace(stdout) == "" {
+		actionlintLog.Print("No actionlint output to parse")
 		return 0, nil
 	}
 
@@ -164,6 +169,7 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, error) {
 	}
 
 	totalErrors := len(errors)
+	actionlintLog.Printf("Parsed %d actionlint errors from output", totalErrors)
 
 	// Display errors using CompilerError format
 	for _, err := range errors {
