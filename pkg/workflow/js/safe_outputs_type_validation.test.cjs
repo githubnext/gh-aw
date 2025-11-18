@@ -84,7 +84,11 @@ describe("Safe Output Type Validation", () => {
     const hasNormalization = content.includes('entry.type = entry.type.replace(/-/g, "_")');
     expect(hasNormalization).toBe(true);
 
-    // Check that all tool names use underscores
+    // Check that all tool names use underscores in the tools.json file
+    const toolsJsonPath = path.join(process.cwd(), "safe_outputs_tools.json");
+    const toolsContent = fs.readFileSync(toolsJsonPath, "utf8");
+    const tools = JSON.parse(toolsContent);
+
     const toolNames = [
       "create_issue",
       "create_discussion",
@@ -98,10 +102,10 @@ describe("Safe Output Type Validation", () => {
       "upload_asset",
     ];
 
+    const actualToolNames = tools.map(t => t.name);
     toolNames.forEach(toolName => {
-      // Check for tool name definition (e.g., name: "create_issue")
-      const hasToolName = content.includes(`name: "${toolName}"`);
-      expect(hasToolName).toBe(true);
+      // Check that the tool exists in the tools.json file
+      expect(actualToolNames).toContain(toolName);
     });
   });
 });

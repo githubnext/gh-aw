@@ -26,6 +26,11 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     const defaultConfigPath = path.join(defaultConfigDir, "config.json");
     // Create a minimal default config
     fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: true, missing_tool: true }));
+
+    // Create tools.json file with all tools for tests
+    const toolsJsonPath = path.join(defaultConfigDir, "tools.json");
+    const toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
+    fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   });
 
   afterEach(() => {

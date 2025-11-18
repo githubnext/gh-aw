@@ -25,6 +25,11 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
       "create-issue": {},
     };
     fs.writeFileSync(tempConfigFile, JSON.stringify(config));
+
+    // Create tools.json file with all tools for tests
+    const toolsJsonPath = path.join(tempOutputDir, "tools.json");
+    const toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
+    fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   });
 
   afterEach(() => {
@@ -40,6 +45,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempOutputDir, "tools.json");
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -172,6 +178,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempOutputDir, "tools.json");
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -282,6 +289,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempOutputDir, "tools.json");
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -404,6 +412,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempOutputDir, "tools.json");
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 

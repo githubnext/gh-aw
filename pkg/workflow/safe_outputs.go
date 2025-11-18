@@ -865,6 +865,90 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	return string(configJSON)
 }
 
+// generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
+// Returns a JSON string containing only the tools that are enabled in the workflow
+func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
+	if data.SafeOutputs == nil {
+		return "[]", nil
+	}
+
+	safeOutputsLog.Print("Generating filtered tools JSON for workflow")
+
+	// Load the full tools JSON
+	allToolsJSON := GetSafeOutputsToolsJSON()
+
+	// Parse the JSON to get all tools
+	var allTools []map[string]any
+	if err := json.Unmarshal([]byte(allToolsJSON), &allTools); err != nil {
+		return "", fmt.Errorf("failed to parse safe outputs tools JSON: %w", err)
+	}
+
+	// Create a set of enabled tool names
+	enabledTools := make(map[string]bool)
+
+	// Check which safe outputs are enabled and add their corresponding tool names
+	if data.SafeOutputs.CreateIssues != nil {
+		enabledTools["create_issue"] = true
+	}
+	if data.SafeOutputs.CreateAgentTasks != nil {
+		enabledTools["create_agent_task"] = true
+	}
+	if data.SafeOutputs.CreateDiscussions != nil {
+		enabledTools["create_discussion"] = true
+	}
+	if data.SafeOutputs.AddComments != nil {
+		enabledTools["add_comment"] = true
+	}
+	if data.SafeOutputs.CreatePullRequests != nil {
+		enabledTools["create_pull_request"] = true
+	}
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		enabledTools["create_pull_request_review_comment"] = true
+	}
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+		enabledTools["create_code_scanning_alert"] = true
+	}
+	if data.SafeOutputs.AddLabels != nil {
+		enabledTools["add_labels"] = true
+	}
+	if data.SafeOutputs.UpdateIssues != nil {
+		enabledTools["update_issue"] = true
+	}
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		enabledTools["push_to_pull_request_branch"] = true
+	}
+	if data.SafeOutputs.UploadAssets != nil {
+		enabledTools["upload_asset"] = true
+	}
+	if data.SafeOutputs.MissingTool != nil {
+		enabledTools["missing_tool"] = true
+	}
+
+	// Filter tools to only include enabled ones
+	var filteredTools []map[string]any
+	for _, tool := range allTools {
+		toolName, ok := tool["name"].(string)
+		if !ok {
+			continue
+		}
+		if enabledTools[toolName] {
+			filteredTools = append(filteredTools, tool)
+		}
+	}
+
+	if safeOutputsLog.Enabled() {
+		safeOutputsLog.Printf("Filtered %d tools from %d total tools", len(filteredTools), len(allTools))
+	}
+
+	// Marshal the filtered tools back to JSON
+	filteredJSON, err := json.Marshal(filteredTools)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
+	}
+
+	return string(filteredJSON), nil
+}
+
 // applySafeOutputEnvToMap adds safe-output related environment variables to an env map
 // This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
 func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
