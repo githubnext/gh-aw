@@ -60,7 +60,7 @@ steps:
       gh pr list --repo ${{ github.repository }} \
         --search "head:copilot/ is:merged merged:>=${DATE_24H_AGO}" \
         --state merged \
-        --json \
+        --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
         --limit 100 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
