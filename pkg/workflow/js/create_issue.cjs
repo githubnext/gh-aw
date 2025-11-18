@@ -5,7 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
-const { getCampaign } = require("./get_campaign.cjs");
+const { getTrackerID } = require("./get_tracker_id.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -112,10 +112,10 @@ async function main() {
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-    // Add fingerprint comment if present
-    const fingerprintComment = getCampaign("markdown");
-    if (fingerprintComment) {
-      bodyLines.push(fingerprintComment);
+    // Add tracker-id comment if present
+    const trackerIDComment = getTrackerID("markdown");
+    if (trackerIDComment) {
+      bodyLines.push(trackerIDComment);
     }
 
     bodyLines.push(

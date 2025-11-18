@@ -9,7 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-func TestCampaignIntegration(t *testing.T) {
+func TestTrackerIDIntegration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
@@ -18,30 +18,30 @@ func TestCampaignIntegration(t *testing.T) {
 		shouldCompile      bool
 		shouldHaveEnvVar   bool
 		shouldHaveInScript bool
-		expectedCampaign   string
+		expectedTrackerID  string
 	}{
 		{
-			name: "Workflow with valid campaign",
+			name: "Workflow with valid tracker-id",
 			workflowContent: `---
 on: workflow_dispatch
 permissions:
   contents: read
-campaign: test-fp-12345
+tracker-id: test-fp-12345
 safe-outputs:
   create-issue:
 ---
 
-# Test Campaign
+# Test Tracker ID
 
 Create a test issue.
 `,
 			shouldCompile:      true,
 			shouldHaveEnvVar:   true,
 			shouldHaveInScript: true,
-			expectedCampaign:   "test-fp-12345",
+			expectedTrackerID:  "test-fp-12345",
 		},
 		{
-			name: "Workflow without campaign",
+			name: "Workflow without tracker-id",
 			workflowContent: `---
 on: workflow_dispatch
 permissions:
@@ -50,75 +50,75 @@ safe-outputs:
   create-issue:
 ---
 
-# Test No Campaign
+# Test No Tracker ID
 
-Create a test issue without campaign.
+Create a test issue without tracker-id.
 `,
 			shouldCompile:      true,
 			shouldHaveEnvVar:   false,
 			shouldHaveInScript: false,
 		},
 		{
-			name: "Workflow with campaign in discussion",
+			name: "Workflow with tracker-id in discussion",
 			workflowContent: `---
 on: workflow_dispatch
 permissions:
   contents: read
-campaign: discussion_fp_001
+tracker-id: discussion_fp_001
 safe-outputs:
   create-discussion:
 ---
 
-# Test Discussion Campaign
+# Test Discussion Tracker ID
 
 Create a discussion.
 `,
 			shouldCompile:      true,
 			shouldHaveEnvVar:   true,
 			shouldHaveInScript: true,
-			expectedCampaign:   "discussion_fp_001",
+			expectedTrackerID:  "discussion_fp_001",
 		},
 		{
-			name: "Workflow with campaign in comment",
+			name: "Workflow with tracker-id in comment",
 			workflowContent: `---
 on:
   issues:
     types: [opened]
 permissions:
   contents: read
-campaign: comment_fp_2024
+tracker-id: comment_fp_2024
 safe-outputs:
   add-comment:
 ---
 
-# Test Comment Campaign
+# Test Comment Tracker ID
 
 Add a comment.
 `,
 			shouldCompile:      true,
 			shouldHaveEnvVar:   true,
 			shouldHaveInScript: true,
-			expectedCampaign:   "comment_fp_2024",
+			expectedTrackerID:  "comment_fp_2024",
 		},
 		{
-			name: "Workflow with campaign in pull request",
+			name: "Workflow with tracker-id in pull request",
 			workflowContent: `---
 on: push
 permissions:
   contents: read
-campaign: pr-campaign-123
+tracker-id: pr-tracker-123
 safe-outputs:
   create-pull-request:
 ---
 
-# Test PR Campaign
+# Test PR Tracker ID
 
 Create a pull request.
 `,
 			shouldCompile:      true,
 			shouldHaveEnvVar:   true,
 			shouldHaveInScript: true,
-			expectedCampaign:   "pr-campaign-123",
+			expectedTrackerID:  "pr-tracker-123",
 		},
 	}
 
@@ -152,27 +152,27 @@ Create a pull request.
 				contentStr := string(content)
 
 				if tt.shouldHaveEnvVar {
-					envVarLine := "GH_AW_CAMPAIGN: \"" + tt.expectedCampaign + "\""
+					envVarLine := "GH_AW_TRACKER_ID: \"" + tt.expectedTrackerID + "\""
 					if !strings.Contains(contentStr, envVarLine) {
 						t.Errorf("Expected lock file to contain env var '%s', but it didn't", envVarLine)
 					}
 				} else {
-					// The JavaScript code will always read process.env.GH_AW_CAMPAIGN
+					// The JavaScript code will always read process.env.GH_AW_TRACKER_ID
 					// but the environment variable should not be set
-					envVarLine := "GH_AW_CAMPAIGN: \""
+					envVarLine := "GH_AW_TRACKER_ID: \""
 					if strings.Contains(contentStr, envVarLine) {
-						t.Error("Expected lock file to NOT set GH_AW_CAMPAIGN env var, but it did")
+						t.Error("Expected lock file to NOT set GH_AW_TRACKER_ID env var, but it did")
 					}
 				}
 
 				if tt.shouldHaveInScript {
-					// Check that fingerprint is read from environment
-					if !strings.Contains(contentStr, "process.env.GH_AW_CAMPAIGN") {
-						t.Error("Expected script to read GH_AW_CAMPAIGN from environment")
+					// Check that tracker-id is read from environment
+					if !strings.Contains(contentStr, "process.env.GH_AW_TRACKER_ID") {
+						t.Error("Expected script to read GH_AW_TRACKER_ID from environment")
 					}
-					// Check that fingerprint is added to body/comment
-					if !strings.Contains(contentStr, "<!-- campaign:") {
-						t.Error("Expected script to add fingerprint HTML comment")
+					// Check that tracker-id is added to body/comment
+					if !strings.Contains(contentStr, "<!-- tracker-id:") {
+						t.Error("Expected script to add tracker-id HTML comment")
 					}
 				}
 

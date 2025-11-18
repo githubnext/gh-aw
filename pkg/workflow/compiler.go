@@ -195,7 +195,7 @@ type WorkflowData struct {
 	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
 	Description         string   // optional description rendered as comment in lock file
 	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	Campaign            string   // optional campaign identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
+	TrackerID           string   // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
 	On                  string
@@ -974,8 +974,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Check if the markdown content uses the text output
 	needsTextOutput := c.detectTextOutputUsage(markdownContent)
 
-	// Extract and validate campaign
-	campaign, err := c.extractCampaign(result.Frontmatter)
+	// Extract and validate tracker-id
+	trackerID, err := c.extractTrackerID(result.Frontmatter)
 	if err != nil {
 		return nil, err
 	}
@@ -986,7 +986,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		FrontmatterName:     frontmatterName,
 		Description:         c.extractDescription(result.Frontmatter),
 		Source:              c.extractSource(result.Frontmatter),
-		Campaign:            campaign,
+		TrackerID:           trackerID,
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		Tools:               tools,
