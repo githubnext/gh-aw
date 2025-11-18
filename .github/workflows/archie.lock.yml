@@ -18,7 +18,6 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   noop["noop"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   agent --> add_comment
@@ -28,12 +27,9 @@
 #   activation --> conclusion
 #   add_comment --> conclusion
 #   missing_tool --> conclusion
-#   noop --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> noop
-#   detection --> noop
 # ```
 #
 # Pinned GitHub Actions:
@@ -2772,7 +2768,7 @@ jobs:
                   case "upload_asset":
                     return 10;
                   case "noop":
-                    return 100; 
+                    return 1; 
                   default:
                     return 1;
                 }
@@ -4635,7 +4631,6 @@ jobs:
       - activation
       - add_comment
       - missing_tool
-      - noop
     if: >
       (((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) &&
       (!(needs.add_comment.outputs.comment_id))
@@ -4681,6 +4676,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -4703,6 +4699,15 @@ jobs:
               const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let noopMessages = [];
+              const agentOutputResult = loadAgentOutput();
+              if (agentOutputResult.success && agentOutputResult.data) {
+                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+                if (noopItems.length > 0) {
+                  core.info(`Found ${noopItems.length} noop message(s)`);
+                  noopMessages = noopItems.map(item => item.message);
+                }
+              }
               let statusEmoji = "❌";
               let statusText = "failed";
               let message;
@@ -4723,6 +4728,14 @@ jobs:
                 message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else {
                 message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              }
+              if (noopMessages.length > 0) {
+                message += "\n\n";
+                if (noopMessages.length === 1) {
+                  message += noopMessages[0];
+                } else {
+                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
               }
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
@@ -5139,83 +5152,6 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  noop:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'noop'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    timeout-minutes: 5
-    outputs:
-      noop_message: ${{ steps.noop.outputs.noop_message }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Process No-Op Messages
-        id: noop
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_NOOP_MAX: 100
-          GH_AW_WORKFLOW_NAME: "Archie"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { loadAgentOutput } = require("./load_agent_output.cjs");
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
-              }
-              let summaryContent = "\n\n## No-Op Messages\n\n";
-              summaryContent += "The following messages were logged for transparency:\n\n";
-              for (let i = 0; i < noopItems.length; i++) {
-                const item = noopItems[i];
-                core.info(`No-op message ${i + 1}: ${item.message}`);
-                summaryContent += `- ${item.message}\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-              if (noopItems.length > 0) {
-                core.setOutput("noop_message", noopItems[0].message);
-                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
-              }
-              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
-            }
-            await main();
 
   pre_activation:
     if: >

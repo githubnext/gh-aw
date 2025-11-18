@@ -15,19 +15,21 @@
 #   activation["activation"]
 #   add_labels["add_labels"]
 #   agent["agent"]
+#   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   noop["noop"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   agent --> add_labels
 #   detection --> add_labels
 #   activation --> agent
+#   agent --> conclusion
+#   activation --> conclusion
+#   add_labels --> conclusion
+#   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> noop
-#   detection --> noop
 # ```
 #
 # Pinned GitHub Actions:
@@ -2315,7 +2317,7 @@ jobs:
                   case "upload_asset":
                     return 10;
                   case "noop":
-                    return 100; 
+                    return 1; 
                   default:
                     return 1;
                 }
@@ -3013,6 +3015,157 @@ jobs:
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
 
+  conclusion:
+    needs:
+      - agent
+      - activation
+      - add_labels
+      - missing_tool
+    if: ((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Issue Classifier"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
+            async function main() {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let noopMessages = [];
+              const agentOutputResult = loadAgentOutput();
+              if (agentOutputResult.success && agentOutputResult.data) {
+                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+                if (noopItems.length > 0) {
+                  core.info(`Found ${noopItems.length} noop message(s)`);
+                  noopMessages = noopItems.map(item => item.message);
+                }
+              }
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              let message;
+              if (agentConclusion === "success") {
+                statusEmoji = "✅";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+              } else if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else {
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              }
+              if (noopMessages.length > 0) {
+                message += "\n\n";
+                if (noopMessages.length === 1) {
+                  message += noopMessages[0];
+                } else {
+                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
+              }
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: message }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: message,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -3350,83 +3503,6 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  noop:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'noop'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    timeout-minutes: 5
-    outputs:
-      noop_message: ${{ steps.noop.outputs.noop_message }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Process No-Op Messages
-        id: noop
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_NOOP_MAX: 100
-          GH_AW_WORKFLOW_NAME: "Issue Classifier"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { loadAgentOutput } = require("./load_agent_output.cjs");
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
-              }
-              let summaryContent = "\n\n## No-Op Messages\n\n";
-              summaryContent += "The following messages were logged for transparency:\n\n";
-              for (let i = 0; i < noopItems.length; i++) {
-                const item = noopItems[i];
-                core.info(`No-op message ${i + 1}: ${item.message}`);
-                summaryContent += `- ${item.message}\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-              if (noopItems.length > 0) {
-                core.setOutput("noop_message", noopItems[0].message);
-                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
-              }
-              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
-            }
-            await main();
 
   pre_activation:
     runs-on: ubuntu-slim

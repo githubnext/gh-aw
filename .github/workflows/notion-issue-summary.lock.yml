@@ -1493,7 +1493,7 @@ jobs:
                   case "upload_asset":
                     return 10;
                   case "noop":
-                    return 100; 
+                    return 1; 
                   default:
                     return 1;
                 }

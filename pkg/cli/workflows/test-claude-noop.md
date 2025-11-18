@@ -2,7 +2,7 @@
 on:
   command:
     name: test-noop
-    reaction: eyes
+  reaction: eyes
 permissions:
   contents: read
   actions: read
