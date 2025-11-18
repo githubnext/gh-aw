@@ -81,7 +81,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		StepID:        "conclusion",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        notifyCommentErrorScript,
+		Script:        getNotifyCommentErrorScript(),
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)

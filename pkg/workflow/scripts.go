@@ -53,6 +53,9 @@ var pushToPullRequestBranchScriptSource string
 //go:embed js/create_pull_request.cjs
 var createPullRequestScriptSource string
 
+//go:embed js/notify_comment_error.cjs
+var notifyCommentErrorScriptSource string
+
 // Log parser source scripts
 //
 //go:embed js/parse_claude_log.cjs
@@ -107,6 +110,9 @@ var (
 
 	createPullRequestScript     string
 	createPullRequestScriptOnce sync.Once
+
+	notifyCommentErrorScript     string
+	notifyCommentErrorScriptOnce sync.Once
 
 	interpolatePromptBundled     string
 	interpolatePromptBundledOnce sync.Once
@@ -359,6 +365,26 @@ func getCreatePullRequestScript() string {
 		}
 	})
 	return createPullRequestScript
+}
+
+// getNotifyCommentErrorScript returns the bundled notify_comment_error script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles load_agent_output.cjs inline to avoid require() issues in GitHub Actions
+func getNotifyCommentErrorScript() string {
+	notifyCommentErrorScriptOnce.Do(func() {
+		scriptsLog.Print("Bundling notify_comment_error script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(notifyCommentErrorScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for notify_comment_error, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			notifyCommentErrorScript = notifyCommentErrorScriptSource
+		} else {
+			scriptsLog.Printf("Successfully bundled notify_comment_error script: %d bytes", len(bundled))
+			notifyCommentErrorScript = bundled
+		}
+	})
+	return notifyCommentErrorScript
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script

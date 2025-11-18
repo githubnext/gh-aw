@@ -59,9 +59,6 @@ var checkoutPRBranchScript string
 //go:embed js/redact_secrets.cjs
 var redactSecretsScript string
 
-//go:embed js/notify_comment_error.cjs
-var notifyCommentErrorScript string
-
 //go:embed js/sanitize_content.cjs
 var sanitizeContentScript string
 
