@@ -659,6 +659,165 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 	return nil
 }
 
+// extractSandboxConfig extracts sandbox configuration from front matter
+func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConfig {
+	if sandbox, exists := frontmatter["sandbox"]; exists {
+		// Handle string format: "default" or "sandbox-runtime"
+		if sandboxStr, ok := sandbox.(string); ok {
+			sandboxType := SandboxType(sandboxStr)
+			if sandboxType == SandboxTypeDefault || sandboxType == SandboxTypeRuntime {
+				return &SandboxConfig{
+					Type: sandboxType,
+				}
+			}
+			// Unknown string format, return nil
+			return nil
+		}
+
+		// Handle object format: { type: "...", config: {...} }
+		if sandboxObj, ok := sandbox.(map[string]any); ok {
+			config := &SandboxConfig{}
+
+			// Extract type if present
+			if typeVal, hasType := sandboxObj["type"]; hasType {
+				if typeStr, ok := typeVal.(string); ok {
+					config.Type = SandboxType(typeStr)
+				}
+			}
+
+			// Extract config if present (custom SRT config)
+			if configVal, hasConfig := sandboxObj["config"]; hasConfig {
+				if configObj, ok := configVal.(map[string]any); ok {
+					srtConfig := &SandboxRuntimeConfig{}
+
+					// Extract network config
+					if networkVal, hasNetwork := configObj["network"]; hasNetwork {
+						if networkObj, ok := networkVal.(map[string]any); ok {
+							netConfig := &SRTNetworkConfig{}
+
+							// Extract allowedDomains
+							if allowedDomains, hasAllowed := networkObj["allowedDomains"]; hasAllowed {
+								if domainsSlice, ok := allowedDomains.([]any); ok {
+									for _, domain := range domainsSlice {
+										if domainStr, ok := domain.(string); ok {
+											netConfig.AllowedDomains = append(netConfig.AllowedDomains, domainStr)
+										}
+									}
+								}
+							}
+
+							// Extract deniedDomains
+							if deniedDomains, hasDenied := networkObj["deniedDomains"]; hasDenied {
+								if domainsSlice, ok := deniedDomains.([]any); ok {
+									for _, domain := range domainsSlice {
+										if domainStr, ok := domain.(string); ok {
+											netConfig.DeniedDomains = append(netConfig.DeniedDomains, domainStr)
+										}
+									}
+								}
+							}
+
+							// Extract allowUnixSockets
+							if unixSockets, hasUnixSockets := networkObj["allowUnixSockets"]; hasUnixSockets {
+								if socketsSlice, ok := unixSockets.([]any); ok {
+									for _, socket := range socketsSlice {
+										if socketStr, ok := socket.(string); ok {
+											netConfig.AllowUnixSockets = append(netConfig.AllowUnixSockets, socketStr)
+										}
+									}
+								}
+							}
+
+							// Extract allowLocalBinding
+							if allowLocalBinding, hasAllowLocalBinding := networkObj["allowLocalBinding"]; hasAllowLocalBinding {
+								if bindingBool, ok := allowLocalBinding.(bool); ok {
+									netConfig.AllowLocalBinding = bindingBool
+								}
+							}
+
+							srtConfig.Network = netConfig
+						}
+					}
+
+					// Extract filesystem config
+					if filesystemVal, hasFilesystem := configObj["filesystem"]; hasFilesystem {
+						if filesystemObj, ok := filesystemVal.(map[string]any); ok {
+							fsConfig := &SRTFilesystemConfig{}
+
+							// Extract denyRead
+							if denyRead, hasDenyRead := filesystemObj["denyRead"]; hasDenyRead {
+								if pathsSlice, ok := denyRead.([]any); ok {
+									for _, path := range pathsSlice {
+										if pathStr, ok := path.(string); ok {
+											fsConfig.DenyRead = append(fsConfig.DenyRead, pathStr)
+										}
+									}
+								}
+							}
+
+							// Extract allowWrite
+							if allowWrite, hasAllowWrite := filesystemObj["allowWrite"]; hasAllowWrite {
+								if pathsSlice, ok := allowWrite.([]any); ok {
+									for _, path := range pathsSlice {
+										if pathStr, ok := path.(string); ok {
+											fsConfig.AllowWrite = append(fsConfig.AllowWrite, pathStr)
+										}
+									}
+								}
+							}
+
+							// Extract denyWrite
+							if denyWrite, hasDenyWrite := filesystemObj["denyWrite"]; hasDenyWrite {
+								if pathsSlice, ok := denyWrite.([]any); ok {
+									for _, path := range pathsSlice {
+										if pathStr, ok := path.(string); ok {
+											fsConfig.DenyWrite = append(fsConfig.DenyWrite, pathStr)
+										}
+									}
+								}
+							}
+
+							srtConfig.Filesystem = fsConfig
+						}
+					}
+
+					// Extract ignoreViolations
+					if ignoreViolations, hasIgnoreViolations := configObj["ignoreViolations"]; hasIgnoreViolations {
+						if violationsObj, ok := ignoreViolations.(map[string]any); ok {
+							violations := make(map[string][]string)
+							for key, value := range violationsObj {
+								if pathsSlice, ok := value.([]any); ok {
+									var paths []string
+									for _, path := range pathsSlice {
+										if pathStr, ok := path.(string); ok {
+											paths = append(paths, pathStr)
+										}
+									}
+									violations[key] = paths
+								}
+							}
+							srtConfig.IgnoreViolations = violations
+						}
+					}
+
+					// Extract enableWeakerNestedSandbox
+					if enableWeakerNestedSandbox, hasEnableWeaker := configObj["enableWeakerNestedSandbox"]; hasEnableWeaker {
+						if weakerBool, ok := enableWeakerNestedSandbox.(bool); ok {
+							srtConfig.EnableWeakerNestedSandbox = weakerBool
+						}
+					}
+
+					config.Config = srtConfig
+				}
+			}
+
+			return config
+		}
+	}
+
+	return nil
+}
+
 // addZizmorIgnoreForWorkflowRun adds a zizmor ignore comment for workflow_run triggers
 // The comment is added after the workflow_run: line to suppress dangerous-triggers warnings
 // since the compiler adds proper role and fork validation to secure these triggers
