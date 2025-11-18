@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
 network: defaults
 imports:
-- githubnext/agentics/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
+- githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
   create-discussion:
     category: announcements
