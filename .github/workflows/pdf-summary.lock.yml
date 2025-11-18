@@ -1288,11 +1288,11 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.360
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.20.2
+          docker pull ghcr.io/github/github-mcp-server:v0.21.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1885,7 +1885,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.20.2"
+                  "ghcr.io/github/github-mcp-server:v0.21.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2331,7 +2331,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.358",
+              agent_version: "0.0.360",
               workflow_name: "Resource Summarizer Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4868,7 +4868,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.360
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
