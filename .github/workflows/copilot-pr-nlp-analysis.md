@@ -68,8 +68,8 @@ steps:
     run: |
       pip install --user nltk scikit-learn textblob wordcloud
       
-      # Download required NLTK data
-      python3 -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger', quiet=True)"
+      # Download required NLTK data (using punkt_tab for NLTK 3.9+)
+      python3 -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
       
       # Verify installations
       python3 -c "import nltk; print(f'NLTK {nltk.__version__} installed')"
