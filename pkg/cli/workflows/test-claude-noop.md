@@ -1,8 +1,13 @@
 ---
-on: workflow_dispatch
+on:
+  command:
+    name: test-noop
+    reaction: eyes
 permissions:
   contents: read
   actions: read
+  issues: write
+  pull-requests: write
 engine: claude
 safe-outputs:
   noop:

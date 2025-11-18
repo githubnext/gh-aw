@@ -65,18 +65,18 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 			return nil
 		}
 
-		noopConfig := &NoOpConfig{} // Default: high max for transparency
+		noopConfig := &NoOpConfig{}
 
 		// Handle the case where configData is nil (noop: with no value)
 		if configData == nil {
-			// Set high default max for noop messages
-			noopConfig.Max = 100
+			// Set default max for noop messages
+			noopConfig.Max = 1
 			return noopConfig
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse common base fields with default max of 100 (high limit for transparency)
-			c.parseBaseSafeOutputConfig(configMap, &noopConfig.BaseSafeOutputConfig, 100)
+			// Parse common base fields with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &noopConfig.BaseSafeOutputConfig, 1)
 		}
 
 		return noopConfig

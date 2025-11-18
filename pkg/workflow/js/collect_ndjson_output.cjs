@@ -36,7 +36,7 @@ async function main() {
       case "upload_asset":
         return 10;
       case "noop":
-        return 100; // Allow many noop messages for transparency
+        return 1; // Default max for noop messages
       default:
         return 1;
     }

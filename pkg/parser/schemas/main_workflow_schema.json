@@ -2835,9 +2835,9 @@
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of noop messages (default: 100)",
+                  "description": "Maximum number of noop messages (default: 1)",
                   "minimum": 1,
-                  "default": 100
+                  "default": 1
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -2848,7 +2848,7 @@
             },
             {
               "type": "null",
-              "description": "Enable noop output with default configuration (max: 100)"
+              "description": "Enable noop output with default configuration (max: 1)"
             },
             {
               "type": "boolean",

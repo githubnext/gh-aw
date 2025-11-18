@@ -22,24 +22,26 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Create this job when:
 	// 1. add-comment is configured with a reaction, OR
-	// 2. command is configured with a reaction (which auto-creates a comment in activation)
+	// 2. command is configured with a reaction (which auto-creates a comment in activation), OR
+	// 3. noop is configured with a reaction (to post noop messages to activation comment)
 
 	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
 	hasCommand := data.Command != ""
+	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 
-	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_reaction=%t", hasAddComment, hasCommand, hasReaction)
+	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t", hasAddComment, hasCommand, hasNoOp, hasReaction)
 
-	// Only create this job when reactions are being used AND either add-comment or command is configured
+	// Only create this job when reactions are being used AND either add-comment, command, or noop is configured
 	// This job updates the activation comment, which is only created when AIReaction is configured
 	if !hasReaction {
 		notifyCommentLog.Printf("Skipping job: no reaction configured")
 		return nil, nil // No reaction configured or explicitly disabled, no comment to update
 	}
 
-	if !hasAddComment && !hasCommand {
-		notifyCommentLog.Printf("Skipping job: neither add-comment nor command configured")
-		return nil, nil // Neither add-comment nor command is configured, no need for conclusion job
+	if !hasAddComment && !hasCommand && !hasNoOp {
+		notifyCommentLog.Printf("Skipping job: neither add-comment, command, nor noop configured")
+		return nil, nil // Neither add-comment, command, nor noop is configured, no need for conclusion job
 	}
 
 	// Build the job steps

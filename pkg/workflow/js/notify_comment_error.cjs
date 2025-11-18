@@ -3,6 +3,9 @@
 
 // This script updates an existing comment created by the activation job
 // to notify about the workflow completion status (success or failure).
+// It also processes noop messages and adds them to the activation comment.
+
+const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -33,6 +36,17 @@ async function main() {
 
   core.info(`Updating comment in ${repoOwner}/${repoName}`);
 
+  // Load agent output to check for noop messages
+  let noopMessages = [];
+  const agentOutputResult = loadAgentOutput();
+  if (agentOutputResult.success && agentOutputResult.data) {
+    const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+    if (noopItems.length > 0) {
+      core.info(`Found ${noopItems.length} noop message(s)`);
+      noopMessages = noopItems.map(item => item.message);
+    }
+  }
+
   // Determine the message based on agent conclusion
   let statusEmoji = "❌";
   let statusText = "failed";
@@ -56,6 +70,16 @@ async function main() {
   } else {
     // Default to failure message
     message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+  }
+
+  // Add noop messages to the comment if any
+  if (noopMessages.length > 0) {
+    message += "\n\n";
+    if (noopMessages.length === 1) {
+      message += noopMessages[0];
+    } else {
+      message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+    }
   }
 
   // Check if this is a discussion comment (GraphQL node ID format)
