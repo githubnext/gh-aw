@@ -151,7 +151,73 @@ Safe output types are structured data formats that AI agents can emit to perform
    };
    ```
 
-### Step 3: Update Collection JavaScript
+### Step 3: Update Safe Outputs Tools JSON
+
+**File**: `pkg/workflow/js/safe_outputs_tools.json`
+
+Add a tool signature for your new safe output type to expose it to AI agents through the MCP server. This file defines the tools that AI agents can call.
+
+Add a new tool definition to the array:
+
+```json
+{
+  "name": "your_new_type",
+  "description": "Brief description of what this tool does (use underscores in name, not hyphens)",
+  "inputSchema": {
+    "type": "object",
+    "required": ["required_field"],
+    "properties": {
+      "required_field": {
+        "type": "string",
+        "description": "Description of the required field"
+      },
+      "optional_field": {
+        "type": "string",
+        "description": "Description of the optional field"
+      },
+      "numeric_field": {
+        "type": ["number", "string"],
+        "description": "Numeric field that accepts both number and string types"
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Tool Signature Guidelines**:
+- Tool `name` must use underscores (e.g., `your_new_type`), matching the type field in the JSONL output
+- The `name` field should match the safe output type name with underscores instead of hyphens
+- Include a clear `description` explaining what the tool does
+- Define an `inputSchema` with all fields the AI agent will provide
+- Use `required` array for mandatory fields
+- Set `additionalProperties: false` to prevent extra fields
+- For numeric fields, use `"type": ["number", "string"]` to allow both types (agents sometimes send strings)
+- Use descriptive field names and descriptions to guide AI agents
+
+**Examples from existing tools**:
+```json
+{
+  "name": "create_issue",
+  "description": "Create a new GitHub issue",
+  "inputSchema": {
+    "type": "object",
+    "required": ["title", "body"],
+    "properties": {
+      "title": { "type": "string", "description": "Issue title" },
+      "body": { "type": "string", "description": "Issue body/description" },
+      "labels": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Issue labels"
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+### Step 4: Update Collection JavaScript
 
 **File**: `pkg/workflow/js/collect_ndjson_output.ts`
 
@@ -187,7 +253,7 @@ case "your-new-type":
 - Use `validateIssueOrPRNumber()` for GitHub issue/PR number fields
 - Continue the loop on validation errors to process remaining items
 
-### Step 4: Create JavaScript Implementation
+### Step 5: Create JavaScript Implementation
 
 **File**: `pkg/workflow/js/your_new_type.cjs`
 
@@ -289,7 +355,7 @@ await main();
 - Use GitHub Actions context variables for repo information
 - Follow the existing pattern for environment variable handling
 
-### Step 5: Create Test File
+### Step 6: Create Test File
 
 **File**: `pkg/workflow/js/your_new_type.test.cjs`
 
@@ -303,7 +369,7 @@ Create comprehensive tests following existing patterns in the codebase:
 - Use vitest framework with proper mocking
 - Follow existing test patterns in `.test.cjs` files
 
-### Step 6: Update Collection Tests
+### Step 7: Update Collection Tests
 
 **File**: `pkg/workflow/js/collect_ndjson_output.test.cjs`
 
@@ -313,7 +379,7 @@ Add test cases for your new type following existing patterns:
 - Test field type validation
 - Follow existing test structure in the file
 
-### Step 7: Create Test Agentic Workflows
+### Step 8: Create Test Agentic Workflows
 
 Create test workflows for each supported engine to validate the new safe output type:
 
@@ -349,7 +415,7 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### Step 8: Create Go Job Builder
+### Step 9: Create Go Job Builder
 
 **File**: `pkg/workflow/your_new_type.go`
 
@@ -551,7 +617,7 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 }
 ```
 
-### Step 9: Build and Test
+### Step 10: Build and Test
 
 1. **Compile TypeScript**: `make js`
 2. **Format code**: `make fmt-cjs`
@@ -560,7 +626,7 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 5. **Compile workflows**: `make recompile`
 6. **Full validation**: `make agent-finish`
 
-### Step 10: Manual Validation
+### Step 11: Manual Validation
 
 1. Create a simple test workflow using your new safe output type
 2. Test both staged and non-staged modes
