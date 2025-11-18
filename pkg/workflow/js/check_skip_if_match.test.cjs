@@ -107,9 +107,7 @@ describe("check_skip_if_match.cjs", () => {
 
       await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining("GH_AW_SKIP_QUERY not specified")
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SKIP_QUERY not specified"));
       expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
 
@@ -119,9 +117,7 @@ describe("check_skip_if_match.cjs", () => {
 
       await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining("GH_AW_WORKFLOW_NAME not specified")
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_NAME not specified"));
       expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
@@ -144,9 +140,7 @@ describe("check_skip_if_match.cjs", () => {
         q: "is:issue is:open label:nonexistent repo:testowner/testrepo",
         per_page: 1,
       });
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("No matches found")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No matches found"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -170,12 +164,8 @@ describe("check_skip_if_match.cjs", () => {
         q: "is:issue is:open label:bug repo:testowner/testrepo",
         per_page: 1,
       });
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("Skip condition matched")
-      );
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("5 items found")
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skip condition matched"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("5 items found"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -193,9 +183,7 @@ describe("check_skip_if_match.cjs", () => {
 
       await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
 
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("1 items found")
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("1 items found"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
     });
   });
@@ -206,18 +194,12 @@ describe("check_skip_if_match.cjs", () => {
       process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
 
       const errorMessage = "API rate limit exceeded";
-      mockGithub.rest.search.issuesAndPullRequests.mockRejectedValue(
-        new Error(errorMessage)
-      );
+      mockGithub.rest.search.issuesAndPullRequests.mockRejectedValue(new Error(errorMessage));
 
       await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to execute search query")
-      );
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining(errorMessage)
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to execute search query"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(errorMessage));
       expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
