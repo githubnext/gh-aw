@@ -109,9 +109,10 @@ export default defineConfig({
 					label: 'Examples',
 					items: [
 						{ label: 'ChatOps', link: '/examples/comment-triggered/chatops/' },
+						{ label: 'DailyOps', link: '/examples/scheduled/dailyops/' },
 						{ label: 'IssueOps', link: '/examples/issue-pr-events/issueops/' },
 						{ label: 'LabelOps', link: '/examples/issue-pr-events/labelops/' },
-						{ label: 'DailyOps', link: '/examples/scheduled/dailyops/' },
+						{ label: 'ProjectOps', link: '/examples/issue-pr-events/projectops/' },
 						{ label: 'Research & Planning', link: '/examples/scheduled/research-planning/' },
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },

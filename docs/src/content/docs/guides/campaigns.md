@@ -1,122 +1,156 @@
 ---
 title: Campaign Workflows
-description: Use agentic workflows to plan, execute, and track focused software initiatives with automated project board management and campaign tracking.
+description: Use agentic workflows to orchestrate multi-issue initiatives with goals, KPIs, resources, and human guidance - campaigns coordinate work rather than execute it.
 ---
 
-Campaign workflows enable AI agents to orchestrate focused, time-bounded initiatives by automatically creating project boards, generating tasks, and tracking progress across issues and pull requests.
+Campaign workflows enable AI agents to orchestrate focused initiatives by coordinating buckets of related issues, tracking progress toward goals, synthesizing resources, and adapting to human guidance. Campaigns are coordination mechanisms, not execution mechanisms.
 
-## Campaigns in Agentic Workflows
+## What is a Campaign?
 
-A **campaign workflow** is different from a regular task workflow:
+A **campaign** is a coordinated initiative with:
+
+- **Bucket of issues** - Related work items grouped by shared purpose
+- **Goals and KPIs** - Measurable objectives ("reduce page load by 30%", "achieve 80% test coverage")
+- **Resources** - Telemetry data, docs, specs, research, external context
+- **Human guidance** - Comments from maintainers, user feedback, design decisions
+- **History** - Timeline of PRs, events, discussions causally related to campaign
+- **Tracking mechanism** - Project board, epic issue, discussion, or just labels
+
+## Campaign vs Task Workflows
 
 | Regular Workflow | Campaign Workflow |
 |------------------|-------------------|
-| Executes one task | Plans and coordinates multiple tasks |
-| Single issue/PR | Creates issues, manages project board |
+| Executes one task | Coordinates multiple related tasks |
+| Single issue/PR | Manages bucket of issues |
 | Direct action | Strategic orchestration |
 | Tactical | Strategic |
 
 **Campaign workflow responsibilities:**
-- Analyze codebase/context to identify work needed
-- Create GitHub Project board as campaign dashboard
-- Generate issues for each task with labels and priorities
-- Add all tasks to project board with status tracking
-- Return campaign ID for querying and reporting
+- Analyze context to identify related work items
+- Organize issues into campaign bucket (via labels, project, or epic)
+- Define campaign goals, KPIs, and success criteria
+- Synthesize resources (telemetry, docs, research)
+- Create tracking mechanism (project board, epic issue, or discussion)
+- Generate campaign ID for coordination
 
 **Worker workflow responsibilities:**
-- Execute individual tasks (triggered by issue labels)
-- Update project board status as work progresses
+- Execute individual issues within campaign scope
 - Reference campaign ID in commits and PRs
-- Mark tasks complete when done
+- Update campaign status through labels/comments
+- Contribute to campaign goals incrementally
 
 ## How Campaign Workflows Work
 
-Campaign workflows use two key safe outputs:
+Campaign workflows use safe outputs flexibly based on coordination needs:
 
 ```yaml wrap
 safe-outputs:
-  create-issue: { max: 20 }     # Generate campaign tasks
-  update-project: { max: 20 }   # Manage project board
+  create-issue: { max: 20 }      # Generate campaign work items
+  update-project: { max: 20 }    # Optional: use project boards
+  create-discussion: { max: 1 }  # Optional: use discussions for tracking
+  add-comment: { max: 10 }       # Update epic issues or discussions
 ```
 
-### The `update-project` Safe Output
+### Campaign Tracking Options
 
-The `update-project` tool provides smart project board management:
-- **Auto-creates boards**: Creates if doesn't exist, finds if it does
-- **Auto-adds items**: Checks if issue already on board before adding
-- **Updates fields**: Sets status, priority, custom fields
-- **Returns campaign ID**: Unique identifier for tracking
+Campaigns are **not tightly coupled to any single GitHub feature**. Choose what fits:
 
-The agent describes the desired board state, the tool handles all GitHub Projects v2 API complexity.
+**Project Board (structured dashboards)**
+- Visual kanban for status tracking
+- Custom fields for priority, effort, phase
+- Good for: executive visibility, multi-phase campaigns
+
+**Epic Issue (lightweight tracking)**
+- Single issue with task list linking related issues
+- Comments for progress updates and guidance
+- Good for: simple campaigns, developer-focused coordination
+
+**Discussion Thread (research and planning)**
+- Long-form updates with persistent history
+- Good for: proto-campaigns, research phases, community input
+
+**Campaign Labels Only (minimal overhead)**
+- Just `campaign:<id>` labels on related issues
+- Query and report using GitHub CLI
+- Good for: informal coordination, fast iteration
+
+Most campaigns use **multiple mechanisms**: labels for querying, discussion for planning, project board or epic issue for tracking.
 
 ## Campaign Workflow Example
 
-### Performance Optimization Campaign
+### AI Triage Campaign
 
-**Goal**: Reduce page load time by 30% in 2 weeks
+**Goal**: Implement intelligent issue triage to reduce maintainer burden
 
 ```aw wrap
 ---
 on:
   workflow_dispatch:
     inputs:
-      performance_target:
-        description: "Target improvement percentage"
-        default: "30"
+      triage_goal:
+        description: "What should AI triage accomplish?"
+        default: "Auto-label, route, and prioritize all new issues"
 
 engine: copilot
 
 safe-outputs:
-  create-issue: { max: 20 }     # Create tasks
-  update-project: { max: 20 }   # Manage board
+  create-issue: { max: 20 }        # Create tasks
+  create-discussion: { max: 1 }    # Campaign planning discussion
 ---
 
-# Performance Optimization Campaign
+# AI Triage Campaign
 
-You are managing a performance optimization campaign.
+You are launching an AI triage campaign.
 
-**Goal**: Reduce page load time by {{inputs.performance_target}}% 
+**Goal**: {{inputs.triage_goal}}
 
 **Your tasks**:
 
-1. **Create campaign board**: "Performance Campaign - [Today's Date]"
+1. **Create campaign discussion**: "AI Triage Campaign - [Today's Date]"
+   - Document campaign goals and KPIs
+   - Link to relevant resources (existing triage workflows, issue templates)
 
-2. **Analyze current performance**:
-   - Review bundle sizes
-   - Check critical rendering path
-   - Identify slow database queries
-   - Look for large images/assets
+2. **Analyze current triage process**:
+   - Review existing issue labels and their usage
+   - Identify common issue types and patterns
+   - Check current triage response times
+   - Look for triage bottlenecks
 
-3. **Create issues for each problem**:
-   - Title: Clear description of performance issue
-   - Labels: "performance", "campaign"
-   - Body: Specific metrics, suggested fixes
+3. **Create issues for each improvement**:
+   - Title: Clear description of triage enhancement
+   - Labels: "triage", "campaign:ai-triage-[timestamp]"
+   - Body: Specific metrics, acceptance criteria, implementation approach
    
-4. **Add each issue to the campaign board** with:
-   - Priority: Critical/High/Medium based on impact
-   - Effort: XS/S/M/L based on complexity
-   - Status: "Todo"
+   Example issues:
+   - Auto-label bug reports based on content
+   - Route feature requests to appropriate project boards
+   - Prioritize security issues automatically
+   - Add "needs-reproduction" label when stack traces missing
+   - Suggest duplicate issues using semantic search
 
-5. **Track progress** as issues are resolved
+4. **Track in discussion**:
+   - Campaign ID for querying: `campaign:ai-triage-[timestamp]`
+   - Success criteria: 80% of issues auto-labeled within 5 minutes
+   - Resources: Link to issue templates, label taxonomy, triage docs
 
-The campaign board provides a visual dashboard of all optimization work.
+Provide campaign summary with issue list and discussion URL.
 ```
 
 ### What the Agent Does
 
-1. **Analyzes context**: Reviews codebase for performance bottlenecks
-2. **Creates project board**: Establishes campaign dashboard with unique ID
-3. **Generates task issues**: One issue per problem with detailed description
-4. **Organizes work**: Adds issues to board with priority and effort estimates
-5. **Tracks automatically**: Campaign ID links all work together via labels
+1. **Analyzes context**: Reviews current issue triage process and bottlenecks
+2. **Creates campaign discussion**: Establishes planning thread with goals and resources
+3. **Generates task issues**: One issue per triage improvement with detailed implementation approach
+4. **Organizes work**: Applies campaign labels for coordination and tracking
+5. **Documents campaign**: Campaign ID, success criteria, and resources in discussion
 
 ### What the Team Does
 
-- Reviews generated issues on campaign board
-- Assigns issues to team members
-- Issues trigger worker workflows when labeled
-- Worker workflows execute fixes and update board status
-- Campaign board shows real-time progress toward goal
+- Reviews generated issues and prioritizes implementation order
+- Assigns issues to team members or labels for worker workflows
+- Worker workflows implement triage automation when issues are labeled
+- Team monitors triage metrics (auto-labeling rate, response time, accuracy)
+- Campaign discussion shows progress updates and learnings
 
 ## Campaign Tracking with IDs
 
@@ -201,27 +235,39 @@ gh issue list --label "campaign:perf-q1-2025-a3f2b4c8" --json createdAt,closedAt
 ## Campaign Architecture
 
 ```
-User triggers campaign workflow
+User/Scheduled Trigger
          ↓
-Agent analyzes codebase/context
+  Campaign Workflow
          ↓
-Agent creates campaign board
+Analyze codebase/context
          ↓
-Agent identifies tasks needed
+Identify related work items
          ↓
-For each task:
-  - Create GitHub issue
-  - Add to campaign board
-  - Set priority/effort/status
+Create tracking mechanism
+(project/epic/discussion/labels)
          ↓
-Issues trigger worker workflows
+Generate campaign ID
          ↓
-Worker workflows:
-  - Execute task (fix bug, optimize code, etc.)
-  - Update board status
-  - Mark complete
+Create/organize issues
          ↓
-Campaign board shows real-time progress
+Apply campaign labels
+         ↓
+    Issue Created
+         ↓
+  Worker Workflow
+  (label-triggered)
+         ↓
+   Execute Task
+         ↓
+  Update Status
+  (via labels/comments)
+         ↓
+   Create PR
+         ↓
+References campaign ID
+         ↓
+  Campaign Progress
+   Tracked & Visible
 ```
 
 ## Campaign Workflow Patterns
@@ -235,22 +281,38 @@ on:
     inputs:
       campaign_goal:
         description: "What should this campaign achieve?"
+      tracking_method:
+        description: "Tracking method: project-board, epic-issue, discussion, or labels-only"
+        default: "discussion"
 engine: copilot
 safe-outputs:
   create-issue: { max: 20 }
+  create-discussion: { max: 1 }
   update-project: { max: 20 }
 ---
 
-# Campaign Planner
+# Campaign Launcher
 
-Analyze the codebase and plan a campaign for: {{inputs.campaign_goal}}
+Launch campaign: {{inputs.campaign_goal}}
 
-Create a project board and generate issues for all necessary tasks.
+**Setup tasks:**
+1. Generate campaign ID from goal
+2. Analyze repository to identify work items needed
+3. Create tracking mechanism: {{inputs.tracking_method}}
+   - project-board: Create board with status fields
+   - epic-issue: Create epic issue with task list
+   - discussion: Create planning discussion thread
+   - labels-only: Just apply campaign labels to issues
+4. Define campaign goals, KPIs, success criteria
+5. Generate issues with campaign labels
+6. Create initial status report with campaign overview
+
+Provide campaign ID and tracking URL in summary.
 ```
 
-**Use case**: Team decides to launch a bug bash or tech debt campaign
+**Use case**: Team decides to launch a focused initiative (e.g., "Implement AI triage", "Migrate to TypeScript", "Security audit")
 
-### Scheduled: Proactive Campaign Planning
+### Scheduled: Proactive Campaign Monitoring
 
 ```aw wrap
 ---
@@ -263,7 +325,7 @@ safe-outputs:
   update-project: { max: 20 }
 ---
 
-# Weekly Campaign Analyzer
+# Weekly Campaign Health Check
 
 Review repository health and recommend campaigns for:
 - High-priority bugs that need focused attention
@@ -336,23 +398,23 @@ Worker workflow detects campaign label, executes task, updates same board.
 ## Best Practices for Campaign Workflows
 
 ### For Campaign Planning
-1. **Analyze before creating**: Let agent inspect codebase to find real issues
-2. **Batch issue creation**: Use `create-issue: { max: 20 }` for multiple tasks
-3. **Include campaign ID**: Auto-generated and added as label for tracking
-4. **Set clear priorities**: Use custom fields (Critical/High/Medium/Low)
-5. **Estimate effort**: Add effort field (XS/S/M/L/XL) for planning
+1. **Choose appropriate tracking**: Match mechanism to campaign complexity (labels-only for simple, project board for complex)
+2. **Define clear goals and KPIs**: Measurable objectives enable progress tracking
+3. **Synthesize resources**: Link to telemetry, docs, specs, research
+4. **Use campaign ID consistently**: Apply to all related issues, PRs, commits
+5. **Analyze before creating**: Let agent inspect codebase to find real issues
 
 ### For Campaign Execution
-1. **Worker workflows reference campaign ID**: Extract from labels to update correct board
-2. **Update board status**: Move items through To Do → In Progress → Done
-3. **Link PRs to issues**: Use "Fixes #123" to auto-close and track progress
-4. **Query by campaign label**: `gh issue list --label "campaign:perf-q1-2025-a3f2b4c8"`
-5. **Measure results**: Compare metrics before/after campaign completion
+1. **Worker workflows reference campaign ID**: Extract from labels to coordinate updates
+2. **Link PRs to issues**: Use "Fixes #123" to track progress automatically
+3. **Query by campaign label**: `gh issue list --label "campaign:perf-q1-2025-a3f2b4c8"`
+4. **Measure against KPIs**: Compare metrics to campaign goals regularly
+5. **Update campaign status**: Comment on epic/discussion with progress
 
 ### For Campaign Tracking
-1. **One board per campaign**: Don't mix campaigns on same board
-2. **Descriptive board names**: Include goal and timeframe
-3. **Preserve campaign history**: Don't delete boards, archive them
+1. **One tracking mechanism per campaign**: Keep campaigns clearly separated
+2. **Descriptive names**: Include goal and timeframe
+3. **Preserve history**: Archive completed campaigns with outcomes and learnings
 4. **Report with campaign ID**: Use ID in status updates and retrospectives
 5. **Learn from campaigns**: Review what worked for future planning
 
@@ -362,9 +424,9 @@ Worker workflow detects campaign label, executes task, updates same board.
 
 1. Add campaign workflow file (`.github/workflows/my-campaign.md`)
 2. Define trigger (manual, scheduled, or condition-based)
-3. Configure `create-issue` and `update-project` safe outputs
+3. Configure `create-issue` and tracking safe outputs (`update-project`, `create-discussion`, etc.)
 4. Write agent instructions to analyze and plan campaign
-5. Run workflow to generate board and issues
+5. Run workflow to generate tracking mechanism and issues
 6. Team executes tasks using worker workflows
 7. Query campaign progress using campaign ID
 
