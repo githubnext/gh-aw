@@ -937,6 +937,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = true
 	}
+	if data.SafeOutputs.NoOp != nil {
+		enabledTools["noop"] = true
+	}
 
 	// Filter tools to only include enabled ones
 	var filteredTools []map[string]any

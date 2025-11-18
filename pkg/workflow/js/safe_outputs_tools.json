@@ -245,5 +245,20 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "noop",
+    "description": "Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').",
+    "inputSchema": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Message to log for transparency"
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]
