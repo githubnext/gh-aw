@@ -1196,13 +1196,10 @@ jobs:
           
           **Output format:**
           ```jsonl
-          {"type": "update_release", "tag": "TAG_NAME_HERE", "operation": "prepend", "body": "## AI Summary\n\n[Your 2-4 sentence summary here]"}
+          {"type": "update_release", "operation": "prepend", "body": "## AI Summary\n\n[Your 2-4 sentence summary here]"}
           ```
           
-          For release events, use tag: `${GH_AW_EXPR_8CC9E4EE}`
-          For manual workflow dispatch with release URL/ID, extract the tag from the fetched release data.
-          
-          **Note:** The summary will be automatically prepended with a horizontal line separator and AI attribution footer.
+          **Note:** The tag field is optional and will be automatically inferred from the release event context (`github.event.release.tag_name`) or from workflow dispatch inputs (`release_url` or `release_id`). The summary will be prepended with a horizontal line separator and AI attribution footer.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1336,7 +1333,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_8CC9E4EE: ${{ github.event.release.tag_name }}
           GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         with:
           script: |
@@ -2379,8 +2375,8 @@ jobs:
                       }
                       break;
                     case "update_release":
-                      if (!item.tag || typeof item.tag !== "string") {
-                        errors.push(`Line ${i + 1}: update_release requires a 'tag' string field`);
+                      if (item.tag !== undefined && typeof item.tag !== "string") {
+                        errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
                         continue;
                       }
                       if (!item.operation || typeof item.operation !== "string") {
@@ -2395,7 +2391,9 @@ jobs:
                         errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
                         continue;
                       }
-                      item.tag = sanitizeContent(item.tag, 256);
+                      if (item.tag) {
+                        item.tag = sanitizeContent(item.tag, 256);
+                      }
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
                     case "upload_asset":
@@ -5161,7 +5159,7 @@ jobs:
                   items: updateItems,
                   renderItem: (item, index) => {
                     let content = `### Release Update ${index + 1}\n`;
-                    content += `**Tag:** ${item.tag}\n`;
+                    content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
                     content += `**Operation:** ${item.operation}\n\n`;
                     content += `**Body Content:**\n${item.body}\n\n`;
                     return content;
@@ -5176,11 +5174,43 @@ jobs:
                 const updateItem = updateItems[i];
                 core.info(`Processing update-release item ${i + 1}/${updateItems.length}`);
                 try {
-                  core.info(`Fetching release with tag: ${updateItem.tag}`);
+                  let releaseTag = updateItem.tag;
+                  if (!releaseTag) {
+                    if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
+                      releaseTag = context.payload.release.tag_name;
+                      core.info(`Inferred release tag from event context: ${releaseTag}`);
+                    } else if (context.eventName === "workflow_dispatch" && context.payload.inputs) {
+                      const releaseUrl = context.payload.inputs.release_url;
+                      if (releaseUrl) {
+                        const urlMatch = releaseUrl.match(/github\.com\/[^\/]+\/[^\/]+\/releases\/tag\/([^\/\?#]+)/);
+                        if (urlMatch && urlMatch[1]) {
+                          releaseTag = decodeURIComponent(urlMatch[1]);
+                          core.info(`Inferred release tag from release_url input: ${releaseTag}`);
+                        }
+                      }
+                      if (!releaseTag && context.payload.inputs.release_id) {
+                        const releaseId = context.payload.inputs.release_id;
+                        core.info(`Fetching release with ID: ${releaseId}`);
+                        const { data: release } = await github.rest.repos.getRelease({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          release_id: parseInt(releaseId, 10),
+                        });
+                        releaseTag = release.tag_name;
+                        core.info(`Inferred release tag from release_id input: ${releaseTag}`);
+                      }
+                    }
+                    if (!releaseTag) {
+                      core.error("No tag provided and unable to infer from event context");
+                      core.setFailed("Release tag is required but not provided and cannot be inferred from event context");
+                      return;
+                    }
+                  }
+                  core.info(`Fetching release with tag: ${releaseTag}`);
                   const { data: release } = await github.rest.repos.getReleaseByTag({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    tag: updateItem.tag,
+                    tag: releaseTag,
                   });
                   core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
                   let newBody;
@@ -5206,7 +5236,7 @@ jobs:
                   });
                   core.info(`Successfully updated release: ${updatedRelease.html_url}`);
                   updatedReleases.push({
-                    tag: updateItem.tag,
+                    tag: releaseTag,
                     url: updatedRelease.html_url,
                     id: updatedRelease.id,
                   });
@@ -5217,9 +5247,10 @@ jobs:
                   }
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to update release with tag ${updateItem.tag}: ${errorMessage}`);
+                  const tagInfo = updateItem.tag || "inferred from context";
+                  core.error(`Failed to update release with tag ${tagInfo}: ${errorMessage}`);
                   if (errorMessage.includes("Not Found")) {
-                    core.error(`Release with tag '${updateItem.tag}' not found. Please ensure the tag exists.`);
+                    core.error(`Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
                   }
                   core.setFailed(`Failed to update release: ${errorMessage}`);
                   return;

@@ -2772,8 +2772,8 @@ jobs:
                       }
                       break;
                     case "update_release":
-                      if (!item.tag || typeof item.tag !== "string") {
-                        errors.push(`Line ${i + 1}: update_release requires a 'tag' string field`);
+                      if (item.tag !== undefined && typeof item.tag !== "string") {
+                        errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
                         continue;
                       }
                       if (!item.operation || typeof item.operation !== "string") {
@@ -2788,7 +2788,9 @@ jobs:
                         errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
                         continue;
                       }
-                      item.tag = sanitizeContent(item.tag, 256);
+                      if (item.tag) {
+                        item.tag = sanitizeContent(item.tag, 256);
+                      }
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
                     case "upload_asset":

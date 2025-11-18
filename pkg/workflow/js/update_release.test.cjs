@@ -316,4 +316,86 @@ describe("update_release", () => {
     expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledTimes(2);
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Updated 2 release(s)"));
   });
+
+  it("should infer tag from release event context", async () => {
+    // Set up release event context
+    mockContext.eventName = "release";
+    mockContext.payload = {
+      release: {
+        tag_name: "v1.5.0",
+        name: "Version 1.5.0",
+        body: "Original release body",
+      },
+    };
+
+    const mockRelease = {
+      id: 1,
+      tag_name: "v1.5.0",
+      body: "Original release body",
+      html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.5.0",
+    };
+
+    mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease });
+    mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } });
+
+    // Agent output without tag field
+    setAgentOutput({
+      items: [
+        {
+          type: "update_release",
+          operation: "replace",
+          body: "Updated body",
+        },
+      ],
+      errors: [],
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${updateReleaseScript} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Inferred release tag from event context: v1.5.0"));
+    expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      tag: "v1.5.0",
+    });
+    expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      release_id: 1,
+      body: "Updated body",
+    });
+
+    // Clean up
+    delete mockContext.eventName;
+    delete mockContext.payload;
+  });
+
+  it("should fail gracefully when tag is missing and cannot be inferred", async () => {
+    // Set up context without release info
+    mockContext.eventName = "push";
+    mockContext.payload = {};
+
+    // Agent output without tag field
+    setAgentOutput({
+      items: [
+        {
+          type: "update_release",
+          operation: "replace",
+          body: "Updated body",
+        },
+      ],
+      errors: [],
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${updateReleaseScript} })()`);
+
+    expect(mockCore.error).toHaveBeenCalledWith("No tag provided and unable to infer from event context");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Release tag is required"));
+
+    // Clean up
+    delete mockContext.eventName;
+    delete mockContext.payload;
+  });
 });

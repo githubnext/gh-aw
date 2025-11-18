@@ -361,10 +361,7 @@ The release content is available in the context: "${{ needs.activation.outputs.t
 
 **Output format:**
 ```jsonl
-{"type": "update_release", "tag": "TAG_NAME_HERE", "operation": "prepend", "body": "## AI Summary\n\n[Your 2-4 sentence summary here]"}
+{"type": "update_release", "operation": "prepend", "body": "## AI Summary\n\n[Your 2-4 sentence summary here]"}
 ```
 
-For release events, use tag: `${{ github.event.release.tag_name }}`
-For manual workflow dispatch with release URL/ID, extract the tag from the fetched release data.
-
-**Note:** The summary will be automatically prepended with a horizontal line separator and AI attribution footer.
+**Note:** The tag field is optional and will be automatically inferred from the release event context (`github.event.release.tag_name`) or from workflow dispatch inputs (`release_url` or `release_id`). The summary will be prepended with a horizontal line separator and AI attribution footer.

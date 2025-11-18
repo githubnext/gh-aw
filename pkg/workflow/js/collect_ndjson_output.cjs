@@ -588,9 +588,9 @@ async function main() {
           }
           break;
         case "update_release":
-          // Validate tag
-          if (!item.tag || typeof item.tag !== "string") {
-            errors.push(`Line ${i + 1}: update_release requires a 'tag' string field`);
+          // Validate tag (optional - will be inferred from context if missing)
+          if (item.tag !== undefined && typeof item.tag !== "string") {
+            errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
             continue;
           }
           // Validate operation
@@ -608,7 +608,9 @@ async function main() {
             continue;
           }
           // Sanitize content
-          item.tag = sanitizeContent(item.tag, 256);
+          if (item.tag) {
+            item.tag = sanitizeContent(item.tag, 256);
+          }
           item.body = sanitizeContent(item.body, maxBodyLength);
           break;
         case "upload_asset":

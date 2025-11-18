@@ -163,10 +163,10 @@ interface UploadAssetItem extends BaseSafeOutputItem {
  */
 interface UpdateReleaseItem extends BaseSafeOutputItem {
   type: "update_release";
-  /** Tag name of the release to update */
-  tag: string;
-  /** Update operation: 'replace' or 'append' */
-  operation: "replace" | "append";
+  /** Tag name of the release to update (optional - inferred from context if missing) */
+  tag?: string;
+  /** Update operation: 'replace', 'append', or 'prepend' */
+  operation: "replace" | "append" | "prepend";
   /** Content to set or append to the release body */
   body: string;
 }

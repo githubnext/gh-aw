@@ -383,7 +383,7 @@
           "minLength": 1
         }
       },
-      "required": ["type", "tag", "operation", "body"],
+      "required": ["type", "operation", "body"],
       "additionalProperties": false
     }
   }

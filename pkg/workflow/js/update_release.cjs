@@ -30,7 +30,7 @@ async function main() {
       items: updateItems,
       renderItem: (item, index) => {
         let content = `### Release Update ${index + 1}\n`;
-        content += `**Tag:** ${item.tag}\n`;
+        content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
         content += `**Operation:** ${item.operation}\n\n`;
         content += `**Body Content:**\n${item.body}\n\n`;
         return content;
@@ -51,12 +51,50 @@ async function main() {
     core.info(`Processing update-release item ${i + 1}/${updateItems.length}`);
 
     try {
+      // Infer tag from event context if not provided
+      let releaseTag = updateItem.tag;
+      if (!releaseTag) {
+        // Try to get tag from release event context
+        if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
+          releaseTag = context.payload.release.tag_name;
+          core.info(`Inferred release tag from event context: ${releaseTag}`);
+        } else if (context.eventName === "workflow_dispatch" && context.payload.inputs) {
+          // Try to extract from release_url input
+          const releaseUrl = context.payload.inputs.release_url;
+          if (releaseUrl) {
+            const urlMatch = releaseUrl.match(/github\.com\/[^\/]+\/[^\/]+\/releases\/tag\/([^\/\?#]+)/);
+            if (urlMatch && urlMatch[1]) {
+              releaseTag = decodeURIComponent(urlMatch[1]);
+              core.info(`Inferred release tag from release_url input: ${releaseTag}`);
+            }
+          }
+          // Try to fetch from release_id input
+          if (!releaseTag && context.payload.inputs.release_id) {
+            const releaseId = context.payload.inputs.release_id;
+            core.info(`Fetching release with ID: ${releaseId}`);
+            const { data: release } = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: parseInt(releaseId, 10),
+            });
+            releaseTag = release.tag_name;
+            core.info(`Inferred release tag from release_id input: ${releaseTag}`);
+          }
+        }
+        
+        if (!releaseTag) {
+          core.error("No tag provided and unable to infer from event context");
+          core.setFailed("Release tag is required but not provided and cannot be inferred from event context");
+          return;
+        }
+      }
+
       // Get the release by tag
-      core.info(`Fetching release with tag: ${updateItem.tag}`);
+      core.info(`Fetching release with tag: ${releaseTag}`);
       const { data: release } = await github.rest.repos.getReleaseByTag({
         owner: context.repo.owner,
         repo: context.repo.repo,
-        tag: updateItem.tag,
+        tag: releaseTag,
       });
 
       core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
@@ -92,7 +130,7 @@ async function main() {
       core.info(`Successfully updated release: ${updatedRelease.html_url}`);
 
       updatedReleases.push({
-        tag: updateItem.tag,
+        tag: releaseTag,
         url: updatedRelease.html_url,
         id: updatedRelease.id,
       });
@@ -105,11 +143,12 @@ async function main() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      core.error(`Failed to update release with tag ${updateItem.tag}: ${errorMessage}`);
+      const tagInfo = updateItem.tag || "inferred from context";
+      core.error(`Failed to update release with tag ${tagInfo}: ${errorMessage}`);
 
       // Check for specific error cases
       if (errorMessage.includes("Not Found")) {
-        core.error(`Release with tag '${updateItem.tag}' not found. Please ensure the tag exists.`);
+        core.error(`Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
       }
 
       core.setFailed(`Failed to update release: ${errorMessage}`);
