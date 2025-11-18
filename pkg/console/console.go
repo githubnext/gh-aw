@@ -437,6 +437,7 @@ func FormatErrorMessage(message string) string {
 
 // FormatNestedError formats an error message with nested errors shown on separate lines
 // with visual separators similar to Python's traceback format.
+// Uses a robust splitting strategy that avoids breaking on colons within URLs, file paths, etc.
 //
 // Example input:  "failed to compile: failed to parse: invalid syntax"
 // Example output:
@@ -449,8 +450,8 @@ func FormatNestedError(message string) string {
 		return ""
 	}
 
-	// Split the error message by ": " to separate nested errors
-	parts := strings.Split(message, ": ")
+	// Split the error message intelligently to avoid breaking on colons in URLs, file paths, etc.
+	parts := splitNestedErrors(message)
 	if len(parts) <= 1 {
 		// No nested errors, return simple formatted message
 		return FormatErrorMessage(message)
@@ -473,6 +474,100 @@ func FormatNestedError(message string) string {
 	}
 
 	return output.String()
+}
+
+// splitNestedErrors intelligently splits an error message into nested error parts.
+// It uses heuristics to identify real error boundaries vs. colons in content like URLs or file paths.
+func splitNestedErrors(message string) []string {
+	// First, try simple split
+	candidateParts := strings.Split(message, ": ")
+	if len(candidateParts) <= 1 {
+		return candidateParts
+	}
+
+	// Error-indicating prefixes that suggest a new error boundary
+	errorPrefixes := []string{
+		"failed to ",
+		"could not ",
+		"unable to ",
+		"cannot ",
+		"error ",
+		"failed ",
+	}
+
+	// Check if a string looks like it starts a new error message
+	startsNewError := func(s string) bool {
+		trimmed := strings.TrimSpace(s)
+		lower := strings.ToLower(trimmed)
+
+		// Check for common error prefixes
+		for _, prefix := range errorPrefixes {
+			if strings.HasPrefix(lower, prefix) {
+				return true
+			}
+		}
+
+		// Single word errors like "error", "warning"
+		if len(strings.Fields(lower)) == 1 && (lower == "error" || lower == "warning") {
+			return true
+		}
+
+		// Short phrases that look like error messages (not URLs or file paths)
+		// These typically don't contain "/" or "=" and are reasonable length
+		if !strings.Contains(trimmed, "/") &&
+			!strings.Contains(trimmed, "=") &&
+			!strings.Contains(trimmed, "http") &&
+			len(trimmed) > 0 && len(trimmed) < 200 {
+			// If it doesn't look like a URL or file path, it's likely an error message
+			return true
+		}
+
+		return false
+	}
+
+	// Merge parts that look like they're part of URLs or file paths
+	var result []string
+	var current strings.Builder
+
+	for i, part := range candidateParts {
+		if i == 0 {
+			// First part is always the start
+			current.WriteString(part)
+		} else {
+			prevPart := candidateParts[i-1]
+
+			// Check if the previous part looks like it's incomplete (URL, file path)
+			// Common patterns: "https", "http", "ftp", file paths ending without extension
+			prevLower := strings.ToLower(strings.TrimSpace(prevPart))
+			isIncompleteURL := strings.HasSuffix(prevLower, "https") ||
+				strings.HasSuffix(prevLower, "http") ||
+				strings.HasSuffix(prevLower, "ftp")
+
+			// If previous looks incomplete, merge this part
+			if isIncompleteURL {
+				current.WriteString(": ")
+				current.WriteString(part)
+			} else if startsNewError(part) {
+				// This looks like a new error boundary
+				if current.Len() > 0 {
+					result = append(result, current.String())
+					current.Reset()
+				}
+				current.WriteString(part)
+			} else {
+				// Not clearly a new error, merge with previous
+				current.WriteString(": ")
+				current.WriteString(part)
+			}
+		}
+	}
+
+	// Add the last part
+	if current.Len() > 0 {
+		result = append(result, current.String())
+	}
+
+	return result
 }
 
 // FormatErrorWithSuggestions formats an error message with actionable suggestions
