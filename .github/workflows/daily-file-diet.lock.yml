@@ -3865,7 +3865,7 @@ jobs:
                 return;
               }
               core.info(`Checking skip-if-match query: ${skipQuery}`);
-              const { owner, repo } = github.context.repo;
+              const { owner, repo } = context.repo;
               const scopedQuery = `${skipQuery} repo:${owner}/${repo}`;
               core.info(`Scoped query: ${scopedQuery}`);
               try {

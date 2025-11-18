@@ -53,17 +53,19 @@ const mockGithub = {
       issuesAndPullRequests: vi.fn(),
     },
   },
-  context: {
-    repo: {
-      owner: "testowner",
-      repo: "testrepo",
-    },
+};
+
+const mockContext = {
+  repo: {
+    owner: "testowner",
+    repo: "testrepo",
   },
 };
 
 // Set up global variables
 global.core = mockCore;
 global.github = mockGithub;
+global.context = mockContext;
 
 describe("check_skip_if_match.cjs", () => {
   let checkSkipIfMatchScript;

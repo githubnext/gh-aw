@@ -18,7 +18,7 @@ async function main() {
   core.info(`Checking skip-if-match query: ${skipQuery}`);
 
   // Get repository information from context
-  const { owner, repo } = github.context.repo;
+  const { owner, repo } = context.repo;
 
   // Scope the query to the current repository
   const scopedQuery = `${skipQuery} repo:${owner}/${repo}`;
