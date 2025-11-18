@@ -247,6 +247,90 @@ Split tests by scenario rather than having one massive test file.
 #### Premature Abstraction
 Wait until you have 2-3 use cases before extracting common patterns.
 
+### String Sanitization vs Normalization
+
+The codebase uses two distinct patterns for string processing with different purposes.
+
+#### Sanitize Pattern: Character Validity
+
+**Purpose**: Remove or replace invalid characters to create valid identifiers, file names, or artifact names.
+
+**When to use**: When you need to ensure a string contains only valid characters for a specific context (identifiers, YAML artifact names, filesystem paths).
+
+**What it does**:
+- Removes special characters that are invalid in the target context
+- Replaces separators (colons, slashes, spaces) with hyphens
+- Converts to lowercase for consistency
+- May preserve certain characters (dots, underscores) based on configuration
+
+#### Normalize Pattern: Format Standardization
+
+**Purpose**: Standardize format by removing extensions, converting between conventions, or applying consistent formatting rules.
+
+**When to use**: When you need to convert between different representations of the same logical entity (e.g., file extensions, naming conventions).
+
+**What it does**:
+- Removes file extensions (.md, .lock.yml)
+- Converts between naming conventions (dashes to underscores)
+- Standardizes identifiers to a canonical form
+- Does NOT validate character validity (assumes input is already valid)
+
+#### Function Reference
+
+**Sanitize Functions**:
+- `SanitizeName(name string, opts *SanitizeOptions) string` - Configurable sanitization with custom character preservation
+- `SanitizeWorkflowName(name string) string` - Sanitizes workflow names for artifact names and file paths
+- `SanitizeIdentifier(name string) string` - Creates clean identifiers for user agent strings
+
+**Normalize Functions**:
+- `normalizeWorkflowName(name string) string` - Removes file extensions to get base workflow identifier
+- `normalizeSafeOutputIdentifier(identifier string) string` - Converts dashes to underscores for safe output identifiers
+
+#### Decision Tree
+
+```mermaid
+graph TD
+    A[Need to process a string?] --> B{Need to ensure character validity?}
+    B -->|Yes| C[Use SANITIZE]
+    C --> D{Artifact name / file path?}
+    C --> E{Identifier / user agent?}
+    C --> F{Custom requirements?}
+    D --> G[SanitizeWorkflowName]
+    E --> H[SanitizeIdentifier]
+    F --> I[SanitizeName with options]
+    B -->|No| J{Need to standardize format?}
+    J -->|Yes| K[Use NORMALIZE]
+    K --> L{Remove file extensions?}
+    K --> M{Convert conventions?}
+    L --> N[normalizeWorkflowName]
+    M --> O[normalizeSafeOutputIdentifier]
+```
+
+#### Best Practices
+
+1. **Choose the right tool**: Use sanitize for character validity, normalize for format standardization.
+2. **Don't double-process**: If normalize produces a valid identifier, don't sanitize it again.
+3. **Document intent**: When using these functions, add comments explaining which pattern you're using and why.
+4. **Validate assumptions**: If you assume input is already valid, document that assumption.
+5. **Consider defaults**: Use `SanitizeIdentifier` when you need a fallback default value for empty results.
+
+#### Anti-Patterns
+
+**Don't sanitize already-normalized strings**:
+```go
+// BAD: Sanitizing a normalized workflow name
+normalized := normalizeWorkflowName("weekly-research.md")
+sanitized := SanitizeWorkflowName(normalized) // Unnecessary!
+```
+
+**Don't normalize for character validity**:
+```go
+// BAD: Using normalize for invalid characters
+userInput := "My Workflow: Test/Build"
+normalized := normalizeWorkflowName(userInput) // Wrong tool!
+// normalized = "My Workflow: Test/Build" (unchanged - invalid chars remain)
+```
+
 ---
 
 ## Validation Architecture
