@@ -16,6 +16,7 @@ tools:
     allowed_domains:
       - "localhost"
       - "127.0.0.1"
+  edit:
   bash:
     - "*"
 safe-outputs:
