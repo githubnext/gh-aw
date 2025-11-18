@@ -45,7 +45,7 @@ var validateErrorsScript string
 var missingToolScript string
 
 //go:embed js/noop.cjs
-var noopScript string
+var noopScript string // nolint:unused // TODO: integrate noop safe output into compiler_jobs.go
 
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string

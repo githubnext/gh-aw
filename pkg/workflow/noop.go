@@ -10,6 +10,7 @@ type NoOpConfig struct {
 }
 
 // buildCreateOutputNoOpJob creates the noop job
+// nolint:unused // TODO: integrate noop safe output into compiler_jobs.go
 func (c *Compiler) buildCreateOutputNoOpJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.NoOp == nil {
 		return nil, fmt.Errorf("safe-outputs.noop configuration is required")
@@ -86,6 +87,7 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 }
 
 // getNoOpScript returns the JavaScript implementation
+// nolint:unused // TODO: integrate noop safe output into compiler_jobs.go
 func getNoOpScript() string {
 	return noopScript
 }
