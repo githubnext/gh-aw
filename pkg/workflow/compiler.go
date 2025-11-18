@@ -741,6 +741,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Merge sandbox configuration from imports with top-level sandbox configuration
+	if importsResult.MergedSandbox != "" && sandboxConfig == nil {
+		// Parse the merged sandbox JSON
+		var sandboxData any
+		if err := json.Unmarshal([]byte(importsResult.MergedSandbox), &sandboxData); err != nil {
+			return nil, fmt.Errorf("failed to parse merged sandbox configuration: %w", err)
+		}
+		// Extract sandbox config from the parsed data
+		sandboxConfig = c.extractSandboxConfig(map[string]any{"sandbox": sandboxData})
+	}
+
 	// Validate permissions from imports against top-level permissions
 	// Extract top-level permissions first
 	topLevelPermissions := c.extractPermissions(result.Frontmatter)

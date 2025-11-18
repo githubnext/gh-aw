@@ -5,6 +5,10 @@
 #
 # Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/sandbox-runtime.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -284,6 +288,8 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          
+          
           You are testing the Sandbox Runtime (SRT) integration. Perform the following tasks:
           
           1. Run `echo "Hello from SRT!"` using bash

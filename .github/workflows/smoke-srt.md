@@ -14,7 +14,8 @@ network:
   allowed:
     - defaults
     - github
-sandbox: sandbox-runtime
+imports:
+  - shared/sandbox-runtime.md
 tools:
   bash:
   github:

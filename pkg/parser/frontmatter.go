@@ -91,6 +91,7 @@ type ImportsResult struct {
 	MergedNetwork       string   // Merged network configuration from all imports
 	MergedPermissions   string   // Merged permissions configuration from all imports
 	MergedSecretMasking string   // Merged secret-masking steps from all imports
+	MergedSandbox       string   // Merged sandbox configuration from all imports
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
 }
@@ -161,6 +162,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var networkBuilder strings.Builder
 	var permissionsBuilder strings.Builder
 	var secretMaskingBuilder strings.Builder
+	var sandboxBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var agentFile string // Track custom agent file
@@ -384,6 +386,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
+
+		// Extract sandbox from imported file
+		sandboxContent, err := extractSandboxFromContent(string(content))
+		if err == nil && sandboxContent != "" {
+			sandboxBuilder.WriteString(sandboxContent + "\n")
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -400,6 +408,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
+		MergedSandbox:       sandboxBuilder.String(),
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
 	}, nil
@@ -727,6 +736,11 @@ func ExtractPermissionsFromContent(content string) (string, error) {
 // extractSecretMaskingFromContent extracts secret-masking section from frontmatter as JSON string
 func extractSecretMaskingFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "secret-masking", "{}")
+}
+
+// extractSandboxFromContent extracts sandbox section from frontmatter as JSON string
+func extractSandboxFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "sandbox", "")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
