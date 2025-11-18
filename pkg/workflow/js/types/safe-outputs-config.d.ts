@@ -93,6 +93,13 @@ interface UploadAssetConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for updating releases
+ */
+interface UpdateReleaseConfig extends SafeOutputConfig {
+  target?: string;
+}
+
+/**
  * Configuration for reporting missing tools
  */
 interface MissingToolConfig extends SafeOutputConfig {}
@@ -146,6 +153,7 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
+  | UpdateReleaseConfig
   | MissingToolConfig
   | ThreatDetectionConfig;
 
@@ -165,6 +173,7 @@ export {
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
+  UpdateReleaseConfig,
   MissingToolConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,

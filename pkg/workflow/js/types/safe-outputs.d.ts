@@ -159,6 +159,19 @@ interface UploadAssetItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating a release
+ */
+interface UpdateReleaseItem extends BaseSafeOutputItem {
+  type: "update_release";
+  /** Tag name of the release to update */
+  tag: string;
+  /** Update operation: 'replace' or 'append' */
+  operation: "replace" | "append";
+  /** Content to set or append to the release body */
+  body: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -172,7 +185,8 @@ type SafeOutputItem =
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
-  | UploadAssetItem;
+  | UploadAssetItem
+  | UpdateReleaseItem;
 
 /**
  * Sanitized safe output items
@@ -196,6 +210,7 @@ export {
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
+  UpdateReleaseItem,
   SafeOutputItem,
   SafeOutputItems,
 };

@@ -35,6 +35,8 @@ async function main() {
         return 40;
       case "upload_asset":
         return 10;
+      case "update_release":
+        return 1;
       default:
         return 1;
     }
@@ -584,6 +586,30 @@ async function main() {
             }
             item.alternatives = sanitizeContent(item.alternatives, 512);
           }
+          break;
+        case "update_release":
+          // Validate tag
+          if (!item.tag || typeof item.tag !== "string") {
+            errors.push(`Line ${i + 1}: update_release requires a 'tag' string field`);
+            continue;
+          }
+          // Validate operation
+          if (!item.operation || typeof item.operation !== "string") {
+            errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
+            continue;
+          }
+          if (item.operation !== "replace" && item.operation !== "append") {
+            errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace' or 'append'`);
+            continue;
+          }
+          // Validate body
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
+            continue;
+          }
+          // Sanitize content
+          item.tag = sanitizeContent(item.tag, 256);
+          item.body = sanitizeContent(item.body, maxBodyLength);
           break;
         case "upload_asset":
           if (!item.path || typeof item.path !== "string") {

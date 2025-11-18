@@ -37,7 +37,8 @@
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
-        {"$ref": "#/$defs/UpdateProjectOutput"}
+        {"$ref": "#/$defs/UpdateProjectOutput"},
+        {"$ref": "#/$defs/UpdateReleaseOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -356,6 +357,33 @@
         }
       },
       "required": ["type", "project"],
+      "additionalProperties": false
+    },
+    "UpdateReleaseOutput": {
+      "title": "Update Release Output",
+      "description": "Output for updating a GitHub release description",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update_release"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Tag name of the release to update",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "description": "Update operation: 'replace' or 'append'",
+          "enum": ["replace", "append"]
+        },
+        "body": {
+          "type": "string",
+          "description": "Content to set or append to the release body",
+          "minLength": 1
+        }
+      },
+      "required": ["type", "tag", "operation", "body"],
       "additionalProperties": false
     }
   }
