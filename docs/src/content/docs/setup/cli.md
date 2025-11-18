@@ -394,7 +394,7 @@ Pull request management utilities.
 
 ##### `pr transfer`
 
-Transfer pull requests between repositories.
+Transfer a pull request to another repository.
 
 ```bash wrap
 gh aw pr transfer https://github.com/source/repo/pull/234
