@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var jsLog = logger.New("workflow:js")
 
 //go:embed js/create_agent_task.cjs
 var createAgentTaskScript string
@@ -21,6 +25,9 @@ var checkMembershipScript string
 
 //go:embed js/check_stop_time.cjs
 var checkStopTimeScript string
+
+//go:embed js/check_skip_if_match.cjs
+var checkSkipIfMatchScript string
 
 //go:embed js/check_command_position.cjs
 var checkCommandPositionScript string
@@ -91,12 +98,15 @@ var (
 // Bundling is performed on first access and cached for subsequent calls
 func getUpdateProjectScript() string {
 	updateProjectScriptOnce.Do(func() {
+		jsLog.Print("Bundling update_project script")
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(updateProjectScriptSource, sources, "")
 		if err != nil {
+			jsLog.Printf("Failed to bundle update_project script, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			updateProjectScript = updateProjectScriptSource
 		} else {
+			jsLog.Printf("Successfully bundled update_project script: %d bytes", len(bundled))
 			updateProjectScript = bundled
 		}
 	})
@@ -134,6 +144,9 @@ func GetJavaScriptSources() map[string]string {
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
+	if jsLog.Enabled() {
+		jsLog.Printf("Removing JavaScript comments from %d bytes of code", len(code))
+	}
 	var result strings.Builder
 	lines := strings.Split(code, "\n")
 
@@ -151,6 +164,9 @@ func removeJavaScriptComments(code string) string {
 		resultStr = resultStr[:len(resultStr)-1]
 	}
 
+	if jsLog.Enabled() {
+		jsLog.Printf("Removed comments, result: %d bytes", len(resultStr))
+	}
 	return resultStr
 }
 
@@ -453,6 +469,9 @@ func isDigit(r rune) bool {
 
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
+	if jsLog.Enabled() {
+		jsLog.Printf("Formatting JavaScript for YAML: %d bytes", len(script))
+	}
 	var formattedLines []string
 
 	// Remove JavaScript comments first
@@ -464,6 +483,9 @@ func FormatJavaScriptForYAML(script string) []string {
 		if strings.TrimSpace(line) != "" {
 			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", line))
 		}
+	}
+	if jsLog.Enabled() {
+		jsLog.Printf("Formatted %d lines for YAML", len(formattedLines))
 	}
 	return formattedLines
 }
@@ -537,6 +559,7 @@ func WriteJavaScriptToYAMLPreservingComments(yaml *strings.Builder, script strin
 
 // GetLogParserScript returns the JavaScript content for a log parser by name
 func GetLogParserScript(name string) string {
+	jsLog.Printf("Getting log parser script: %s", name)
 	switch name {
 	case "parse_claude_log":
 		return getParseClaudeLogScript()
@@ -549,6 +572,7 @@ func GetLogParserScript(name string) string {
 	case "validate_errors":
 		return validateErrorsScript
 	default:
+		jsLog.Printf("Unknown log parser script requested: %s", name)
 		return ""
 	}
 }
