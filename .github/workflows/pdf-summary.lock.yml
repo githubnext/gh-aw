@@ -18,6 +18,7 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   noop["noop"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   agent --> add_comment
@@ -27,9 +28,12 @@
 #   activation --> conclusion
 #   add_comment --> conclusion
 #   missing_tool --> conclusion
+#   noop --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> noop
+#   detection --> noop
 # ```
 #
 # Pinned GitHub Actions:
@@ -2720,6 +2724,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "noop":
+                    return 100; 
                   default:
                     return 1;
                 }
@@ -3267,6 +3273,13 @@ jobs:
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                       }
+                      break;
+                    case "noop":
+                      if (!item.message || typeof item.message !== "string") {
+                        errors.push(`Line ${i + 1}: noop requires a 'message' string field`);
+                        continue;
+                      }
+                      item.message = sanitizeContent(item.message, maxBodyLength);
                       break;
                     case "create_code_scanning_alert":
                       if (!item.file || typeof item.file !== "string") {
@@ -4575,6 +4588,7 @@ jobs:
       - activation
       - add_comment
       - missing_tool
+      - noop
     if: >
       (((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) &&
       (!(needs.add_comment.outputs.comment_id))
@@ -5078,6 +5092,83 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  noop:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'noop'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      noop_message: ${{ steps.noop.outputs.noop_message }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Process No-Op Messages
+        id: noop
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_NOOP_MAX: 100
+          GH_AW_WORKFLOW_NAME: "Resource Summarizer Agent"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const noopItems = result.items.filter( item => item.type === "noop");
+              if (noopItems.length === 0) {
+                core.info("No noop items found in agent output");
+                return;
+              }
+              core.info(`Found ${noopItems.length} noop item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
+                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
+                for (let i = 0; i < noopItems.length; i++) {
+                  const item = noopItems[i];
+                  summaryContent += `### Message ${i + 1}\n`;
+                  summaryContent += `${item.message}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 No-op message preview written to step summary");
+                return;
+              }
+              let summaryContent = "\n\n## No-Op Messages\n\n";
+              summaryContent += "The following messages were logged for transparency:\n\n";
+              for (let i = 0; i < noopItems.length; i++) {
+                const item = noopItems[i];
+                core.info(`No-op message ${i + 1}: ${item.message}`);
+                summaryContent += `- ${item.message}\n`;
+              }
+              await core.summary.addRaw(summaryContent).write();
+              if (noopItems.length > 0) {
+                core.setOutput("noop_message", noopItems[0].message);
+                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
+              }
+              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+            }
+            await main();
 
   pre_activation:
     if: >

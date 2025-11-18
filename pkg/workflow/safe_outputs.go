@@ -41,6 +41,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
+		safeOutputs.NoOp != nil ||
 		len(safeOutputs.Jobs) > 0
 
 	if safeOutputsLog.Enabled() {
@@ -410,6 +411,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
 				if _, exists := outputMap["missing-tool"]; !exists {
 					config.MissingTool = &MissingToolConfig{} // Default: enabled with no max limit
+				}
+			}
+
+			// Handle noop (parse configuration if present, or enable by default as fallback)
+			noopConfig := c.parseNoOpConfig(outputMap)
+			if noopConfig != nil {
+				config.NoOp = noopConfig
+			} else {
+				// Enable noop by default if safe-outputs exists and it wasn't explicitly disabled
+				// This ensures there's always a fallback for transparency
+				if _, exists := outputMap["noop"]; !exists {
+					config.NoOp = &NoOpConfig{}
+					config.NoOp.Max = 100 // High default for transparency
 				}
 			}
 

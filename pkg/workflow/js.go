@@ -41,6 +41,9 @@ var validateErrorsScript string
 //go:embed js/missing_tool.cjs
 var missingToolScript string
 
+//go:embed js/noop.cjs
+var noopScript string
+
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
