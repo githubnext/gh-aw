@@ -58,11 +58,12 @@ steps:
       # Calculate date 30 days ago
       DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
 
-      # Search for PRs created by Copilot in the last 30 days using gh CLI
+      # Search for PRs from copilot/* branches in the last 30 days using gh CLI
+      # Using branch prefix search (head:copilot/) instead of author for reliability
       echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs --repo ${{ github.repository }} \
-        --author "copilot" \
-        --created ">=${DATE_30_DAYS_AGO}" \
+      gh pr list --repo ${{ github.repository }} \
+        --search "head:copilot/ created:>=${DATE_30_DAYS_AGO}" \
+        --state all \
         --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs.json

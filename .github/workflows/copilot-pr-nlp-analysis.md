@@ -55,10 +55,11 @@ steps:
 
       echo "Fetching Copilot PRs merged in the last 24 hours..."
       
-      # Search for PRs authored by Copilot merged in the last 24 hours
-      gh search prs --repo ${{ github.repository }} \
-        --author "copilot" \
-        --merged ">=${DATE_24H_AGO}" \
+      # Search for PRs from copilot/* branches merged in the last 24 hours
+      # Using branch prefix search instead of author since it's more reliable
+      gh pr list --repo ${{ github.repository }} \
+        --search "head:copilot/ is:merged merged:>=${DATE_24H_AGO}" \
+        --state merged \
         --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,repository \
         --limit 100 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
