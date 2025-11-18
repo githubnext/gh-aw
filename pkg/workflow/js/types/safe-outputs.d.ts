@@ -113,8 +113,8 @@ interface AddLabelsItem extends BaseSafeOutputItem {
 /**
  * JSONL item for adding an issue to a milestone
  */
-interface AddMilestoneItem extends BaseSafeOutputItem {
-  type: "add_milestone";
+interface AssignMilestoneItem extends BaseSafeOutputItem {
+  type: "assign_milestone";
   /** Milestone title (string) or milestone number (integer) */
   milestone: string | number;
   /** Target issue number; otherwise resolved from current context */
@@ -180,7 +180,7 @@ type SafeOutputItem =
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
   | AddLabelsItem
-  | AddMilestoneItem
+  | AssignMilestoneItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
@@ -204,7 +204,7 @@ export {
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
   AddLabelsItem,
-  AddMilestoneItem,
+  AssignMilestoneItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

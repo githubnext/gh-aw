@@ -1573,7 +1573,7 @@ safe-outputs:
 
   # Configuration for adding issues to milestones from agentic workflow output
   # (optional)
-  add-milestone:
+  assign-milestone:
     # Mandatory list of allowed milestone names or IDs. Can be a single string or
     # array of strings.
     # This field supports multiple formats (oneOf):

@@ -66,7 +66,7 @@ interface AddLabelsConfig extends SafeOutputConfig {
 /**
  * Configuration for adding issues to milestones
  */
-interface AddMilestoneConfig extends SafeOutputConfig {
+interface AssignMilestoneConfig extends SafeOutputConfig {
   allowed?: string | string[];
   target?: string;
 }
@@ -151,7 +151,7 @@ type SpecificSafeOutputConfig =
   | CreatePullRequestReviewCommentConfig
   | CreateCodeScanningAlertConfig
   | AddLabelsConfig
-  | AddMilestoneConfig
+  | AssignMilestoneConfig
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
@@ -171,7 +171,7 @@ export {
   CreatePullRequestReviewCommentConfig,
   CreateCodeScanningAlertConfig,
   AddLabelsConfig,
-  AddMilestoneConfig,
+  AssignMilestoneConfig,
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,

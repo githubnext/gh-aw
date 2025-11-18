@@ -72,7 +72,7 @@ global.core = mockCore;
 global.context = mockContext;
 global.github = mockGithub;
 
-describe("add_milestone", () => {
+describe("assign_milestone", () => {
   let addMilestoneScript;
   let tempFilePath;
 
@@ -103,7 +103,7 @@ describe("add_milestone", () => {
     mockGithub.rest.issues.listMilestones.mockResolvedValue({ data: [] });
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "add_milestone.cjs");
+    const scriptPath = path.join(process.cwd(), "assign_milestone.cjs");
     addMilestoneScript = fs.readFileSync(scriptPath, "utf8");
   });
 
@@ -115,7 +115,7 @@ describe("add_milestone", () => {
     }
   });
 
-  it("should warn when no add-milestone item found", async () => {
+  it("should warn when no assign-milestone item found", async () => {
     setAgentOutput({
       items: [],
       errors: [],
@@ -123,14 +123,14 @@ describe("add_milestone", () => {
 
     await eval(`(async () => { ${addMilestoneScript} })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith("No add-milestone item found in agent output");
+    expect(mockCore.warning).toHaveBeenCalledWith("No assign-milestone item found in agent output");
   });
 
   it("should generate staged preview in staged mode", async () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "v1.0",
         },
       ],
@@ -148,7 +148,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "v1.0",
         },
       ],
@@ -158,7 +158,7 @@ describe("add_milestone", () => {
     await eval(`(async () => { ${addMilestoneScript} })()`);
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(
-      "No allowed milestones configured. Please configure safe-outputs.add-milestone.allowed in your workflow."
+      "No allowed milestones configured. Please configure safe-outputs.assign-milestone.allowed in your workflow."
     );
   });
 
@@ -166,7 +166,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "v2.0",
         },
       ],
@@ -183,7 +183,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: 5,
         },
       ],
@@ -207,7 +207,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "v1.0",
         },
       ],
@@ -242,7 +242,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "V1.0",
         },
       ],
@@ -268,7 +268,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: 5,
           item_number: 123,
         },
@@ -292,7 +292,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: 5,
         },
       ],
@@ -310,7 +310,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: "nonexistent",
         },
       ],
@@ -331,7 +331,7 @@ describe("add_milestone", () => {
     setAgentOutput({
       items: [
         {
-          type: "add_milestone",
+          type: "assign_milestone",
           milestone: 5,
         },
       ],

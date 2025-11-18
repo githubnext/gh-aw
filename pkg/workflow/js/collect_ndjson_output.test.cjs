@@ -229,18 +229,18 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.errors).toHaveLength(2);
   });
 
-  it("should validate required fields for add-milestone type", async () => {
+  it("should validate required fields for assign-milestone type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "add_milestone", "milestone": "v1.0"}
-{"type": "add_milestone", "milestone": 5}
-{"type": "add_milestone"}
-{"type": "add_milestone", "milestone": ""}
-{"type": "add_milestone", "milestone": null}
-{"type": "add_milestone", "milestone": true}`;
+    const ndjsonContent = `{"type": "assign_milestone", "milestone": "v1.0"}
+{"type": "assign_milestone", "milestone": 5}
+{"type": "assign_milestone"}
+{"type": "assign_milestone", "milestone": ""}
+{"type": "assign_milestone", "milestone": null}
+{"type": "assign_milestone", "milestone": true}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GH_AW_SAFE_OUTPUTS = testFile;
-    const __config = '{"add_milestone": true}';
+    const __config = '{"assign_milestone": true}';
     const configPath = "/tmp/gh-aw/safeoutputs/config.json";
     fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
     fs.writeFileSync(configPath, __config);

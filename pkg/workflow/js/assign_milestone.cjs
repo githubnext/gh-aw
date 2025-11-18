@@ -10,13 +10,13 @@ async function main() {
     return;
   }
 
-  const milestoneItem = result.items.find(item => item.type === "add_milestone");
+  const milestoneItem = result.items.find(item => item.type === "assign_milestone");
   if (!milestoneItem) {
-    core.warning("No add-milestone item found in agent output");
+    core.warning("No assign-milestone item found in agent output");
     return;
   }
 
-  core.info(`Found add-milestone item with milestone: ${JSON.stringify(milestoneItem.milestone)}`);
+  core.info(`Found assign-milestone item with milestone: ${JSON.stringify(milestoneItem.milestone)}`);
 
   // Check if we're in staged mode
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -41,7 +41,7 @@ async function main() {
   // Parse allowed milestones from environment
   const allowedMilestonesEnv = process.env.GH_AW_MILESTONES_ALLOWED?.trim();
   if (!allowedMilestonesEnv) {
-    core.setFailed("No allowed milestones configured. Please configure safe-outputs.add-milestone.allowed in your workflow.");
+    core.setFailed("No allowed milestones configured. Please configure safe-outputs.assign-milestone.allowed in your workflow.");
     return;
   }
 

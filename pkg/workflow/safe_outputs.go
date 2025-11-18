@@ -37,7 +37,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
-		safeOutputs.AddMilestone != nil ||
+		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
@@ -104,11 +104,11 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
-	if safeOutputs.AddMilestone != nil {
+	if safeOutputs.AssignMilestone != nil {
 		if written {
 			yaml.WriteString(", ")
 		}
-		yaml.WriteString("Adding Issues to Milestones")
+		yaml.WriteString("Assigning Issues to Milestones")
 		written = true
 	}
 
@@ -197,10 +197,10 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 
-	if safeOutputs.AddMilestone != nil {
-		yaml.WriteString("          **Adding Issues to Milestones**\n")
+	if safeOutputs.AssignMilestone != nil {
+		yaml.WriteString("          **Assigning Issues to Milestones**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString(fmt.Sprintf("          To add an issue to a milestone, use the add-milestone tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString(fmt.Sprintf("          To add an issue to a milestone, use the assign-milestone tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -400,10 +400,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Parse add-milestone configuration
-			if milestone, exists := outputMap["add-milestone"]; exists {
+			// Parse assign-milestone configuration
+			if milestone, exists := outputMap["assign-milestone"]; exists {
 				if milestoneMap, ok := milestone.(map[string]any); ok {
-					milestoneConfig := &AddMilestoneConfig{}
+					milestoneConfig := &AssignMilestoneConfig{}
 
 					// Parse allowed milestones (mandatory, can be string or array)
 					if allowed, exists := milestoneMap["allowed"]; exists {
@@ -468,7 +468,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					config.AddMilestone = milestoneConfig
+					config.AssignMilestone = milestoneConfig
 				}
 			}
 

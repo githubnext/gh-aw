@@ -2706,7 +2706,7 @@
             }
           ]
         },
-        "add-milestone": {
+        "assign-milestone": {
           "type": "object",
           "description": "Configuration for adding issues to milestones from agentic workflow output",
           "properties": {

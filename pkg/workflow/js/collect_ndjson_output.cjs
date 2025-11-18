@@ -23,7 +23,7 @@ async function main() {
         return 1;
       case "add_labels":
         return 5;
-      case "add_milestone":
+      case "assign_milestone":
         return 1;
       case "update_issue":
         return 1;
@@ -449,20 +449,20 @@ async function main() {
           }
           item.labels = item.labels.map(label => sanitizeContent(label, 128));
           break;
-        case "add_milestone":
+        case "assign_milestone":
           // Validate milestone field
           if (item.milestone === undefined || item.milestone === null) {
-            errors.push(`Line ${i + 1}: add_milestone requires a 'milestone' field`);
+            errors.push(`Line ${i + 1}: assign_milestone requires a 'milestone' field`);
             continue;
           }
           if (typeof item.milestone !== "string" && typeof item.milestone !== "number") {
-            errors.push(`Line ${i + 1}: add_milestone 'milestone' must be a string or number`);
+            errors.push(`Line ${i + 1}: assign_milestone 'milestone' must be a string or number`);
             continue;
           }
           // Validate and sanitize milestone if it's a string
           if (typeof item.milestone === "string") {
             if (item.milestone.trim() === "") {
-              errors.push(`Line ${i + 1}: add_milestone 'milestone' cannot be an empty string`);
+              errors.push(`Line ${i + 1}: assign_milestone 'milestone' cannot be an empty string`);
               continue;
             }
             item.milestone = sanitizeContent(item.milestone, 128);
@@ -470,12 +470,12 @@ async function main() {
           // Validate milestone number is positive integer
           if (typeof item.milestone === "number") {
             if (!Number.isInteger(item.milestone) || item.milestone <= 0) {
-              errors.push(`Line ${i + 1}: add_milestone 'milestone' number must be a positive integer`);
+              errors.push(`Line ${i + 1}: assign_milestone 'milestone' number must be a positive integer`);
               continue;
             }
           }
           // Validate item_number if present
-          const milestoneItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_milestone 'item_number'", i + 1);
+          const milestoneItemNumberValidation = validateIssueOrPRNumber(item.item_number, "assign_milestone 'item_number'", i + 1);
           if (!milestoneItemNumberValidation.isValid) {
             if (milestoneItemNumberValidation.error) errors.push(milestoneItemNumberValidation.error);
             continue;
