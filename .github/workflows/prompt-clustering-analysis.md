@@ -30,6 +30,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/mcp/gh-aw.md
+  - shared/copilot-pr-data-fetch.md
 
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
@@ -48,39 +49,14 @@ steps:
     run: |
       pip3 install --user scikit-learn pandas numpy matplotlib seaborn nltk
 
-  - name: Fetch Copilot PR data
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      # Create output directories
-      mkdir -p /tmp/gh-aw/pr-data
-      mkdir -p /tmp/gh-aw/prompt-cache/pr-full-data
-
-      # Calculate date 30 days ago
-      DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
-
-      # Search for PRs created by Copilot in the last 30 days
-      echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs --repo "${{ github.repository }}" \
-        --author "copilot" \
-        --created ">=$DATE_30_DAYS_AGO" \
-        --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository,mergedAt \
-        --limit 1000 \
-        > /tmp/gh-aw/pr-data/copilot-prs.json
-
-      # Generate schema for reference
-      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json
-
-      echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
-      echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
-      echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
-
   - name: Download full PR data with comments and reviews
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
+      # Create output directory for full PR data
+      mkdir -p /tmp/gh-aw/prompt-cache/pr-full-data
+      
       # Download full data for each PR including comments, reviews, commits, and files
       echo "Downloading full PR data for each PR..."
       
