@@ -440,6 +440,7 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to compile",
+				"╰─▶",
 				"invalid syntax",
 			},
 		},
@@ -449,6 +450,7 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to update workflow",
+				"╰─▶",
 				"failed to compile",
 				"failed to parse",
 				"invalid field",
@@ -460,6 +462,7 @@ func TestFormatNestedError(t *testing.T) {
 			expected: []string{
 				"✗",
 				"failed to compile updated workflow",
+				"╰─▶",
 				".github/workflows/daily-team-status.md",
 				"error",
 				"failed to process imports from frontmatter",
