@@ -598,8 +598,8 @@ async function main() {
             errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
             continue;
           }
-          if (item.operation !== "replace" && item.operation !== "append") {
-            errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace' or 'append'`);
+          if (item.operation !== "replace" && item.operation !== "append" && item.operation !== "prepend") {
+            errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace', 'append', or 'prepend'`);
             continue;
           }
           // Validate body

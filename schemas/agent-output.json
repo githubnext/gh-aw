@@ -374,8 +374,8 @@
         },
         "operation": {
           "type": "string",
-          "description": "Update operation: 'replace' or 'append'",
-          "enum": ["replace", "append"]
+          "description": "Update operation: 'replace', 'append', or 'prepend'",
+          "enum": ["replace", "append", "prepend"]
         },
         "body": {
           "type": "string",
