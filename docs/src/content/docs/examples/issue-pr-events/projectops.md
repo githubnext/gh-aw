@@ -5,11 +5,11 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to automatically create project boards, add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/safe-outputs/update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to automatically create project boards, add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
 
 ## When to Use ProjectOps
 
-ProjectOps complements [GitHub Projects' built-in automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
+ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
 
 - **Content-based routing** - Analyze issue content to determine which project board and what priority (native automation only supports label/status triggers)
 - **Multi-issue coordination** - Create campaign boards with multiple issues and apply campaign labels automatically
@@ -17,7 +17,7 @@ ProjectOps complements [GitHub Projects' built-in automation](https://docs.githu
 
 ## How It Works
 
-While GitHub Projects' native automation can move items based on status changes and labels, ProjectOps adds **AI-powered content analysis** to determine routing and field values. The AI agent reads the issue description, understands its type and priority, and makes intelligent decisions about project assignment and field values.
+While GitHub's native project automation can move items based on status changes and labels, ProjectOps adds **AI-powered content analysis** to determine routing and field values. The AI agent reads the issue description, understands its type and priority, and makes intelligent decisions about project assignment and field values.
 
 ```aw wrap
 ---
@@ -84,7 +84,7 @@ Analyze this issue to determine priority: "${{ needs.activation.outputs.text }}"
 
 Create a project board for a focused initiative and add all related issues with tracking metadata.
 
-**This goes beyond native GitHub automation** by analyzing the codebase to generate campaign issues and coordinating multiple related work items.
+This goes beyond native GitHub automation by analyzing the codebase to generate campaign issues and coordinating multiple related work items.
 
 ```aw wrap
 ---
