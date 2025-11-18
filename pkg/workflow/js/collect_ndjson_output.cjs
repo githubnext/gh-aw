@@ -23,6 +23,8 @@ async function main() {
         return 1;
       case "add_labels":
         return 5;
+      case "add_milestone":
+        return 1;
       case "update_issue":
         return 1;
       case "push_to_pull_request_branch":
@@ -446,6 +448,38 @@ async function main() {
             continue;
           }
           item.labels = item.labels.map(label => sanitizeContent(label, 128));
+          break;
+        case "add_milestone":
+          // Validate milestone field
+          if (item.milestone === undefined || item.milestone === null) {
+            errors.push(`Line ${i + 1}: add_milestone requires a 'milestone' field`);
+            continue;
+          }
+          if (typeof item.milestone !== "string" && typeof item.milestone !== "number") {
+            errors.push(`Line ${i + 1}: add_milestone 'milestone' must be a string or number`);
+            continue;
+          }
+          // Validate and sanitize milestone if it's a string
+          if (typeof item.milestone === "string") {
+            if (item.milestone.trim() === "") {
+              errors.push(`Line ${i + 1}: add_milestone 'milestone' cannot be an empty string`);
+              continue;
+            }
+            item.milestone = sanitizeContent(item.milestone, 128);
+          }
+          // Validate milestone number is positive integer
+          if (typeof item.milestone === "number") {
+            if (!Number.isInteger(item.milestone) || item.milestone <= 0) {
+              errors.push(`Line ${i + 1}: add_milestone 'milestone' number must be a positive integer`);
+              continue;
+            }
+          }
+          // Validate item_number if present
+          const milestoneItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_milestone 'item_number'", i + 1);
+          if (!milestoneItemNumberValidation.isValid) {
+            if (milestoneItemNumberValidation.error) errors.push(milestoneItemNumberValidation.error);
+            continue;
+          }
           break;
         case "update_issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;

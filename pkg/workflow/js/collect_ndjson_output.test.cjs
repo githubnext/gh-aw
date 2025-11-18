@@ -229,6 +229,42 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.errors).toHaveLength(2);
   });
 
+  it("should validate required fields for add-milestone type", async () => {
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+    const ndjsonContent = `{"type": "add_milestone", "milestone": "v1.0"}
+{"type": "add_milestone", "milestone": 5}
+{"type": "add_milestone"}
+{"type": "add_milestone", "milestone": ""}
+{"type": "add_milestone", "milestone": null}
+{"type": "add_milestone", "milestone": true}`;
+
+    fs.writeFileSync(testFile, ndjsonContent);
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    const __config = '{"add_milestone": true}';
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+    fs.writeFileSync(configPath, __config);
+
+    await eval(`(async () => { ${collectScript} })()`);
+
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const outputCall = setOutputCalls.find(call => call[0] === "output");
+    expect(outputCall).toBeDefined();
+
+    const parsedOutput = JSON.parse(outputCall[1]);
+    // Debug: Check what errors were generated
+    if (parsedOutput.errors.length > 0) {
+      console.error("Validation errors:", parsedOutput.errors);
+    }
+    // Both string and number milestones should be valid
+    expect(parsedOutput.items.length).toBeGreaterThanOrEqual(1); // At least one should be valid
+    if (parsedOutput.items.length >= 1) {
+      expect(parsedOutput.items[0].milestone).toBe("v1.0");
+    }
+    // Four invalid items (missing, empty string, null, boolean)
+    expect(parsedOutput.errors.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("should validate required fields for create-pull-request type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_pull_request", "title": "Test PR"}

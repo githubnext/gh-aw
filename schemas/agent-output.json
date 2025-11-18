@@ -31,6 +31,7 @@
         {"$ref": "#/$defs/AddCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddLabelsOutput"},
+        {"$ref": "#/$defs/AddMilestoneOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
@@ -137,6 +138,32 @@
         }
       },
       "required": ["type", "labels"],
+      "additionalProperties": false
+    },
+    "AddMilestoneOutput": {
+      "title": "Add Milestone Output",
+      "description": "Output for adding an issue to a milestone",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add_milestone"
+        },
+        "milestone": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "number"}
+          ],
+          "description": "Milestone title (string) or milestone number (integer) to add the issue to"
+        },
+        "item_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to add to milestone (for target '*')"
+        }
+      },
+      "required": ["type", "milestone"],
       "additionalProperties": false
     },
     "UpdateIssueOutput": {
