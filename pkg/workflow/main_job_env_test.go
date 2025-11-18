@@ -186,7 +186,7 @@ This workflow tests that environment variables are properly set at step level fo
 	// We need to check specifically for job-level env, not step-level env
 	// Job-level env would be indented with "    env:\n" immediately after job properties
 	// Step-level env would be indented with "        env:\n" inside a step
-	
+
 	// Split into lines to check for job-level env
 	agentLines := strings.Split(agentJobSection, "\n")
 	hasJobLevelEnv := false
