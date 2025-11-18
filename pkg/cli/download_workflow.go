@@ -8,36 +8,12 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var downloadLog = logger.New("cli:download_workflow")
-
-// isAuthError checks if an error message indicates an authentication issue
-func isAuthError(errMsg string) bool {
-	lowerMsg := strings.ToLower(errMsg)
-	return strings.Contains(lowerMsg, "gh_token") ||
-		strings.Contains(lowerMsg, "github_token") ||
-		strings.Contains(lowerMsg, "authentication") ||
-		strings.Contains(lowerMsg, "not logged into") ||
-		strings.Contains(lowerMsg, "unauthorized") ||
-		strings.Contains(lowerMsg, "forbidden") ||
-		strings.Contains(lowerMsg, "permission denied")
-}
-
-// isHexString checks if a string contains only hexadecimal characters
-func isHexString(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
 
 // resolveLatestReleaseViaGit finds the latest release using git ls-remote
 func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose bool) (string, error) {
@@ -156,7 +132,7 @@ func isBranchRef(repo, ref string) (bool, error) {
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if isAuthError(outputStr) || isAuthError(err.Error()) {
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback")
 			// Try fallback using git ls-remote
 			isBranch, gitErr := isBranchRefViaGit(repo, ref)
@@ -224,7 +200,7 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if isAuthError(outputStr) || isAuthError(err.Error()) {
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback")
 			// Try fallback using git ls-remote
 			sha, gitErr := resolveBranchHeadViaGit(repo, branch, verbose)
@@ -310,7 +286,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if isAuthError(outputStr) || isAuthError(err.Error()) {
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback")
 			// Try fallback using git ls-remote to get HEAD
 			sha, gitErr := resolveDefaultBranchHeadViaGit(repo, verbose)
@@ -411,7 +387,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 
 	// Check if ref is a SHA (40 hex characters)
-	isSHA := len(ref) == 40 && isHexString(ref)
+	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
 
 	if isSHA {
 		// For SHA refs, fetch without specifying a ref (fetch all) then checkout the specific commit
@@ -470,7 +446,7 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if isAuthError(outputStr) || isAuthError(err.Error()) {
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", repo, path, ref)
 			// Try fallback using git commands
 			content, gitErr := downloadWorkflowContentViaGit(repo, path, ref, verbose)

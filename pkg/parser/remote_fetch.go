@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -223,7 +224,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	sha := parts[0]
 
 	// Validate it's a valid SHA
-	if len(sha) != 40 || !isHexString(sha) {
+	if len(sha) != 40 || !gitutil.IsHexString(sha) {
 		return "", fmt.Errorf("invalid SHA format from git ls-remote: %s", sha)
 	}
 
@@ -234,7 +235,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
-	if len(ref) == 40 && isHexString(ref) {
+	if len(ref) == 40 && gitutil.IsHexString(ref) {
 		return ref, nil
 	}
 
@@ -245,7 +246,7 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		outputStr := string(output)
-		if isAuthError(outputStr) {
+		if gitutil.IsAuthError(outputStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git ls-remote for public repositories
 			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref)
@@ -264,36 +265,11 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	}
 
 	// Validate it's a valid SHA (40 hex characters)
-	if len(sha) != 40 || !isHexString(sha) {
+	if len(sha) != 40 || !gitutil.IsHexString(sha) {
 		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
 	}
 
 	return sha, nil
-}
-
-// isHexString checks if a string contains only hexadecimal characters
-func isHexString(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
-
-// isAuthError checks if an error message indicates an authentication issue
-func isAuthError(errMsg string) bool {
-	lowerMsg := strings.ToLower(errMsg)
-	return strings.Contains(lowerMsg, "gh_token") ||
-		strings.Contains(lowerMsg, "github_token") ||
-		strings.Contains(lowerMsg, "authentication") ||
-		strings.Contains(lowerMsg, "not logged into") ||
-		strings.Contains(lowerMsg, "unauthorized") ||
-		strings.Contains(lowerMsg, "forbidden") ||
-		strings.Contains(lowerMsg, "permission denied")
 }
 
 // downloadFileViaGit downloads a file from a Git repository using git commands
@@ -341,7 +317,7 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
 
 	// Check if ref is a SHA (40 hex characters)
-	isSHA := len(ref) == 40 && isHexString(ref)
+	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
 
 	var cloneCmd *exec.Cmd
 	if isSHA {
@@ -387,7 +363,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	if err != nil {
 		// Check if this is an authentication error
 		stderrStr := stderr.String()
-		if isAuthError(stderrStr) {
+		if gitutil.IsAuthError(stderrStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			// Try fallback using git commands for public repositories
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref)

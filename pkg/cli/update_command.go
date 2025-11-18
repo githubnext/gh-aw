@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -460,7 +461,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if isAuthError(outputStr) || isAuthError(err.Error()) {
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback")
 			// Try fallback using git ls-remote
 			release, gitErr := resolveLatestReleaseViaGit(repo, currentRef, allowMajor, verbose)
@@ -520,13 +521,6 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	return latestCompatible, nil
 }
 
-// isAuthError checks if an error message indicates an authentication issue
-// isBranchRefViaGit checks if a ref is a branch using git ls-remote
-// isBranchRef checks if a ref is a branch in the repository
-// resolveBranchHeadViaGit gets the latest commit SHA for a branch using git ls-remote
-// resolveBranchHead gets the latest commit SHA for a branch
-// resolveDefaultBranchHeadViaGit gets the latest commit SHA for the default branch using git ls-remote
-// resolveDefaultBranchHead gets the latest commit SHA for the default branch
 // updateWorkflow updates a single workflow from its source
 func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, merge bool) error {
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, merge=%v", wf.Name, wf.SourceSpec, force, merge)
@@ -734,10 +728,6 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	return nil
 }
 
-// downloadWorkflowContentViaGit downloads a workflow file using git commands
-// downloadWorkflowContentViaGitClone downloads a workflow file by shallow cloning
-// isHexString checks if a string contains only hexadecimal characters
-// downloadWorkflowContent downloads the content of a workflow file from GitHub
 // normalizeWhitespace normalizes trailing whitespace and newlines to reduce spurious conflicts
 func normalizeWhitespace(content string) string {
 	// Split into lines and trim trailing whitespace from each line
