@@ -638,6 +638,7 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 
 - [ ] JSON schema validates your new type correctly
 - [ ] TypeScript types compile without errors
+- [ ] Safe outputs tools JSON includes the new tool signature
 - [ ] Collection logic validates fields properly
 - [ ] JavaScript implementation handles all cases
 - [ ] Tests achieve good coverage
@@ -647,14 +648,15 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 
 ## Common Pitfalls to Avoid
 
-1. **Inconsistent naming**: Ensure type names match exactly across all files (kebab-case in JSON, camelCase in TypeScript)
-2. **Missing validation**: Always validate required fields and sanitize string content
-3. **Incorrect union types**: Add your new type to all relevant union types
-4. **Missing exports**: Export all new interfaces and types
-5. **Test coverage gaps**: Test both success and failure scenarios
-6. **Schema violations**: Follow JSON Schema draft-07 syntax strictly
-7. **GitHub API misuse**: Use proper error handling for API calls
-8. **Staged mode**: Always implement preview functionality for staged mode
+1. **Inconsistent naming**: Ensure type names match exactly across all files (kebab-case in JSON, camelCase in TypeScript, underscores in tools.json)
+2. **Missing tools.json update**: Don't forget to add the tool signature in `safe_outputs_tools.json` - AI agents won't be able to call your new type without it
+3. **Missing validation**: Always validate required fields and sanitize string content
+4. **Incorrect union types**: Add your new type to all relevant union types
+5. **Missing exports**: Export all new interfaces and types
+6. **Test coverage gaps**: Test both success and failure scenarios
+7. **Schema violations**: Follow JSON Schema draft-07 syntax strictly
+8. **GitHub API misuse**: Use proper error handling for API calls
+9. **Staged mode**: Always implement preview functionality for staged mode
 
 ## Resources and References
 
