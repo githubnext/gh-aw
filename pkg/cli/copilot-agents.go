@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-// ensureAgentFromTemplate ensures that an agent file exists and matches the embedded template
-func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool, skipInstructions bool) error {
+// ensureFileMatchesTemplate ensures a file in a subdirectory matches the expected template content
+func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType string, verbose bool, skipInstructions bool) error {
 	if skipInstructions {
-		return nil // Skip writing agent if flag is set
+		return nil
 	}
 
 	gitRoot, err := findGitRoot()
@@ -18,17 +18,17 @@ func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool
 		return err // Not in a git repository, skip
 	}
 
-	agentsDir := filepath.Join(gitRoot, ".github", "agents")
-	agentPath := filepath.Join(agentsDir, agentFileName)
+	targetDir := filepath.Join(gitRoot, subdir)
+	targetPath := filepath.Join(targetDir, fileName)
 
-	// Ensure the .github/agents directory exists
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/agents directory: %w", err)
+	// Ensure the target directory exists
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create %s directory: %w", subdir, err)
 	}
 
-	// Check if the agent file already exists and matches the template
+	// Check if the file already exists and matches the template
 	existingContent := ""
-	if content, err := os.ReadFile(agentPath); err == nil {
+	if content, err := os.ReadFile(targetPath); err == nil {
 		existingContent = string(content)
 	}
 
@@ -36,75 +36,49 @@ func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool
 	expectedContent := strings.TrimSpace(templateContent)
 	if strings.TrimSpace(existingContent) == expectedContent {
 		if verbose {
-			fmt.Printf("Agent is up-to-date: %s\n", agentPath)
+			fmt.Printf("%s is up-to-date: %s\n", fileType, targetPath)
 		}
 		return nil
 	}
 
-	// Write the agent file
-	if err := os.WriteFile(agentPath, []byte(templateContent), 0644); err != nil {
-		return fmt.Errorf("failed to write agent file: %w", err)
+	// Write the file
+	if err := os.WriteFile(targetPath, []byte(templateContent), 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", fileType, err)
 	}
 
 	if verbose {
 		if existingContent == "" {
-			fmt.Printf("Created agent: %s\n", agentPath)
+			fmt.Printf("Created %s: %s\n", fileType, targetPath)
 		} else {
-			fmt.Printf("Updated agent: %s\n", agentPath)
+			fmt.Printf("Updated %s: %s\n", fileType, targetPath)
 		}
 	}
 
 	return nil
 }
 
+// ensureAgentFromTemplate ensures that an agent file exists and matches the embedded template
+func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool, skipInstructions bool) error {
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "agents"),
+		agentFileName,
+		templateContent,
+		"agent",
+		verbose,
+		skipInstructions,
+	)
+}
+
 // ensureCopilotInstructions ensures that .github/instructions/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
-	if skipInstructions {
-		return nil // Skip writing instructions if flag is set
-	}
-
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	copilotDir := filepath.Join(gitRoot, ".github", "instructions")
-	copilotInstructionsPath := filepath.Join(copilotDir, "github-agentic-workflows.instructions.md")
-
-	// Ensure the .github/instructions directory exists
-	if err := os.MkdirAll(copilotDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/instructions directory: %w", err)
-	}
-
-	// Check if the instructions file already exists and matches the template
-	existingContent := ""
-	if content, err := os.ReadFile(copilotInstructionsPath); err == nil {
-		existingContent = string(content)
-	}
-
-	// Check if content matches our expected template
-	expectedContent := strings.TrimSpace(copilotInstructionsTemplate)
-	if strings.TrimSpace(existingContent) == expectedContent {
-		if verbose {
-			fmt.Printf("Copilot instructions are up-to-date: %s\n", copilotInstructionsPath)
-		}
-		return nil
-	}
-
-	// Write the copilot instructions file
-	if err := os.WriteFile(copilotInstructionsPath, []byte(copilotInstructionsTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write copilot instructions: %w", err)
-	}
-
-	if verbose {
-		if existingContent == "" {
-			fmt.Printf("Created copilot instructions: %s\n", copilotInstructionsPath)
-		} else {
-			fmt.Printf("Updated copilot instructions: %s\n", copilotInstructionsPath)
-		}
-	}
-
-	return nil
+	return ensureFileMatchesTemplate(
+		filepath.Join(".github", "instructions"),
+		"github-agentic-workflows.instructions.md",
+		copilotInstructionsTemplate,
+		"copilot instructions",
+		verbose,
+		skipInstructions,
+	)
 }
 
 // ensureAgenticWorkflowPrompt removes the old agentic workflow prompt file if it exists
