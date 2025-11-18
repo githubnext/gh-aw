@@ -2706,6 +2706,48 @@
             }
           ]
         },
+        "add-milestone": {
+          "type": "object",
+          "description": "Configuration for adding issues to milestones from agentic workflow output",
+          "properties": {
+            "allowed": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Single allowed milestone name or ID"
+                },
+                {
+                  "type": "array",
+                  "description": "List of allowed milestone names or IDs",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              ],
+              "description": "Mandatory list of allowed milestone names or IDs. Can be a single string or array of strings."
+            },
+            "max": {
+              "type": "integer",
+              "description": "Optional maximum number of milestone assignments to perform (default: 1)",
+              "minimum": 1
+            },
+            "target": {
+              "type": "string",
+              "description": "Target for milestone assignments: 'triggering' (default), '*' (any issue), or explicit issue number"
+            },
+            "target-repo": {
+              "type": "string",
+              "description": "Target repository in format 'owner/repo' for cross-repository milestone assignment. Takes precedence over trial target repo settings."
+            },
+            "github-token": {
+              "$ref": "#/$defs/github_token",
+              "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+            }
+          },
+          "required": ["allowed"],
+          "additionalProperties": false
+        },
         "update-issue": {
           "oneOf": [
             {

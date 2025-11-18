@@ -37,6 +37,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
+		safeOutputs.AddMilestone != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
@@ -100,6 +101,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Adding Labels to Issues or Pull Requests")
+		written = true
+	}
+
+	if safeOutputs.AddMilestone != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Adding Issues to Milestones")
 		written = true
 	}
 
@@ -185,6 +194,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString(fmt.Sprintf("          To add labels to an issue or a pull request, use the add-labels tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.AddMilestone != nil {
+		yaml.WriteString("          **Adding Issues to Milestones**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To add an issue to a milestone, use the add-milestone tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -381,6 +397,78 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
 					config.AddLabels = &AddLabelsConfig{}
+				}
+			}
+
+			// Parse add-milestone configuration
+			if milestone, exists := outputMap["add-milestone"]; exists {
+				if milestoneMap, ok := milestone.(map[string]any); ok {
+					milestoneConfig := &AddMilestoneConfig{}
+
+					// Parse allowed milestones (mandatory, can be string or array)
+					if allowed, exists := milestoneMap["allowed"]; exists {
+						switch v := allowed.(type) {
+						case string:
+							// Single string
+							milestoneConfig.Allowed = []string{v}
+						case []any:
+							// Array of strings
+							var allowedStrings []string
+							for _, milestone := range v {
+								if milestoneStr, ok := milestone.(string); ok {
+									allowedStrings = append(allowedStrings, milestoneStr)
+								}
+							}
+							milestoneConfig.Allowed = allowedStrings
+						}
+					}
+
+					// Parse max (optional)
+					if maxCount, exists := milestoneMap["max"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							milestoneConfig.Max = maxCountInt
+						}
+					}
+
+					// Parse github-token
+					if githubToken, exists := milestoneMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							milestoneConfig.GitHubToken = githubTokenStr
+						}
+					}
+
+					// Parse target
+					if target, exists := milestoneMap["target"]; exists {
+						if targetStr, ok := target.(string); ok {
+							milestoneConfig.Target = targetStr
+						}
+					}
+
+					// Parse target-repo
+					if targetRepo, exists := milestoneMap["target-repo"]; exists {
+						if targetRepoStr, ok := targetRepo.(string); ok {
+							milestoneConfig.TargetRepoSlug = targetRepoStr
+						}
+					}
+
+					config.AddMilestone = milestoneConfig
 				}
 			}
 
