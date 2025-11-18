@@ -21,27 +21,24 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	notifyCommentLog.Printf("Building conclusion job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
 
 	// Create this job when:
-	// 1. add-comment is configured with a reaction, OR
-	// 2. command is configured with a reaction (which auto-creates a comment in activation), OR
-	// 3. noop is configured with a reaction (to post noop messages to activation comment)
+	// 1. Safe outputs are configured (because noop is always enabled as a fallback)
+	// The job will:
+	// - Update activation comment with noop messages (if comment exists)
+	// - Write noop messages to step summary (if no comment)
 
 	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
 	hasCommand := data.Command != ""
 	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	hasSafeOutputs := data.SafeOutputs != nil
 
-	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t", hasAddComment, hasCommand, hasNoOp, hasReaction)
+	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t, has_safe_outputs=%t", hasAddComment, hasCommand, hasNoOp, hasReaction, hasSafeOutputs)
 
-	// Only create this job when reactions are being used AND either add-comment, command, or noop is configured
-	// This job updates the activation comment, which is only created when AIReaction is configured
-	if !hasReaction {
-		notifyCommentLog.Printf("Skipping job: no reaction configured")
-		return nil, nil // No reaction configured or explicitly disabled, no comment to update
-	}
-
-	if !hasAddComment && !hasCommand && !hasNoOp {
-		notifyCommentLog.Printf("Skipping job: neither add-comment, command, nor noop configured")
-		return nil, nil // Neither add-comment, command, nor noop is configured, no need for conclusion job
+	// Always create this job when safe-outputs exist (because noop is always enabled)
+	// This ensures noop messages can be handled even without reactions
+	if !hasSafeOutputs {
+		notifyCommentLog.Printf("Skipping job: no safe-outputs configured")
+		return nil, nil // No safe-outputs configured, no need for conclusion job
 	}
 
 	// Build the job steps
@@ -92,11 +89,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
 	// 2. agent was activated (not skipped)
-	// 3. comment_id exists (comment was created in activation)
-	// 4. add_comment job either doesn't exist OR hasn't created a comment yet
+	// 3. IF comment_id exists: add_comment job either doesn't exist OR hasn't created a comment yet
 	//
-	// Note: The job should run even when create_pull_request or push_to_pull_request_branch
-	// output types are present, as those don't update the activation comment.
+	// Note: The job should always run to handle noop messages (either update comment or write to summary)
+	// The script (notify_comment_error.cjs) handles the case where there's no comment gracefully
 
 	alwaysFunc := BuildFunctionCall("always")
 
@@ -105,9 +101,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("skipped"),
 	)
-
-	// Check that a comment was created in activation
-	commentIdExists := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.comment_id", constants.ActivationJobName))
 
 	// Check if add_comment job exists in the safe output jobs
 	hasAddCommentJob := false
@@ -121,24 +114,18 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build the condition based on whether add_comment job exists
 	var condition ConditionNode
 	if hasAddCommentJob {
-		// If add_comment job exists, check that it hasn't already created a comment
-		// (i.e., check that needs.add_comment.outputs.comment_id is empty/false)
+		// If add_comment job exists, also check that it hasn't already created a comment
+		// This prevents duplicate updates when add_comment has already updated the activation comment
 		noAddCommentOutput := &NotNode{
 			Child: BuildPropertyAccess("needs.add_comment.outputs.comment_id"),
 		}
 		condition = buildAnd(
-			buildAnd(
-				buildAnd(alwaysFunc, agentNotSkipped),
-				commentIdExists,
-			),
+			buildAnd(alwaysFunc, agentNotSkipped),
 			noAddCommentOutput,
 		)
 	} else {
 		// If add_comment job doesn't exist, just check the basic conditions
-		condition = buildAnd(
-			buildAnd(alwaysFunc, agentNotSkipped),
-			commentIdExists,
-		)
+		condition = buildAnd(alwaysFunc, agentNotSkipped)
 	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last

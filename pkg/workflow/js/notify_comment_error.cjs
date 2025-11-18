@@ -20,22 +20,6 @@ async function main() {
   core.info(`Workflow Name: ${workflowName}`);
   core.info(`Agent Conclusion: ${agentConclusion}`);
 
-  if (!commentId) {
-    core.info("No comment ID found, skipping comment update");
-    return;
-  }
-
-  if (!runUrl) {
-    core.setFailed("Run URL is required");
-    return;
-  }
-
-  // Parse comment repo (format: "owner/repo")
-  const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-  const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-
-  core.info(`Updating comment in ${repoOwner}/${repoName}`);
-
   // Load agent output to check for noop messages
   let noopMessages = [];
   const agentOutputResult = loadAgentOutput();
@@ -46,6 +30,41 @@ async function main() {
       noopMessages = noopItems.map(item => item.message);
     }
   }
+
+  // If there's no comment to update but we have noop messages, write to step summary
+  if (!commentId && noopMessages.length > 0) {
+    core.info("No comment ID found, writing noop messages to step summary");
+    
+    let summaryContent = "## No-Op Messages\n\n";
+    summaryContent += "The following messages were logged for transparency:\n\n";
+    
+    if (noopMessages.length === 1) {
+      summaryContent += noopMessages[0];
+    } else {
+      summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+    }
+    
+    await core.summary.addRaw(summaryContent).write();
+    core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
+    return;
+  }
+
+  if (!commentId) {
+    core.info("No comment ID found and no noop messages to process, skipping comment update");
+    return;
+  }
+
+  // At this point, we have a comment to update
+  if (!runUrl) {
+    core.setFailed("Run URL is required");
+    return;
+  }
+
+  // Parse comment repo (format: "owner/repo")
+  const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+  const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+
+  core.info(`Updating comment in ${repoOwner}/${repoName}`);
 
   // Determine the message based on agent conclusion
   let statusEmoji = "❌";
