@@ -341,21 +341,33 @@ Update workflows to their latest versions.
 ```bash wrap
 gh aw update                              # Update all workflows with source field
 gh aw update ci-doctor                    # Update specific workflow
+gh aw update ci-doctor --merge            # Update with 3-way merge (preserve changes)
 gh aw update ci-doctor --major --force    # Allow major version updates
 gh aw update --dir custom/workflows       # Update workflows in custom directory
 ```
 
 **What it does:**
 - Updates workflows based on `source` field format `owner/repo/path@ref`
-- Performs 3-way merge preserving local changes
+- Replaces local file with upstream version (default behavior)
 - Semantic version tags update within the same major version
+- Falls back to git commands when GitHub API authentication fails
 
 **Options:**
 - `--dir`: Specify workflow directory (defaults to `.github/workflows`)
+- `--merge`: Perform 3-way merge to preserve local changes (creates conflict markers if needed)
 - `--major`: Allow major version updates (breaking changes)
 - `--force`: Force update even with conflicts
 
-**Conflict handling:** When conflicts occur, diff3 markers are added and recompilation is skipped until resolved.
+**Update Modes:**
+
+| Mode | Behavior |
+|------|----------|
+| Default | Replaces local file with latest upstream version (no conflicts) |
+| `--merge` | 3-way merge preserving local changes (may create conflict markers) |
+
+**Authentication:** The update command works with public repositories without requiring GitHub authentication. When GitHub API calls fail due to missing or insufficient tokens, the command automatically falls back to git commands for downloading workflow content.
+
+**Conflict handling:** When using `--merge` and conflicts occur, diff3 markers are added and recompilation is skipped until resolved.
 
 ### Advanced
 
