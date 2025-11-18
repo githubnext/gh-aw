@@ -73,7 +73,8 @@ async function main() {
   let issueNumber;
   if (milestoneTarget === "*") {
     if (milestoneItem.item_number) {
-      issueNumber = typeof milestoneItem.item_number === "number" ? milestoneItem.item_number : parseInt(String(milestoneItem.item_number), 10);
+      issueNumber =
+        typeof milestoneItem.item_number === "number" ? milestoneItem.item_number : parseInt(String(milestoneItem.item_number), 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
         core.setFailed(`Invalid item_number specified: ${milestoneItem.item_number}`);
         return;
@@ -161,7 +162,9 @@ async function main() {
         const closedMilestone = closedMilestones.find(m => m.title.toLowerCase() === requestedMilestone.toLowerCase());
 
         if (!closedMilestone) {
-          core.setFailed(`Milestone '${requestedMilestone}' not found in repository. Available milestones: ${milestones.map(m => m.title).join(", ")}`);
+          core.setFailed(
+            `Milestone '${requestedMilestone}' not found in repository. Available milestones: ${milestones.map(m => m.title).join(", ")}`
+          );
           return;
         }
 

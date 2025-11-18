@@ -87,7 +87,7 @@ describe("add_milestone", () => {
   beforeEach(() => {
     // Reset all mocks before each test
     vi.clearAllMocks();
-    
+
     // Reset environment variables
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
@@ -176,9 +176,7 @@ describe("add_milestone", () => {
 
     await eval(`(async () => { ${addMilestoneScript} })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Milestone 'v2.0' is not in the allowed list")
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Milestone 'v2.0' is not in the allowed list"));
   });
 
   it("should add milestone by number when allowed", async () => {
@@ -305,9 +303,7 @@ describe("add_milestone", () => {
 
     await eval(`(async () => { ${addMilestoneScript} })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      'Target is "*" but no item_number specified in milestone item'
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no item_number specified in milestone item');
   });
 
   it("should fail when milestone not found in repository", async () => {
@@ -323,14 +319,12 @@ describe("add_milestone", () => {
     process.env.GH_AW_MILESTONES_ALLOWED = "nonexistent";
 
     mockGithub.rest.issues.listMilestones
-      .mockResolvedValueOnce({ data: [] })  // open milestones
+      .mockResolvedValueOnce({ data: [] }) // open milestones
       .mockResolvedValueOnce({ data: [] }); // closed milestones
 
     await eval(`(async () => { ${addMilestoneScript} })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Milestone 'nonexistent' not found in repository")
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Milestone 'nonexistent' not found in repository"));
   });
 
   it("should handle API errors gracefully", async () => {

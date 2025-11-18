@@ -25,7 +25,7 @@ func (c *Compiler) buildAddMilestoneJob(data *WorkflowData, mainJobName string) 
 
 	// Build custom environment variables specific to add-milestone
 	var customEnvVars []string
-	
+
 	// Pass the allowed milestones list as comma-separated string
 	allowedMilestonesStr := ""
 	for i, milestone := range data.SafeOutputs.AddMilestone.Allowed {

@@ -1571,6 +1571,39 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+  # Configuration for adding issues to milestones from agentic workflow output
+  # (optional)
+  add-milestone:
+    # Mandatory list of allowed milestone names or IDs. Can be a single string or
+    # array of strings.
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single allowed milestone name or ID
+    allowed: "example-value"
+
+    # Option 2: List of allowed milestone names or IDs
+    allowed: []
+      # Array items: string
+
+    # Optional maximum number of milestone assignments to perform (default: 1)
+    # (optional)
+    max: 1
+
+    # Target for milestone assignments: 'triggering' (default), '*' (any issue), or
+    # explicit issue number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository milestone
+    # assignment. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
   # (optional)
   # This field supports multiple formats (oneOf):
 
