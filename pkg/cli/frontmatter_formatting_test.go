@@ -175,4 +175,96 @@ permissions:
 			t.Error("Content was modified when on block didn't exist")
 		}
 	})
+
+	t.Run("field with similar prefix should not match", func(t *testing.T) {
+		content := `---
+on:
+  workflow_dispatch:
+  stop-after: +48h
+  stop: immediate
+---
+
+# Test`
+		result, err := RemoveFieldFromOnTrigger(content, "stop")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		// stop-after should still be present
+		if !strings.Contains(result, "stop-after: +48h") {
+			t.Error("stop-after field was incorrectly removed")
+		}
+		// stop should be removed
+		if strings.Contains(result, "stop: immediate") {
+			t.Error("stop field was not removed")
+		}
+	})
+
+	t.Run("on with inline value should not be treated as block", func(t *testing.T) {
+		content := `---
+on: push
+permissions:
+  contents: read
+---
+
+# Test`
+		result, err := RemoveFieldFromOnTrigger(content, "stop-after")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		// Content should be unchanged (on is not a block)
+		if result != content {
+			t.Error("Content was modified when on is not a block")
+		}
+	})
+
+	t.Run("multiline field value should be fully removed", func(t *testing.T) {
+		content := `---
+on:
+  workflow_dispatch:
+  stop-after: |
+    some multiline
+    value here
+  schedule:
+    - cron: "0 2 * * 1-5"
+---
+
+# Test`
+		result, err := RemoveFieldFromOnTrigger(content, "stop-after")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		// Multiline value should be removed
+		if strings.Contains(result, "some multiline") || strings.Contains(result, "value here") {
+			t.Error("Multiline field value was not fully removed")
+		}
+		// Other fields should remain
+		if !strings.Contains(result, "workflow_dispatch:") {
+			t.Error("workflow_dispatch was incorrectly removed")
+		}
+		if !strings.Contains(result, "schedule:") {
+			t.Error("schedule was incorrectly removed")
+		}
+	})
+
+	t.Run("inline comment with multiple colons should be preserved", func(t *testing.T) {
+		content := `---
+on:
+  workflow_dispatch:
+  url: http://example.com # comment
+---
+
+# Test`
+		result, err := SetFieldInOnTrigger(content, "url", "https://new.com")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		// Comment should be preserved
+		if !strings.Contains(result, "# comment") {
+			t.Error("Inline comment was not preserved")
+		}
+		// URL should be updated
+		if !strings.Contains(result, "url: https://new.com") {
+			t.Error("URL was not updated")
+		}
+	})
 }

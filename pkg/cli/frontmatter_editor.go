@@ -206,60 +206,66 @@ func RemoveFieldFromOnTrigger(content, fieldName string) (string, error) {
 	// Work with raw frontmatter lines to preserve formatting
 	if len(result.FrontmatterLines) > 0 {
 		frontmatterEditorLog.Printf("Using raw frontmatter lines to remove field (%d lines)", len(result.FrontmatterLines))
-		
+
 		frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 		inOnBlock := false
 		onIndentLevel := 0
 		skipNextLine := false
-		
+		fieldIndentLevel := 0
+
 		for i := 0; i < len(result.FrontmatterLines); i++ {
 			line := result.FrontmatterLines[i]
 			trimmedLine := strings.TrimSpace(line)
-			
+
 			// Skip if this is a continuation line that should be skipped
 			if skipNextLine {
 				// Check if this line is indented more than the field we're removing
 				// If so, skip it (it's a continuation of the removed field)
 				currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-				if currentIndent > onIndentLevel {
+				if currentIndent > fieldIndentLevel {
 					continue
 				}
 				skipNextLine = false
 			}
-			
-			// Detect the start of the 'on:' block
-			if !inOnBlock && (strings.HasPrefix(trimmedLine, "on:") || strings.HasPrefix(trimmedLine, `"on":`)) {
+
+			// Detect the start of the 'on:' block (must be just "on:" without inline value)
+			if !inOnBlock && (trimmedLine == "on:" || trimmedLine == `"on":` ||
+				strings.HasPrefix(trimmedLine, "on: #") || strings.HasPrefix(trimmedLine, `"on": #`)) {
 				inOnBlock = true
 				onIndentLevel = len(line) - len(strings.TrimLeft(line, " \t"))
 				frontmatterLines = append(frontmatterLines, line)
 				continue
 			}
-			
+
 			// If we're in the 'on' block, check if this is the field to remove
 			if inOnBlock {
 				currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-				
+
 				// Check if we've exited the 'on' block
 				if trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") && currentIndent <= onIndentLevel {
 					inOnBlock = false
 					frontmatterLines = append(frontmatterLines, line)
 					continue
 				}
-				
-				// Check if this is the field to remove
-				if strings.HasPrefix(trimmedLine, fieldName+":") {
+
+				// Check if this is the field to remove (exact match)
+				if trimmedLine == fieldName+":" ||
+					strings.HasPrefix(trimmedLine, fieldName+": ") ||
+					strings.HasPrefix(trimmedLine, fieldName+":\t") {
 					frontmatterEditorLog.Printf("Found field %s to remove at line %d", fieldName, i+1)
+					// Track the indentation of the field being removed
+					fieldIndentLevel = currentIndent
 					// Skip this line
 					// Also mark that we should skip continuation lines if the value is multiline
 					skipNextLine = true
 					continue
 				}
 			}
-			
+
 			// Keep this line
 			frontmatterLines = append(frontmatterLines, line)
 		}
-		
+
 		// Reconstruct the file with preserved formatting
 		var lines []string
 		lines = append(lines, "---")
@@ -270,7 +276,7 @@ func RemoveFieldFromOnTrigger(content, fieldName string) (string, error) {
 			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
-		
+
 		frontmatterEditorLog.Printf("Successfully removed field %s from 'on' trigger", fieldName)
 		return strings.Join(lines, "\n"), nil
 	}
@@ -306,13 +312,13 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 		// Add the 'on:' block with the field at the beginning of frontmatter
 		if len(result.FrontmatterLines) > 0 {
 			frontmatterEditorLog.Printf("Creating 'on' block with field %s", fieldName)
-			
+
 			// Create new frontmatter lines with 'on:' block at the start
 			frontmatterLines := make([]string, 0, len(result.FrontmatterLines)+2)
 			frontmatterLines = append(frontmatterLines, "on:")
 			frontmatterLines = append(frontmatterLines, fmt.Sprintf("    %s: %s", fieldName, fieldValue))
 			frontmatterLines = append(frontmatterLines, result.FrontmatterLines...)
-			
+
 			// Reconstruct the file
 			var lines []string
 			lines = append(lines, "---")
@@ -322,11 +328,11 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 				lines = append(lines, "")
 				lines = append(lines, result.Markdown)
 			}
-			
+
 			frontmatterEditorLog.Printf("Successfully created 'on' block with field %s", fieldName)
 			return strings.Join(lines, "\n"), nil
 		}
-		
+
 		// No frontmatter lines, cannot create 'on' block
 		return "", fmt.Errorf("no frontmatter found, cannot set field in 'on' trigger")
 	}
@@ -341,32 +347,33 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 	// Work with raw frontmatter lines to preserve formatting
 	if len(result.FrontmatterLines) > 0 {
 		frontmatterEditorLog.Printf("Using raw frontmatter lines to set field (%d lines)", len(result.FrontmatterLines))
-		
+
 		frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 		inOnBlock := false
 		onIndentLevel := 0
 		fieldUpdated := false
-		
+
 		for i := 0; i < len(result.FrontmatterLines); i++ {
 			line := result.FrontmatterLines[i]
 			trimmedLine := strings.TrimSpace(line)
-			
-			// Detect the start of the 'on:' block
-			if !inOnBlock && (strings.HasPrefix(trimmedLine, "on:") || strings.HasPrefix(trimmedLine, `"on":`)) {
+
+			// Detect the start of the 'on:' block (must be just "on:" without inline value)
+			if !inOnBlock && (trimmedLine == "on:" || trimmedLine == `"on":` ||
+				strings.HasPrefix(trimmedLine, "on: #") || strings.HasPrefix(trimmedLine, `"on": #`)) {
 				inOnBlock = true
 				onIndentLevel = len(line) - len(strings.TrimLeft(line, " \t"))
 				frontmatterLines = append(frontmatterLines, line)
 				continue
 			}
-			
+
 			// If we're in the 'on' block
 			if inOnBlock {
 				currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-				
+
 				// Check if we've exited the 'on' block
 				if trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") && currentIndent <= onIndentLevel {
 					inOnBlock = false
-					
+
 					// If we didn't update the field yet, add it before exiting the block
 					if !fieldUpdated {
 						// Calculate the appropriate indentation (one level deeper than 'on:')
@@ -376,23 +383,27 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 						fieldUpdated = true
 						frontmatterEditorLog.Printf("Added new field %s to 'on' block", fieldName)
 					}
-					
+
 					frontmatterLines = append(frontmatterLines, line)
 					continue
 				}
-				
-				// Check if this is the field to update
-				if strings.HasPrefix(trimmedLine, fieldName+":") {
+
+				// Check if this is the field to update (exact match)
+				if trimmedLine == fieldName+":" ||
+					strings.HasPrefix(trimmedLine, fieldName+": ") ||
+					strings.HasPrefix(trimmedLine, fieldName+":\t") {
 					// Preserve the original indentation and comments
 					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-					
-					// Check if there's a comment on the same line
+
+					// Check if there's a comment on the same line, after the field separator
+					fieldSep := fieldName + ":"
+					fieldSepIndex := strings.Index(line, fieldSep)
 					commentIndex := strings.Index(line, "#")
 					var comment string
-					if commentIndex > strings.Index(line, ":") && commentIndex != -1 {
+					if fieldSepIndex != -1 && commentIndex > fieldSepIndex {
 						comment = line[commentIndex:]
 					}
-					
+
 					// Update the field value while preserving formatting
 					if comment != "" {
 						frontmatterLines = append(frontmatterLines, fmt.Sprintf("%s%s: %s %s", leadingSpace, fieldName, fieldValue, comment))
@@ -404,11 +415,11 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 					continue
 				}
 			}
-			
+
 			// Keep this line
 			frontmatterLines = append(frontmatterLines, line)
 		}
-		
+
 		// If we were still in the 'on' block at the end of the frontmatter and didn't update the field
 		if inOnBlock && !fieldUpdated {
 			// Add the field at the end of the 'on' block
@@ -418,11 +429,11 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 			fieldUpdated = true
 			frontmatterEditorLog.Printf("Added new field %s at end of 'on' block", fieldName)
 		}
-		
+
 		if !fieldUpdated {
 			return "", fmt.Errorf("failed to set field %s in 'on' trigger", fieldName)
 		}
-		
+
 		// Reconstruct the file with preserved formatting
 		var lines []string
 		lines = append(lines, "---")
@@ -433,7 +444,7 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 			lines = append(lines, "")
 			lines = append(lines, result.Markdown)
 		}
-		
+
 		frontmatterEditorLog.Printf("Successfully set field %s in 'on' trigger", fieldName)
 		return strings.Join(lines, "\n"), nil
 	}
