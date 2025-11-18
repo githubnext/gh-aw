@@ -230,6 +230,25 @@
     }
   },
   {
+    "name": "assign_milestone",
+    "description": "Assign a GitHub issue to a milestone",
+    "inputSchema": {
+      "type": "object",
+      "required": ["milestone"],
+      "properties": {
+        "milestone": {
+          "type": ["string", "number"],
+          "description": "Milestone title (string) or ID (number) from the allowed list"
+        },
+        "item_number": {
+          "type": "number",
+          "description": "Issue number (optional for current context)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "missing_tool",
     "description": "Report a missing tool or functionality needed to complete tasks",
     "inputSchema": {
