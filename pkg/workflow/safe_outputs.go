@@ -402,6 +402,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
+			// Handle update-release
+			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
+			if updateReleaseConfig != nil {
+				config.UpdateRelease = updateReleaseConfig
+			}
+
 			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {

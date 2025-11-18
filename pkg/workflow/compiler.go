@@ -261,6 +261,7 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
+	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`   // Update GitHub release descriptions
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality

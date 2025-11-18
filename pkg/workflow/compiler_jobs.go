@@ -357,6 +357,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
 	}
 
+	// Build update_release job if output.update-release is configured
+	if data.SafeOutputs.UpdateRelease != nil {
+		updateReleaseJob, err := c.buildCreateOutputUpdateReleaseJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build update_release job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			updateReleaseJob.Needs = append(updateReleaseJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			updateReleaseJob.If = AddDetectionSuccessCheck(updateReleaseJob.If)
+		}
+		if err := c.jobManager.AddJob(updateReleaseJob); err != nil {
+			return fmt.Errorf("failed to add update_release job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, updateReleaseJob.Name)
+	}
+
 	// Build create_agent_task job if output.create-agent-task is configured
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)
