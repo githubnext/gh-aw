@@ -1707,6 +1707,38 @@ safe-outputs:
   # Option 2: Enable asset publishing with default configuration
   upload-assets: null
 
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for dispatching GitHub Actions workflows
+  dispatch-workflow:
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: List of workflow files allowed to be dispatched
+    allowed-workflows: []
+      # Array items: Workflow file name (e.g., 'workflow.yml') or workflow ID
+
+    # Option 2: Single workflow file allowed to be dispatched
+    allowed-workflows: "example-value"
+
+    # Maximum number of workflows to dispatch (default: 1)
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # Target repository for workflow dispatch in format 'owner/repo' (default: current
+    # repository)
+    # (optional)
+    target-repo: "example-value"
+
+  # Option 2: Enable workflow dispatch with default configuration (requires
+  # allowed-workflows)
+  dispatch-workflow: null
+
   # If true, emit step summary messages instead of making GitHub API calls (preview
   # mode)
   # (optional)
