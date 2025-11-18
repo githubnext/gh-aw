@@ -856,7 +856,11 @@ func generateSRTInstallationStep() GitHubActionStep {
 func generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder string) string {
 	// Escape quotes and special characters in the config JSON for shell
 	escapedConfigJSON := strings.ReplaceAll(srtConfigJSON, "'", "'\\''")
-	escapedCopilotCommand := strings.ReplaceAll(copilotCommand, "'", "'\\''")
+
+	// Escape the copilot command for JavaScript string literal (not shell)
+	// Must escape backslashes first, then single quotes
+	escapedCopilotCommand := strings.ReplaceAll(copilotCommand, "\\", "\\\\")
+	escapedCopilotCommand = strings.ReplaceAll(escapedCopilotCommand, "'", "\\'")
 
 	script := fmt.Sprintf(`set -o pipefail
 

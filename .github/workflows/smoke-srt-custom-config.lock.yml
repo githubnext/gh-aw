@@ -557,7 +557,7 @@ jobs:
               console.log('Sandbox Runtime initialized successfully');
 
               // The command to run
-              const command = 'npx -y @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+              const command = 'npx -y @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
 
               // Wrap the command with sandbox restrictions
               const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
