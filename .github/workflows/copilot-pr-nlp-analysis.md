@@ -32,6 +32,7 @@ imports:
   - shared/jqschema.md
   - shared/python-dataviz.md
   - shared/reporting.md
+  - shared/copilot-pr-data-fetch.md
 
 tools:
   cache-memory: true
@@ -41,36 +42,15 @@ tools:
   bash: ["*"]
 
 steps:
-  - name: Fetch Copilot PR data from last 24 hours
+  - name: Fetch PR comments for detailed analysis
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      # Create output directory
-      mkdir -p /tmp/gh-aw/pr-data
+      # Create comments directory
       mkdir -p /tmp/gh-aw/pr-comments
 
-      # Calculate date 24 hours ago
-      DATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d')
-
-      echo "Fetching Copilot PRs merged in the last 24 hours..."
-      
-      # Search for PRs from copilot/* branches merged in the last 24 hours
-      # Using branch prefix search instead of author since it's more reliable
-      gh pr list --repo ${{ github.repository }} \
-        --search "head:copilot/ is:merged merged:>=${DATE_24H_AGO}" \
-        --state merged \
-        --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
-        --limit 100 \
-        > /tmp/gh-aw/pr-data/copilot-prs.json
-
-      # Generate schema for reference
-      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json
-
-      echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
-      echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
-
-      # Fetch detailed comments for each PR
+      # Fetch detailed comments for each PR from the pre-fetched data
       PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
       echo "Fetching comments for $PR_COUNT PRs..."
 
@@ -125,7 +105,16 @@ Generate a daily NLP-based analysis report of Copilot-created PRs merged within 
 
 ### Phase 1: Load and Parse PR Conversation Data
 
-**Pre-fetched Data Available**: The setup step has downloaded all Copilot PRs merged in the last 24 hours plus their conversation data.
+**Pre-fetched Data Available**: The shared component has downloaded all Copilot PRs from the last 30 days. The data is available at:
+- `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data in JSON format
+- `/tmp/gh-aw/pr-data/copilot-prs-schema.json` - Schema showing the structure
+
+**Note**: This workflow focuses on merged PRs from the last 24 hours. Use jq to filter:
+```bash
+# Get PRs merged in the last 24 hours
+DATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-1d '+%Y-%m-%dT%H:%M:%SZ')
+jq --arg date "$DATE_24H_AGO" '[.[] | select(.mergedAt != null and .mergedAt >= $date)]' /tmp/gh-aw/pr-data/copilot-prs.json
+```
 
 1. **Load PR metadata**:
    ```bash

@@ -30,6 +30,7 @@ safe-outputs:
 imports:
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/copilot-pr-data-fetch.md
 
 tools:
   cache-memory: true
@@ -45,35 +46,6 @@ tools:
     - "gh search prs *"
     - "jq *"
     - "/tmp/gh-aw/jqschema.sh"
-
-steps:
-  - name: Fetch Copilot PR data
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      # Create output directory
-      mkdir -p /tmp/gh-aw/pr-data
-
-      # Calculate date 30 days ago
-      DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
-
-      # Search for PRs from copilot/* branches in the last 30 days using gh CLI
-      # Using branch prefix search (head:copilot/) instead of author for reliability
-      echo "Fetching Copilot PRs from the last 30 days..."
-      gh pr list --repo ${{ github.repository }} \
-        --search "head:copilot/ created:>=${DATE_30_DAYS_AGO}" \
-        --state all \
-        --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
-        --limit 1000 \fi
-        > /tmp/gh-aw/pr-data/copilot-prs.json
-
-      # Generate schema for reference
-      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json
-
-      echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
-      echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
-      echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
 timeout-minutes: 15
 
