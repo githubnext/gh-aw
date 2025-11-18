@@ -10,9 +10,12 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var auditReportLog = logger.New("cli:audit_report")
 
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
@@ -100,6 +103,7 @@ type OverviewDisplay struct {
 // buildAuditData creates structured audit data from workflow run information
 func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	run := processedRun.Run
+	auditReportLog.Printf("Building audit data for run ID %d", run.DatabaseID)
 
 	// Build overview
 	overview := OverviewData{
@@ -197,6 +201,11 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		toolUsage = append(toolUsage, *info)
 	}
 
+	if auditReportLog.Enabled() {
+		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types",
+			len(jobs), len(errors), len(warnings), len(toolUsage))
+	}
+
 	return AuditData{
 		Overview:         overview,
 		Metrics:          metricsData,
@@ -213,10 +222,12 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 
 // extractDownloadedFiles scans the logs directory and returns file information
 func extractDownloadedFiles(logsPath string) []FileInfo {
+	auditReportLog.Printf("Extracting downloaded files from: %s", logsPath)
 	var files []FileInfo
 
 	entries, err := os.ReadDir(logsPath)
 	if err != nil {
+		auditReportLog.Printf("Failed to read logs directory: %v", err)
 		return files
 	}
 
@@ -247,6 +258,7 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		files = append(files, fileInfo)
 	}
 
+	auditReportLog.Printf("Extracted %d files from logs directory", len(files))
 	return files
 }
 
@@ -286,6 +298,7 @@ func parseDurationString(s string) time.Duration {
 
 // renderJSON outputs the audit data as JSON
 func renderJSON(data AuditData) error {
+	auditReportLog.Print("Rendering audit report as JSON")
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
@@ -293,6 +306,7 @@ func renderJSON(data AuditData) error {
 
 // renderConsole outputs the audit data as formatted console tables
 func renderConsole(data AuditData, logsPath string) {
+	auditReportLog.Print("Rendering audit report to console")
 	fmt.Println(console.FormatInfoMessage("# Workflow Run Audit Report"))
 	fmt.Println()
 
