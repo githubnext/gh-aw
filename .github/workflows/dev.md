@@ -19,7 +19,7 @@ name: Dev
 description: Test workflow for development and experimentation purposes
 engine: copilot
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 tools:
@@ -358,10 +358,6 @@ The release content is available in the context: "${{ needs.activation.outputs.t
 1. Read the release content from the context above
 2. Generate a clear, concise summary (2-4 sentences) highlighting the key changes or features
 3. Use the `update_release` safe output with the **prepend** operation to add your summary at the top
-
-**Output format:**
-```jsonl
-{"type": "update_release", "operation": "prepend", "body": "## AI Summary\n\n[Your 2-4 sentence summary here]"}
-```
+4. **CRITICAL:** If the `update_release` tool is not available, fail immediately with an error message
 
 **Note:** The tag field is optional and will be automatically inferred from the release event context (`github.event.release.tag_name`) or from workflow dispatch inputs (`release_url` or `release_id`). The summary will be prepended with a horizontal line separator and AI attribution footer.
