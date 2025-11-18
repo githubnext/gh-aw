@@ -364,7 +364,7 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	return content, nil
 }
 
-// downloadWorkflowContentViaGitClone downloads a workflow file by shallow cloning
+// downloadWorkflowContentViaGitClone downloads a workflow file by shallow cloning with sparse checkout
 func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([]byte, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git clone", repo, path, ref)))
@@ -372,7 +372,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 	downloadLog.Printf("Attempting git clone fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
-	// Create a temporary directory for the shallow clone
+	// Create a temporary directory for the sparse checkout
 	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
@@ -381,32 +381,66 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
 
+	// Initialize git repository
+	initCmd := exec.Command("git", "-C", tmpDir, "init")
+	if output, err := initCmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("failed to initialize git repository: %w\nOutput: %s", err, string(output))
+	}
+
+	// Add remote
+	remoteCmd := exec.Command("git", "-C", tmpDir, "remote", "add", "origin", repoURL)
+	if output, err := remoteCmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("failed to add remote: %w\nOutput: %s", err, string(output))
+	}
+
+	// Enable sparse-checkout
+	sparseCmd := exec.Command("git", "-C", tmpDir, "config", "core.sparseCheckout", "true")
+	if output, err := sparseCmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("failed to enable sparse checkout: %w\nOutput: %s", err, string(output))
+	}
+
+	// Set sparse-checkout pattern to only include the file we need
+	sparseInfoDir := filepath.Join(tmpDir, ".git", "info")
+	if err := os.MkdirAll(sparseInfoDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create sparse-checkout directory: %w", err)
+	}
+
+	sparseCheckoutFile := filepath.Join(sparseInfoDir, "sparse-checkout")
+	if err := os.WriteFile(sparseCheckoutFile, []byte(path+"\n"), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write sparse-checkout file: %w", err)
+	}
+
 	// Check if ref is a SHA (40 hex characters)
 	isSHA := len(ref) == 40 && isHexString(ref)
 
-	var cloneCmd *exec.Cmd
 	if isSHA {
-		// For SHA refs, we need to clone without --branch and then checkout the specific commit
-		// Clone with minimal depth and no branch specified
-		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
-		if _, err := cloneCmd.CombinedOutput(); err != nil {
-			// Try without --no-single-branch
-			cloneCmd = exec.Command("git", "clone", repoURL, tmpDir)
-			if output, err := cloneCmd.CombinedOutput(); err != nil {
-				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
+		// For SHA refs, fetch without specifying a ref (fetch all) then checkout the specific commit
+		// We need to fetch more than just the ref because sparse-checkout with specific SHA is tricky
+		fetchCmd := exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		if _, err := fetchCmd.CombinedOutput(); err != nil {
+			// If fetching specific SHA fails, try fetching all branches with depth 1
+			fetchCmd = exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin")
+			if output, err := fetchCmd.CombinedOutput(); err != nil {
+				return nil, fmt.Errorf("failed to fetch repository: %w\nOutput: %s", err, string(output))
 			}
 		}
 
-		// Now checkout the specific commit
+		// Checkout the specific commit
 		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
 		}
 	} else {
-		// For branch/tag refs, use --branch flag
-		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
-		if output, err := cloneCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
+		// For branch/tag refs, fetch the specific ref
+		fetchCmd := exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		if output, err := fetchCmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("failed to fetch ref %s: %w\nOutput: %s", ref, err, string(output))
+		}
+
+		// Checkout FETCH_HEAD
+		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", "FETCH_HEAD")
+		if output, err := checkoutCmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("failed to checkout FETCH_HEAD: %w\nOutput: %s", err, string(output))
 		}
 	}
 
@@ -418,7 +452,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git clone"))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git sparse checkout"))
 	}
 
 	return content, nil
