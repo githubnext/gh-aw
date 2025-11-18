@@ -863,11 +863,11 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getCampaign(format) {
-              const campaign = process.env.GH_AW_CAMPAIGN || "";
-              if (campaign) {
-                core.info(`Campaign: ${campaign}`);
-                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
               }
               return "";
             }
@@ -1112,7 +1112,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getCampaign("markdown");
+                body += getTrackerID("markdown");
                 body += generateFooter(
                   workflowName,
                   runUrl,
