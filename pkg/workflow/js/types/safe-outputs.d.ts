@@ -159,6 +159,19 @@ interface UploadAssetItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for dispatching a GitHub Actions workflow
+ */
+interface DispatchWorkflowItem extends BaseSafeOutputItem {
+  type: "dispatch_workflow";
+  /** Workflow file name (e.g., 'workflow.yml') or workflow ID */
+  workflow: string;
+  /** Git reference (branch, tag, or commit SHA) for the workflow */
+  ref?: string;
+  /** Optional workflow inputs as key-value pairs */
+  inputs?: Record<string, any>;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -172,7 +185,8 @@ type SafeOutputItem =
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
-  | UploadAssetItem;
+  | UploadAssetItem
+  | DispatchWorkflowItem;
 
 /**
  * Sanitized safe output items
@@ -196,6 +210,7 @@ export {
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
+  DispatchWorkflowItem,
   SafeOutputItem,
   SafeOutputItems,
 };

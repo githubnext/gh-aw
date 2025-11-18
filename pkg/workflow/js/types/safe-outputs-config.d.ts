@@ -98,6 +98,13 @@ interface UploadAssetConfig extends SafeOutputConfig {
 interface MissingToolConfig extends SafeOutputConfig {}
 
 /**
+ * Configuration for dispatching workflows
+ */
+interface DispatchWorkflowConfig extends SafeOutputConfig {
+  "allowed-workflows"?: string[];
+}
+
+/**
  * Configuration for threat detection
  */
 interface ThreatDetectionConfig extends SafeOutputConfig {
@@ -147,6 +154,7 @@ type SpecificSafeOutputConfig =
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | MissingToolConfig
+  | DispatchWorkflowConfig
   | ThreatDetectionConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -166,6 +174,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   MissingToolConfig,
+  DispatchWorkflowConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types

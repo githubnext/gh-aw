@@ -37,7 +37,8 @@
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
-        {"$ref": "#/$defs/UpdateProjectOutput"}
+        {"$ref": "#/$defs/UpdateProjectOutput"},
+        {"$ref": "#/$defs/DispatchWorkflowOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -356,6 +357,32 @@
         }
       },
       "required": ["type", "project"],
+      "additionalProperties": false
+    },
+    "DispatchWorkflowOutput": {
+      "title": "Dispatch Workflow Output",
+      "description": "Output for dispatching another GitHub Actions workflow",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "dispatch_workflow"
+        },
+        "workflow": {
+          "type": "string",
+          "description": "Workflow file name (e.g., 'workflow.yml') or workflow ID",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "description": "Git reference (branch, tag, or commit SHA) for the workflow. Defaults to repository default branch"
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Optional workflow inputs as key-value pairs",
+          "additionalProperties": true
+        }
+      },
+      "required": ["type", "workflow"],
       "additionalProperties": false
     }
   }
