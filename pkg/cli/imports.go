@@ -16,6 +16,31 @@ import (
 
 var importsLog = logger.New("cli:imports")
 
+// resolveImportPath resolves a relative import path to its full repository path
+// based on the workflow file's location
+func resolveImportPath(importPath string, workflowPath string) string {
+	// If the import path is already a workflowspec format (contains owner/repo), return as-is
+	if isWorkflowSpecFormat(importPath) {
+		return importPath
+	}
+
+	// If the import path is absolute (starts with /), use it as-is (relative to repo root)
+	if strings.HasPrefix(importPath, "/") {
+		return strings.TrimPrefix(importPath, "/")
+	}
+
+	// Otherwise, resolve relative to the workflow file's directory
+	workflowDir := filepath.Dir(workflowPath)
+
+	// Clean the path to normalize it (removes .., ., etc.)
+	fullPath := filepath.Clean(filepath.Join(workflowDir, importPath))
+
+	// Convert back to forward slashes (filepath.Clean uses OS path separator)
+	fullPath = filepath.ToSlash(fullPath)
+
+	return fullPath
+}
+
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all imports found
 func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
@@ -66,9 +91,13 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 			continue
 		}
 
+		// Resolve the import path relative to the workflow file's directory
+		resolvedPath := resolveImportPath(importPath, workflow.WorkflowPath)
+		importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
+
 		// Build workflowspec for this import
 		// Format: owner/repo/path@sha
-		workflowSpec := workflow.RepoSlug + "/" + importPath
+		workflowSpec := workflow.RepoSlug + "/" + resolvedPath
 		if commitSHA != "" {
 			workflowSpec += "@" + commitSHA
 		} else if workflow.Version != "" {
@@ -322,9 +351,12 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 				continue
 			}
 
+			// Resolve the file path relative to the workflow file's directory
+			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
+
 			// Build workflowspec for this include
 			// Format: owner/repo/path@sha
-			workflowSpec := workflow.RepoSlug + "/" + filePath
+			workflowSpec := workflow.RepoSlug + "/" + resolvedPath
 			if commitSHA != "" {
 				workflowSpec += "@" + commitSHA
 			} else if workflow.Version != "" {

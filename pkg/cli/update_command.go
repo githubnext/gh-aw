@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -455,8 +456,19 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 
 	// Use gh CLI to get releases
 	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
+		// Check if this is an authentication error
+		outputStr := string(output)
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback")
+			// Try fallback using git ls-remote
+			release, gitErr := resolveLatestReleaseViaGit(repo, currentRef, allowMajor, verbose)
+			if gitErr != nil {
+				return "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git error: %v", err, gitErr)
+			}
+			return release, nil
+		}
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}
 
@@ -506,67 +518,6 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	return latestCompatible, nil
-}
-
-// isBranchRef checks if a ref is a branch in the repository
-func isBranchRef(repo, ref string) (bool, error) {
-	// Use gh CLI to list branches
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-
-	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, branch := range branches {
-		if branch == ref {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-// resolveBranchHead gets the latest commit SHA for a branch
-func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s", branch, repo)))
-	}
-
-	// Use gh CLI to get branch info
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch branch info: %w", err)
-	}
-
-	sha := strings.TrimSpace(string(output))
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest commit on %s: %s", branch, sha)))
-	}
-
-	return sha, nil
-}
-
-// resolveDefaultBranchHead gets the latest commit SHA for the default branch
-func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s", repo)))
-	}
-
-	// First get the default branch name
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch repository info: %w", err)
-	}
-
-	defaultBranch := strings.TrimSpace(string(output))
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Default branch: %s", defaultBranch)))
-	}
-
-	return resolveBranchHead(repo, defaultBranch, verbose)
 }
 
 // updateWorkflow updates a single workflow from its source
@@ -774,31 +725,6 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	return nil
-}
-
-// downloadWorkflowContent downloads the content of a workflow file from GitHub
-func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, error) {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s", repo, path, ref)))
-	}
-
-	// Use gh CLI to download the file
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch file content: %w", err)
-	}
-
-	// The content is base64 encoded, decode it
-	contentBase64 := strings.TrimSpace(string(output))
-	cmd = exec.Command("base64", "-d")
-	cmd.Stdin = strings.NewReader(contentBase64)
-	content, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode file content: %w", err)
-	}
-
-	return content, nil
 }
 
 // normalizeWhitespace normalizes trailing whitespace and newlines to reduce spurious conflicts

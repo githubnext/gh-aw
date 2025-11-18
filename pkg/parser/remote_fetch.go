@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -182,10 +183,59 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	return tempFile.Name(), nil
 }
 
+// resolveRefToSHAViaGit resolves a git ref to SHA using git ls-remote
+// This is a fallback for when GitHub API authentication fails
+func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
+	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
+
+	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+
+	// Try to resolve the ref using git ls-remote
+	// Format: git ls-remote <repo> <ref>
+	cmd := exec.Command("git", "ls-remote", repoURL, ref)
+	output, err := cmd.Output()
+	if err != nil {
+		// If exact ref doesn't work, try with refs/heads/ and refs/tags/ prefixes
+		for _, prefix := range []string{"refs/heads/", "refs/tags/"} {
+			cmd = exec.Command("git", "ls-remote", repoURL, prefix+ref)
+			output, err = cmd.Output()
+			if err == nil && len(output) > 0 {
+				break
+			}
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve ref via git ls-remote: %w", err)
+		}
+	}
+
+	// Parse the output: "<sha> <ref>"
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 0 || len(lines[0]) == 0 {
+		return "", fmt.Errorf("no matching ref found for %s", ref)
+	}
+
+	// Extract SHA from the first line
+	parts := strings.Fields(lines[0])
+	if len(parts) < 1 {
+		return "", fmt.Errorf("invalid git ls-remote output format")
+	}
+
+	sha := parts[0]
+
+	// Validate it's a valid SHA
+	if len(sha) != 40 || !gitutil.IsHexString(sha) {
+		return "", fmt.Errorf("invalid SHA format from git ls-remote: %s", sha)
+	}
+
+	remoteLog.Printf("Successfully resolved ref via git ls-remote: %s/%s@%s -> %s", owner, repo, ref, sha)
+	return sha, nil
+}
+
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
-	if len(ref) == 40 && isHexString(ref) {
+	if len(ref) == 40 && gitutil.IsHexString(ref) {
 		return ref, nil
 	}
 
@@ -196,8 +246,15 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		outputStr := string(output)
-		if strings.Contains(outputStr, "GH_TOKEN") || strings.Contains(outputStr, "authentication") || strings.Contains(outputStr, "not logged into") {
-			return "", fmt.Errorf("failed to resolve ref to SHA: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+		if gitutil.IsAuthError(outputStr) {
+			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
+			// Try fallback using git ls-remote for public repositories
+			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref)
+			if gitErr != nil {
+				// If git fallback also fails, return both errors
+				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %v", err, gitErr)
+			}
+			return sha, nil
 		}
 		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
 	}
@@ -208,24 +265,96 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 	}
 
 	// Validate it's a valid SHA (40 hex characters)
-	if len(sha) != 40 || !isHexString(sha) {
+	if len(sha) != 40 || !gitutil.IsHexString(sha) {
 		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
 	}
 
 	return sha, nil
 }
 
-// isHexString checks if a string contains only hexadecimal characters
-func isHexString(s string) bool {
-	if len(s) == 0 {
-		return false
+// downloadFileViaGit downloads a file from a Git repository using git commands
+// This is a fallback for when GitHub API authentication fails
+func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
+	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
+
+	// Use git archive to get the file content without cloning
+	// This works for public repositories without authentication
+	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+
+	// git archive command: git archive --remote=<repo> <ref> <path>
+	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
+	archiveOutput, err := cmd.Output()
+	if err != nil {
+		// If git archive fails, try with git clone + git show as a fallback
+		return downloadFileViaGitClone(owner, repo, path, ref)
 	}
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
+
+	// Extract the file from the tar archive
+	// git archive outputs a tar archive containing the requested file
+	tarCmd := exec.Command("tar", "-xO", path)
+	tarCmd.Stdin = strings.NewReader(string(archiveOutput))
+	content, err := tarCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
+	}
+
+	remoteLog.Printf("Successfully downloaded file via git archive: %s/%s/%s@%s", owner, repo, path, ref)
+	return content, nil
+}
+
+// downloadFileViaGitClone downloads a file by shallow cloning the repository
+// This is used as a fallback when git archive doesn't work
+func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
+	remoteLog.Printf("Attempting git clone fallback for %s/%s/%s@%s", owner, repo, path, ref)
+
+	// Create a temporary directory for the shallow clone
+	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+
+	// Check if ref is a SHA (40 hex characters)
+	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
+
+	var cloneCmd *exec.Cmd
+	if isSHA {
+		// For SHA refs, we need to clone without --branch and then checkout the specific commit
+		// Clone with minimal depth and no branch specified
+		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
+		if output, err := cloneCmd.CombinedOutput(); err != nil {
+			// Try without --no-single-branch if the first attempt fails
+			remoteLog.Printf("Clone with --no-single-branch failed, trying full clone: %s", string(output))
+			cloneCmd = exec.Command("git", "clone", repoURL, tmpDir)
+			if output, err := cloneCmd.CombinedOutput(); err != nil {
+				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
+			}
+		}
+
+		// Now checkout the specific commit
+		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
+		if output, err := checkoutCmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
+		}
+	} else {
+		// For branch/tag refs, use --branch flag
+		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
+		if output, err := cloneCmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 		}
 	}
-	return true
+
+	// Read the file from the cloned repository
+	filePath := filepath.Join(tmpDir, path)
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file from cloned repository: %w", err)
+	}
+
+	remoteLog.Printf("Successfully downloaded file via git clone: %s/%s/%s@%s", owner, repo, path, ref)
+	return content, nil
 }
 
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
@@ -235,8 +364,15 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	if err != nil {
 		// Check if this is an authentication error
 		stderrStr := stderr.String()
-		if strings.Contains(stderrStr, "GH_TOKEN") || strings.Contains(stderrStr, "authentication") || strings.Contains(stderrStr, "not logged into") {
-			return nil, fmt.Errorf("failed to fetch file content: GitHub authentication required. Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN environment variable: %w", err)
+		if gitutil.IsAuthError(stderrStr) {
+			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
+			// Try fallback using git commands for public repositories
+			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
+			if gitErr != nil {
+				// If git fallback also fails, return both errors
+				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+			}
+			return content, nil
 		}
 		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(stderrStr), err)
 	}
