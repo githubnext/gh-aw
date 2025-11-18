@@ -28,7 +28,6 @@ func TestConclusionJob(t *testing.T) {
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
-				"needs.activation.outputs.comment_id",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
@@ -43,7 +42,6 @@ func TestConclusionJob(t *testing.T) {
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
-				"needs.activation.outputs.comment_id",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
@@ -57,20 +55,32 @@ func TestConclusionJob(t *testing.T) {
 			expectJob:          false,
 		},
 		{
-			name:               "conclusion job not created when add-comment is configured but ai-reaction is not",
+			name:               "conclusion job created when add-comment is configured but ai-reaction is not",
 			addCommentConfig:   true,
 			aiReaction:         "",
 			command:            "",
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
-			expectJob:          false,
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"!(needs.add_comment.outputs.comment_id)",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
 		},
 		{
-			name:               "conclusion job not created when reaction is explicitly set to none",
+			name:               "conclusion job created when reaction is explicitly set to none",
 			addCommentConfig:   true,
 			aiReaction:         "none",
 			command:            "",
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
-			expectJob:          false,
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"!(needs.add_comment.outputs.comment_id)",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
 		},
 		{
 			name:               "conclusion job created when command and reaction are configured (no add-comment)",
@@ -82,7 +92,6 @@ func TestConclusionJob(t *testing.T) {
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
-				"needs.activation.outputs.comment_id",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
 		},
@@ -96,21 +105,25 @@ func TestConclusionJob(t *testing.T) {
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
-				"needs.activation.outputs.comment_id",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "push_to_pull_request_branch", "missing_tool"},
 		},
 		{
-			name:               "conclusion job not created when command is configured but reaction is none",
+			name:               "conclusion job created when command is configured but reaction is none",
 			addCommentConfig:   false,
 			aiReaction:         "none",
 			command:            "test-command",
 			safeOutputJobNames: []string{"missing_tool"},
-			expectJob:          false,
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
 		},
 	}
 
-	for _, tt := range tests {
+		for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test workflow
 			compiler := NewCompiler(false, "", "")
@@ -127,6 +140,12 @@ func TestConclusionJob(t *testing.T) {
 							Max: 1,
 						},
 					},
+				}
+			} else if len(tt.safeOutputJobNames) > 0 {
+				// If there are safe output jobs but no add-comment, create a minimal SafeOutputs config
+				// This represents a scenario where other safe outputs exist (like missing_tool)
+				workflowData.SafeOutputs = &SafeOutputsConfig{
+					MissingTool: &MissingToolConfig{},
 				}
 			}
 
@@ -230,11 +249,6 @@ func TestConclusionJobIntegration(t *testing.T) {
 	// Convert job to YAML string for checking
 	jobYAML := strings.Join(job.Steps, "")
 
-	// Check that the job references activation outputs
-	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected conclusion to reference activation.outputs.comment_id")
-	}
-
 	// Check that environment variables reference activation outputs
 	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_id") {
 		t.Error("Expected GH_AW_COMMENT_ID to reference activation.outputs.comment_id")
@@ -248,15 +262,12 @@ func TestConclusionJobIntegration(t *testing.T) {
 		t.Error("Expected GH_AW_AGENT_CONCLUSION to reference needs.agent.result")
 	}
 
-	// Check all six conditions are present
+	// Check expected conditions are present
 	if !strings.Contains(job.If, "always()") {
 		t.Error("Expected always() in conclusion condition")
 	}
 	if !strings.Contains(job.If, "needs.agent.result != 'skipped'") {
 		t.Error("Expected agent not skipped check in conclusion condition")
-	}
-	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected comment_id check in conclusion condition")
 	}
 	if !strings.Contains(job.If, "!(needs.add_comment.outputs.comment_id)") {
 		t.Error("Expected NOT add_comment.outputs.comment_id check in conclusion condition")

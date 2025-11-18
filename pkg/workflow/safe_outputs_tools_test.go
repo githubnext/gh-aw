@@ -278,6 +278,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"push_to_pull_request_branch",
 		"upload_asset",
 		"missing_tool",
+		"noop",
 	}
 
 	var actualTools []string

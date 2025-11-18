@@ -3,6 +3,9 @@
 
 // This script updates an existing comment created by the activation job
 // to notify about the workflow completion status (success or failure).
+// It also processes noop messages and adds them to the activation comment.
+
+const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -17,11 +20,41 @@ async function main() {
   core.info(`Workflow Name: ${workflowName}`);
   core.info(`Agent Conclusion: ${agentConclusion}`);
 
-  if (!commentId) {
-    core.info("No comment ID found, skipping comment update");
+  // Load agent output to check for noop messages
+  let noopMessages = [];
+  const agentOutputResult = loadAgentOutput();
+  if (agentOutputResult.success && agentOutputResult.data) {
+    const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+    if (noopItems.length > 0) {
+      core.info(`Found ${noopItems.length} noop message(s)`);
+      noopMessages = noopItems.map(item => item.message);
+    }
+  }
+
+  // If there's no comment to update but we have noop messages, write to step summary
+  if (!commentId && noopMessages.length > 0) {
+    core.info("No comment ID found, writing noop messages to step summary");
+    
+    let summaryContent = "## No-Op Messages\n\n";
+    summaryContent += "The following messages were logged for transparency:\n\n";
+    
+    if (noopMessages.length === 1) {
+      summaryContent += noopMessages[0];
+    } else {
+      summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+    }
+    
+    await core.summary.addRaw(summaryContent).write();
+    core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
     return;
   }
 
+  if (!commentId) {
+    core.info("No comment ID found and no noop messages to process, skipping comment update");
+    return;
+  }
+
+  // At this point, we have a comment to update
   if (!runUrl) {
     core.setFailed("Run URL is required");
     return;
@@ -56,6 +89,16 @@ async function main() {
   } else {
     // Default to failure message
     message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+  }
+
+  // Add noop messages to the comment if any
+  if (noopMessages.length > 0) {
+    message += "\n\n";
+    if (noopMessages.length === 1) {
+      message += noopMessages[0];
+    } else {
+      message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+    }
   }
 
   // Check if this is a discussion comment (GraphQL node ID format)

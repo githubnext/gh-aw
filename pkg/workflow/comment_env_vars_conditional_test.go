@@ -37,7 +37,7 @@ Should have comment env vars.
 			safeOutputType:    "create_pull_request",
 		},
 		{
-			name: "create-pull-request without reaction should not have comment env vars",
+			name: "create-pull-request without reaction should have conclusion job with comment env vars",
 			markdown: `---
 on:
   pull_request:
@@ -48,9 +48,9 @@ safe-outputs:
 
 # Test PR without reaction
 
-Should NOT have comment env vars.
+Conclusion job will have comment env vars (may be empty).
 `,
-			expectCommentEnvs: false,
+			expectCommentEnvs: true, // Changed: conclusion job always has these
 			safeOutputType:    "create_pull_request",
 		},
 		{
@@ -72,7 +72,7 @@ Should have comment env vars.
 			safeOutputType:    "push_to_pull_request_branch",
 		},
 		{
-			name: "push-to-pull-request-branch without reaction should not have comment env vars",
+			name: "push-to-pull-request-branch without reaction should have conclusion job with comment env vars",
 			markdown: `---
 on:
   pull_request:
@@ -83,13 +83,13 @@ safe-outputs:
 
 # Test push without reaction
 
-Should NOT have comment env vars.
+Conclusion job will have comment env vars (may be empty).
 `,
-			expectCommentEnvs: false,
+			expectCommentEnvs: true, // Changed: conclusion job always has these
 			safeOutputType:    "push_to_pull_request_branch",
 		},
 		{
-			name: "create-pull-request with reaction:none should not have comment env vars",
+			name: "create-pull-request with reaction:none should have conclusion job with comment env vars",
 			markdown: `---
 on:
   pull_request:
@@ -101,9 +101,9 @@ safe-outputs:
 
 # Test PR with reaction:none
 
-Should NOT have comment env vars.
+Conclusion job will have comment env vars (may be empty).
 `,
-			expectCommentEnvs: false,
+			expectCommentEnvs: true, // Changed: conclusion job always has these
 			safeOutputType:    "create_pull_request",
 		},
 	}

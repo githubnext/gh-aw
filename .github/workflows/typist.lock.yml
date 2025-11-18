@@ -15,10 +15,15 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
+#   agent --> conclusion
+#   activation --> conclusion
+#   create_discussion --> conclusion
+#   missing_tool --> conclusion
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
@@ -387,7 +392,7 @@ jobs:
           {"create_discussion":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"}]
+          [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -2258,6 +2263,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "noop":
+                    return 1; 
                   default:
                     return 1;
                 }
@@ -2805,6 +2812,13 @@ jobs:
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                       }
+                      break;
+                    case "noop":
+                      if (!item.message || typeof item.message !== "string") {
+                        errors.push(`Line ${i + 1}: noop requires a 'message' string field`);
+                        continue;
+                      }
+                      item.message = sanitizeContent(item.message, maxBodyLength);
                       break;
                     case "create_code_scanning_alert":
                       if (!item.file || typeof item.file !== "string") {
@@ -3673,6 +3687,203 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  conclusion:
+    needs:
+      - agent
+      - activation
+      - create_discussion
+      - missing_tool
+    if: (always()) && (needs.agent.result != 'skipped')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Typist - Go Type Analysis"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              let noopMessages = [];
+              const agentOutputResult = loadAgentOutput();
+              if (agentOutputResult.success && agentOutputResult.data) {
+                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+                if (noopItems.length > 0) {
+                  core.info(`Found ${noopItems.length} noop message(s)`);
+                  noopMessages = noopItems.map(item => item.message);
+                }
+              }
+              if (!commentId && noopMessages.length > 0) {
+                core.info("No comment ID found, writing noop messages to step summary");
+                let summaryContent = "## No-Op Messages\n\n";
+                summaryContent += "The following messages were logged for transparency:\n\n";
+                if (noopMessages.length === 1) {
+                  summaryContent += noopMessages[0];
+                } else {
+                  summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
+                return;
+              }
+              if (!commentId) {
+                core.info("No comment ID found and no noop messages to process, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              let message;
+              if (agentConclusion === "success") {
+                statusEmoji = "✅";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+              } else if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else {
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              }
+              if (noopMessages.length > 0) {
+                message += "\n\n";
+                if (noopMessages.length === 1) {
+                  message += noopMessages[0];
+                } else {
+                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
+              }
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: message }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: message,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   create_discussion:
     needs:
