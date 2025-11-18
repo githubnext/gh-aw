@@ -2872,6 +2872,37 @@
             }
           ]
         },
+        "update-release": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub release descriptions",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of releases to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "default": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository for cross-repo release updates (format: owner/repo). If not specified, updates releases in the workflow's repository.",
+                  "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable release updates with default configuration"
+            }
+          ]
+        },
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
