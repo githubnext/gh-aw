@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 13 * * 1-5"  # Weekdays at 1 PM UTC
+  skip-if-match: 'is:issue is:open in:title "[file-diet]"'
 
 permissions:
   contents: read

@@ -184,6 +184,9 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 			} else if strings.HasPrefix(trimmedLine, "stop-after:") {
 				shouldComment = true
 				commentReason = " # Stop-after processed as stop-time check in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "skip-if-match:") {
+				shouldComment = true
+				commentReason = " # Skip-if-match processed as search check in pre-activation job"
 			} else if strings.HasPrefix(trimmedLine, "reaction:") {
 				shouldComment = true
 				commentReason = " # Reaction processed as activation job step"

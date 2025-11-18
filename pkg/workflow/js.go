@@ -26,6 +26,9 @@ var checkMembershipScript string
 //go:embed js/check_stop_time.cjs
 var checkStopTimeScript string
 
+//go:embed js/check_skip_if_match.cjs
+var checkSkipIfMatchScript string
+
 //go:embed js/check_command_position.cjs
 var checkCommandPositionScript string
 

@@ -916,6 +916,10 @@
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
+            "skip-if-match": {
+              "type": "string",
+              "description": "GitHub search query string to check before running workflow. If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
