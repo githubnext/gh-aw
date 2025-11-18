@@ -219,6 +219,7 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
+	SkipIfMatch         string               // GitHub search query to check before running workflow
 	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)
@@ -1172,6 +1173,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process skip-if-match configuration from the on: section
+	err = c.processSkipIfMatchConfiguration(result.Frontmatter, workflowData)
 	if err != nil {
 		return nil, err
 	}
