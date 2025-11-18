@@ -248,7 +248,7 @@ jobs:
           {"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"}]
+          [{"description":"Assign a GitHub issue to a milestone","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue number (optional for current context)","type":"number"},"milestone":{"description":"Milestone title (string) or ID (number) from the allowed list","type":["string","number"]}},"required":["milestone"],"type":"object"},"name":"assign_milestone"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
