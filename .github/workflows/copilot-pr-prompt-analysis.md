@@ -64,7 +64,7 @@ steps:
       gh pr list --repo ${{ github.repository }} \
         --search "head:copilot/ created:>=${DATE_30_DAYS_AGO}" \
         --state all \
-        --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,assignees,repository \
+        --json \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
