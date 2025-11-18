@@ -32,35 +32,41 @@ describe("noop", () => {
   it("should handle empty agent output", async () => {
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     await import("./noop.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No noop items found"));
   });
 
   it("should process single noop message", async () => {
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [
-        {
-          type: "noop",
-          message: "No issues found in this review",
-        },
-      ],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [
+          {
+            type: "noop",
+            message: "No issues found in this review",
+          },
+        ],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     // Need to re-import to execute
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: No issues found in this review");
     expect(mockCore.setOutput).toHaveBeenCalledWith("noop_message", "No issues found in this review");
@@ -72,28 +78,31 @@ describe("noop", () => {
   it("should process multiple noop messages", async () => {
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [
-        {
-          type: "noop",
-          message: "First message",
-        },
-        {
-          type: "noop",
-          message: "Second message",
-        },
-        {
-          type: "noop",
-          message: "Third message",
-        },
-      ],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [
+          {
+            type: "noop",
+            message: "First message",
+          },
+          {
+            type: "noop",
+            message: "Second message",
+          },
+          {
+            type: "noop",
+            message: "Third message",
+          },
+        ],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("Found 3 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: First message");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 2: Second message");
@@ -106,20 +115,23 @@ describe("noop", () => {
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [
-        {
-          type: "noop",
-          message: "Test message in staged mode",
-        },
-      ],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [
+          {
+            type: "noop",
+            message: "Test message in staged mode",
+          },
+        ],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("📝 No-op message preview written to step summary"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode"));
@@ -130,29 +142,32 @@ describe("noop", () => {
   it("should ignore non-noop items", async () => {
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [
-        {
-          type: "create_issue",
-          title: "Test Issue",
-          body: "Test body",
-        },
-        {
-          type: "noop",
-          message: "This is the only noop",
-        },
-        {
-          type: "add_comment",
-          body: "Test comment",
-        },
-      ],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [
+          {
+            type: "create_issue",
+            title: "Test Issue",
+            body: "Test body",
+          },
+          {
+            type: "noop",
+            message: "This is the only noop",
+          },
+          {
+            type: "add_comment",
+            body: "Test comment",
+          },
+        ],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: This is the only noop");
   });
@@ -162,7 +177,7 @@ describe("noop", () => {
 
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     // loadAgentOutput should handle this and return success: false
     // The noop function should return early
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No GH_AW_AGENT_OUTPUT"));
@@ -171,24 +186,27 @@ describe("noop", () => {
   it("should generate proper step summary format", async () => {
     const agentOutputPath = "/tmp/gh-aw/agent_output.json";
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(agentOutputPath, JSON.stringify({
-      items: [
-        {
-          type: "noop",
-          message: "Analysis complete",
-        },
-        {
-          type: "noop",
-          message: "No action required",
-        },
-      ],
-      errors: [],
-    }));
+    fs.writeFileSync(
+      agentOutputPath,
+      JSON.stringify({
+        items: [
+          {
+            type: "noop",
+            message: "Analysis complete",
+          },
+          {
+            type: "noop",
+            message: "No action required",
+          },
+        ],
+        errors: [],
+      })
+    );
     process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
 
     delete require.cache[require.resolve("./noop.cjs")];
     await import("./noop.cjs");
-    
+
     const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryCall).toContain("## No-Op Messages");
     expect(summaryCall).toContain("- Analysis complete");

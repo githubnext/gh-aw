@@ -34,16 +34,16 @@ async function main() {
   // If there's no comment to update but we have noop messages, write to step summary
   if (!commentId && noopMessages.length > 0) {
     core.info("No comment ID found, writing noop messages to step summary");
-    
+
     let summaryContent = "## No-Op Messages\n\n";
     summaryContent += "The following messages were logged for transparency:\n\n";
-    
+
     if (noopMessages.length === 1) {
       summaryContent += noopMessages[0];
     } else {
       summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
     }
-    
+
     await core.summary.addRaw(summaryContent).write();
     core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
     return;
