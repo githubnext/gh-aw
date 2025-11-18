@@ -448,7 +448,6 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 }
 
 // isSemanticVersionTag checks if a ref looks like a semantic version tag
-// resolveLatestReleaseViaGit finds the latest release using git ls-remote
 // resolveLatestRelease finds the latest release, respecting semantic versioning
 func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {

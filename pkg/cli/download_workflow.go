@@ -391,7 +391,9 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 
 	if isSHA {
 		// For SHA refs, fetch without specifying a ref (fetch all) then checkout the specific commit
-		// We need to fetch more than just the ref because sparse-checkout with specific SHA is tricky
+		// Note: sparse-checkout with SHA refs may not reduce bandwidth as much as with branch refs,
+		// because the server needs to send enough history to reach the specific commit.
+		// However, it still limits the working directory to only the requested file.
 		fetchCmd := exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
 		if _, err := fetchCmd.CombinedOutput(); err != nil {
 			// If fetching specific SHA fails, try fetching all branches with depth 1

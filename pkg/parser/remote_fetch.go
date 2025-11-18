@@ -324,8 +324,9 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 		// For SHA refs, we need to clone without --branch and then checkout the specific commit
 		// Clone with minimal depth and no branch specified
 		cloneCmd = exec.Command("git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
-		if _, err := cloneCmd.CombinedOutput(); err != nil {
-			// Try without --no-single-branch
+		if output, err := cloneCmd.CombinedOutput(); err != nil {
+			// Try without --no-single-branch if the first attempt fails
+			remoteLog.Printf("Clone with --no-single-branch failed, trying full clone: %s", string(output))
 			cloneCmd = exec.Command("git", "clone", repoURL, tmpDir)
 			if output, err := cloneCmd.CombinedOutput(); err != nil {
 				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
