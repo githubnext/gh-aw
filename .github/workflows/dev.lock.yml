@@ -875,19 +875,19 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Assign Random Issue to Ultimate Milestone
+          # Assign Random Issue to v0.Later Milestone
           
-          Find a random open issue in the repository and assign it to the "ultimate" milestone.
+          Find a random open issue in the repository and assign it to the "v0.Later" milestone.
           
           **Instructions**:
           
           1. Use the GitHub tool to list open issues in the repository
           2. Select a random issue from the list
-          3. Assign that issue to the "ultimate" milestone using the assign_milestone safe output
+          3. Assign that issue to the "v0.Later" milestone using the assign_milestone safe output
           
           Output the assignment as JSONL format:
           ```jsonl
-          {"type": "assign_milestone", "milestone": "ultimate", "item_number": <issue_number>}
+          {"type": "assign_milestone", "milestone": "v0.Later", "item_number": <issue_number>}
           ```
           
           Replace `<issue_number>` with the actual issue number you selected.
@@ -3387,7 +3387,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MILESTONES_ALLOWED: "ultimate"
+          GH_AW_MILESTONES_ALLOWED: "v0.Later"
           GH_AW_MILESTONE_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Dev"
         with:
