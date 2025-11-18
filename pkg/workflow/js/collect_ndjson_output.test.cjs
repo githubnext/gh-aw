@@ -2271,4 +2271,106 @@ Line 3"}
       expect(parsedOutput.errors[0]).toContain("Too few items of type 'add_comment'. Minimum required: 2, found: 1.");
     });
   });
+
+  describe("noop output validation", () => {
+    it("should validate noop with message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "No issues found in this review"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("noop");
+      expect(parsedOutput.items[0].message).toBe("No issues found in this review");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should reject noop without message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors).toHaveLength(1);
+      expect(parsedOutput.errors[0]).toContain("noop requires a 'message' string field");
+    });
+
+    it("should reject noop with non-string message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": 123}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors).toHaveLength(1);
+      expect(parsedOutput.errors[0]).toContain("noop requires a 'message' string field");
+    });
+
+    it("should sanitize noop message content", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "Test @mention and fixes #123"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].message).toContain("`@mention`");
+      expect(parsedOutput.items[0].message).toContain("`fixes #123`");
+    });
+
+    it("should handle multiple noop messages", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "First message"}
+{"type": "noop", "message": "Second message"}
+{"type": "noop", "message": "Third message"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3);
+      expect(parsedOutput.items[0].message).toBe("First message");
+      expect(parsedOutput.items[1].message).toBe("Second message");
+      expect(parsedOutput.items[2].message).toBe("Third message");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+  });
 });

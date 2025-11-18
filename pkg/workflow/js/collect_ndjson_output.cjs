@@ -35,6 +35,8 @@ async function main() {
         return 40;
       case "upload_asset":
         return 10;
+      case "noop":
+        return 100; // Allow many noop messages for transparency
       default:
         return 1;
     }
@@ -590,6 +592,13 @@ async function main() {
             errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
             continue;
           }
+          break;
+        case "noop":
+          if (!item.message || typeof item.message !== "string") {
+            errors.push(`Line ${i + 1}: noop requires a 'message' string field`);
+            continue;
+          }
+          item.message = sanitizeContent(item.message, maxBodyLength);
           break;
         case "create_code_scanning_alert":
           if (!item.file || typeof item.file !== "string") {
