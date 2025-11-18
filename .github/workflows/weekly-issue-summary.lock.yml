@@ -2157,6 +2157,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "dispatch_workflow":
+                    return 1;
                   default:
                     return 1;
                 }
@@ -2703,6 +2705,26 @@ jobs:
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
+                      }
+                      break;
+                    case "dispatch_workflow":
+                      if (!item.workflow || typeof item.workflow !== "string") {
+                        errors.push(`Line ${i + 1}: dispatch_workflow requires a 'workflow' string field`);
+                        continue;
+                      }
+                      item.workflow = sanitizeContent(item.workflow, 256);
+                      if (item.ref !== undefined) {
+                        if (typeof item.ref !== "string") {
+                          errors.push(`Line ${i + 1}: dispatch_workflow 'ref' must be a string`);
+                          continue;
+                        }
+                        item.ref = sanitizeContent(item.ref, 256);
+                      }
+                      if (item.inputs !== undefined) {
+                        if (typeof item.inputs !== "object" || Array.isArray(item.inputs)) {
+                          errors.push(`Line ${i + 1}: dispatch_workflow 'inputs' must be an object`);
+                          continue;
+                        }
                       }
                       break;
                     case "create_code_scanning_alert":

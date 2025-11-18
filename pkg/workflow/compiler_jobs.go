@@ -357,6 +357,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
 	}
 
+	// Build dispatch_workflow job if output.dispatch-workflow is configured
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		dispatchWorkflowJob, err := c.buildCreateOutputDispatchWorkflowJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build dispatch_workflow job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			dispatchWorkflowJob.Needs = append(dispatchWorkflowJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			dispatchWorkflowJob.If = AddDetectionSuccessCheck(dispatchWorkflowJob.If)
+		}
+		if err := c.jobManager.AddJob(dispatchWorkflowJob); err != nil {
+			return fmt.Errorf("failed to add dispatch_workflow job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, dispatchWorkflowJob.Name)
+	}
+
 	// Build create_agent_task job if output.create-agent-task is configured
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)

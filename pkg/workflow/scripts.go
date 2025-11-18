@@ -44,6 +44,9 @@ var addCommentScriptSource string
 //go:embed js/upload_assets.cjs
 var uploadAssetsScriptSource string
 
+//go:embed js/dispatch_workflow.cjs
+var dispatchWorkflowScriptSource string
+
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
@@ -98,6 +101,9 @@ var (
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
+
+	dispatchWorkflowScript     string
+	dispatchWorkflowScriptOnce sync.Once
 
 	parseFirewallLogsScript     string
 	parseFirewallLogsScriptOnce sync.Once
@@ -325,6 +331,23 @@ func getUploadAssetsScript() string {
 		}
 	})
 	return uploadAssetsScript
+}
+
+// getDispatchWorkflowScript returns the bundled dispatch_workflow script
+// Bundling is performed on first access and cached for subsequent calls
+func getDispatchWorkflowScript() string {
+	dispatchWorkflowScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(dispatchWorkflowScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for dispatch_workflow, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			dispatchWorkflowScript = dispatchWorkflowScriptSource
+		} else {
+			dispatchWorkflowScript = bundled
+		}
+	})
+	return dispatchWorkflowScript
 }
 
 // getPushToPullRequestBranchScript returns the bundled push_to_pull_request_branch script

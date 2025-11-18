@@ -40,6 +40,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
+		safeOutputs.DispatchWorkflow != nil ||
 		safeOutputs.MissingTool != nil ||
 		len(safeOutputs.Jobs) > 0
 
@@ -400,6 +401,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
 			if uploadAssetsConfig != nil {
 				config.UploadAssets = uploadAssetsConfig
+			}
+
+			// Handle dispatch-workflow
+			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
+			if dispatchWorkflowConfig != nil {
+				config.DispatchWorkflow = dispatchWorkflowConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)
