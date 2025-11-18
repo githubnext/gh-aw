@@ -452,9 +452,9 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentRef, allowMajor)))
 	}
-	
+
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// List all tags
 	cmd := exec.Command("git", "ls-remote", "--tags", repoURL)
 	output, err := cmd.Output()
@@ -464,7 +464,7 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	var releases []string
-	
+
 	for _, line := range lines {
 		// Parse: "<sha> refs/tags/<tag>"
 		parts := strings.Fields(line)
@@ -613,9 +613,9 @@ func isAuthError(errMsg string) bool {
 // isBranchRefViaGit checks if a ref is a branch using git ls-remote
 func isBranchRefViaGit(repo, ref string) (bool, error) {
 	updateLog.Printf("Attempting git ls-remote to check if ref is branch: %s@%s", repo, ref)
-	
+
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// List all branches and check if ref matches
 	cmd := exec.Command("git", "ls-remote", "--heads", repoURL)
 	output, err := cmd.Output()
@@ -675,9 +675,9 @@ func resolveBranchHeadViaGit(repo, branch string, verbose bool) (string, error) 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s via git ls-remote", branch, repo)))
 	}
-	
+
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// Get the SHA for the specific branch
 	cmd := exec.Command("git", "ls-remote", repoURL, fmt.Sprintf("refs/heads/%s", branch))
 	output, err := cmd.Output()
@@ -741,9 +741,9 @@ func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s via git ls-remote", repo)))
 	}
-	
+
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// Get HEAD to find default branch
 	cmd := exec.Command("git", "ls-remote", "--symref", repoURL, "HEAD")
 	output, err := cmd.Output()
@@ -760,7 +760,7 @@ func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 	// Second line is: "<sha> HEAD"
 	var defaultBranch string
 	var sha string
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "ref:") {
 			// Parse: "ref: refs/heads/<branch> HEAD"
@@ -1034,12 +1034,12 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git", repo, path, ref)))
 	}
-	
+
 	updateLog.Printf("Attempting git fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
 	// Use git archive to get the file content without cloning
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
@@ -1057,9 +1057,9 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Successfully fetched via git archive")))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git archive"))
 	}
-	
+
 	return content, nil
 }
 
@@ -1068,7 +1068,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git clone", repo, path, ref)))
 	}
-	
+
 	updateLog.Printf("Attempting git clone fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
 	// Create a temporary directory for the shallow clone
@@ -1079,10 +1079,10 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	defer os.RemoveAll(tmpDir)
 
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	
+
 	// Check if ref is a SHA (40 hex characters)
 	isSHA := len(ref) == 40 && isHexString(ref)
-	
+
 	var cloneCmd *exec.Cmd
 	if isSHA {
 		// For SHA refs, we need to clone without --branch and then checkout the specific commit
@@ -1095,7 +1095,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 			}
 		}
-		
+
 		// Now checkout the specific commit
 		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
@@ -1117,7 +1117,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Successfully fetched via git clone")))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Successfully fetched via git clone"))
 	}
 
 	return content, nil

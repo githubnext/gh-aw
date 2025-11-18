@@ -188,7 +188,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
 	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
-	
+
 	// Try to resolve the ref using git ls-remote
 	// Format: git ls-remote <repo> <ref>
 	cmd := exec.Command("git", "ls-remote", repoURL, ref)
@@ -202,7 +202,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 				break
 			}
 		}
-		
+
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve ref via git ls-remote: %w", err)
 		}
@@ -221,7 +221,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	}
 
 	sha := parts[0]
-	
+
 	// Validate it's a valid SHA
 	if len(sha) != 40 || !isHexString(sha) {
 		return "", fmt.Errorf("invalid SHA format from git ls-remote: %s", sha)
@@ -304,7 +304,7 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
 	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
-	
+
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
@@ -339,10 +339,10 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	defer os.RemoveAll(tmpDir)
 
 	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
-	
+
 	// Check if ref is a SHA (40 hex characters)
 	isSHA := len(ref) == 40 && isHexString(ref)
-	
+
 	var cloneCmd *exec.Cmd
 	if isSHA {
 		// For SHA refs, we need to clone without --branch and then checkout the specific commit
@@ -355,7 +355,7 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 			}
 		}
-		
+
 		// Now checkout the specific commit
 		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {

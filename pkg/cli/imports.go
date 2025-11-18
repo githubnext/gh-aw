@@ -31,13 +31,13 @@ func resolveImportPath(importPath string, workflowPath string) string {
 
 	// Otherwise, resolve relative to the workflow file's directory
 	workflowDir := filepath.Dir(workflowPath)
-	
+
 	// Clean the path to normalize it (removes .., ., etc.)
 	fullPath := filepath.Clean(filepath.Join(workflowDir, importPath))
-	
+
 	// Convert back to forward slashes (filepath.Clean uses OS path separator)
 	fullPath = filepath.ToSlash(fullPath)
-	
+
 	return fullPath
 }
 

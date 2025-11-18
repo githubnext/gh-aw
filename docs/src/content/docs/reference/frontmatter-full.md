@@ -1806,8 +1806,17 @@ roles: []
 
 # Option 2: undefined
 
-# Enable strict mode validation: require timeout, refuse write permissions,
-# require network configuration. Defaults to false.
+# Enable strict mode validation for enhanced security and compliance. Strict mode
+# enforces: (1) Write Permissions - refuses contents:write, issues:write,
+# pull-requests:write; requires safe-outputs instead, (2) Network Configuration -
+# requires explicit network configuration with no wildcard '*' in allowed domains,
+# (3) Action Pinning - enforces actions pinned to commit SHAs instead of
+# tags/branches, (4) MCP Network - requires network configuration for custom MCP
+# servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter
+# fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or
+# globally via CLI flag 'gh aw compile --strict' (CLI flag takes precedence over
+# frontmatter). Defaults to false. See:
+# https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict
 # (optional)
 strict: true
 
