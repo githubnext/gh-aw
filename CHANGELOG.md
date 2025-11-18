@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.30.0 - 2025-11-18
+
+### Features
+
+#### Strict mode now refuses deprecated schema fields instead of only warning
+
+
+### Bug Fixes
+
+#### Add actionable hints to strict mode validation errors
+
+Strict mode validation errors now include security rationale and safe alternatives. Error messages explain WHY restrictions exist and HOW to achieve goals safely, with links to documentation and suggestions for safe-outputs alternatives.
+
+#### Add update tool to MCP server
+
+Exposes the `gh aw update` command through the MCP protocol with essential update flags (workflows, major, force).
+
+#### Use GitHub API for lock file timestamp checks instead of repository checkout
+
+#### Prevent workflow_run triggers from executing in forked repositories
+
+#### Standardize MCP command arguments to workflow-id-or-file
+
+
+### Migration Guide
+
+`````markdown
+The following breaking changes require code updates:
+
+### Strict mode now refuses deprecated schema fields instead of only warning
+
+If you are using `--strict` mode and have workflows with deprecated fields, you will need to update them before compilation succeeds.
+
+For example, if you have:
+
+```yaml
+timeout_minutes: 30
+```
+
+Update to the recommended replacement:
+
+```yaml
+timeout-minutes: 30
+```
+
+Check the error messages when running `gh aw compile --strict` for specific replacement suggestions for each deprecated field. Non-strict mode continues to work with deprecated fields (showing warnings only).
+`````
+
 ## v0.29.1 - 2025-11-15
 
 Maintenance release with dependency updates and minor improvements.
