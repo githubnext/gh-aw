@@ -45,11 +45,14 @@ func TestSafeOutputsToolsJSONCompliesWithMCPSchema(t *testing.T) {
 	if err != nil {
 		// Provide detailed error information
 		t.Errorf("Tools JSON does not comply with MCP schema: %v", err)
-		
+
 		// Parse as array for debugging
 		var tools []map[string]any
-		json.Unmarshal([]byte(toolsJSON), &tools)
-		
+		if err := json.Unmarshal([]byte(toolsJSON), &tools); err != nil {
+			t.Logf("Failed to parse tools for debugging: %v", err)
+			return
+		}
+
 		// Print the problematic tools for debugging
 		t.Logf("Number of tools: %d", len(tools))
 		for i, tool := range tools {
@@ -86,11 +89,11 @@ func TestEachToolHasRequiredMCPFields(t *testing.T) {
 
 			// Required: inputSchema
 			assert.Contains(t, tool, "inputSchema", "Tool %d should have 'inputSchema' field", i)
-			
+
 			// Validate inputSchema structure
 			inputSchema, ok := tool["inputSchema"].(map[string]any)
 			require.True(t, ok, "Tool %d 'inputSchema' should be an object", i)
-			
+
 			// inputSchema must have type: "object"
 			assert.Contains(t, inputSchema, "type", "Tool %d inputSchema should have 'type' field", i)
 			assert.Equal(t, "object", inputSchema["type"], "Tool %d inputSchema type should be 'object'", i)
@@ -138,8 +141,8 @@ func TestToolsJSONStructureMatchesMCPSpecification(t *testing.T) {
 			}
 
 			for field := range tool {
-				assert.True(t, allowedFields[field], 
-					"Tool '%s' has unexpected field '%s'. MCP tools should only have: name, title, description, inputSchema, outputSchema, annotations", 
+				assert.True(t, allowedFields[field],
+					"Tool '%s' has unexpected field '%s'. MCP tools should only have: name, title, description, inputSchema, outputSchema, annotations",
 					name, field)
 			}
 
@@ -147,7 +150,7 @@ func TestToolsJSONStructureMatchesMCPSpecification(t *testing.T) {
 			if outputSchema, ok := tool["outputSchema"]; ok {
 				outputSchemaObj, ok := outputSchema.(map[string]any)
 				require.True(t, ok, "Tool '%s' outputSchema should be an object", name)
-				
+
 				// outputSchema must have type: "object"
 				assert.Contains(t, outputSchemaObj, "type", "Tool '%s' outputSchema should have 'type' field", name)
 				assert.Equal(t, "object", outputSchemaObj["type"], "Tool '%s' outputSchema type should be 'object'", name)

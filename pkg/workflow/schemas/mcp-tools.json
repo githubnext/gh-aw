@@ -18,7 +18,7 @@
         },
         "title": {
           "type": "string",
-          "description": "Intended for UI and end-user contexts — optimized to be human-readable and easily understood, even by those unfamiliar with domain-specific terminology"
+          "description": "Tool-level title: Intended for UI and end-user contexts — optimized to be human-readable and easily understood, even by those unfamiliar with domain-specific terminology. If not provided, the name should be used for display."
         },
         "description": {
           "type": "string",
@@ -100,7 +100,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "A human-readable title for the tool"
+          "description": "Annotation title hint: A human-readable title for the tool (this is a hint in annotations, distinct from the tool-level title field)"
         },
         "readOnlyHint": {
           "type": "boolean",
