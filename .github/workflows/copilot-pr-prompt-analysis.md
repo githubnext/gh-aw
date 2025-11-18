@@ -34,18 +34,10 @@ imports:
 
 tools:
   cache-memory: true
+  edit:
   github:
     toolsets: [default]
-  bash:
-    - "find .github -name '*.md'"
-    - "find .github -type f -exec cat {} +"
-    - "ls -la .github"
-    - "git log --oneline"
-    - "git diff"
-    - "gh pr list *"
-    - "gh search prs *"
-    - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+  bash: ["*"]
 
 timeout-minutes: 15
 
