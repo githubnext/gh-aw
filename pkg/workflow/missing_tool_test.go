@@ -186,7 +186,8 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	}
 
 	// Check that GH_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
-	if !strings.Contains(output, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+	// Changed: GH_AW_SAFE_OUTPUTS is now set directly at step level, not via ${{ env.GH_AW_SAFE_OUTPUTS }}
+	if !strings.Contains(output, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl") {
 		t.Error("Expected 'GH_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
 	}
 

@@ -616,7 +616,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	if data.SafeOutputs != nil {
-		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl\n")
 	}
 
 	yaml.WriteString("        run: |\n")
@@ -863,14 +863,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})
+	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"/tmp/gh-aw/safeoutputs/outputs.jsonl"})
 
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safeoutputs/outputs.jsonl\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 	yaml.WriteString("      - name: Ingest agent output\n")
@@ -879,7 +879,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl\n")
 
 	// Config is written to file, not passed as env var
 

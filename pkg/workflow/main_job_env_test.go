@@ -34,9 +34,9 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				// Config is now in file, not env var
+				// GH_AW_SAFE_OUTPUTS is now set at step level, not job level
 			},
-			shouldHaveEnv: true,
+			shouldHaveEnv: false, // Changed: no job-level env vars anymore
 		},
 		{
 			name: "Safe outputs with custom env vars",
@@ -52,9 +52,9 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				// Config is now in file, not env var
+				// GH_AW_SAFE_OUTPUTS is now set at step level, not job level
 			},
-			shouldHaveEnv: true,
+			shouldHaveEnv: false, // Changed: no job-level env vars anymore
 		},
 	}
 
@@ -133,7 +133,7 @@ safe-outputs:
 
 # Job Environment Variables Test
 
-This workflow tests that job-level environment variables are properly set for safe outputs.
+This workflow tests that environment variables are properly set at step level for safe outputs.
 `
 
 	workflowFile := filepath.Join(tmpDir, "test-job-env.md")
@@ -158,12 +158,12 @@ This workflow tests that job-level environment variables are properly set for sa
 	lockContentStr := string(lockContent)
 	t.Logf("Generated lock file content:\n%s", lockContentStr)
 
-	// Check that the agent job has an env section
+	// Check that the agent job has NO env section at job level
 	if !strings.Contains(lockContentStr, "  agent:\n") {
 		t.Fatal("Expected 'agent' job to be present")
 	}
 
-	// Check that the env section exists at job level
+	// Find the agent job section
 	agentJobStart := strings.Index(lockContentStr, "  agent:\n")
 	if agentJobStart == -1 {
 		t.Fatal("Could not find agent job")
@@ -172,9 +172,9 @@ This workflow tests that job-level environment variables are properly set for sa
 	// Find the next job (to limit our search scope)
 	nextJobStart := len(lockContentStr) // Default to end of file
 	lines := strings.Split(lockContentStr[agentJobStart:], "\n")
-	for _, line := range lines[1:] { // Skip the "agent:" line
+	for i, line := range lines[1:] { // Skip the "agent:" line
 		if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
-			nextJobStart = agentJobStart + strings.Index(lockContentStr[agentJobStart:], line)
+			nextJobStart = agentJobStart + len(strings.Join(lines[:i+1], "\n")) + 1
 			break
 		}
 	}
@@ -182,9 +182,48 @@ This workflow tests that job-level environment variables are properly set for sa
 	agentJobSection := lockContentStr[agentJobStart:nextJobStart]
 	t.Logf("Agent job section:\n%s", agentJobSection)
 
-	// Verify env section exists at job level (not in steps)
-	if !strings.Contains(agentJobSection, "    env:\n") {
-		t.Error("Expected job-level 'env:' section in agent job")
+	// Verify NO env section exists at job level (env vars are now at step level)
+	// We need to check specifically for job-level env, not step-level env
+	// Job-level env would be indented with "    env:\n" immediately after job properties
+	// Step-level env would be indented with "        env:\n" inside a step
+	
+	// Split into lines to check for job-level env
+	agentLines := strings.Split(agentJobSection, "\n")
+	hasJobLevelEnv := false
+	for i, line := range agentLines {
+		// Look for "    env:" (job-level) but not "        env:" (step-level)
+		if strings.TrimRight(line, " ") == "    env:" {
+			// Verify this is job-level by checking it's not inside a step
+			// (steps would have "      - name:" before env)
+			isInStep := false
+			for j := i - 1; j >= 0; j-- {
+				if strings.Contains(agentLines[j], "      - name:") {
+					isInStep = true
+					break
+				}
+				if strings.HasPrefix(agentLines[j], "    ") && !strings.HasPrefix(agentLines[j], "      ") {
+					// Found another job-level property
+					break
+				}
+			}
+			if !isInStep {
+				hasJobLevelEnv = true
+				break
+			}
+		}
+	}
+
+	if hasJobLevelEnv {
+		t.Error("Expected NO job-level 'env:' section in agent job (env vars should be at step level)")
+	}
+
+	// Verify that GH_AW_SAFE_OUTPUTS appears at step level instead
+	if !strings.Contains(agentJobSection, "        env:\n") {
+		t.Error("Expected step-level 'env:' sections in agent job")
+	}
+
+	if !strings.Contains(agentJobSection, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set at step level")
 	}
 
 	// Check that GH_AW_SAFE_OUTPUTS_CONFIG is NOT in environment variables

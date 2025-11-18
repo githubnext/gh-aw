@@ -719,23 +719,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Build job-level environment variables for safe outputs
-	var env map[string]string
-	if data.SafeOutputs != nil {
-		env = make(map[string]string)
-
-		// Set GH_AW_SAFE_OUTPUTS to fixed path
-		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
-
-		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
-
-		// Add asset-related environment variables if upload-assets is configured
-		if data.SafeOutputs.UploadAssets != nil {
-			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
-		}
-	}
+	// Note: GH_AW_SAFE_OUTPUTS and GH_AW_ASSETS_* environment variables are now set
+	// at step-level in the specific steps that need them, rather than at job-level.
+	// This prevents these variables from appearing in steps that don't need them
+	// (like setup-node, checkout, etc.).
 
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
@@ -749,7 +736,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
-		Env:         env,
+		Env:         nil, // No job-level env vars - set at step level instead
 		Steps:       steps,
 		Needs:       depends,
 		Outputs:     outputs,
