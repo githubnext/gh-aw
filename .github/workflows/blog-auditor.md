@@ -8,7 +8,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-campaign: blog-auditor-weekly
+tracker-id: blog-auditor-weekly
 engine: claude
 network:
   allowed:

@@ -5,7 +5,7 @@ permissions:
   contents: read
   actions: read
   issues: write
-campaign: example-fingerprint-2024
+tracker-id: example-fingerprint-2024
 safe-outputs:
   create-issue:
     title-prefix: "[Example] "
@@ -14,24 +14,24 @@ safe-outputs:
 
 # Example Fingerprint Workflow
 
-This is an example workflow that demonstrates the campaign feature.
+This is an example workflow that demonstrates the tracker-id feature.
 
 When this workflow creates an issue, it will include a hidden HTML comment:
 
 ```html
-<!-- campaign: example-fingerprint-2024 -->
+<!-- tracker-id: example-fingerprint-2024 -->
 ```
 
-This campaign can be used to:
+This tracker-id can be used to:
 - Search for all assets created by this workflow
 - Track and manage related assets across the repository
-- Filter issues, discussions, PRs, and comments by campaign
+- Filter issues, discussions, PRs, and comments by tracker-id
 
-The campaign must be:
+The tracker-id must be:
 - At least 8 characters long
 - Contain only alphanumeric characters, hyphens, and underscores
 - Unique across your workflows for effective tracking
 
 ## Example Output
 
-Create an issue with the title "Test Issue with Fingerprint" and body content explaining how the campaign feature works.
+Create an issue with the title "Test Issue with Fingerprint" and body content explaining how the tracker-id feature works.

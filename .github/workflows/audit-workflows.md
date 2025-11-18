@@ -9,7 +9,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-campaign: audit-workflows-daily
+tracker-id: audit-workflows-daily
 engine: claude
 tools:
   cache-memory: true

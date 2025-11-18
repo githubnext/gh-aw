@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   issues: read
-campaign: weekly-issue-summary
+tracker-id: weekly-issue-summary
 engine: copilot
 network:
   allowed:
