@@ -340,11 +340,9 @@ timeout-minutes: 20
 
 **Tasks:**
 
-## Random Milestone Assignment
+## Milestone Assignment
 
 1. List the last 3 issues from this repository
-2. List all milestones in this repository
-3. Pick a random open issue (that doesn't already have a milestone)
-4. Pick a random milestone
-5. Use the `assign_milestone` safe output to assign the random issue to the random milestone
-6. If there are no open issues without milestones or no milestones available, fail with an error
+2. Pick a random open issue (that doesn't already have a milestone)
+3. Use the `assign_milestone` safe output to assign the issue to milestone 1 (v0.Later: https://github.com/githubnext/gh-aw/milestone/1)
+4. If there are no open issues without milestones, fail with an error
