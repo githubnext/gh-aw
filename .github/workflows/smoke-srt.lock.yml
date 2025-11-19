@@ -623,8 +623,43 @@ jobs:
 
               console.log('Sandbox Runtime initialized successfully');
 
+              // Collect required environment variables for the sandboxed process
+              // These need to be explicitly passed because bwrap doesn't inherit env vars
+              const requiredEnvVars = [
+                'COPILOT_GITHUB_TOKEN',
+                'COPILOT_AGENT_RUNNER_TYPE',
+                'GITHUB_TOKEN',
+                'GH_TOKEN',
+                'XDG_CONFIG_HOME',
+                'GITHUB_STEP_SUMMARY',
+                'GITHUB_HEAD_REF',
+                'GITHUB_REF_NAME',
+                'GITHUB_WORKSPACE',
+                'GH_AW_PROMPT',
+                'GH_AW_MCP_CONFIG',
+                'GITHUB_MCP_SERVER_TOKEN',
+                'GH_AW_SAFE_OUTPUTS',
+                'GH_AW_STARTUP_TIMEOUT',
+                'GH_AW_TOOL_TIMEOUT',
+                'GH_AW_MAX_TURNS',
+              ];
+
+              // Build environment variable prefix for the command
+              const envPrefix = requiredEnvVars
+                .filter(key => process.env[key] !== undefined)
+                .map(key => {
+                  const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
+                  return key + "='" + value + "'";
+                })
+                .join(' ');
+
+              console.log('Passing environment variables to sandbox:', requiredEnvVars.filter(key => process.env[key] !== undefined).join(', '));
+
               // The command to run
-              const command = 'npx --no-install @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+              const baseCommand = 'npx --no-install @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+
+              // Prepend environment variables to the command
+              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
 
               // Wrap the command with sandbox restrictions
               const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);

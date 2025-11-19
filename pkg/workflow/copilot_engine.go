@@ -963,8 +963,43 @@ async function main() {
 
     console.log('Sandbox Runtime initialized successfully');
 
+    // Collect required environment variables for the sandboxed process
+    // These need to be explicitly passed because bwrap doesn't inherit env vars
+    const requiredEnvVars = [
+      'COPILOT_GITHUB_TOKEN',
+      'COPILOT_AGENT_RUNNER_TYPE',
+      'GITHUB_TOKEN',
+      'GH_TOKEN',
+      'XDG_CONFIG_HOME',
+      'GITHUB_STEP_SUMMARY',
+      'GITHUB_HEAD_REF',
+      'GITHUB_REF_NAME',
+      'GITHUB_WORKSPACE',
+      'GH_AW_PROMPT',
+      'GH_AW_MCP_CONFIG',
+      'GITHUB_MCP_SERVER_TOKEN',
+      'GH_AW_SAFE_OUTPUTS',
+      'GH_AW_STARTUP_TIMEOUT',
+      'GH_AW_TOOL_TIMEOUT',
+      'GH_AW_MAX_TURNS',
+    ];
+
+    // Build environment variable prefix for the command
+    const envPrefix = requiredEnvVars
+      .filter(key => process.env[key] !== undefined)
+      .map(key => {
+        const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
+        return key + "='" + value + "'";
+      })
+      .join(' ');
+
+    console.log('Passing environment variables to sandbox:', requiredEnvVars.filter(key => process.env[key] !== undefined).join(', '));
+
     // The command to run
-    const command = '%s';
+    const baseCommand = '%s';
+
+    // Prepend environment variables to the command
+    const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
 
     // Wrap the command with sandbox restrictions
     const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
