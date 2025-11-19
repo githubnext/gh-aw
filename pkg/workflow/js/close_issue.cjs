@@ -31,15 +31,15 @@ async function main() {
       renderItem: (item, index) => {
         let content = `### Issue Close ${index + 1}\n`;
         content += `**Issue:** #${item.issue_number}\n\n`;
-        
+
         if (item.comment) {
           content += `**Comment:**\n${item.comment}\n\n`;
         }
-        
+
         if (item.state_reason) {
           content += `**Reason:** ${item.state_reason}\n\n`;
         }
-        
+
         return content;
       },
     });
@@ -47,12 +47,16 @@ async function main() {
   }
 
   // Get filter configuration from environment variables
-  const allowedLabels = process.env.GH_AW_CLOSE_ISSUE_LABELS 
-    ? process.env.GH_AW_CLOSE_ISSUE_LABELS.split(",").map(l => l.trim()).filter(l => l.length > 0)
+  const allowedLabels = process.env.GH_AW_CLOSE_ISSUE_LABELS
+    ? process.env.GH_AW_CLOSE_ISSUE_LABELS.split(",")
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
     : [];
   const titlePrefix = process.env.GH_AW_CLOSE_ISSUE_TITLE_PREFIX || "";
 
-  core.info(`Filter configuration - Labels: ${allowedLabels.length > 0 ? allowedLabels.join(", ") : "none"}, Title prefix: ${titlePrefix || "none"}`);
+  core.info(
+    `Filter configuration - Labels: ${allowedLabels.length > 0 ? allowedLabels.join(", ") : "none"}, Title prefix: ${titlePrefix || "none"}`
+  );
 
   const closedIssues = [];
 
@@ -86,9 +90,9 @@ async function main() {
 
       // Apply label filter if configured
       if (allowedLabels.length > 0) {
-        const issueLabels = issue.labels.map(label => typeof label === "string" ? label : label.name);
+        const issueLabels = issue.labels.map(label => (typeof label === "string" ? label : label.name));
         const hasMatchingLabel = allowedLabels.some(allowedLabel => issueLabels.includes(allowedLabel));
-        
+
         if (!hasMatchingLabel) {
           core.info(`Issue #${issueNumber} does not have any of the required labels [${allowedLabels.join(", ")}], skipping`);
           continue;

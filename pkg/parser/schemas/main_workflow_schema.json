@@ -2755,6 +2755,46 @@
             }
           ]
         },
+        "close-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for closing GitHub issues from agentic workflow output",
+              "properties": {
+                "labels": {
+                  "type": "array",
+                  "description": "Filter: Only close issues that have one of these labels",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Filter: Only close issues with this title prefix"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to close (default: 5)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue closing. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue closing with default configuration (max: 5)"
+            }
+          ]
+        },
         "push-to-pull-request-branch": {
           "oneOf": [
             {
@@ -3658,6 +3698,46 @@
       "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
       "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
       "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
+    },
+    "CloseIssueConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Configuration for closing GitHub issues from agentic workflow output",
+          "properties": {
+            "labels": {
+              "type": "array",
+              "description": "Filter: Only close issues that have one of these labels",
+              "items": {
+                "type": "string"
+              }
+            },
+            "title-prefix": {
+              "type": "string",
+              "description": "Filter: Only close issues with this title prefix"
+            },
+            "max": {
+              "type": "integer",
+              "description": "Maximum number of issues to close (default: 5)",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "target-repo": {
+              "type": "string",
+              "description": "Target repository in format 'owner/repo' for cross-repository issue closing. Takes precedence over trial target repo settings."
+            },
+            "github-token": {
+              "$ref": "#/$defs/github_token",
+              "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null",
+          "description": "Enable issue closing with default configuration (max: 5)"
+        }
+      ]
     }
   }
 }

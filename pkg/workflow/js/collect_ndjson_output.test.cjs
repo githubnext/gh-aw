@@ -2473,7 +2473,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
-      
+
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].comment).toBe("This issue has been resolved.");
       expect(parsedOutput.errors).toHaveLength(0);
@@ -2495,7 +2495,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
-      
+
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].state_reason).toBe("completed");
       expect(parsedOutput.errors).toHaveLength(0);

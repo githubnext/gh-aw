@@ -87,7 +87,7 @@ describe("close_issue.cjs", () => {
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
-    
+
     // Reset module cache
     vi.resetModules();
   });
