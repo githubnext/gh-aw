@@ -844,8 +844,8 @@ func generateSRTInstallationStep() GitHubActionStep {
 	stepLines := []string{
 		"      - name: Install Sandbox Runtime",
 		"        run: |",
-		"          echo \"Installing @anthropic-ai/sandbox-runtime\"",
-		"          npm install -g @anthropic-ai/sandbox-runtime",
+		"          echo \"Installing @anthropic-ai/sandbox-runtime locally\"",
+		"          npm install @anthropic-ai/sandbox-runtime",
 		"          echo \"Sandbox Runtime installed successfully\"",
 	}
 
