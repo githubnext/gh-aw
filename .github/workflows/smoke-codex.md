@@ -17,9 +17,9 @@ tools:
   github:
 safe-outputs:
     staged: true
-    create-issue:
+    add-comment:
 timeout-minutes: 10
 strict: true
 ---
 
-Review the last 2 merged pull requests in the ${{ github.repository }} repository and post summary in an issue.
+Review the last 2 merged pull requests in the ${{ github.repository }} repository and add a comment to the current pull request with a summary.
