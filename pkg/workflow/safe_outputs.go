@@ -784,6 +784,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	if data.SafeOutputs != nil {
 		if data.SafeOutputs.CreateIssues != nil {
 			issueConfig := map[string]any{}
+			issueConfig["type"] = "create-issue"
 			if data.SafeOutputs.CreateIssues.Max > 0 {
 				issueConfig["max"] = data.SafeOutputs.CreateIssues.Max
 			}
@@ -791,6 +792,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreateAgentTasks != nil {
 			agentTaskConfig := map[string]any{}
+			agentTaskConfig["type"] = "create-agent-task"
 			if data.SafeOutputs.CreateAgentTasks.Max > 0 {
 				agentTaskConfig["max"] = data.SafeOutputs.CreateAgentTasks.Max
 			}
@@ -798,6 +800,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.AddComments != nil {
 			commentConfig := map[string]any{}
+			commentConfig["type"] = "add-comment"
 			if data.SafeOutputs.AddComments.Target != "" {
 				commentConfig["target"] = data.SafeOutputs.AddComments.Target
 			}
@@ -808,6 +811,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
 			discussionConfig := map[string]any{}
+			discussionConfig["type"] = "create-discussion"
 			if data.SafeOutputs.CreateDiscussions.Max > 0 {
 				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
 			}
@@ -815,11 +819,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
+			prConfig["type"] = "create-pull-request"
 			// Note: max is always 1 for pull requests, not configurable
 			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			prReviewCommentConfig := map[string]any{}
+			prReviewCommentConfig["type"] = "create-pull-request-review-comment"
 			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
 				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
 			}
@@ -828,6 +834,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			// Security reports typically have unlimited max, but check if configured
 			securityReportConfig := map[string]any{}
+			securityReportConfig["type"] = "create-code-scanning-alert"
 			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
 				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 			}
@@ -835,6 +842,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
+			labelConfig["type"] = "add-labels"
 			if data.SafeOutputs.AddLabels.Max > 0 {
 				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
 			}
@@ -845,6 +853,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
+			updateConfig["type"] = "update-issue"
 			if data.SafeOutputs.UpdateIssues.Max > 0 {
 				updateConfig["max"] = data.SafeOutputs.UpdateIssues.Max
 			}
@@ -852,6 +861,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
+			pushToBranchConfig["type"] = "push-to-pull-request-branch"
 			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 			}
@@ -862,6 +872,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.UploadAssets != nil {
 			uploadConfig := map[string]any{}
+			uploadConfig["type"] = "upload-asset"
 			if data.SafeOutputs.UploadAssets.Max > 0 {
 				uploadConfig["max"] = data.SafeOutputs.UploadAssets.Max
 			}
@@ -869,6 +880,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
+			missingToolConfig["type"] = "missing-tool"
 			if data.SafeOutputs.MissingTool.Max > 0 {
 				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
 			}
@@ -876,6 +888,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
 			updateProjectConfig := map[string]any{}
+			updateProjectConfig["type"] = "update-project"
 			if data.SafeOutputs.UpdateProjects.Max > 0 {
 				updateProjectConfig["max"] = data.SafeOutputs.UpdateProjects.Max
 			}
@@ -883,6 +896,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
 			updateReleaseConfig := map[string]any{}
+			updateReleaseConfig["type"] = "update-release"
 			if data.SafeOutputs.UpdateRelease.Max > 0 {
 				updateReleaseConfig["max"] = data.SafeOutputs.UpdateRelease.Max
 			}
@@ -890,6 +904,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.NoOp != nil {
 			noopConfig := map[string]any{}
+			noopConfig["type"] = "noop"
 			if data.SafeOutputs.NoOp.Max > 0 {
 				noopConfig["max"] = data.SafeOutputs.NoOp.Max
 			}

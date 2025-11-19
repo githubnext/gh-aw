@@ -564,6 +564,19 @@ func getYourNewTypeScript() string {
    - Add `YourNewType *YourNewTypeConfig` field to `SafeOutputsConfig` struct in `pkg/workflow/config.go`
    - Call `parseYourNewTypeConfig()` in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
    - Call `buildCreateOutputYourNewTypeJob()` in job creation logic in `pkg/workflow/compiler_jobs.go`
+   - **Update `generateSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`** to add your new type to the config JSON with the "type" field:
+     ```go
+     if data.SafeOutputs.YourNewType != nil {
+         yourNewTypeConfig := map[string]any{}
+         yourNewTypeConfig["type"] = "your-new-type"  // IMPORTANT: Add type field with kebab-case name
+         if data.SafeOutputs.YourNewType.Max > 0 {
+             yourNewTypeConfig["max"] = data.SafeOutputs.YourNewType.Max
+         }
+         // Add any other custom configuration fields
+         safeOutputsConfig["your_new_type"] = yourNewTypeConfig
+     }
+     ```
+     The "type" field uses kebab-case (e.g., "your-new-type") to match the JSONL output format, while the map key uses underscore format (e.g., "your_new_type")
 
 **Example with Pre/Post-Steps** (if needed):
 
