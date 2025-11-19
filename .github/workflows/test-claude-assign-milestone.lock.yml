@@ -3,70 +3,51 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/jqschema.md
-#     - shared/reporting.md
-#     - shared/mcp/gh-aw.md
-#     - shared/copilot-pr-data-fetch.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   assign_milestone["assign_milestone"]
 #   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
+#   agent --> assign_milestone
+#   detection --> assign_milestone
 #   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
+#   assign_milestone --> conclusion
 #   missing_tool --> conclusion
-#   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Copilot Agent Prompt Clustering Analysis"
+name: "Test Claude Assign Milestone"
 "on":
-  schedule:
-  - cron: "0 19 * * *"
   workflow_dispatch: null
 
 permissions:
   actions: read
   contents: read
-  issues: read
-  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Copilot Agent Prompt Clustering Analysis"
-
-# Cache configuration from frontmatter was processed and added to the main job steps
+run-name: "Test Claude Assign Milestone"
 
 jobs:
   activation:
@@ -77,7 +58,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "prompt-clustering-analysis.lock.yml"
+          GH_AW_WORKFLOW_FILE: "test-claude-assign-milestone.lock.yml"
         with:
           script: |
             async function main() {
@@ -168,8 +149,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: read
-      pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -183,72 +162,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Set up jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - name: Install binary as 'gh-aw'
-        run: make build
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Fetch Copilot PR data
-        run: "# Create output directories\nmkdir -p /tmp/gh-aw/pr-data\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/copilot-prs-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/copilot-prs-${TODAY}.json\" ]; then\n  echo \"✓ Found cached PR data from ${TODAY}\"\n  cp \"$CACHE_DIR/copilot-prs-${TODAY}.json\" /tmp/gh-aw/pr-data/copilot-prs.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/copilot-prs-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > \"$CACHE_DIR/copilot-prs-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/copilot-prs-${TODAY}-schema.json\" /tmp/gh-aw/pr-data/copilot-prs-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total PRs in cache: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\nelse\n  echo \"⬇ Downloading fresh PR data...\"\n  \n  # Calculate date 30 days ago\n  DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n  # Search for PRs from copilot/* branches in the last 30 days using gh CLI\n  # Using branch prefix search (head:copilot/) instead of author for reliability\n  echo \"Fetching Copilot PRs from the last 30 days...\"\n  gh pr list --repo ${{ github.repository }} \\\n    --search \"head:copilot/ created:>=${DATE_30_DAYS_AGO}\" \\\n    --state all \\\n    --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \\\n    --limit 1000 \\\n    > /tmp/gh-aw/pr-data/copilot-prs.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/pr-data/copilot-prs.json \"$CACHE_DIR/copilot-prs-${TODAY}.json\"\n  cp /tmp/gh-aw/pr-data/copilot-prs-schema.json \"$CACHE_DIR/copilot-prs-${TODAY}-schema.json\"\n\n  echo \"✓ PR data saved to cache: copilot-prs-${TODAY}.json\"\n  echo \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"PR data available at: /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema available at: /tmp/gh-aw/pr-data/copilot-prs-schema.json\""
-      - name: Install Python dependencies
-        run: |
-          pip3 install --user scikit-learn pandas numpy matplotlib seaborn nltk
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Download full PR data with comments and reviews
-        run: "# Create output directory for full PR data\nmkdir -p /tmp/gh-aw/prompt-cache/pr-full-data\n\n# Download full data for each PR including comments, reviews, commits, and files\necho \"Downloading full PR data for each PR...\"\n\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Processing $PR_COUNT PRs...\"\n\n# Extract PR numbers and download full data for each\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r pr_number; do\n  echo \"Downloading full data for PR #$pr_number...\"\n  \n  # Download full PR data with essential fields only\n  gh pr view \"$pr_number\" \\\n    --repo \"${{ github.repository }}\" \\\n    --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \\\n    > \"/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json\"\n  \n  echo \"Downloaded PR #$pr_number\"\ndone\n\n# Create an index file listing all downloaded PRs\nfind /tmp/gh-aw/prompt-cache/pr-full-data/ -maxdepth 1 -name 'pr-[0-9]*.json' -type f -printf '%f\\n' | \\\n  sed 's/pr-\\([0-9]*\\)\\.json/\\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt\n\necho \"Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/\"\necho \"Total PRs with full data: $(wc -l < /tmp/gh-aw/prompt-cache/pr-full-data/index.txt)\"\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Download workflow logs for PR analysis
-        run: "# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# Download logs for the last 30 days of copilot workflows\n# This will give us the aw_info.json which contains turn counts\n./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs\n\n# Verify logs were downloaded\necho \"Downloaded workflow logs:\"\nls -la /tmp/gh-aw/workflow-logs\n"
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache configuration from frontmatter processed below
-      - name: Cache (prompt-clustering-cache-${{ github.run_id }})
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          key: prompt-clustering-cache-${{ github.run_id }}
-          path: /tmp/gh-aw/prompt-cache
-          restore-keys: prompt-clustering-cache-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          key: copilot-pr-data-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            copilot-pr-data-
-            copilot-pr-
-            copilot-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -357,7 +274,7 @@ jobs:
           
           # Domain allow-list (populated during generation)
           # JSON array safely embedded as Python list literal
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com","pypi.python.org","pypi.org","pip.pypa.io","*.pythonhosted.org","files.pythonhosted.org","bootstrap.pypa.io","conda.binstar.org","conda.anaconda.org","binstar.org","anaconda.org","repo.continuum.io","repo.anaconda.com"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -437,10 +354,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"noop":{"max":1}}
+          {"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1011,10 +928,6 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765"
-              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -1026,7 +939,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=repos,pull_requests",
+                  "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.21.0"
                 ],
                 "env": {
@@ -1057,711 +970,11 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ## jqschema - JSON Schema Discovery
+          # Test Claude Assign Milestone
           
-          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          This workflow tests the assign-milestone safe output type with Claude engine.
           
-          ### Purpose
-          
-          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-          - Exploring API responses with large payloads
-          - Understanding the structure of unfamiliar data without verbose output
-          - Planning queries before fetching full data
-          
-          ### Usage
-          
-          ```bash
-          # Analyze a file
-          cat data.json | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze command output
-          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze GitHub search results
-          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-          ```
-          
-          ### How It Works
-          
-          The script transforms JSON data by:
-          1. Replacing object values with their type names ("string", "number", "boolean", "null")
-          2. Reducing arrays to their first element's structure (or empty array if empty)
-          3. Recursively processing nested structures
-          4. Outputting compact (minified) JSON
-          
-          ### Example
-          
-          **Input:**
-          ```json
-          {
-            "total_count": 1000,
-            "items": [
-              {"login": "user1", "id": 123, "verified": true},
-              {"login": "user2", "id": 456, "verified": false}
-            ]
-          }
-          ```
-          
-          **Output:**
-          ```json
-          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-          ```
-          
-          ### Best Practices
-          
-          **Use this script when:**
-          - You need to understand the structure of tool outputs before requesting full data
-          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-          - Exploring unfamiliar APIs or data structures
-          - Planning data extraction strategies
-          
-          **Example workflow for GitHub search tools:**
-          ```bash
-          # Step 1: Get schema with minimal data (fetch just 1 result)
-          # This helps understand the structure before requesting large datasets
-          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-          
-          # Output shows the schema:
-          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-          
-          # Step 2: Review schema to understand available fields
-          
-          # Step 3: Request full data with confidence about structure
-          # Now you know what fields are available and can query efficiently
-          ```
-          
-          **Using with GitHub MCP tools:**
-          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-          ```bash
-          # Save a minimal search result to a file
-          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-          
-          # Generate schema to understand structure
-          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-          
-          # Now you know which fields exist and can use them in your analysis
-          ```
-          
-          ## Report Formatting
-          
-          Structure your report with an overview followed by detailed content:
-          
-          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-          
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-          
-          **Example format:**
-          
-          `````markdown
-          Brief overview paragraph 1 introducing the report and its main findings.
-          
-          Optional overview paragraph 2 with additional context or highlights.
-          
-          <details>
-          <summary><b>Full Report Details</b></summary>
-          
-          ## Detailed Analysis
-          
-          Full report content with all sections, tables, and detailed information goes here.
-          
-          ### Section 1
-          [Content]
-          
-          ### Section 2
-          [Content]
-          
-          </details>
-          `````
-          
-          ## Reporting Workflow Run Information
-          
-          When analyzing workflow run logs or reporting information from GitHub Actions runs:
-          
-          ### 1. Workflow Run ID Formatting
-          
-          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-          
-          **Format:**
-          
-          `````markdown
-          [§12345](https://github.com/owner/repo/actions/runs/12345)
-          `````
-          
-          **Example:**
-          
-          `````markdown
-          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          `````
-          
-          ### 2. Document References for Workflow Runs
-          
-          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-          
-          **Format:**
-          
-          `````markdown
-          ---
-          
-          **References:**
-          - [§12345](https://github.com/owner/repo/actions/runs/12345)
-          - [§12346](https://github.com/owner/repo/actions/runs/12346)
-          - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          `````
-          
-          **Guidelines:**
-          
-          - Include **maximum 3 references** to keep reports concise
-          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-          - If analyzing more than 3 runs, select the most important ones for references
-          
-          ## Footer Attribution
-          
-          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-          
-          
-          
-          
-          
-          # Copilot Agent Prompt Clustering Analysis
-          
-          You are an AI analytics agent that performs advanced NLP analysis on prompts used in copilot agent tasks to identify patterns, clusters, and insights.
-          
-          ## Mission
-          
-          Daily analysis of copilot agent task prompts using clustering techniques to identify common patterns, outliers, and opportunities for optimization.
-          
-          ## Current Context
-          
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Analysis Period**: Last 30 days
-          - **Available Data**:
-            - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs
-            - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data with comments, reviews, commits, and files for each PR
-            - `/tmp/gh-aw/prompt-cache/pr-full-data/index.txt` - List of all PR numbers with full data
-            - `/tmp/gh-aw/prompt-cache/` - Cache directory for avoiding repeated work
-          
-          ## Task Overview
-          
-          ### Phase 1: Extract Task Prompts from PRs
-          
-          The pre-fetched PR data is available at:
-          - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary data from search
-          - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data for each PR with comments, reviews, commits, and files
-          
-          Each PR's full data includes:
-          
-          1. **PR Body**: Contains the task description/prompt that was given to the agent
-          2. **PR Title**: A summary of the task
-          3. **PR Metadata**: State (merged/closed/open), creation/close dates, labels
-          4. **Comments**: All comments on the PR (useful for understanding feedback and iterations)
-          5. **Reviews**: Code review feedback
-          6. **Commits**: All commits made by the agent
-          7. **Files**: Changed files with additions/deletions
-          8. **Review Decision**: Final review outcome
-          
-          **Access full PR data**:
-          
-          ```bash
-          # List all PRs with full data
-          cat /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
-          
-          # Read a specific PR's full data
-          cat /tmp/gh-aw/prompt-cache/pr-full-data/pr-123.json
-          
-          # Extract relevant fields from all PRs
-          for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
-            jq -r '{
-              number: .number,
-              title: .title,
-              body: .body,
-              state: .state,
-              merged: (.mergedAt != null),
-              created: .createdAt,
-              closed: .closedAt,
-              url: .url,
-              comments_count: (.comments | length),
-              reviews_count: (.reviews | length),
-              commits_count: (.commits | length),
-              files_changed: .changedFiles,
-              additions: .additions,
-              deletions: .deletions
-            }' "$pr_file"
-          done > /tmp/gh-aw/pr-data/pr-prompts.jsonl
-          ```
-          
-          The PR body typically contains:
-          - A section starting with "START COPILOT CODING AGENT" or similar marker
-          - The actual task description/prompt
-          - Technical context and requirements
-          
-          **Task**: Parse the PR bodies to extract the actual prompt/task text. Look for patterns like:
-          - Text between markers (e.g., "START COPILOT CODING AGENT" and end markers)
-          - Issue references or task descriptions
-          - The first paragraph or section that describes what the agent should do
-          
-          ### Phase 2: Enrich Data with Workflow Metrics
-          
-          For PRs that have associated workflow runs, we need to extract:
-          
-          1. **Number of Turns**: How many iterations the agent took
-          2. **Duration**: How long the task took
-          3. **Success Metrics**: Token usage, cost, etc.
-          
-          Use the `gh-aw` MCP server to:
-          
-          ```bash
-          # Download logs for recent copilot workflows
-          # This creates directories with aw_info.json containing turn counts
-          gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
-          ```
-          
-          Then extract turn counts from `aw_info.json` files:
-          
-          ```bash
-          # Find all aw_info.json files and extract turn information
-          find /tmp/gh-aw/workflow-logs -name "aw_info.json" -exec jq '{
-            run_id: .run_id,
-            workflow: .workflow_name,
-            engine: .engine,
-            max_turns: .max_turns,
-            actual_turns: .turns,
-            duration: .duration,
-            cost: .cost
-          }' {} \; > /tmp/gh-aw/pr-data/workflow-metrics.jsonl
-          ```
-          
-          **Match PRs to workflow runs** by:
-          - PR number (if available in workflow metadata)
-          - Timestamp proximity (PR creation time vs workflow run time)
-          - Repository context
-          
-          ### Phase 3: Prepare Data for Clustering
-          
-          Create a structured dataset combining:
-          - Task prompt text (cleaned and preprocessed)
-          - PR metadata (outcome, duration)
-          - Workflow metrics (turns, cost)
-          - PR interaction data (comments, reviews, file changes)
-          
-          **Combine PR full data with workflow metrics**:
-          
-          ```bash
-          # Merge full PR data with workflow metrics
-          for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
-            jq -r '{
-              number: .number,
-              title: .title,
-              body: .body,
-              state: .state,
-              merged: (.mergedAt != null),
-              created: .createdAt,
-              closed: .closedAt,
-              url: .url,
-              comments_count: (.comments | length),
-              reviews_count: (.reviews | length),
-              commits_count: (.commits | length),
-              files_changed: .changedFiles,
-              additions: .additions,
-              deletions: .deletions,
-              review_decision: .reviewDecision
-            }' "$pr_file"
-          done > /tmp/gh-aw/pr-data/pr-prompts-full.jsonl
-          
-          # Combine into a single JSON array
-          jq -s '.' /tmp/gh-aw/pr-data/pr-prompts-full.jsonl > /tmp/gh-aw/pr-data/combined-data.json
-          ```
-          
-          ### Phase 4: Python NLP Clustering Analysis
-          
-          Create a Python script to perform clustering analysis on the prompts:
-          
-          **Script**: `/tmp/gh-aw/analyze-prompts.py`
-          
-          ```python
-          #!/usr/bin/env python3
-          import json
-          import pandas as pd
-          import numpy as np
-          from sklearn.feature_extraction.text import TfidfVectorizer
-          from sklearn.cluster import KMeans, DBSCAN
-          from sklearn.decomposition import PCA
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          from collections import Counter
-          import re
-          
-          # Load data
-          with open('/tmp/gh-aw/pr-data/combined-data.json') as f:
-              data = json.load(f)
-          
-          # Extract prompts and metadata
-          prompts = []
-          outcomes = []
-          pr_numbers = []
-          
-          for pr in data:
-              if pr.get('body'):
-                  # Extract task text from PR body
-                  body = pr['body']
-                  
-                  # Clean the prompt text
-                  prompt = clean_prompt(body)
-                  
-                  if prompt and len(prompt) > 20:  # Minimum length
-                      prompts.append(prompt)
-                      outcomes.append('merged' if pr.get('merged') else pr.get('state'))
-                      pr_numbers.append(pr.get('number'))
-          
-          # TF-IDF vectorization
-          vectorizer = TfidfVectorizer(
-              max_features=100,
-              stop_words='english',
-              ngram_range=(1, 3),
-              min_df=2
-          )
-          X = vectorizer.fit_transform(prompts)
-          
-          # K-means clustering (try different k values)
-          optimal_k = find_optimal_clusters(X)
-          kmeans = KMeans(n_clusters=optimal_k, random_state=42)
-          clusters = kmeans.fit_predict(X)
-          
-          # Analyze clusters
-          cluster_analysis = analyze_clusters(prompts, clusters, outcomes, pr_numbers)
-          
-          # Generate report
-          generate_report(cluster_analysis, vectorizer, kmeans)
-          ```
-          
-          **Key Analysis Steps**:
-          
-          1. **Text Preprocessing**:
-             - Remove markdown formatting
-             - Extract main task description
-             - Remove URLs, code blocks, special characters
-             - Tokenize and normalize
-          
-          2. **Feature Extraction**:
-             - TF-IDF vectorization
-             - N-gram extraction (unigrams, bigrams, trigrams)
-             - Identify key terms and phrases
-          
-          3. **Clustering Algorithms**:
-             - K-means clustering (try k=3-10)
-             - DBSCAN for outlier detection
-             - Determine optimal number of clusters using elbow method or silhouette score
-          
-          4. **Cluster Analysis**:
-             - For each cluster:
-               - Extract top keywords/phrases
-               - Count number of tasks
-               - Calculate success rate (merged vs closed)
-               - Calculate average turn count
-               - Identify representative examples
-             
-          5. **Insights**:
-             - Which types of tasks are most common?
-             - Which types have highest success rates?
-             - Which types require most iterations?
-             - Are there outliers (unusual tasks)?
-          
-          **Helper Functions**:
-          
-          ```python
-          def clean_prompt(text):
-              """Extract and clean the task prompt from PR body."""
-              # Remove markdown code blocks
-              text = re.sub(r'```[\s\S]*?```', '', text)
-              
-              # Extract text after "START COPILOT" marker if present
-              if 'START COPILOT' in text.upper():
-                  parts = re.split(r'START COPILOT.*?\n', text, flags=re.IGNORECASE)
-                  if len(parts) > 1:
-                      text = parts[1]
-              
-              # Remove URLs
-              text = re.sub(r'http[s]?://\S+', '', text)
-              
-              # Remove special characters but keep sentence structure
-              text = re.sub(r'[^\w\s\.\,\!\?]', ' ', text)
-              
-              # Normalize whitespace
-              text = ' '.join(text.split())
-              
-              return text.strip()
-          
-          def find_optimal_clusters(X, max_k=10):
-              """Use elbow method to find optimal number of clusters."""
-              inertias = []
-              K_range = range(2, min(max_k, len(X)) + 1)
-              
-              for k in K_range:
-                  kmeans = KMeans(n_clusters=k, random_state=42)
-                  kmeans.fit(X)
-                  inertias.append(kmeans.inertia_)
-              
-              # Simple elbow detection - look for biggest drop
-              diffs = np.diff(inertias)
-              elbow = np.argmax(diffs) + 2  # +2 because of diff and range start
-              
-              return min(elbow, 7)  # Cap at 7 clusters for interpretability
-          
-          def analyze_clusters(prompts, clusters, outcomes, pr_numbers):
-              """Analyze each cluster to extract insights."""
-              df = pd.DataFrame({
-                  'prompt': prompts,
-                  'cluster': clusters,
-                  'outcome': outcomes,
-                  'pr_number': pr_numbers
-              })
-              
-              cluster_info = []
-              
-              for cluster_id in sorted(df['cluster'].unique()):
-                  cluster_df = df[df['cluster'] == cluster_id]
-                  
-                  info = {
-                      'cluster_id': cluster_id,
-                      'size': len(cluster_df),
-                      'merged_count': sum(cluster_df['outcome'] == 'merged'),
-                      'success_rate': sum(cluster_df['outcome'] == 'merged') / len(cluster_df),
-                      'example_prs': cluster_df['pr_number'].head(3).tolist(),
-                      'sample_prompts': cluster_df['prompt'].head(2).tolist()
-                  }
-                  
-                  cluster_info.append(info)
-              
-              return cluster_info
-          
-          def generate_report(cluster_analysis, vectorizer, model):
-              """Generate markdown report."""
-              report = []
-              
-              report.append("# Clustering Analysis Results\n")
-              report.append(f"\n**Total Clusters**: {len(cluster_analysis)}\n")
-              
-              # Get top terms per cluster
-              order_centroids = model.cluster_centers_.argsort()[:, ::-1]
-              terms = vectorizer.get_feature_names_out()
-              
-              for info in sorted(cluster_analysis, key=lambda x: x['size'], reverse=True):
-                  cluster_id = info['cluster_id']
-                  report.append(f"\n## Cluster {cluster_id + 1}\n")
-                  report.append(f"- **Size**: {info['size']} tasks\n")
-                  report.append(f"- **Success Rate**: {info['success_rate']:.1%}\n")
-                  
-                  # Top keywords for this cluster
-                  top_terms = [terms[i] for i in order_centroids[cluster_id, :5]]
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
-                  report.append(f"- **Keywords**: {', '.join(top_terms)}\n")
-                  
-                  report.append(f"- **Example PRs**: {', '.join(f'#{pr}' for pr in info['example_prs'])}\n")
-              
-              # Save report
-              with open('/tmp/gh-aw/pr-data/clustering-report.md', 'w') as f:
-                  f.write('\n'.join(report))
-              
-              print('\n'.join(report))
-              
-              return '\n'.join(report)
-          ```
-          
-          **Run the analysis**:
-          
-          ```bash
-          cd /tmp/gh-aw
-          python3 analyze-prompts.py > /tmp/gh-aw/pr-data/analysis-output.txt
-          ```
-          
-          ### Phase 5: Generate Daily Discussion Report
-          
-          Create a comprehensive discussion report with:
-          
-          1. **Overview**: Summary of analysis period and data
-          2. **General Insights**: 
-             - Total tasks analyzed
-             - Overall success rate
-             - Common task patterns
-             - Trends over time
-          
-          3. **Cluster Analysis**:
-             - Description of each cluster
-             - Top keywords/themes
-             - Success rates per cluster
-             - Example tasks from each cluster
-          
-          4. **Full Data Table**:
-             - Table with all PRs analyzed
-             - Columns: PR #, Title, Cluster, Outcome, Turns, Keywords
-          
-          5. **Recommendations**:
-             - Which types of tasks work best
-             - Which types need improvement
-             - Suggested prompt engineering improvements
-          
-          **Report Template**:
-          
-          ```markdown
-          # 🔬 Copilot Agent Prompt Clustering Analysis - [DATE]
-          
-          Daily NLP-based clustering analysis of copilot agent task prompts.
-          
-          ## Summary
-          
-          **Analysis Period**: Last 30 days
-          **Total Tasks Analyzed**: [count]
-          **Clusters Identified**: [count]
-          **Overall Success Rate**: [percentage]%
-          
-          <details>
-          <summary>Full Analysis Report</summary>
-          
-          ## General Insights
-          
-          - **Most Common Task Type**: [cluster description]
-          - **Highest Success Rate**: [cluster with best success rate]
-          - **Most Complex Tasks**: [cluster with most turns/highest complexity]
-          - **Outliers**: [number of outlier tasks identified]
-          
-          ## Cluster Analysis
-          
-          ### Cluster 1: [Theme/Description]
-          - **Size**: X tasks ([percentage]% of total)
-          - **Success Rate**: [percentage]%
-          - **Average Turns**: [number]
-          - **Top Keywords**: keyword1, keyword2, keyword3
-          - **Characteristics**: [description of what makes this cluster unique]
-          - **Example PRs**: #123, #456, #789
-          
-          [Representative task example]
-          
-          ---
-          
-          ### Cluster 2: [Theme/Description]
-          ...
-          
-          ## Success Rate by Cluster
-          
-          | Cluster | Tasks | Success Rate | Avg Turns | Top Keywords |
-          |---------|-------|--------------|-----------|--------------|
-          | 1       | 15    | 87%          | 3.2       | refactor, cleanup |
-          | 2       | 12    | 75%          | 4.1       | bug, fix, error |
-          | 3       | 8     | 100%         | 2.5       | docs, update |
-          
-          ## Full Data Table
-          
-          | PR # | Title | Cluster | Outcome | Turns | Keywords |
-          |------|-------|---------|---------|-------|----------|
-          | 123  | Fix bug in parser | 2 | Merged | 4 | bug, fix, parser |
-          | 124  | Update docs | 3 | Merged | 2 | docs, update |
-          | 125  | Refactor logger | 1 | Merged | 3 | refactor, logger |
-          
-          ## Key Findings
-          
-          1. **[Finding 1]**: [Description and data supporting this finding]
-          2. **[Finding 2]**: [Description and data supporting this finding]
-          3. **[Finding 3]**: [Description and data supporting this finding]
-          
-          ## Recommendations
-          
-          Based on clustering analysis:
-          
-          1. **[Recommendation 1]**: [Specific actionable recommendation]
-          2. **[Recommendation 2]**: [Specific actionable recommendation]
-          3. **[Recommendation 3]**: [Specific actionable recommendation]
-          
-          </details>
-          
-          ---
-          
-          _Generated by Prompt Clustering Analysis (Run: [run_id])_
-          ```
-          
-          ### Phase 6: Cache Management
-          
-          Use the cache to avoid re-analyzing the same PRs:
-          
-          **Cache Strategy**:
-          1. Store processed prompts in `/tmp/gh-aw/prompt-cache/processed-prs.json`
-          2. Include PR number and last analyzed date
-          3. On next run, skip PRs that haven't changed
-          4. Update cache after each analysis
-          
-          ```bash
-          # Save processed PR list to cache
-          jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | sort > /tmp/gh-aw/prompt-cache/analyzed-prs.txt
-          
-          # On next run, compare and only process new PRs
-          comm -13 /tmp/gh-aw/prompt-cache/analyzed-prs.txt <(new-prs) > /tmp/gh-aw/pr-data/new-prs.txt
-          ```
-          
-          ## Important Guidelines
-          
-          ### Data Quality
-          - **Validate Data**: Ensure PR bodies contain actual task descriptions
-          - **Handle Missing Data**: Some PRs may have incomplete information
-          - **Clean Text**: Remove markdown, code blocks, and noise from prompts
-          - **Normalize**: Standardize text before clustering
-          
-          ### Clustering Quality
-          - **Choose Appropriate K**: Don't over-cluster (too many small clusters) or under-cluster
-          - **Validate Clusters**: Manually review sample tasks from each cluster
-          - **Handle Outliers**: Identify and report unusual tasks separately
-          - **Semantic Coherence**: Ensure clusters have meaningful themes
-          
-          ### Analysis Quality
-          - **Statistical Significance**: Require minimum cluster sizes for reporting
-          - **Actionable Insights**: Focus on findings that can improve agent performance
-          - **Trend Analysis**: Compare with previous analyses if cache data available
-          - **Reproducibility**: Document methodology for consistent analysis
-          
-          ### Reporting
-          - **Be Concise**: Use collapsible sections for detailed data
-          - **Visualize**: Include cluster visualizations if possible (save as images)
-          - **Provide Examples**: Show representative tasks from each cluster
-          - **Actionable**: Include specific recommendations based on findings
-          
-          ## Success Criteria
-          
-          A successful analysis:
-          - ✅ Collects all copilot PR data from last 30 days
-          - ✅ Extracts task prompts from PR bodies
-          - ✅ Enriches with workflow metrics (turns, duration, cost)
-          - ✅ Performs NLP clustering with 3-7 meaningful clusters
-          - ✅ Identifies patterns and insights across clusters
-          - ✅ Generates comprehensive discussion report with data table
-          - ✅ Uses cache to avoid duplicate work
-          - ✅ Provides actionable recommendations
-          
-          ## Edge Cases
-          
-          ### Insufficient Data
-          If fewer than 10 PRs available:
-          - Report "Insufficient data for clustering analysis"
-          - Show summary statistics only
-          - Skip clustering step
-          
-          ### Clustering Failures
-          If clustering doesn't converge or produces poor results:
-          - Try different algorithms (DBSCAN instead of K-means)
-          - Adjust parameters (different k values, distance metrics)
-          - Report issues and fall back to simple categorization
-          
-          ### Missing Workflow Logs
-          If workflow logs unavailable for most PRs:
-          - Proceed with PR data only
-          - Note limitation in report
-          - Focus on prompt analysis without turn counts
-          
-          Now analyze the prompts and generate your comprehensive report!
+          Please assign issue #1 to milestone #5 and issue #2 to milestone #5.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1810,32 +1023,6 @@ jobs:
           
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1894,7 +1081,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -1986,7 +1172,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "2.0.44",
-              workflow_name: "Copilot Agent Prompt Clustering Analysis",
+              workflow_name: "Test Claude Assign Milestone",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2020,22 +1206,15 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash
-        # - BashOutput
-        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
-        # - KillBash
         # - LS
-        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookRead
         # - Read
-        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
-        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -2092,7 +1271,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash,BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -2240,7 +1419,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com,pypi.python.org,pypi.org,pip.pypa.io,*.pythonhosted.org,files.pythonhosted.org,bootstrap.pypa.io,conda.binstar.org,conda.anaconda.org,binstar.org,anaconda.org,repo.continuum.io,repo.anaconda.com"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3898,11 +3077,239 @@ jobs:
               main();
             }
 
+  assign_milestone:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_milestone'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      assigned_milestones: ${{ steps.assign_milestone.outputs.assigned_milestones }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Assign Milestone
+        id: assign_milestone
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MILESTONE_MAX_COUNT: 2
+          GH_AW_WORKFLOW_NAME: "Test Claude Assign Milestone"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
+              if (milestoneItems.length === 0) {
+                core.info("No assign_milestone items found in agent output");
+                return;
+              }
+              core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Assign Milestone",
+                  description: "The following milestone assignments would be made if staged mode was disabled:",
+                  items: milestoneItems,
+                  renderItem: item => {
+                    let content = `**Issue:** #${item.issue_number}\n`;
+                    content += `**Milestone Number:** ${item.milestone_number}\n\n`;
+                    return content;
+                  },
+                });
+                return;
+              }
+              const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
+              const allowedMilestones = allowedMilestonesEnv
+                ? allowedMilestonesEnv
+                    .split(",")
+                    .map(m => m.trim())
+                    .filter(m => m)
+                : undefined;
+              if (allowedMilestones) {
+                core.info(`Allowed milestones: ${JSON.stringify(allowedMilestones)}`);
+              } else {
+                core.info("No milestone restrictions - any milestones are allowed");
+              }
+              const maxCountEnv = process.env.GH_AW_MILESTONE_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = milestoneItems.slice(0, maxCount);
+              if (milestoneItems.length > maxCount) {
+                core.warning(`Found ${milestoneItems.length} milestone assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              let allMilestones = [];
+              if (allowedMilestones) {
+                try {
+                  const milestonesResponse = await github.rest.issues.listMilestones({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    state: "all",
+                    per_page: 100,
+                  });
+                  allMilestones = milestonesResponse.data;
+                  core.info(`Fetched ${allMilestones.length} milestones from repository`);
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to fetch milestones: ${errorMessage}`);
+                  core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
+                  return;
+                }
+              }
+              const results = [];
+              for (const item of itemsToProcess) {
+                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
+                const milestoneNumber = typeof item.milestone_number === "number" ? item.milestone_number : parseInt(String(item.milestone_number), 10);
+                if (isNaN(issueNumber) || issueNumber <= 0) {
+                  core.error(`Invalid issue_number: ${item.issue_number}`);
+                  continue;
+                }
+                if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
+                  core.error(`Invalid milestone_number: ${item.milestone_number}`);
+                  continue;
+                }
+                if (allowedMilestones && allowedMilestones.length > 0) {
+                  const milestone = allMilestones.find(m => m.number === milestoneNumber);
+                  if (!milestone) {
+                    core.warning(`Milestone #${milestoneNumber} not found in repository. Skipping.`);
+                    continue;
+                  }
+                  const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
+                  if (!isAllowed) {
+                    core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list. Skipping.`);
+                    continue;
+                  }
+                }
+                try {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    milestone: milestoneNumber,
+                  });
+                  core.info(`Successfully assigned milestone #${milestoneNumber} to issue #${issueNumber}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    milestone_number: milestoneNumber,
+                    success: true,
+                  });
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    milestone_number: milestoneNumber,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Milestone Assignment\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}: ${result.error}\n`;
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const assignedMilestones = results
+                .filter(r => r.success)
+                .map(r => `${r.issue_number}:${r.milestone_number}`)
+                .join("\n");
+              core.setOutput("assigned_milestones", assignedMilestones);
+              if (failureCount > 0) {
+                core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
+              }
+            }
+            await main();
+
   conclusion:
     needs:
       - agent
       - activation
-      - create_discussion
+      - assign_milestone
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -3942,7 +3349,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
+          GH_AW_WORKFLOW_NAME: "Test Claude Assign Milestone"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4028,7 +3435,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
+          GH_AW_WORKFLOW_NAME: "Test Claude Assign Milestone"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4181,279 +3588,6 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_discussion:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-    timeout-minutes: 10
-    outputs:
-      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
-      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Output Discussion
-        id: create_discussion
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_TITLE_PREFIX: "[prompt-clustering] "
-          GH_AW_DISCUSSION_CATEGORY: "audits"
-          GH_AW_WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function getCampaign(format) {
-              const campaign = process.env.GH_AW_CAMPAIGN || "";
-              if (campaign) {
-                core.info(`Campaign: ${campaign}`);
-                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
-              }
-              return "";
-            }
-            async function main() {
-              core.setOutput("discussion_number", "");
-              core.setOutput("discussion_url", "");
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-              if (createDiscussionItems.length === 0) {
-                core.warning("No create-discussion items found in agent output");
-                return;
-              }
-              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createDiscussionItems.length; i++) {
-                  const item = createDiscussionItems[i];
-                  summaryContent += `### Discussion ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.category) {
-                    summaryContent += `**Category:** ${item.category}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Discussion creation preview written to step summary");
-                return;
-              }
-              let discussionCategories = [];
-              let repositoryId = undefined;
-              try {
-                const repositoryQuery = `
-                  query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      id
-                      discussionCategories(first: 20) {
-                        nodes {
-                          id
-                          name
-                          slug
-                          description
-                        }
-                      }
-                    }
-                  }
-                `;
-                const queryResult = await github.graphql(repositoryQuery, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
-                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
-                repositoryId = queryResult.repository.id;
-                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
-                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                if (
-                  errorMessage.includes("Not Found") ||
-                  errorMessage.includes("not found") ||
-                  errorMessage.includes("Could not resolve to a Repository")
-                ) {
-                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
-                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
-                  return;
-                }
-                core.error(`Failed to get discussion categories: ${errorMessage}`);
-                throw error;
-              }
-              let categoryId = process.env.GH_AW_DISCUSSION_CATEGORY;
-              if (categoryId) {
-                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
-                if (categoryById) {
-                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
-                } else {
-                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
-                  if (categoryByName) {
-                    categoryId = categoryByName.id;
-                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
-                  } else {
-                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
-                    if (categoryBySlug) {
-                      categoryId = categoryBySlug.id;
-                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
-                    } else {
-                      core.warning(
-                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
-                      );
-                      if (discussionCategories.length > 0) {
-                        categoryId = discussionCategories[0].id;
-                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
-                      } else {
-                        categoryId = undefined;
-                      }
-                    }
-                  }
-                }
-              } else if (discussionCategories.length > 0) {
-                categoryId = discussionCategories[0].id;
-                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
-              }
-              if (!categoryId) {
-                core.error("No discussion category available and none specified in configuration");
-                throw new Error("Discussion category is required but not available");
-              }
-              if (!repositoryId) {
-                core.error("Repository ID is required for creating discussions");
-                throw new Error("Repository ID is required but not available");
-              }
-              const createdDiscussions = [];
-              for (let i = 0; i < createDiscussionItems.length; i++) {
-                const createDiscussionItem = createDiscussionItems[i];
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
-                );
-                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
-                let bodyLines = createDiscussionItem.body.split("\n");
-                if (!title) {
-                  title = createDiscussionItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const fingerprintComment = getCampaign("markdown");
-                if (fingerprintComment) {
-                  bodyLines.push(fingerprintComment);
-                }
-                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating discussion with title: ${title}`);
-                core.info(`Category ID: ${categoryId}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const createDiscussionMutation = `
-                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-                      createDiscussion(input: {
-                        repositoryId: $repositoryId,
-                        categoryId: $categoryId,
-                        title: $title,
-                        body: $body
-                      }) {
-                        discussion {
-                          id
-                          number
-                          title
-                          url
-                        }
-                      }
-                    }
-                  `;
-                  const mutationResult = await github.graphql(createDiscussionMutation, {
-                    repositoryId: repositoryId,
-                    categoryId: categoryId,
-                    title: title,
-                    body: body,
-                  });
-                  const discussion = mutationResult.createDiscussion.discussion;
-                  if (!discussion) {
-                    core.error("Failed to create discussion: No discussion data returned");
-                    continue;
-                  }
-                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
-                  createdDiscussions.push(discussion);
-                  if (i === createDiscussionItems.length - 1) {
-                    core.setOutput("discussion_number", discussion.number);
-                    core.setOutput("discussion_url", discussion.url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdDiscussions.length > 0) {
-                let summaryContent = "\n\n## GitHub Discussions\n";
-                for (const discussion of createdDiscussions) {
-                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
-            }
-            await main();
-
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -4491,8 +3625,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
-          WORKFLOW_DESCRIPTION: "Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends"
+          WORKFLOW_NAME: "Test Claude Assign Milestone"
+          WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
             const fs = require('fs');
@@ -4735,7 +3869,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
+          GH_AW_WORKFLOW_NAME: "Test Claude Assign Milestone"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
