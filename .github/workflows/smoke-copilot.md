@@ -17,11 +17,16 @@ network:
   allowed:
     - defaults
     - node
+    - example.com
   firewall: true
 tools:
   edit:
   bash:
+    - "*"
   github:
+  playwright:
+    allowed_domains:
+      - example.com
 safe-outputs:
     staged: true
     add-comment:
@@ -29,4 +34,22 @@ timeout-minutes: 10
 strict: true
 ---
 
-Review the last 2 merged pull requests in the ${{ github.repository }} repository and add a comment to the current pull request with a summary.
+# Smoke Test: Copilot Engine Validation
+
+This smoke test validates Copilot engine functionality by testing core capabilities:
+
+## Test Requirements
+
+1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
+2. **File Writing Testing**: Create a test file `/tmp/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)"
+3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+4. **Playwright MCP Testing**: Use playwright to navigate to https://example.com and verify the page title contains "Example"
+
+## Output
+
+Add a comment to the current pull request with:
+- Summary of the 2 merged PRs
+- File writing test result (success/failure)
+- Bash tool test result (file content verification)
+- Playwright test result (page title verification)
+- Overall smoke test status for **Copilot engine**
