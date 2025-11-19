@@ -84,8 +84,3 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 
 	return nil
 }
-
-// getNoOpScript returns the JavaScript implementation
-func getNoOpScript() string {
-	return noopScript
-}
