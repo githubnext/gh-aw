@@ -2921,6 +2921,32 @@ jobs:
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
                   if (server.status === "failed") {
                     mcpFailures.push(server.name);
+                    const errorDetails = [];
+                    if (server.error) {
+                      errorDetails.push(`**Error:** ${server.error}`);
+                    }
+                    if (server.stderr) {
+                      const maxStderrLength = 500;
+                      const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+                      errorDetails.push(`**Stderr:** \`${stderr}\``);
+                    }
+                    if (server.exitCode !== undefined && server.exitCode !== null) {
+                      errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+                    }
+                    if (server.command) {
+                      errorDetails.push(`**Command:** \`${server.command}\``);
+                    }
+                    if (server.message) {
+                      errorDetails.push(`**Message:** ${server.message}`);
+                    }
+                    if (server.reason) {
+                      errorDetails.push(`**Reason:** ${server.reason}`);
+                    }
+                    if (errorDetails.length > 0) {
+                      for (const detail of errorDetails) {
+                        markdown += `  - ${detail}\n`;
+                      }
+                    }
                   }
                 }
                 markdown += "\n";
