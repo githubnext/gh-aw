@@ -18,6 +18,7 @@ network:
     - defaults
     - node
     - github
+    - playwright
   firewall: true
 tools:
   edit:

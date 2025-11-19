@@ -18,6 +18,11 @@ engine:
   max-turns: 15
 imports:
   - shared/mcp-pagination.md
+network:
+  allowed:
+    - defaults
+    - github
+    - playwright
 tools:
   github:
     toolsets: [repos, pull_requests]
@@ -31,7 +36,7 @@ safe-outputs:
     staged: true
     add-comment:
 timeout-minutes: 10
-strict: true
+strict: false
 ---
 
 # Smoke Test: Claude Engine Validation

@@ -13,6 +13,11 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
+network:
+  allowed:
+    - defaults
+    - github
+    - playwright
 tools:
   github:
   playwright:
@@ -25,7 +30,7 @@ safe-outputs:
     staged: true
     add-comment:
 timeout-minutes: 10
-strict: true
+strict: false
 ---
 
 # Smoke Test: Codex Engine Validation
