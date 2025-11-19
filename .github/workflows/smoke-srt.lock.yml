@@ -644,12 +644,13 @@ jobs:
                 'GH_AW_MAX_TURNS',
               ];
 
-              // Build environment variable prefix for the command
+              // Build environment variable export statements for the command
+              // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
               const envPrefix = requiredEnvVars
                 .filter(key => process.env[key] !== undefined)
                 .map(key => {
                   const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
-                  return key + "='" + value + "'";
+                  return "export " + key + "='" + value + "';";
                 })
                 .join(' ');
 

@@ -227,6 +227,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// For AWF: use -y flag for automatic download (backward compatibility)
 		if isSRTEnabled(workflowData) {
 			// Use local installation with --no-install to prevent network fetch and fail fast if missing
+			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
 			copilotCommand = fmt.Sprintf("npx --no-install @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
 		} else {
 			// AWF or other sandboxes - use -y for automatic download
@@ -984,12 +985,13 @@ async function main() {
       'GH_AW_MAX_TURNS',
     ];
 
-    // Build environment variable prefix for the command
+    // Build environment variable export statements for the command
+    // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
     const envPrefix = requiredEnvVars
       .filter(key => process.env[key] !== undefined)
       .map(key => {
         const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
-        return key + "='" + value + "'";
+        return "export " + key + "='" + value + "';";
       })
       .join(' ');
 
