@@ -1179,5 +1179,67 @@ More log content
       // Should not show it as successful
       expect(commandsSection).not.toContain("✅ `github::create_issue(...)`");
     });
+
+    it("should display all tools even when there are many (more than 5)", () => {
+      const parseCopilotLog = extractParseFunction();
+
+      // Create a log with many GitHub tools (more than 5 to test the display logic)
+      const logWithManyTools = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "many-tools-test",
+          tools: [
+            "Bash",
+            "Read",
+            "Write",
+            "Edit",
+            "LS",
+            "Grep",
+            "mcp__github__create_issue",
+            "mcp__github__list_issues",
+            "mcp__github__get_issue",
+            "mcp__github__create_pull_request",
+            "mcp__github__list_pull_requests",
+            "mcp__github__get_pull_request",
+            "mcp__github__create_discussion",
+            "mcp__github__list_discussions",
+            "safe_outputs-create_issue",
+            "safe_outputs-add-comment",
+          ],
+          model: "gpt-5",
+        },
+      ]);
+
+      const result = parseCopilotLog(logWithManyTools);
+
+      // Verify all GitHub tools are shown (not just first 3 with "and X more")
+      expect(result).toContain("github::create_issue");
+      expect(result).toContain("github::list_issues");
+      expect(result).toContain("github::get_issue");
+      expect(result).toContain("github::create_pull_request");
+      expect(result).toContain("github::list_pull_requests");
+      expect(result).toContain("github::get_pull_request");
+      expect(result).toContain("github::create_discussion");
+      expect(result).toContain("github::list_discussions");
+
+      // Verify safe_outputs tools are shown
+      expect(result).toContain("safe_outputs-create_issue");
+      expect(result).toContain("safe_outputs-add-comment");
+
+      // Verify file operations are shown
+      expect(result).toContain("Read");
+      expect(result).toContain("Write");
+      expect(result).toContain("Edit");
+      expect(result).toContain("LS");
+      expect(result).toContain("Grep");
+
+      // Verify Bash is shown
+      expect(result).toContain("Bash");
+
+      // Ensure we don't have "and X more" text in the tools list (the pattern used to truncate tool lists)
+      const toolsSection = result.split("## 🤖 Reasoning")[0];
+      expect(toolsSection).not.toMatch(/and \d+ more/);
+    });
   });
 });

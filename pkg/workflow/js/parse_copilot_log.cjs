@@ -891,13 +891,8 @@ function formatInitializationSummary(initEntry) {
     for (const [category, tools] of Object.entries(categories)) {
       if (tools.length > 0) {
         markdown += `- **${category}:** ${tools.length} tools\n`;
-        if (tools.length <= 5) {
-          // Show all tools if 5 or fewer
-          markdown += `  - ${tools.join(", ")}\n`;
-        } else {
-          // Show first few and count
-          markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
-        }
+        // Show all tools for complete visibility
+        markdown += `  - ${tools.join(", ")}\n`;
       }
     }
     markdown += "\n";
