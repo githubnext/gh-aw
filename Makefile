@@ -44,6 +44,23 @@ test:
 test-unit:
 	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
 
+# Test specific integration test groups (matching CI workflow)
+.PHONY: test-integration-compile
+test-integration-compile:
+	go test -v -timeout=3m -tags 'integration' -run 'TestCompile|TestPoutine' ./pkg/cli
+
+.PHONY: test-integration-mcp
+test-integration-mcp:
+	go test -v -timeout=3m -tags 'integration' -run 'TestMCP' ./pkg/cli
+
+.PHONY: test-integration-logs
+test-integration-logs:
+	go test -v -timeout=3m -tags 'integration' -run 'TestLogs|TestFirewall|TestNoStopTime|TestJQ|TestLocalWorkflow' ./pkg/cli
+
+.PHONY: test-integration-workflow
+test-integration-workflow:
+	go test -v -timeout=3m -tags 'integration' ./pkg/workflow ./cmd/gh-aw
+
 .PHONY: test-perf
 test-perf:
 	go test -v -count=1 -timeout=3m -tags 'integration' -run='^Test' ./... | tee /tmp/gh-aw/test-output.log; \
