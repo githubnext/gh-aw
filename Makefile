@@ -37,16 +37,16 @@ build-windows:
 # Test the code (runs both unit and integration tests)
 .PHONY: test
 test:
-	go test -v -timeout=3m -tags 'integration' ./...
+	go test -v -timeout=3m -tags 'integration' -run='^Test' ./...
 
 # Test unit tests only (excludes integration tests)
 .PHONY: test-unit
 test-unit:
-	go test -v -timeout=3m -tags '!integration' ./...
+	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
 
 .PHONY: test-perf
 test-perf:
-	go test -v -count=1 -timeout=3m -tags 'integration' ./... | tee /tmp/gh-aw/test-output.log; \
+	go test -v -count=1 -timeout=3m -tags 'integration' -run='^Test' ./... | tee /tmp/gh-aw/test-output.log; \
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=== SLOWEST TESTS ==="; \
