@@ -720,7 +720,7 @@ async function main() {
   const agentOutputFile = "/tmp/gh-aw/agent_output.json";
   const validatedOutputJson = JSON.stringify(validatedOutput);
   try {
-    fs.mkdirSync("/tmp", { recursive: true });
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
     fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
     core.info(`Stored validated output to: ${agentOutputFile}`);
     core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
