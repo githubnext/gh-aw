@@ -840,6 +840,20 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["update_project"] = updateProjectConfig
 		}
+		if data.SafeOutputs.UpdateRelease != nil {
+			updateReleaseConfig := map[string]any{}
+			if data.SafeOutputs.UpdateRelease.Max > 0 {
+				updateReleaseConfig["max"] = data.SafeOutputs.UpdateRelease.Max
+			}
+			safeOutputsConfig["update_release"] = updateReleaseConfig
+		}
+		if data.SafeOutputs.NoOp != nil {
+			noopConfig := map[string]any{}
+			if data.SafeOutputs.NoOp.Max > 0 {
+				noopConfig["max"] = data.SafeOutputs.NoOp.Max
+			}
+			safeOutputsConfig["noop"] = noopConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
@@ -942,6 +956,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = true
+	}
+	if data.SafeOutputs.UpdateRelease != nil {
+		enabledTools["update_release"] = true
 	}
 	if data.SafeOutputs.NoOp != nil {
 		enabledTools["noop"] = true
