@@ -66,6 +66,10 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// SRT and AWF are mutually exclusive (validated earlier)
 	if isSRTEnabled(workflowData) {
 		// Install Sandbox Runtime (SRT)
+		copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
+		srtSystemDeps := generateSRTSystemDepsStep()
+		steps = append(steps, srtSystemDeps)
+
 		copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
 		srtInstall := generateSRTInstallationStep()
 		steps = append(steps, srtInstall)
@@ -835,6 +839,24 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 		"          which awf",
 		"          awf --version",
 	)
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSRTSystemDepsStep creates a GitHub Actions step to install SRT system dependencies
+func generateSRTSystemDepsStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install Sandbox Runtime System Dependencies",
+		"        run: |",
+		"          echo \"Installing system dependencies for Sandbox Runtime\"",
+		"          sudo apt-get update",
+		"          sudo apt-get install -y ripgrep bubblewrap socat",
+		"          echo \"System dependencies installed successfully\"",
+		"          echo \"Verifying installations:\"",
+		"          rg --version",
+		"          bwrap --version",
+		"          socat -V",
+	}
 
 	return GitHubActionStep(stepLines)
 }

@@ -226,6 +226,16 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+      - name: Install Sandbox Runtime System Dependencies
+        run: |
+          echo "Installing system dependencies for Sandbox Runtime"
+          sudo apt-get update
+          sudo apt-get install -y ripgrep bubblewrap socat
+          echo "System dependencies installed successfully"
+          echo "Verifying installations:"
+          rg --version
+          bwrap --version
+          socat -V
       - name: Install Sandbox Runtime
         run: |
           echo "Installing @anthropic-ai/sandbox-runtime locally"
