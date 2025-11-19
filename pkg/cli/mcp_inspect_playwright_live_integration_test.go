@@ -49,7 +49,13 @@ func TestMCPInspectPlaywrightLiveIntegration(t *testing.T) {
 
 	// Start the test web server in background
 	server := startTestWebServer(t, port)
-	defer server.Close()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			t.Logf("Error shutting down test web server: %v", err)
+		}
+	}()
 
 	// Wait for server to be ready
 	if !waitForServer(testURL, 5*time.Second) {
