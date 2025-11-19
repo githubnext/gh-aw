@@ -26,6 +26,9 @@ var createIssueScriptSource string
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
 
+//go:embed js/assign_milestone.cjs
+var assignMilestoneScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -89,6 +92,9 @@ var (
 
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
+
+	assignMilestoneScript     string
+	assignMilestoneScriptOnce sync.Once
 
 	createDiscussionScript     string
 	createDiscussionScriptOnce sync.Once
@@ -224,6 +230,23 @@ func getAddLabelsScript() string {
 		}
 	})
 	return addLabelsScript
+}
+
+// getAssignMilestoneScript returns the bundled assign_milestone script
+// Bundling is performed on first access and cached for subsequent calls
+func getAssignMilestoneScript() string {
+	assignMilestoneScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(assignMilestoneScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for assign_milestone, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			assignMilestoneScript = assignMilestoneScriptSource
+		} else {
+			assignMilestoneScript = bundled
+		}
+	})
+	return assignMilestoneScript
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script

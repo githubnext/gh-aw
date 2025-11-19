@@ -2430,5 +2430,31 @@ Line 3"}
       expect(parsedOutput.items[2].message).toBe("Third message");
       expect(parsedOutput.errors).toHaveLength(0);
     });
+
+    it("should validate assign_milestone with required fields", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "assign_milestone", "issue_number": 42, "milestone_number": 5}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"assign_milestone": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      // Item should be valid
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].issue_number).toBe(42);
+      expect(parsedOutput.items[0].milestone_number).toBe(5);
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
   });
 });
