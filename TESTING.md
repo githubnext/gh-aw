@@ -10,6 +10,60 @@ The testing framework implements **Phase 6 (Quality Assurance)** of the Go reimp
 
 ### 1. Unit Tests (`pkg/*/`)
 
+### 2. Copilot CLI Integration Test (`.github/workflows/ci.yml`)
+
+An integration test for the Copilot CLI with MCP (Model Context Protocol) servers is available in the CI workflow. This test:
+
+- Installs GitHub Copilot CLI with the default version (0.0.358)
+- Configures MCP servers for GitHub and Playwright
+- Executes a verification prompt to test MCP server loading
+- Validates that both MCP servers are accessible and functional
+- Uploads execution logs as artifacts for inspection
+
+**Enabling the Test:**
+
+The test is conditionally enabled via a repository variable:
+
+1. Go to repository Settings → Secrets and variables → Actions → Variables
+2. Create a new variable: `COPILOT_CLI_INTEGRATION_ENABLED` with value `true`
+3. Ensure the `COPILOT_GITHUB_TOKEN` secret is configured (required for authentication)
+
+**Note:** This test requires `COPILOT_GITHUB_TOKEN` secret which may not be available when building the copilot agent itself. The test will be skipped when the token is unavailable.
+
+**Running the Test Locally:**
+
+```bash
+# The test requires COPILOT_GITHUB_TOKEN to be set
+export COPILOT_GITHUB_TOKEN="your-token"
+
+# Install Copilot CLI
+npm install -g @github/copilot@0.0.358
+
+# Setup MCP configuration (see .github/workflows/ci.yml for config structure)
+mkdir -p ~/.copilot
+cat > ~/.copilot/mcp-config.json << 'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "type": "local",
+      "command": "npx",
+      "args": ["@github/github-mcp-server@v0.21.0"],
+      "tools": ["*"]
+    },
+    "playwright": {
+      "type": "local",
+      "command": "npx",
+      "args": ["@playwright/mcp@0.0.47", "--allowed-hosts", "example.com"],
+      "tools": ["*"]
+    }
+  }
+}
+EOF
+
+# Run the Copilot CLI with MCP verification prompt
+copilot --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --prompt "Verify that GitHub and Playwright MCP servers are loaded"
+```
+
 ### 2. Fuzz Tests (`pkg/*/_fuzz_test.go`)
 
 Fuzz tests use Go's built-in fuzzing support to test functions with randomly generated inputs, helping discover edge cases and security vulnerabilities that traditional tests might miss.
