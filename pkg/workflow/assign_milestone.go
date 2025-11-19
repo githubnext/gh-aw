@@ -7,9 +7,9 @@ import (
 // AssignMilestoneConfig holds configuration for assigning milestones to issues from agent output
 type AssignMilestoneConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Allowed              []string `yaml:"allowed,omitempty"`      // Optional list of allowed milestone titles or IDs
-	Target               string   `yaml:"target,omitempty"`       // Target for milestone assignment: "triggering" (default) or explicit issue number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository assignments
+	Allowed              []string `yaml:"allowed,omitempty"`     // Optional list of allowed milestone titles or IDs
+	Target               string   `yaml:"target,omitempty"`      // Target for milestone assignment: "triggering" (default) or explicit issue number
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository assignments
 }
 
 // buildAssignMilestoneJob creates the assign_milestone job
@@ -29,7 +29,7 @@ func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName strin
 
 	// Build custom environment variables specific to assign-milestone
 	var customEnvVars []string
-	
+
 	// Pass the allowed milestones list (empty string if no restrictions)
 	if len(allowedMilestones) > 0 {
 		allowedMilestonesStr := ""
@@ -41,7 +41,7 @@ func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName strin
 		}
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MILESTONE_ALLOWED: %q\n", allowedMilestonesStr))
 	}
-	
+
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MILESTONE_MAX_COUNT: %d\n", maxCount))
 
