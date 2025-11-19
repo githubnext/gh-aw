@@ -1057,6 +1057,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
 	}
+	if data.SafeOutputs.AssignMilestone != nil {
+		enabledTools["assign_milestone"] = true
+	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true
 	}
