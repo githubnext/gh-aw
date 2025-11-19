@@ -997,11 +997,22 @@ async function main() {
 
     console.log('Passing environment variables to sandbox:', requiredEnvVars.filter(key => process.env[key] !== undefined).join(', '));
 
+    // Debug: Log actual values (for troubleshooting)
+    requiredEnvVars.forEach(key => {
+      if (process.env[key] !== undefined) {
+        const displayValue = key.includes('TOKEN') ? '***' : process.env[key];
+        console.log('  ' + key + '=' + displayValue);
+      }
+    });
+
     // The command to run
     const baseCommand = '%s';
 
     // Prepend environment variables to the command
     const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
+
+    console.log('DEBUG: Export prefix length:', envPrefix.length);
+    console.log('DEBUG: Command length:', command.length);
 
     // Wrap the command with sandbox restrictions
     const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
