@@ -8,6 +8,7 @@ describe("parse_codex_log.cjs", () => {
   let truncateString;
   let estimateTokens;
   let formatDuration;
+  let extractMCPInitialization;
 
   beforeEach(async () => {
     // Mock core actions methods
@@ -33,6 +34,7 @@ describe("parse_codex_log.cjs", () => {
     truncateString = module.truncateString;
     estimateTokens = module.estimateTokens;
     formatDuration = module.formatDuration;
+    extractMCPInitialization = module.extractMCPInitialization;
   });
 
   describe("parseCodexLog function", () => {
@@ -323,6 +325,159 @@ x`;
     it("should round to nearest second", () => {
       expect(formatDuration(1499)).toBe("1s");
       expect(formatDuration(1500)).toBe("2s");
+    });
+  });
+
+  describe("extractMCPInitialization function", () => {
+    it("should extract MCP server initialization", () => {
+      const lines = [
+        "2025-01-15T12:00:00.123Z DEBUG codex_core::mcp: Initializing MCP servers from config",
+        "2025-01-15T12:00:00.234Z DEBUG codex_core::mcp: Found 3 MCP servers in configuration",
+        "2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: github",
+        "2025-01-15T12:00:01.567Z INFO codex_core::mcp::client: MCP server 'github' connected successfully",
+      ];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("**MCP Servers:**");
+      expect(result.markdown).toContain("github");
+      expect(result.markdown).toContain("✅");
+      expect(result.markdown).toContain("connected");
+      expect(result.servers).toHaveLength(1);
+      expect(result.servers[0].name).toBe("github");
+      expect(result.servers[0].status).toBe("connected");
+    });
+
+    it("should detect failed MCP server connections", () => {
+      const lines = [
+        "2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: time",
+        "2025-01-15T12:00:02.123Z ERROR codex_core::mcp::client: Failed to connect to MCP server 'time': Connection timeout",
+      ];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("❌");
+      expect(result.markdown).toContain("time");
+      expect(result.markdown).toContain("failed");
+      expect(result.markdown).toContain("Connection timeout");
+      expect(result.servers).toHaveLength(1);
+      expect(result.servers[0].status).toBe("failed");
+      expect(result.servers[0].error).toBe("Connection timeout");
+    });
+
+    it("should extract available MCP tools", () => {
+      const lines = [
+        "2025-01-15T12:00:02.678Z INFO codex_core: Available tools: github.list_issues, github.create_comment, safe_outputs.create_issue",
+      ];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("**Available MCP Tools:**");
+      expect(result.markdown).toContain("3 tools");
+      expect(result.markdown).toContain("github.list_issues");
+    });
+
+    it("should handle multiple MCP servers with mixed status", () => {
+      const lines = [
+        "2025-01-15T12:00:00.234Z DEBUG codex_core::mcp: Found 3 MCP servers in configuration",
+        "2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: github",
+        "2025-01-15T12:00:01.567Z INFO codex_core::mcp::client: MCP server 'github' connected successfully",
+        "2025-01-15T12:00:01.789Z DEBUG codex_core::mcp::client: Connecting to MCP server: time",
+        "2025-01-15T12:00:02.123Z ERROR codex_core::mcp::client: Failed to connect to MCP server 'time': Connection timeout",
+        "2025-01-15T12:00:02.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: safe_outputs",
+        "2025-01-15T12:00:02.456Z INFO codex_core::mcp::client: MCP server 'safe_outputs' connected successfully",
+        "2025-01-15T12:00:02.567Z DEBUG codex_core::mcp: MCP initialization complete: 2/3 servers connected",
+      ];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("Total: 3");
+      expect(result.markdown).toContain("Connected: 2");
+      expect(result.markdown).toContain("Failed: 1");
+      expect(result.servers).toHaveLength(3);
+
+      const github = result.servers.find(s => s.name === "github");
+      const time = result.servers.find(s => s.name === "time");
+      const safeOutputs = result.servers.find(s => s.name === "safe_outputs");
+
+      expect(github.status).toBe("connected");
+      expect(time.status).toBe("failed");
+      expect(safeOutputs.status).toBe("connected");
+    });
+
+    it("should handle logs with no MCP information", () => {
+      const lines = ["[2025-08-31T12:37:08] OpenAI Codex v0.27.0 (research preview)", "--------", "workdir: /home/runner/work/gh-aw/gh-aw"];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(false);
+      expect(result.markdown).toBe("");
+      expect(result.servers).toHaveLength(0);
+    });
+
+    it("should handle initialization failed pattern", () => {
+      const lines = [
+        "2025-01-15T12:00:01.789Z DEBUG codex_core::mcp::client: Connecting to MCP server: custom",
+        "2025-01-15T12:00:02.234Z WARN codex_core::mcp: MCP server 'custom' initialization failed, continuing without it",
+      ];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("custom");
+      expect(result.markdown).toContain("failed");
+      expect(result.servers[0].status).toBe("failed");
+      expect(result.servers[0].error).toBe("Initialization failed");
+    });
+
+    it("should truncate tool list if too many tools", () => {
+      const tools = Array.from({ length: 15 }, (_, i) => `tool${i}`).join(", ");
+      const lines = [`2025-01-15T12:00:02.678Z INFO codex_core: Available tools: ${tools}`];
+
+      const result = extractMCPInitialization(lines);
+
+      expect(result.hasInfo).toBe(true);
+      expect(result.markdown).toContain("15 tools");
+      expect(result.markdown).toContain("...");
+    });
+  });
+
+  describe("parseCodexLog with MCP initialization", () => {
+    it("should include MCP initialization section when present", () => {
+      const logContent = `2025-01-15T12:00:00.123Z DEBUG codex_core::mcp: Initializing MCP servers from config
+2025-01-15T12:00:00.234Z DEBUG codex_core::mcp: Found 2 MCP servers in configuration
+2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: github
+2025-01-15T12:00:01.567Z INFO codex_core::mcp::client: MCP server 'github' connected successfully
+2025-01-15T12:00:01.789Z DEBUG codex_core::mcp::client: Connecting to MCP server: safe_outputs
+2025-01-15T12:00:02.456Z INFO codex_core::mcp::client: MCP server 'safe_outputs' connected successfully
+thinking
+I will now use the GitHub API to list issues`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result).toContain("## 🚀 Initialization");
+      expect(result).toContain("**MCP Servers:**");
+      expect(result).toContain("Total: 2");
+      expect(result).toContain("Connected: 2");
+      expect(result).toContain("✅");
+      expect(result).toContain("github");
+      expect(result).toContain("safe_outputs");
+      expect(result).toContain("## 🤖 Reasoning");
+    });
+
+    it("should skip initialization section when no MCP info present", () => {
+      const logContent = `[2025-08-31T12:37:08] OpenAI Codex v0.27.0
+thinking
+I will analyze the code`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result).not.toContain("## 🚀 Initialization");
+      expect(result).toContain("## 🤖 Reasoning");
     });
   });
 });

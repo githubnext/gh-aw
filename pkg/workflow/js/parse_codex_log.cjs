@@ -12,6 +12,119 @@ function main() {
 }
 
 /**
+ * Extract MCP server initialization information from Codex logs
+ * @param {string[]} lines - Array of log lines
+ * @returns {{hasInfo: boolean, markdown: string, servers: Array<{name: string, status: string, error?: string}>}} MCP initialization info
+ */
+function extractMCPInitialization(lines) {
+  const mcpServers = new Map(); // Map server name to status/error info
+  let serverCount = 0;
+  let connectedCount = 0;
+  let availableTools = [];
+
+  for (const line of lines) {
+    // Match: Initializing MCP servers from config
+    if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
+      // Continue to next patterns
+    }
+
+    // Match: Found N MCP servers in configuration
+    const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
+    if (countMatch) {
+      serverCount = parseInt(countMatch[1]);
+    }
+
+    // Match: Connecting to MCP server: <name>
+    const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
+    if (connectingMatch) {
+      const serverName = connectingMatch[1];
+      if (!mcpServers.has(serverName)) {
+        mcpServers.set(serverName, { name: serverName, status: "connecting" });
+      }
+    }
+
+    // Match: MCP server '<name>' connected successfully
+    const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
+    if (connectedMatch) {
+      const serverName = connectedMatch[1];
+      mcpServers.set(serverName, { name: serverName, status: "connected" });
+      connectedCount++;
+    }
+
+    // Match: Failed to connect to MCP server '<name>': <error>
+    const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
+    if (failedMatch) {
+      const serverName = failedMatch[1];
+      const error = failedMatch[2].trim();
+      mcpServers.set(serverName, { name: serverName, status: "failed", error });
+    }
+
+    // Match: MCP server '<name>' initialization failed
+    const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
+    if (initFailedMatch) {
+      const serverName = initFailedMatch[1];
+      const existing = mcpServers.get(serverName);
+      if (existing && existing.status !== "failed") {
+        mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
+      }
+    }
+
+    // Match: Available tools: tool1, tool2, tool3
+    const toolsMatch = line.match(/Available tools:\s*(.+)/i);
+    if (toolsMatch) {
+      const toolsStr = toolsMatch[1];
+      availableTools = toolsStr
+        .split(",")
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+    }
+  }
+
+  // Build markdown output
+  let markdown = "";
+  const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
+
+  if (mcpServers.size > 0) {
+    markdown += "**MCP Servers:**\n";
+
+    // Count by status
+    const servers = Array.from(mcpServers.values());
+    const connected = servers.filter(s => s.status === "connected");
+    const failed = servers.filter(s => s.status === "failed");
+
+    markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
+    markdown += `- Connected: ${connected.length}\n`;
+    if (failed.length > 0) {
+      markdown += `- Failed: ${failed.length}\n`;
+    }
+    markdown += "\n";
+
+    // List each server with status
+    for (const server of servers) {
+      const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
+      markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
+      if (server.error) {
+        markdown += `\n  - Error: ${server.error}`;
+      }
+      markdown += "\n";
+    }
+    markdown += "\n";
+  }
+
+  if (availableTools.length > 0) {
+    markdown += "**Available MCP Tools:**\n";
+    markdown += `- Total: ${availableTools.length} tools\n`;
+    markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
+  }
+
+  return {
+    hasInfo,
+    markdown,
+    servers: Array.from(mcpServers.values()),
+  };
+}
+
+/**
  * Parse codex log content and format as markdown
  * @param {string} logContent - The raw log content to parse
  * @returns {string} Formatted markdown content
@@ -25,6 +138,13 @@ function parseCodexLog(logContent) {
     const LOOKAHEAD_WINDOW = 50;
 
     let markdown = "";
+
+    // Extract MCP initialization information
+    const mcpInfo = extractMCPInitialization(lines);
+    if (mcpInfo.hasInfo) {
+      markdown += "## 🚀 Initialization\n\n";
+      markdown += mcpInfo.markdown;
+    }
 
     markdown += "## 🤖 Reasoning\n\n";
 
@@ -390,6 +510,7 @@ if (typeof module !== "undefined" && module.exports) {
     truncateString,
     estimateTokens,
     formatDuration,
+    extractMCPInitialization,
   };
 }
 
