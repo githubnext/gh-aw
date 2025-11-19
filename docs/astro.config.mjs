@@ -152,8 +152,8 @@ export default defineConfig({
 					autogenerate: { directory: 'troubleshooting' },
 				},
 				{
-					label: 'Status',
-					link: '/status/',
+					label: 'Labs',
+					link: '/labs/',
 				},
 			],
 		}),

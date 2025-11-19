@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Status Badges Generator
+ * Labs Page Generator
  *
  * Generates a markdown documentation page with GitHub Actions status badges
  * for all workflows in the repository (only from .lock.yml files).
  * Displays workflows in a table with columns for name, agent, status, and workflow link.
  *
  * Usage:
- *   node scripts/generate-status-badges.js
+ *   node scripts/generate-labs.js
  */
 
 import fs from "fs";
@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Paths
 const WORKFLOWS_DIR = path.join(__dirname, "../.github/workflows");
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.mdx");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/labs.mdx");
 
 // Repository owner and name
 const REPO_OWNER = "githubnext";
@@ -159,15 +159,15 @@ function generateMarkdown(workflows) {
 
   // Frontmatter
   lines.push("---");
-  lines.push("title: Workflow Status");
-  lines.push("description: Status badges for all GitHub Actions workflows in the repository.");
+  lines.push("title: Labs");
+  lines.push("description: Experimental agentic workflows used by the team to learn and build.");
   lines.push("sidebar:");
   lines.push("  order: 1000");
   lines.push("---");
   lines.push("");
 
   // Introduction
-  lines.push("Status of all agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).");
+  lines.push("These are experimental agentic workflows used by the GitHub Next team to learn, build, and use agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).");
   lines.push("");
 
   // Sort workflows alphabetically by name
@@ -206,7 +206,7 @@ function generateMarkdown(workflows) {
 }
 
 // Main execution
-console.log("Generating status badges documentation...");
+console.log("Generating labs documentation...");
 
 // Read all .lock.yml files
 const lockFiles = fs
@@ -257,5 +257,5 @@ if (!fs.existsSync(outputDir)) {
 
 // Write the output
 fs.writeFileSync(OUTPUT_PATH, markdown, "utf-8");
-console.log(`✓ Generated status badges documentation: ${OUTPUT_PATH}`);
+console.log(`✓ Generated labs documentation: ${OUTPUT_PATH}`);
 console.log(`✓ Total workflows: ${workflows.length}`);
