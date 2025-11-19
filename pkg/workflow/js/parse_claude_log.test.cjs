@@ -797,5 +797,67 @@ npm warn exec The following package was not found
       // Should still contain the summary line
       expect(result.markdown).toContain("mkdir test_dir");
     });
+
+    it("should display all tools even when there are many (more than 5)", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      // Create a log with many GitHub tools (more than 5 to test the display logic)
+      const logWithManyTools = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "many-tools-test",
+          tools: [
+            "Bash",
+            "Read",
+            "Write",
+            "Edit",
+            "LS",
+            "Grep",
+            "mcp__github__create_issue",
+            "mcp__github__list_issues",
+            "mcp__github__get_issue",
+            "mcp__github__create_pull_request",
+            "mcp__github__list_pull_requests",
+            "mcp__github__get_pull_request",
+            "mcp__github__create_discussion",
+            "mcp__github__list_discussions",
+            "safe_outputs-create_issue",
+            "safe_outputs-add-comment",
+          ],
+          model: "claude-sonnet-4",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithManyTools);
+
+      // Verify all GitHub tools are shown (not just first 3 with "and X more")
+      expect(result.markdown).toContain("github::create_issue");
+      expect(result.markdown).toContain("github::list_issues");
+      expect(result.markdown).toContain("github::get_issue");
+      expect(result.markdown).toContain("github::create_pull_request");
+      expect(result.markdown).toContain("github::list_pull_requests");
+      expect(result.markdown).toContain("github::get_pull_request");
+      expect(result.markdown).toContain("github::create_discussion");
+      expect(result.markdown).toContain("github::list_discussions");
+
+      // Verify safe_outputs tools are shown
+      expect(result.markdown).toContain("safe_outputs-create_issue");
+      expect(result.markdown).toContain("safe_outputs-add-comment");
+
+      // Verify file operations are shown
+      expect(result.markdown).toContain("Read");
+      expect(result.markdown).toContain("Write");
+      expect(result.markdown).toContain("Edit");
+      expect(result.markdown).toContain("LS");
+      expect(result.markdown).toContain("Grep");
+
+      // Verify Bash is shown
+      expect(result.markdown).toContain("Bash");
+
+      // Ensure we don't have "and X more" text in the tools list (the pattern used to truncate tool lists)
+      const toolsSection = result.markdown.split("## 🤖 Reasoning")[0];
+      expect(toolsSection).not.toMatch(/and \d+ more/);
+    });
   });
 });

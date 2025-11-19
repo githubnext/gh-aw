@@ -38,7 +38,8 @@
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
         {"$ref": "#/$defs/UpdateProjectOutput"},
-        {"$ref": "#/$defs/UpdateReleaseOutput"}
+        {"$ref": "#/$defs/UpdateReleaseOutput"},
+        {"$ref": "#/$defs/NoOpOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -384,6 +385,23 @@
         }
       },
       "required": ["type", "operation", "body"],
+      "additionalProperties": false
+    },
+    "NoOpOutput": {
+      "title": "No-Op Output",
+      "description": "Output for logging a message without taking any GitHub actions. Always available as a fallback to ensure human-visible artifacts.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "noop"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message to log for transparency",
+          "minLength": 1
+        }
+      },
+      "required": ["type", "message"],
       "additionalProperties": false
     }
   }

@@ -26,6 +26,9 @@ var checkMembershipScript string
 //go:embed js/check_stop_time.cjs
 var checkStopTimeScript string
 
+//go:embed js/check_skip_if_match.cjs
+var checkSkipIfMatchScript string
+
 //go:embed js/check_command_position.cjs
 var checkCommandPositionScript string
 
@@ -41,6 +44,9 @@ var validateErrorsScript string
 //go:embed js/missing_tool.cjs
 var missingToolScript string
 
+//go:embed js/noop.cjs
+var noopScript string
+
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
@@ -55,9 +61,6 @@ var checkoutPRBranchScript string
 
 //go:embed js/redact_secrets.cjs
 var redactSecretsScript string
-
-//go:embed js/notify_comment_error.cjs
-var notifyCommentErrorScript string
 
 //go:embed js/sanitize_content.cjs
 var sanitizeContentScript string

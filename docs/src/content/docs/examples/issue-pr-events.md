@@ -18,6 +18,7 @@ Issue and PR event workflows run automatically when specific GitHub events occur
 
 - **[IssueOps](/gh-aw/examples/issue-pr-events/issueops/)** - Automate issue triage and management
 - **[LabelOps](/gh-aw/examples/issue-pr-events/labelops/)** - Use labels as workflow triggers
+- **[ProjectOps](/gh-aw/examples/issue-pr-events/projectops/)** - Automate project board management
 - **[Triage & Analysis](/gh-aw/examples/issue-pr-events/triage-analysis/)** - Intelligent triage and problem investigation
 - **[Coding & Development](/gh-aw/examples/issue-pr-events/coding-development/)** - PR assistance and code improvements
 - **[Quality & Testing](/gh-aw/examples/issue-pr-events/quality-testing/)** - Automated quality checks

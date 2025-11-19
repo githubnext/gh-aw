@@ -26,7 +26,7 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.42"
+const DefaultClaudeCodeVersion Version = "2.0.44"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 const DefaultCopilotVersion Version = "0.0.358"
@@ -35,7 +35,7 @@ const DefaultCopilotVersion Version = "0.0.358"
 const DefaultCodexVersion Version = "0.57.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.20.2"
+const DefaultGitHubMCPServerVersion Version = "v0.21.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.1.1"
@@ -192,11 +192,13 @@ const SafeOutputsMCPServerID = "safeoutputs"
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"
+const CheckSkipIfMatchStepID = "check_skip_if_match"
 const CheckCommandPositionStepID = "check_command_position"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"
+const SkipCheckOkOutput = "skip_check_ok"
 const CommandPositionOkOutput = "command_position_ok"
 const ActivatedOutput = "activated"
 

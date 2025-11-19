@@ -172,6 +172,15 @@ interface UpdateReleaseItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for no-op (logging only)
+ */
+interface NoOpItem extends BaseSafeOutputItem {
+  type: "noop";
+  /** Message to log for transparency */
+  message: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -186,7 +195,8 @@ type SafeOutputItem =
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem
-  | UpdateReleaseItem;
+  | UpdateReleaseItem
+  | NoOpItem;
 
 /**
  * Sanitized safe output items
@@ -211,6 +221,7 @@ export {
   MissingToolItem,
   UploadAssetItem,
   UpdateReleaseItem,
+  NoOpItem,
   SafeOutputItem,
   SafeOutputItems,
 };

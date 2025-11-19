@@ -100,6 +100,11 @@ interface UpdateReleaseConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for no-op output
+ */
+interface NoOpConfig extends SafeOutputConfig {}
+
+/**
  * Configuration for reporting missing tools
  */
 interface MissingToolConfig extends SafeOutputConfig {}
@@ -154,6 +159,7 @@ type SpecificSafeOutputConfig =
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | UpdateReleaseConfig
+  | NoOpConfig
   | MissingToolConfig
   | ThreatDetectionConfig;
 
@@ -174,6 +180,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   UpdateReleaseConfig,
+  NoOpConfig,
   MissingToolConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,

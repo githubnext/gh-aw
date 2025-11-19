@@ -47,7 +47,8 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
+	hasSkipIfMatch := data.SkipIfMatch != ""
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
 	// Add the check if the agentic workflow declares a workflow_run trigger
@@ -61,10 +62,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Extract lock filename for timestamp check
 	lockFilename := filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
 
-	// Build pre-activation job if needed (combines membership checks, stop-time validation, and command position check)
+	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
-	if needsPermissionCheck || hasStopTime || hasCommandTrigger {
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger {
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
@@ -409,6 +410,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateProjectJob.Name)
 	}
 
+	// Build noop job (always enabled when SafeOutputs exists)
+	if data.SafeOutputs.NoOp != nil {
+		noopJob, err := c.buildCreateOutputNoOpJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build noop job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			noopJob.Needs = append(noopJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			noopJob.If = AddDetectionSuccessCheck(noopJob.If)
+		}
+		if err := c.jobManager.AddJob(noopJob); err != nil {
+			return fmt.Errorf("failed to add noop job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, noopJob.Name)
+	}
+
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
@@ -456,6 +475,25 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, formattedScript...)
 	}
 
+	// Add skip-if-match check if configured
+	if data.SkipIfMatch != "" {
+		// Extract workflow name for the skip-if-match check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-if-match query\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfMatchStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
+		steps = append(steps, formattedScript...)
+	}
+
 	// Add command position check if this is a command workflow
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check command position\n")
@@ -495,6 +533,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, stopTimeCheck)
+	}
+
+	if data.SkipIfMatch != "" {
+		// Add skip-if-match check condition
+		skipCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipCheckOk)
 	}
 
 	if data.Command != "" {
