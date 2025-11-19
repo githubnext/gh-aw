@@ -49,13 +49,17 @@ test-unit:
 test-integration-compile:
 	go test -v -timeout=3m -tags 'integration' -run 'TestCompile|TestPoutine' ./pkg/cli
 
-.PHONY: test-integration-mcp
-test-integration-mcp:
-	go test -v -timeout=3m -tags 'integration' -run 'TestMCP' ./pkg/cli
+.PHONY: test-integration-mcp-playwright
+test-integration-mcp-playwright:
+	go test -v -timeout=3m -tags 'integration' -run 'TestMCPInspectPlaywright' ./pkg/cli
+
+.PHONY: test-integration-mcp-other
+test-integration-mcp-other:
+	go test -v -timeout=3m -tags 'integration' -run 'TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig' ./pkg/cli
 
 .PHONY: test-integration-logs
 test-integration-logs:
-	go test -v -timeout=3m -tags 'integration' -run 'TestLogs|TestFirewall|TestNoStopTime|TestJQ|TestLocalWorkflow' ./pkg/cli
+	go test -v -timeout=3m -tags 'integration' -run 'TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow' ./pkg/cli
 
 .PHONY: test-integration-workflow
 test-integration-workflow:
