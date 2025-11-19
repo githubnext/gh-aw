@@ -234,6 +234,160 @@ npm warn exec The following package was not found
       expect(result.mcpFailures).toEqual(["failed_server"]);
     });
 
+    it("should display detailed error information for failed MCP servers", () => {
+      const logWithDetailedErrors = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-detailed-errors",
+          tools: ["Bash"],
+          mcp_servers: [
+            { name: "working_server", status: "connected" },
+            {
+              name: "failed_with_error",
+              status: "failed",
+              error: "Connection timeout after 30s",
+              stderr: "Error: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:3000\n    at TCPConnectWrap.afterConnect",
+              exitCode: 1,
+              command: "npx @github/github-mcp-server",
+            },
+          ],
+          model: "claude-sonnet-4-20250514",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithDetailedErrors);
+
+      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("failed_with_error (failed)");
+      expect(result.markdown).toContain("**Error:** Connection timeout after 30s");
+      expect(result.markdown).toContain("**Stderr:** `Error: ECONNREFUSED");
+      expect(result.markdown).toContain("**Exit Code:** 1");
+      expect(result.markdown).toContain("**Command:** `npx @github/github-mcp-server`");
+      expect(result.mcpFailures).toEqual(["failed_with_error"]);
+    });
+
+    it("should handle MCP server failures with message and reason fields", () => {
+      const logWithMessageAndReason = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-message-reason",
+          tools: ["Bash"],
+          mcp_servers: [
+            {
+              name: "failed_server",
+              status: "failed",
+              message: "Failed to initialize MCP server",
+              reason: "Server binary not found in PATH",
+            },
+          ],
+          model: "claude-sonnet-4-20250514",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithMessageAndReason);
+
+      expect(result.markdown).toContain("failed_server (failed)");
+      expect(result.markdown).toContain("**Message:** Failed to initialize MCP server");
+      expect(result.markdown).toContain("**Reason:** Server binary not found in PATH");
+      expect(result.mcpFailures).toEqual(["failed_server"]);
+    });
+
+    it("should truncate long stderr output", () => {
+      const longStderr = "x".repeat(1000);
+      const logWithLongStderr = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-long-stderr",
+          tools: ["Bash"],
+          mcp_servers: [
+            {
+              name: "verbose_failure",
+              status: "failed",
+              stderr: longStderr,
+            },
+          ],
+          model: "claude-sonnet-4-20250514",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithLongStderr);
+
+      expect(result.markdown).toContain("verbose_failure (failed)");
+      expect(result.markdown).toContain("**Stderr:**");
+      // Should be truncated to 500 chars plus "..."
+      expect(result.markdown).toMatch(/Stderr:.*x{500}\.\.\./);
+      expect(result.mcpFailures).toEqual(["verbose_failure"]);
+    });
+
+    it("should handle MCP server failures with partial error information", () => {
+      const logWithPartialInfo = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-partial",
+          tools: ["Bash"],
+          mcp_servers: [
+            {
+              name: "partial_error_1",
+              status: "failed",
+              error: "Connection refused",
+            },
+            {
+              name: "partial_error_2",
+              status: "failed",
+              exitCode: 127,
+            },
+            {
+              name: "partial_error_3",
+              status: "failed",
+              stderr: "Command not found",
+            },
+          ],
+          model: "claude-sonnet-4-20250514",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithPartialInfo);
+
+      expect(result.markdown).toContain("partial_error_1 (failed)");
+      expect(result.markdown).toContain("**Error:** Connection refused");
+      expect(result.markdown).toContain("partial_error_2 (failed)");
+      expect(result.markdown).toContain("**Exit Code:** 127");
+      expect(result.markdown).toContain("partial_error_3 (failed)");
+      expect(result.markdown).toContain("**Stderr:** `Command not found`");
+      expect(result.mcpFailures).toEqual(["partial_error_1", "partial_error_2", "partial_error_3"]);
+    });
+
+    it("should handle exitCode zero for failed servers", () => {
+      const logWithExitCodeZero = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-exitcode-zero",
+          tools: ["Bash"],
+          mcp_servers: [
+            {
+              name: "failed_but_exit_zero",
+              status: "failed",
+              error: "Server exited unexpectedly",
+              exitCode: 0,
+            },
+          ],
+          model: "claude-sonnet-4-20250514",
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithExitCodeZero);
+
+      expect(result.markdown).toContain("failed_but_exit_zero (failed)");
+      expect(result.markdown).toContain("**Error:** Server exited unexpectedly");
+      expect(result.markdown).toContain("**Exit Code:** 0");
+      expect(result.mcpFailures).toEqual(["failed_but_exit_zero"]);
+    });
+
     it("should handle unrecognized log format", () => {
       const invalidLog = "This is not JSON or valid format";
 

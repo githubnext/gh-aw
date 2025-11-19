@@ -1645,8 +1645,9 @@
                       }
                     },
                     "version": {
-                      "type": "string",
-                      "description": "AWF version to use (empty = latest release)"
+                      "type": ["string", "number"],
+                      "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
+                      "examples": ["v1.0.0", "latest", 20, 3.11]
                     },
                     "log-level": {
                       "type": "string",
@@ -1801,8 +1802,9 @@
                   "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
                 },
                 "version": {
-                  "type": "string",
-                  "description": "Optional version specification for the GitHub MCP server (used with 'local' type)"
+                  "type": ["string", "number"],
+                  "description": "Optional version specification for the GitHub MCP server (used with 'local' type). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["v1.0.0", "latest", 20, 3.11]
                 },
                 "args": {
                   "type": "array",
@@ -1981,8 +1983,9 @@
               "description": "Playwright tool configuration with custom version and domain restrictions",
               "properties": {
                 "version": {
-                  "type": "string",
-                  "description": "Optional Playwright container version (e.g., 'v1.41.0')"
+                  "type": ["string", "number"],
+                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["v1.41.0", 1.41, 20]
                 },
                 "allowed_domains": {
                   "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
@@ -2437,17 +2440,9 @@
                   "description": "Optional prefix for the discussion title"
                 },
                 "category": {
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Discussion category name or ID"
-                    },
-                    {
-                      "type": "number",
-                      "description": "Discussion category ID as a number"
-                    }
-                  ],
-                  "description": "Optional discussion category. Can be a category ID (string or number), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs."
+                  "type": ["string", "number"],
+                  "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["General", "audits", 123456789]
                 },
                 "max": {
                   "type": "integer",
@@ -3292,16 +3287,9 @@
           "description": "Runtime configuration object identified by runtime ID (e.g., 'node', 'python', 'go')",
           "properties": {
             "version": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "description": "Runtime version as a string (e.g., '22', '3.12', 'latest')"
-                },
-                {
-                  "type": "number",
-                  "description": "Runtime version as a number (e.g., 22, 3.12)"
-                }
-              ]
+              "type": ["string", "number"],
+              "description": "Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g., 22, 3.12). Numeric values are automatically converted to strings at runtime.",
+              "examples": ["22", "3.12", "latest", 22, 3.12]
             },
             "action-repo": {
               "type": "string",
@@ -3430,8 +3418,9 @@
               "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
-              "type": "string",
-              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible defaults and can typically be omitted."
+              "type": ["string", "number"],
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime.",
+              "examples": ["beta", "stable", 20, 3.11]
             },
             "model": {
               "type": "string",
@@ -3560,8 +3549,9 @@
           "description": "Container image for stdio MCP connections (alternative to command)"
         },
         "version": {
-          "type": "string",
-          "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
+          "type": ["string", "number"],
+          "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0', 20, 3.11). Numeric values are automatically converted to strings at runtime.",
+          "examples": ["latest", "v1.0.0", 20, 3.11]
         },
         "args": {
           "type": "array",

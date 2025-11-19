@@ -31,6 +31,6 @@ The `gh aw` cli compiles this into a [GitHub Actions Workflow](https://docs.gith
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
-Workflows use read-only permissions by default, with write operations only allowed through sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/). Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
+Workflows use read-only permissions by default, with write operations only allowed through sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/) (a security feature that enables creating issues, comments, and PRs without giving the AI direct write access). Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
 More sample workflows can be found in the [Agentics collection](https://github.com/githubnext/agentics).

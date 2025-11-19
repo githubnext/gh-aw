@@ -63,6 +63,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    outputs:
+      comment_id: ${{ '' }}
+      comment_repo: ${{ '' }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -3072,6 +3075,32 @@ jobs:
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
                   if (server.status === "failed") {
                     mcpFailures.push(server.name);
+                    const errorDetails = [];
+                    if (server.error) {
+                      errorDetails.push(`**Error:** ${server.error}`);
+                    }
+                    if (server.stderr) {
+                      const maxStderrLength = 500;
+                      const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+                      errorDetails.push(`**Stderr:** \`${stderr}\``);
+                    }
+                    if (server.exitCode !== undefined && server.exitCode !== null) {
+                      errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+                    }
+                    if (server.command) {
+                      errorDetails.push(`**Command:** \`${server.command}\``);
+                    }
+                    if (server.message) {
+                      errorDetails.push(`**Message:** ${server.message}`);
+                    }
+                    if (server.reason) {
+                      errorDetails.push(`**Reason:** ${server.reason}`);
+                    }
+                    if (errorDetails.length > 0) {
+                      for (const detail of errorDetails) {
+                        markdown += `  - ${detail}\n`;
+                      }
+                    }
                   }
                 }
                 markdown += "\n";
