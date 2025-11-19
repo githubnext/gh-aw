@@ -35,6 +35,8 @@ async function main() {
         return 40;
       case "upload_asset":
         return 10;
+      case "update_release":
+        return 1;
       case "noop":
         return 1; // Default max for noop messages
       default:
@@ -587,6 +589,32 @@ async function main() {
             item.alternatives = sanitizeContent(item.alternatives, 512);
           }
           break;
+        case "update_release":
+          // Validate tag (optional - will be inferred from context if missing)
+          if (item.tag !== undefined && typeof item.tag !== "string") {
+            errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
+            continue;
+          }
+          // Validate operation
+          if (!item.operation || typeof item.operation !== "string") {
+            errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
+            continue;
+          }
+          if (item.operation !== "replace" && item.operation !== "append" && item.operation !== "prepend") {
+            errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace', 'append', or 'prepend'`);
+            continue;
+          }
+          // Validate body
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
+            continue;
+          }
+          // Sanitize content
+          if (item.tag) {
+            item.tag = sanitizeContent(item.tag, 256);
+          }
+          item.body = sanitizeContent(item.body, maxBodyLength);
+          break;
         case "upload_asset":
           if (!item.path || typeof item.path !== "string") {
             errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
@@ -701,7 +729,7 @@ async function main() {
   const agentOutputFile = "/tmp/gh-aw/agent_output.json";
   const validatedOutputJson = JSON.stringify(validatedOutput);
   try {
-    fs.mkdirSync("/tmp", { recursive: true });
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
     fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
     core.info(`Stored validated output to: ${agentOutputFile}`);
     core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);

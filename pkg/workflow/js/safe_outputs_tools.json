@@ -230,6 +230,30 @@
     }
   },
   {
+    "name": "update_release",
+    "description": "Update a GitHub release description",
+    "inputSchema": {
+      "type": "object",
+      "required": ["operation", "body"],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Release tag name (optional - inferred from event context if omitted)"
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["replace", "append", "prepend"],
+          "description": "Update operation: 'replace' (full replacement), 'append' (add at end with separator), or 'prepend' (add at start with separator)"
+        },
+        "body": {
+          "type": "string",
+          "description": "Release body content to set, append, or prepend"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "missing_tool",
     "description": "Report a missing tool or functionality needed to complete tasks",
     "inputSchema": {

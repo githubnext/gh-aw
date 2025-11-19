@@ -32,6 +32,9 @@ var createDiscussionScriptSource string
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
 
+//go:embed js/update_release.cjs
+var updateReleaseScriptSource string
+
 //go:embed js/create_code_scanning_alert.cjs
 var createCodeScanningAlertScriptSource string
 
@@ -89,6 +92,9 @@ var (
 
 	updateIssueScript     string
 	updateIssueScriptOnce sync.Once
+
+	updateReleaseScript     string
+	updateReleaseScriptOnce sync.Once
 
 	createCodeScanningAlertScript     string
 	createCodeScanningAlertScriptOnce sync.Once
@@ -263,6 +269,23 @@ func getUpdateIssueScript() string {
 		}
 	})
 	return updateIssueScript
+}
+
+// getUpdateReleaseScript returns the bundled update_release script
+// Bundling is performed on first access and cached for subsequent calls
+func getUpdateReleaseScript() string {
+	updateReleaseScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(updateReleaseScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for update_release, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			updateReleaseScript = updateReleaseScriptSource
+		} else {
+			updateReleaseScript = bundled
+		}
+	})
+	return updateReleaseScript
 }
 
 // getCreateCodeScanningAlertScript returns the bundled create_code_scanning_alert script

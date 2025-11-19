@@ -448,6 +448,42 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.errors[0]).toContain("side' must be 'LEFT' or 'RIGHT'");
   });
 
+  it("should validate required fields for update_release type", async () => {
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+    const ndjsonContent = `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New release notes"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "prepend", "body": "Prepended notes"}
+{"type": "update_release", "operation": "replace", "body": "Tag omitted - will be inferred"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "invalid", "body": "Notes"}
+{"type": "update_release", "tag": "v1.0.0", "body": "Missing operation"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "append"}`;
+
+    fs.writeFileSync(testFile, ndjsonContent);
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    const __config = '{"update_release": {"max": 10}}';
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+    fs.writeFileSync(configPath, __config);
+
+    await eval(`(async () => { ${collectScript} })()`);
+
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const outputCall = setOutputCalls.find(call => call[0] === "output");
+    expect(outputCall).toBeDefined();
+
+    const parsedOutput = JSON.parse(outputCall[1]);
+    expect(parsedOutput.items).toHaveLength(3); // Valid replace, prepend, and tag-omitted items
+    expect(parsedOutput.items[0].tag).toBe("v1.0.0");
+    expect(parsedOutput.items[0].operation).toBe("replace");
+    expect(parsedOutput.items[1].operation).toBe("prepend");
+    expect(parsedOutput.items[2].tag).toBeUndefined(); // Tag omitted
+    expect(parsedOutput.items[2].operation).toBe("replace");
+    expect(parsedOutput.items[0].body).toBeDefined();
+    expect(parsedOutput.errors).toHaveLength(3); // 3 invalid items
+    expect(parsedOutput.errors.some(e => e.includes("operation' must be 'replace', 'append', or 'prepend'"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires an 'operation' string field"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' string field"))).toBe(true);
+  });
+
   it("should respect max limits for create-pull-request-review-comment from config", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const items = [];

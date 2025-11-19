@@ -323,7 +323,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"noop":{"max":1},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Publish a file as a URL-addressable asset to an orphaned git branch","inputSchema":{"additionalProperties":false,"properties":{"path":{"description":"Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. By default, images (.png, .jpg, .jpeg) are allowed, but can be configured via workflow settings.","type":"string"}},"required":["path"],"type":"object"},"name":"upload_asset"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -2259,6 +2259,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "update_release":
+                    return 1;
                   case "noop":
                     return 1; 
                   default:
@@ -2803,6 +2805,28 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives, 512);
                       }
                       break;
+                    case "update_release":
+                      if (item.tag !== undefined && typeof item.tag !== "string") {
+                        errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
+                        continue;
+                      }
+                      if (!item.operation || typeof item.operation !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
+                        continue;
+                      }
+                      if (item.operation !== "replace" && item.operation !== "append" && item.operation !== "prepend") {
+                        errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace', 'append', or 'prepend'`);
+                        continue;
+                      }
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
+                        continue;
+                      }
+                      if (item.tag) {
+                        item.tag = sanitizeContent(item.tag, 256);
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
                     case "upload_asset":
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
@@ -2917,7 +2941,7 @@ jobs:
               const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
-                fs.mkdirSync("/tmp", { recursive: true });
+                fs.mkdirSync("/tmp/gh-aw", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
                 core.info(`Stored validated output to: ${agentOutputFile}`);
                 core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
