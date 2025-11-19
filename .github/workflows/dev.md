@@ -1,6 +1,5 @@
 ---
-on: 
-  workflow_dispatch:
+on: workflow_dispatch
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true

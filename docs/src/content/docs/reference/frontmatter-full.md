@@ -1740,6 +1740,28 @@ safe-outputs:
   # Option 2: Enable asset publishing with default configuration
   upload-assets: null
 
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for updating GitHub release descriptions
+  update-release:
+    # Maximum number of releases to update (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository for cross-repo release updates (format: owner/repo). If not
+    # specified, updates releases in the workflow's repository.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable release updates with default configuration
+  update-release: null
+
   # If true, emit step summary messages instead of making GitHub API calls (preview
   # mode)
   # (optional)

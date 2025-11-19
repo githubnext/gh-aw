@@ -254,10 +254,10 @@ install: build
 generate-schema-docs:
 	node scripts/generate-schema-docs.js
 
-# Generate status badges documentation
-.PHONY: generate-status-badges
-generate-status-badges:
-	node scripts/generate-status-badges.js
+# Generate labs documentation page
+.PHONY: generate-labs
+generate-labs:
+	node scripts/generate-labs.js
 
 # Sync templates from .github to pkg/cli/templates
 .PHONY: sync-templates
@@ -313,7 +313,7 @@ release: build
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-status-badges
+agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -352,7 +352,7 @@ help:
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
-	@echo "  generate-status-badges - Generate workflow status badges documentation page"
+	@echo "  generate-labs              - Generate labs documentation page"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  version   - Preview next version from changesets"

@@ -18,16 +18,26 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   noop["noop"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
+#   agent --> conclusion
+#   activation --> conclusion
+#   create_discussion --> conclusion
+#   missing_tool --> conclusion
+#   upload_assets --> conclusion
+#   noop --> conclusion
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> noop
+#   detection --> noop
 #   agent --> upload_assets
 #   detection --> upload_assets
 # ```
@@ -320,16 +330,16 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.20.2
+          docker pull ghcr.io/github/github-mcp-server:v0.21.0
           docker pull mcp/fetch
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"noop":{"max":1},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Publish a file as a URL-addressable asset to an orphaned git branch","inputSchema":{"additionalProperties":false,"properties":{"path":{"description":"Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. By default, images (.png, .jpg, .jpeg) are allowed, but can be configured via workflow settings.","type":"string"}},"required":["path"],"type":"object"},"name":"upload_asset"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"}]
+          [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Publish a file as a URL-addressable asset to an orphaned git branch","inputSchema":{"additionalProperties":false,"properties":{"path":{"description":"Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. By default, images (.png, .jpg, .jpeg) are allowed, but can be configured via workflow settings.","type":"string"}},"required":["path"],"type":"object"},"name":"upload_asset"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -917,7 +927,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.20.2"
+                  "ghcr.io/github/github-mcp-server:v0.21.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2407,6 +2417,10 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "update_release":
+                    return 1;
+                  case "noop":
+                    return 1; 
                   default:
                     return 1;
                 }
@@ -2977,11 +2991,40 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives, 512);
                       }
                       break;
+                    case "update_release":
+                      if (item.tag !== undefined && typeof item.tag !== "string") {
+                        errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
+                        continue;
+                      }
+                      if (!item.operation || typeof item.operation !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
+                        continue;
+                      }
+                      if (item.operation !== "replace" && item.operation !== "append" && item.operation !== "prepend") {
+                        errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace', 'append', or 'prepend'`);
+                        continue;
+                      }
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
+                        continue;
+                      }
+                      if (item.tag) {
+                        item.tag = sanitizeContent(item.tag, 256);
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
                     case "upload_asset":
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                       }
+                      break;
+                    case "noop":
+                      if (!item.message || typeof item.message !== "string") {
+                        errors.push(`Line ${i + 1}: noop requires a 'message' string field`);
+                        continue;
+                      }
+                      item.message = sanitizeContent(item.message, maxBodyLength);
                       break;
                     case "create_code_scanning_alert":
                       if (!item.file || typeof item.file !== "string") {
@@ -3084,7 +3127,7 @@ jobs:
               const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
-                fs.mkdirSync("/tmp", { recursive: true });
+                fs.mkdirSync("/tmp/gh-aw", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
                 core.info(`Stored validated output to: ${agentOutputFile}`);
                 core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
@@ -3888,11 +3931,7 @@ jobs:
                 for (const [category, tools] of Object.entries(categories)) {
                   if (tools.length > 0) {
                     markdown += `- **${category}:** ${tools.length} tools\n`;
-                    if (tools.length <= 5) {
-                      markdown += `  - ${tools.join(", ")}\n`;
-                    } else {
-                      markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
-                    }
+                    markdown += `  - ${tools.join(", ")}\n`;
                   }
                 }
                 markdown += "\n";
@@ -4658,6 +4697,206 @@ jobs:
               main();
             }
 
+  conclusion:
+    needs:
+      - agent
+      - activation
+      - create_discussion
+      - missing_tool
+      - upload_assets
+      - noop
+    if: (always()) && (needs.agent.result != 'skipped')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Daily News"
+          GH_AW_CAMPAIGN: "daily-news-weekday"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              let noopMessages = [];
+              const agentOutputResult = loadAgentOutput();
+              if (agentOutputResult.success && agentOutputResult.data) {
+                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+                if (noopItems.length > 0) {
+                  core.info(`Found ${noopItems.length} noop message(s)`);
+                  noopMessages = noopItems.map(item => item.message);
+                }
+              }
+              if (!commentId && noopMessages.length > 0) {
+                core.info("No comment ID found, writing noop messages to step summary");
+                let summaryContent = "## No-Op Messages\n\n";
+                summaryContent += "The following messages were logged for transparency:\n\n";
+                if (noopMessages.length === 1) {
+                  summaryContent += noopMessages[0];
+                } else {
+                  summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
+                return;
+              }
+              if (!commentId) {
+                core.info("No comment ID found and no noop messages to process, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              let message;
+              if (agentConclusion === "success") {
+                statusEmoji = "✅";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+              } else if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else {
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              }
+              if (noopMessages.length > 0) {
+                message += "\n\n";
+                if (noopMessages.length === 1) {
+                  message += noopMessages[0];
+                } else {
+                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
+                }
+              }
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: message }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: message,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
+
   create_discussion:
     needs:
       - agent
@@ -5308,6 +5547,84 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  noop:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'noop'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      noop_message: ${{ steps.noop.outputs.noop_message }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Process No-Op Messages
+        id: noop
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_NOOP_MAX: 1
+          GH_AW_WORKFLOW_NAME: "Daily News"
+          GH_AW_CAMPAIGN: "daily-news-weekday"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const noopItems = result.items.filter( item => item.type === "noop");
+              if (noopItems.length === 0) {
+                core.info("No noop items found in agent output");
+                return;
+              }
+              core.info(`Found ${noopItems.length} noop item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
+                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
+                for (let i = 0; i < noopItems.length; i++) {
+                  const item = noopItems[i];
+                  summaryContent += `### Message ${i + 1}\n`;
+                  summaryContent += `${item.message}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 No-op message preview written to step summary");
+                return;
+              }
+              let summaryContent = "\n\n## No-Op Messages\n\n";
+              summaryContent += "The following messages were logged for transparency:\n\n";
+              for (let i = 0; i < noopItems.length; i++) {
+                const item = noopItems[i];
+                core.info(`No-op message ${i + 1}: ${item.message}`);
+                summaryContent += `- ${item.message}\n`;
+              }
+              await core.summary.addRaw(summaryContent).write();
+              if (noopItems.length > 0) {
+                core.setOutput("noop_message", noopItems[0].message);
+                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
+              }
+              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+            }
+            await main();
 
   upload_assets:
     needs:

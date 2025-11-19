@@ -139,3 +139,45 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 	}
 	return ""
 }
+
+// extractSkipIfMatchFromOn extracts the skip-if-match value from the on: section
+func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (string, error) {
+	onSection, exists := frontmatter["on"]
+	if !exists {
+		return "", nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onSection.(type) {
+	case string:
+		// Simple string format like "on: push" - no skip-if-match possible
+		return "", nil
+	case map[string]any:
+		// Complex object format - look for skip-if-match
+		if skipIfMatch, exists := on["skip-if-match"]; exists {
+			if str, ok := skipIfMatch.(string); ok {
+				return str, nil
+			}
+			return "", fmt.Errorf("skip-if-match value must be a string, got %T. Example: skip-if-match: \"is:issue is:open label:bug\"", skipIfMatch)
+		}
+		return "", nil
+	default:
+		return "", fmt.Errorf("invalid on: section format")
+	}
+}
+
+// processSkipIfMatchConfiguration extracts and processes skip-if-match configuration from frontmatter
+func (c *Compiler) processSkipIfMatchConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+	// Extract skip-if-match from the on: section
+	skipIfMatch, err := c.extractSkipIfMatchFromOn(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.SkipIfMatch = skipIfMatch
+
+	if c.verbose && workflowData.SkipIfMatch != "" {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s", workflowData.SkipIfMatch)))
+	}
+
+	return nil
+}

@@ -118,7 +118,7 @@ describe("notify_comment_error.cjs", () => {
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("No comment ID found, skipping comment update");
+      expect(mockCore.info).toHaveBeenCalledWith("No comment ID found and no noop messages to process, skipping comment update");
       expect(mockGithub.request).not.toHaveBeenCalled();
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });

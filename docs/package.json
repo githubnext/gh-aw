@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "prebuild": "npm run generate-status-badges",
+    "prebuild": "npm run generate-labs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",
-    "generate-status-badges": "cd .. && node scripts/generate-status-badges.js",
+    "generate-labs": "cd .. && node scripts/generate-labs.js",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"

@@ -1,5 +1,5 @@
 ---
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser) for new versions
 on:
   schedule:
     - cron: "0 15 * * *"  # Daily at 3 PM UTC
@@ -28,7 +28,7 @@ timeout-minutes: 15
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, and Playwright Browser.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -56,6 +56,12 @@ For each CLI/MCP server:
   - Release Notes: https://github.com/openai/codex/releases
 - **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`
   - Release Notes: https://github.com/github/github-mcp-server/releases
+- **Playwright MCP**: Use `npm view @playwright/mcp version`
+  - Repository: https://github.com/microsoft/playwright
+  - Package: https://www.npmjs.com/package/@playwright/mcp
+- **Playwright Browser**: `https://api.github.com/repos/microsoft/playwright/releases/latest`
+  - Release Notes: https://github.com/microsoft/playwright/releases
+  - Docker Image: `mcr.microsoft.com/playwright:v{VERSION}`
 
 **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
 
@@ -74,8 +80,12 @@ For each update, analyze intermediate versions:
 - **GitHub MCP Server**: Fetch release notes from https://github.com/github/github-mcp-server/releases/tag/v{VERSION}
   - Parse release body for changelog entries
   - **CRITICAL**: Convert PR/issue references (e.g., `#1105`) to full URLs since they refer to external repositories (e.g., `https://github.com/github/github-mcp-server/pull/1105`)
+- **Playwright Browser**: Fetch release notes from https://github.com/microsoft/playwright/releases/tag/v{VERSION}
+  - Parse release body for changelog entries
+  - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/microsoft/playwright/pull/12345`)
 - **Copilot CLI**: Repository may be private, skip release notes if inaccessible
 - **Claude Code**: No public repository, rely on NPM metadata and CLI help output
+- **Playwright MCP**: Uses Playwright versioning, check NPM package metadata for changes
 
 **NPM Metadata Fallback**: When GitHub release notes are unavailable, use:
 - `npm view <package> --json` for package metadata
@@ -93,10 +103,12 @@ For each CLI tool update:
    - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`
    - Copilot CLI: `npm install -g @github/copilot@<version>`
    - Codex: `npm install -g @openai/codex@<version>`
+   - Playwright MCP: `npm install -g @playwright/mcp@<version>`
 2. Invoke help to discover commands and flags (compare with cached output if available):
    - Run `claude-code --help`
    - Run `copilot --help`
    - Run `codex --help`
+   - Run `npx @playwright/mcp@<version> --help` (if available)
 3. Compare help output with previous version to identify:
    - New commands or subcommands
    - New command-line flags or options
@@ -169,7 +181,9 @@ Template structure:
 - **FETCH GITHUB RELEASE NOTES**: For tools with public GitHub repositories, fetch release notes to get detailed changelog information
   - Codex: Always fetch from https://github.com/openai/codex/releases
   - GitHub MCP Server: Always fetch from https://github.com/github/github-mcp-server/releases
+  - Playwright Browser: Always fetch from https://github.com/microsoft/playwright/releases
   - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
+  - Playwright MCP: Check NPM metadata, uses Playwright versioning
 - Install and test CLI tools to discover new features via `--help`
 - Compare help output between old and new versions
 - **SAVE TO CACHE**: Store help outputs and version check results in cache-memory

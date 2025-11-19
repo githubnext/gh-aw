@@ -916,6 +916,10 @@
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
+            "skip-if-match": {
+              "type": "string",
+              "description": "GitHub search query string to check before running workflow. If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
@@ -2869,6 +2873,36 @@
             }
           ]
         },
+        "noop": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for no-op safe output (logging only, no GitHub API calls). Always available as a fallback to ensure human-visible artifacts.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of noop messages (default: 1)",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable noop output with default configuration (max: 1)"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable noop output (false). Noop is enabled by default when safe-outputs is configured."
+            }
+          ]
+        },
         "upload-assets": {
           "oneOf": [
             {
@@ -2911,6 +2945,37 @@
             {
               "type": "null",
               "description": "Enable asset publishing with default configuration"
+            }
+          ]
+        },
+        "update-release": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub release descriptions",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of releases to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "default": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository for cross-repo release updates (format: owner/repo). If not specified, updates releases in the workflow's repository.",
+                  "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable release updates with default configuration"
             }
           ]
         },

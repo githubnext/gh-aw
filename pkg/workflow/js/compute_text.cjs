@@ -95,6 +95,57 @@ async function main() {
       }
       break;
 
+    case "release":
+      // For releases: name + body
+      if (context.payload.release) {
+        const name = context.payload.release.name || context.payload.release.tag_name || "";
+        const body = context.payload.release.body || "";
+        text = `${name}\n\n${body}`;
+      }
+      break;
+
+    case "workflow_dispatch":
+      // For workflow dispatch: check for release_url or release_id in inputs
+      if (context.payload.inputs) {
+        const releaseUrl = context.payload.inputs.release_url;
+        const releaseId = context.payload.inputs.release_id;
+
+        // If release_url is provided, extract owner/repo/tag
+        if (releaseUrl) {
+          const urlMatch = releaseUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/);
+          if (urlMatch) {
+            const [, urlOwner, urlRepo, tag] = urlMatch;
+            try {
+              const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: urlOwner,
+                repo: urlRepo,
+                tag: tag,
+              });
+              const name = release.name || release.tag_name || "";
+              const body = release.body || "";
+              text = `${name}\n\n${body}`;
+            } catch (error) {
+              core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
+        } else if (releaseId) {
+          // If release_id is provided, fetch the release
+          try {
+            const { data: release } = await github.rest.repos.getRelease({
+              owner: owner,
+              repo: repo,
+              release_id: parseInt(releaseId, 10),
+            });
+            const name = release.name || release.tag_name || "";
+            const body = release.body || "";
+            text = `${name}\n\n${body}`;
+          } catch (error) {
+            core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
+      break;
+
     default:
       // Default: empty text
       text = "";
