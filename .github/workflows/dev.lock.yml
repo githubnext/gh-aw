@@ -82,6 +82,8 @@ jobs:
     permissions:
       contents: read
     outputs:
+      comment_id: 
+      comment_repo: 
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps

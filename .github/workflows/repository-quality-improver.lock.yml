@@ -73,6 +73,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    outputs:
+      comment_id: 
+      comment_repo: 
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
