@@ -391,6 +391,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateIssues = updateIssuesConfig
 			}
 
+			// Handle close-issue
+			closeIssuesConfig := c.parseCloseIssuesConfig(outputMap)
+			if closeIssuesConfig != nil {
+				config.CloseIssues = closeIssuesConfig
+			}
+
 			// Handle push-to-pull-request-branch
 			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {

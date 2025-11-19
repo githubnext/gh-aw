@@ -32,6 +32,9 @@ var createDiscussionScriptSource string
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
 
+//go:embed js/close_issue.cjs
+var closeIssueScriptSource string
+
 //go:embed js/update_release.cjs
 var updateReleaseScriptSource string
 
@@ -95,6 +98,9 @@ var (
 
 	updateIssueScript     string
 	updateIssueScriptOnce sync.Once
+
+	closeIssueScript     string
+	closeIssueScriptOnce sync.Once
 
 	updateReleaseScript     string
 	updateReleaseScriptOnce sync.Once
@@ -275,6 +281,23 @@ func getUpdateIssueScript() string {
 		}
 	})
 	return updateIssueScript
+}
+
+// getCloseIssueScript returns the bundled close_issue script
+// Bundling is performed on first access and cached for subsequent calls
+func getCloseIssueScript() string {
+	closeIssueScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(closeIssueScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for close_issue, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			closeIssueScript = closeIssueScriptSource
+		} else {
+			closeIssueScript = bundled
+		}
+	})
+	return closeIssueScript
 }
 
 // getUpdateReleaseScript returns the bundled update_release script
