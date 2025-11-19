@@ -56,6 +56,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 		return nil
 	}
 
+	safeJobsLog.Printf("Parsing %d safe-jobs from frontmatter", len(safeJobsMap))
 	result := make(map[string]*SafeJobConfig)
 
 	for jobName, jobValue := range safeJobsMap {
@@ -198,6 +199,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 			}
 		}
 
+		safeJobsLog.Printf("Parsed safe-job configuration: name=%s, has_steps=%v, has_inputs=%v", jobName, len(safeJob.Steps) > 0, len(safeJob.Inputs) > 0)
 		result[jobName] = safeJob
 	}
 
@@ -327,11 +329,13 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Add the job to the job manager
 		if err := c.jobManager.AddJob(job); err != nil {
+			safeJobsLog.Printf("Failed to add safe-job %s: %v", normalizedJobName, err)
 			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
 		}
-		safeJobsLog.Printf("Created safe-job: %s with %d dependencies", normalizedJobName, len(job.Needs))
+		safeJobsLog.Printf("Created safe-job: %s with %d dependencies and %d steps", normalizedJobName, len(job.Needs), len(job.Steps))
 	}
 
+	safeJobsLog.Print("Successfully built all safe-jobs")
 	return nil
 }
 
