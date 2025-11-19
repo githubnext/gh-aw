@@ -629,6 +629,47 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	return steps
 }
 
+// buildGitHubScriptStepWithoutDownload creates a GitHub Script step without artifact download steps
+// This is useful when multiple script steps are needed in the same job and artifact downloads
+// should only happen once at the beginning
+func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	var steps []string
+
+	// Step name and metadata (no artifact download steps)
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+
+	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
+	// instead of directly from job outputs which may be masked by GitHub Actions
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+
+	// Add custom environment variables specific to this safe output type
+	steps = append(steps, config.CustomEnvVars...)
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	if config.UseCopilotToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+	}
+
+	steps = append(steps, "          script: |\n")
+
+	// Add the formatted JavaScript script
+	formattedScript := FormatJavaScriptForYAML(config.Script)
+	steps = append(steps, formattedScript...)
+
+	return steps
+}
+
 // buildAgentOutputDownloadSteps creates steps to download the agent output artifact
 // and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs
 func buildAgentOutputDownloadSteps() []string {

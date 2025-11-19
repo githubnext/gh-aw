@@ -410,23 +410,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateProjectJob.Name)
 	}
 
-	// Build noop job (always enabled when SafeOutputs exists)
-	if data.SafeOutputs.NoOp != nil {
-		noopJob, err := c.buildCreateOutputNoOpJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build noop job: %w", err)
-		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
-		if threatDetectionEnabled {
-			noopJob.Needs = append(noopJob.Needs, constants.DetectionJobName)
-			// Add detection success check to the job condition
-			noopJob.If = AddDetectionSuccessCheck(noopJob.If)
-		}
-		if err := c.jobManager.AddJob(noopJob); err != nil {
-			return fmt.Errorf("failed to add noop job: %w", err)
-		}
-		safeOutputJobNames = append(safeOutputJobNames, noopJob.Name)
-	}
+	// Note: noop processing is now handled inside the conclusion job, not as a separate job
 
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
