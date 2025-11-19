@@ -226,9 +226,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// For SRT: use locally installed package without -y flag to avoid internet fetch
 		// For AWF: use -y flag for automatic download (backward compatibility)
 		if isSRTEnabled(workflowData) {
-			// Use local installation with --no-install to prevent network fetch and fail fast if missing
+			// Use direct binary path to avoid npx overhead and ensure env vars propagate correctly
 			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
-			copilotCommand = fmt.Sprintf("npx --no-install @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+			copilotCommand = fmt.Sprintf("./node_modules/.bin/copilot %s", shellJoinArgs(copilotArgs))
 		} else {
 			// AWF or other sandboxes - use -y for automatic download
 			copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
