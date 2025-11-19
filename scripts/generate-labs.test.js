@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Test for Status Badges Generator
+ * Test for Labs Page Generator
  *
- * Validates that the status badges generator correctly:
+ * Validates that the labs page generator correctly:
  * - Extracts workflow information from lock files
  * - Extracts engine types from markdown files
  * - Generates a properly formatted table
@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.mdx");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/labs.mdx");
 
 /**
  * Test helper to check if output contains expected content
@@ -54,9 +54,9 @@ function countOccurrences(content, pattern) {
   return matches ? matches.length : 0;
 }
 
-// Run the status badges generator
-console.log("Running status badges generator...");
-import("./generate-status-badges.js");
+// Run the labs page generator
+console.log("Running labs page generator...");
+import("./generate-labs.js");
 
 // Wait a bit for the file to be written
 await new Promise(resolve => setTimeout(resolve, 500));
@@ -101,18 +101,18 @@ allPassed &= assertContains(output, "https://github.com/githubnext/gh-aw/actions
 allPassed &= assertNotContains(output, "| unknown |", "No workflows with unknown engine (should default to copilot)");
 
 // Test 8: Frontmatter is correct
-allPassed &= assertContains(output, "title: Workflow Status", "Frontmatter title is present");
+allPassed &= assertContains(output, "title: Labs", "Frontmatter title is present");
 
 allPassed &= assertContains(
   output,
-  "description: Status badges for all GitHub Actions workflows in the repository.",
+  "description: Experimental agentic workflows used by the team to learn and build.",
   "Frontmatter description is present"
 );
 
 // Test 9: Introduction text is present (streamlined)
 allPassed &= assertContains(
   output,
-  "Status of all agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).",
+  "These are experimental agentic workflows used by the GitHub Next team to learn, build, and use agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).",
   "Introduction text is present (streamlined)"
 );
 
