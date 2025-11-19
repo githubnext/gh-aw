@@ -24,8 +24,12 @@ permissions:
   pull-requests: read
 tools:
   edit:
+  github:
+    toolsets: [default, repos, issues]
 safe-outputs:
   update-release:
+    max: 1
+  assign-milestone:
     max: 1
   threat-detection:
     engine: false
@@ -345,15 +349,15 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Release Summary Prepender
+# Dev Workflow: Release Summary and Milestone Assignment
 
 **Context:** This workflow is triggered when a release is created/edited or manually dispatched with a release URL/ID.
 
 The release content is available in the context: "${{ needs.activation.outputs.text }}"
 
-**Task:** Analyze the release description and prepend a concise AI-generated summary to it.
+**Tasks:**
 
-**Instructions:**
+## 1. Release Summary Prepender
 
 1. Read the release content from the context above
 2. Generate a clear, concise summary (2-4 sentences) highlighting the key changes or features
@@ -361,3 +365,12 @@ The release content is available in the context: "${{ needs.activation.outputs.t
 4. **CRITICAL:** If the `update_release` tool is not available, fail immediately with an error message
 
 **Note:** The tag field is optional and will be automatically inferred from the release event context (`github.event.release.tag_name`) or from workflow dispatch inputs (`release_url` or `release_id`). The summary will be prepended with a horizontal line separator and AI attribution footer.
+
+## 2. Random Milestone Assignment
+
+1. List all open issues in this repository
+2. List all milestones in this repository
+3. Pick a random open issue (that doesn't already have a milestone)
+4. Pick a random milestone
+5. Use the `assign_milestone` safe output to assign the random issue to the random milestone
+6. If there are no open issues without milestones or no milestones available, skip this step gracefully with an informative message
