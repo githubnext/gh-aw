@@ -230,6 +230,30 @@
     }
   },
   {
+    "name": "update_release",
+    "description": "Update a GitHub release description",
+    "inputSchema": {
+      "type": "object",
+      "required": ["operation", "body"],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Release tag name (optional - inferred from event context if omitted)"
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["replace", "append", "prepend"],
+          "description": "Update operation: 'replace' (full replacement), 'append' (add at end with separator), or 'prepend' (add at start with separator)"
+        },
+        "body": {
+          "type": "string",
+          "description": "Release body content to set, append, or prepend"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "missing_tool",
     "description": "Report a missing tool or functionality needed to complete tasks",
     "inputSchema": {
@@ -241,6 +265,21 @@
         "alternatives": {
           "type": "string",
           "description": "Possible alternatives or workarounds (max 256 characters)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "noop",
+    "description": "Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').",
+    "inputSchema": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Message to log for transparency"
         }
       },
       "additionalProperties": false

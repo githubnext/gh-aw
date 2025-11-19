@@ -1,6 +1,17 @@
 ---
 on: 
   workflow_dispatch:
+    inputs:
+      release_url:
+        description: 'Release URL (e.g., https://github.com/owner/repo/releases/tag/v1.0.0)'
+        required: false
+        type: string
+      release_id:
+        description: 'Release ID'
+        required: false
+        type: string
+  release:
+    types: [created, edited, published]
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
@@ -14,6 +25,8 @@ permissions:
 tools:
   edit:
 safe-outputs:
+  update-release:
+    max: 1
   threat-detection:
     engine: false
     steps:
@@ -332,35 +345,19 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Generate a Poem
+# Release Summary Prepender
 
-Create or update a `poem.md` file with a creative poem about GitHub Agentic Workflows and push the changes to the pull request branch.
+**Context:** This workflow is triggered when a release is created/edited or manually dispatched with a release URL/ID.
 
-**Instructions**: 
+The release content is available in the context: "${{ needs.activation.outputs.text }}"
 
-Use the `edit` tool to either create a new `poem.md` file or update the existing one if it already exists. Write a creative, engaging poem that celebrates the power and capabilities of GitHub Agentic Workflows.
+**Task:** Analyze the release description and prepend a concise AI-generated summary to it.
 
-The poem should be:
-- Creative and fun
-- Related to automation, AI agents, or GitHub workflows
-- At least 8 lines long
-- Written in a poetic style (rhyming, rhythm, or free verse)
+**Instructions:**
 
-Commit your changes.
+1. Read the release content from the context above
+2. Generate a clear, concise summary (2-4 sentences) highlighting the key changes or features
+3. Use the `update_release` safe output with the **prepend** operation to add your summary at the top
+4. **CRITICAL:** If the `update_release` tool is not available, fail immediately with an error message
 
-Call the `push-to-pull-request-branch` tool after making your changes.
-
-**Example poem file structure:**
-```markdown
-# Poem for GitHub Agentic Workflows
-
-In the realm of code where automation flows,
-An agent awakens, its purpose it knows.
-Through pull requests and issues it goes,
-Analyzing, creating, whatever it shows.
-
-With LlamaGuard watching for threats in the night,
-And Ollama scanning to keep things right.
-The workflows are running, efficient and bright,
-GitHub Agentic magic, a developer's delight.
-```
+**Note:** The tag field is optional and will be automatically inferred from the release event context (`github.event.release.tag_name`) or from workflow dispatch inputs (`release_url` or `release_id`). The summary will be prepended with a horizontal line separator and AI attribution footer.

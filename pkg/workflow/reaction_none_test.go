@@ -92,9 +92,9 @@ Test command workflow with reaction explicitly disabled.
 		t.Error("Activation job should have 'contents: read' permission for checkout step")
 	}
 
-	// Verify that conclusion job is NOT created
-	if strings.Contains(compiled, "conclusion:") {
-		t.Error("conclusion job should not be created when reaction is 'none'")
+	// Verify that conclusion job IS created (to handle noop messages)
+	if !strings.Contains(compiled, "conclusion:") {
+		t.Error("conclusion job should be created when safe-outputs exist (to handle noop)")
 	}
 }
 

@@ -41,6 +41,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
+		safeOutputs.NoOp != nil ||
 		len(safeOutputs.Jobs) > 0
 
 	if safeOutputsLog.Enabled() {
@@ -402,6 +403,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
+			// Handle update-release
+			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
+			if updateReleaseConfig != nil {
+				config.UpdateRelease = updateReleaseConfig
+			}
+
 			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
@@ -410,6 +417,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
 				if _, exists := outputMap["missing-tool"]; !exists {
 					config.MissingTool = &MissingToolConfig{} // Default: enabled with no max limit
+				}
+			}
+
+			// Handle noop (parse configuration if present, or enable by default as fallback)
+			noopConfig := c.parseNoOpConfig(outputMap)
+			if noopConfig != nil {
+				config.NoOp = noopConfig
+			} else {
+				// Enable noop by default if safe-outputs exists and it wasn't explicitly disabled
+				// This ensures there's always a fallback for transparency
+				if _, exists := outputMap["noop"]; !exists {
+					config.NoOp = &NoOpConfig{}
+					config.NoOp.Max = 1 // Default max
 				}
 			}
 
@@ -820,6 +840,20 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["update_project"] = updateProjectConfig
 		}
+		if data.SafeOutputs.UpdateRelease != nil {
+			updateReleaseConfig := map[string]any{}
+			if data.SafeOutputs.UpdateRelease.Max > 0 {
+				updateReleaseConfig["max"] = data.SafeOutputs.UpdateRelease.Max
+			}
+			safeOutputsConfig["update_release"] = updateReleaseConfig
+		}
+		if data.SafeOutputs.NoOp != nil {
+			noopConfig := map[string]any{}
+			if data.SafeOutputs.NoOp.Max > 0 {
+				noopConfig["max"] = data.SafeOutputs.NoOp.Max
+			}
+			safeOutputsConfig["noop"] = noopConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
@@ -922,6 +956,12 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = true
+	}
+	if data.SafeOutputs.UpdateRelease != nil {
+		enabledTools["update_release"] = true
+	}
+	if data.SafeOutputs.NoOp != nil {
+		enabledTools["noop"] = true
 	}
 
 	// Filter tools to only include enabled ones

@@ -2831,6 +2831,36 @@
             }
           ]
         },
+        "noop": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for no-op safe output (logging only, no GitHub API calls). Always available as a fallback to ensure human-visible artifacts.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of noop messages (default: 1)",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable noop output with default configuration (max: 1)"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable noop output (false). Noop is enabled by default when safe-outputs is configured."
+            }
+          ]
+        },
         "upload-assets": {
           "oneOf": [
             {
@@ -2873,6 +2903,37 @@
             {
               "type": "null",
               "description": "Enable asset publishing with default configuration"
+            }
+          ]
+        },
+        "update-release": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub release descriptions",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of releases to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "default": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository for cross-repo release updates (format: owner/repo). If not specified, updates releases in the workflow's repository.",
+                  "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable release updates with default configuration"
             }
           ]
         },

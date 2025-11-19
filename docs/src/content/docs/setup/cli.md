@@ -498,4 +498,4 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 - [Security Guide](/gh-aw/guides/security/) - Security best practices
 - [VS Code Setup](/gh-aw/setup/vscode/) - Editor integration and watch mode
 - [MCP Server Guide](/gh-aw/setup/mcp-server/) - MCP server configuration
-- [Workflow Status](/gh-aw/status/) - Live workflow dashboard
+- [Labs](/gh-aw/labs/) - Experimental workflows

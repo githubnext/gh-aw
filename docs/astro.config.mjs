@@ -90,7 +90,6 @@ export default defineConfig({
 						{ label: 'Quick Start', link: '/setup/quick-start/' },
 						{ label: 'CLI Commands', link: '/setup/cli/' },
 						{ label: 'VS Code Integration', link: '/setup/vscode/' },
-						{ label: 'MCP Server', link: '/setup/mcp-server/' },
 					],
 				},
 				{
@@ -100,20 +99,25 @@ export default defineConfig({
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
 						{ label: 'Security Best Practices', link: '/guides/security/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
-						{ label: 'Campaigns', link: '/guides/campaigns/' },
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
 						{ label: 'Threat Detection', link: '/guides/threat-detection/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
 					],
 				},
 				{
-					label: 'Examples',
+					label: 'Design Patterns',
 					items: [
 						{ label: 'ChatOps', link: '/examples/comment-triggered/chatops/' },
 						{ label: 'DailyOps', link: '/examples/scheduled/dailyops/' },
 						{ label: 'IssueOps', link: '/examples/issue-pr-events/issueops/' },
 						{ label: 'LabelOps', link: '/examples/issue-pr-events/labelops/' },
 						{ label: 'ProjectOps', link: '/examples/issue-pr-events/projectops/' },
+						{ label: 'Campaigns', link: '/guides/campaigns/' },
+					],
+				},
+				{
+					label: 'Examples',
+					items: [
 						{ label: 'Research & Planning', link: '/examples/scheduled/research-planning/' },
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
@@ -140,6 +144,7 @@ export default defineConfig({
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
+						{ label: 'MCP Server', link: '/setup/mcp-server/' },
 					],
 				},
 				{
@@ -147,8 +152,8 @@ export default defineConfig({
 					autogenerate: { directory: 'troubleshooting' },
 				},
 				{
-					label: 'Status',
-					link: '/status/',
+					label: 'Labs',
+					link: '/labs/',
 				},
 			],
 		}),

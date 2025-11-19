@@ -448,6 +448,42 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.errors[0]).toContain("side' must be 'LEFT' or 'RIGHT'");
   });
 
+  it("should validate required fields for update_release type", async () => {
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+    const ndjsonContent = `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New release notes"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "prepend", "body": "Prepended notes"}
+{"type": "update_release", "operation": "replace", "body": "Tag omitted - will be inferred"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "invalid", "body": "Notes"}
+{"type": "update_release", "tag": "v1.0.0", "body": "Missing operation"}
+{"type": "update_release", "tag": "v1.0.0", "operation": "append"}`;
+
+    fs.writeFileSync(testFile, ndjsonContent);
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    const __config = '{"update_release": {"max": 10}}';
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+    fs.writeFileSync(configPath, __config);
+
+    await eval(`(async () => { ${collectScript} })()`);
+
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const outputCall = setOutputCalls.find(call => call[0] === "output");
+    expect(outputCall).toBeDefined();
+
+    const parsedOutput = JSON.parse(outputCall[1]);
+    expect(parsedOutput.items).toHaveLength(3); // Valid replace, prepend, and tag-omitted items
+    expect(parsedOutput.items[0].tag).toBe("v1.0.0");
+    expect(parsedOutput.items[0].operation).toBe("replace");
+    expect(parsedOutput.items[1].operation).toBe("prepend");
+    expect(parsedOutput.items[2].tag).toBeUndefined(); // Tag omitted
+    expect(parsedOutput.items[2].operation).toBe("replace");
+    expect(parsedOutput.items[0].body).toBeDefined();
+    expect(parsedOutput.errors).toHaveLength(3); // 3 invalid items
+    expect(parsedOutput.errors.some(e => e.includes("operation' must be 'replace', 'append', or 'prepend'"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires an 'operation' string field"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' string field"))).toBe(true);
+  });
+
   it("should respect max limits for create-pull-request-review-comment from config", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const items = [];
@@ -2269,6 +2305,130 @@ Line 3"}
       expect(parsedOutput.items).toHaveLength(3); // All items processed
       expect(parsedOutput.errors).toHaveLength(1); // Error only for add-comment min requirement
       expect(parsedOutput.errors[0]).toContain("Too few items of type 'add_comment'. Minimum required: 2, found: 1.");
+    });
+  });
+
+  describe("noop output validation", () => {
+    it("should validate noop with message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "No issues found in this review"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("noop");
+      expect(parsedOutput.items[0].message).toBe("No issues found in this review");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should reject noop without message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When there are only errors and no valid items, setFailed is called instead of setOutput
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(failedCall).toContain("noop requires a 'message' string field");
+    });
+
+    it("should reject noop with non-string message", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": 123}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When there are only errors and no valid items, setFailed is called instead of setOutput
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(failedCall).toContain("noop requires a 'message' string field");
+    });
+
+    it("should sanitize noop message content", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "Test @mention and fixes #123"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].message).toContain("`@mention`");
+      expect(parsedOutput.items[0].message).toContain("`fixes #123`");
+    });
+
+    it("should handle multiple noop messages", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "noop", "message": "First message"}
+{"type": "noop", "message": "Second message"}
+{"type": "noop", "message": "Third message"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type with max: 3
+      const config = '{"noop": {"max": 3}}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3);
+      expect(parsedOutput.items[0].message).toBe("First message");
+      expect(parsedOutput.items[1].message).toBe("Second message");
+      expect(parsedOutput.items[2].message).toBe("Third message");
+      expect(parsedOutput.errors).toHaveLength(0);
     });
   });
 });
