@@ -67,19 +67,24 @@ The target repository defaults to the current repository unless --repo is specif
 Examples:
   gh aw pr transfer https://github.com/trial/repo/pull/234
   gh aw pr transfer https://github.com/PR-OWNER/PR-REPO/pull/234 --repo owner/target-repo
+  gh aw pr transfer https://github.com/trial/repo/pull/234 --force
 
 The command will:
 1. Fetch the PR details (title, body, changes)
 2. Apply changes as a single squashed commit
 3. Create a new PR in the target repository
-4. Copy the original title and description`,
+4. Copy the original title and description
+
+If there are conflicts during patch application, use --force to create a PR
+with conflict markers that you can resolve manually.`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			prURL := args[0]
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			force, _ := cmd.Flags().GetBool("force")
 
-			if err := transferPR(prURL, targetRepo, verbose); err != nil {
+			if err := transferPR(prURL, targetRepo, verbose, force); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -88,6 +93,7 @@ The command will:
 
 	cmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	cmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	cmd.Flags().BoolP("force", "f", false, "Force transfer even if there are conflicts (creates PR with conflict markers)")
 
 	return cmd
 }
@@ -253,8 +259,10 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	}
 
 	return patchFile, nil
-} // applyPatchToRepo applies a patch to the target repository and returns the branch name
-func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
+}
+
+// applyPatchToRepo applies a patch to the target repository and returns the branch name
+func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose, force bool) (string, error) {
 	// Get current branch to restore later
 	cmd := exec.Command("git", "branch", "--show-current")
 	currentBranchOutput, err := cmd.Output()
@@ -371,10 +379,23 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 					fmt.Fprintln(os.Stderr, string(rejectOutput))
 				}
 
-				// Try to reset back to original branch and clean up
-				_ = exec.Command("git", "checkout", currentBranch).Run()
-				_ = exec.Command("git", "branch", "-D", branchName).Run()
-				return "", fmt.Errorf("failed to apply patch: %w. You may need to resolve conflicts manually", err)
+				if !force {
+					// Try to reset back to original branch and clean up
+					_ = exec.Command("git", "checkout", currentBranch).Run()
+					_ = exec.Command("git", "branch", "-D", branchName).Run()
+					return "", fmt.Errorf("failed to apply patch due to conflicts. Use --force to create a PR with conflict markers that you can resolve manually")
+				}
+
+				// Force mode: apply with --reject to leave conflict markers
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Applying patch with --reject to create conflict markers..."))
+				}
+				rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
+				_ = rejectCmd.Run() // Ignore errors since we expect conflicts
+
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Patch applied with conflicts - conflict markers have been created"))
+				}
 			}
 		}
 
@@ -383,7 +404,12 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		}
 	} // If we didn't use git am, we need to stage and commit manually
 	if !appliedWithAm {
-		// Stage all changes
+		// Check if there are any .rej files (rejected hunks from --reject)
+		rejFilesCmd := exec.Command("sh", "-c", "find . -name '*.rej' -type f")
+		rejFilesOutput, _ := rejFilesCmd.Output()
+		hasConflicts := len(strings.TrimSpace(string(rejFilesOutput))) > 0
+
+		// Stage all changes (including .rej files if present)
 		cmd = exec.Command("git", "add", ".")
 		if err := cmd.Run(); err != nil {
 			return "", fmt.Errorf("failed to stage changes: %w", err)
@@ -394,12 +420,20 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 		if prInfo.Body != "" {
 			commitMsg += "\n\n" + prInfo.Body
 		}
+		if hasConflicts {
+			commitMsg += "\n\n⚠️  This PR contains conflicts that need to be resolved."
+			commitMsg += "\nConflict markers and .rej files have been included in this commit."
+		}
 		commitMsg += fmt.Sprintf("\n\nOriginal-PR: %s#%d", prInfo.SourceRepo, prInfo.Number)
 		commitMsg += fmt.Sprintf("\nOriginal-Author: %s", prInfo.AuthorLogin)
 
 		cmd = exec.Command("git", "commit", "-m", commitMsg)
 		if err := cmd.Run(); err != nil {
 			return "", fmt.Errorf("failed to commit changes: %w", err)
+		}
+
+		if hasConflicts && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Committed changes with conflict markers and .rej files"))
 		}
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applied patch using git am (includes commit)"))
@@ -543,7 +577,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 }
 
 // transferPR is the main function that orchestrates the PR transfer
-func transferPR(prURL, targetRepo string, verbose bool) error {
+func transferPR(prURL, targetRepo string, verbose, force bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting PR transfer..."))
 	}
@@ -724,7 +758,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying changes to target repository..."))
 	}
 
-	branchName, err := applyPatchToRepo(patchFile, prInfo, targetOwner, targetRepoName, verbose)
+	branchName, err := applyPatchToRepo(patchFile, prInfo, targetOwner, targetRepoName, verbose, force)
 	if err != nil {
 		return err
 	}

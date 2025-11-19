@@ -181,4 +181,10 @@ func TestNewPRTransferSubcommand(t *testing.T) {
 	if verboseFlag == nil {
 		t.Error("Expected --verbose flag to exist")
 	}
+
+	// Check that --force flag exists
+	forceFlag := cmd.Flags().Lookup("force")
+	if forceFlag == nil {
+		t.Error("Expected --force flag to exist")
+	}
 }
