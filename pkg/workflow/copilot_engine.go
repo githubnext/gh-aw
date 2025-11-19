@@ -101,6 +101,8 @@ func extractAddDirPaths(args []string) []string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	copilotLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
+
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
@@ -109,9 +111,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	if isFirewallEnabled(workflowData) {
 		// Simplified args for firewall mode
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+		copilotLog.Print("Using firewall mode with simplified arguments")
 	} else {
 		// Original args for non-firewall mode
 		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
+		copilotLog.Print("Using standard mode with full arguments")
 	}
 
 	// Add --disable-builtin-mcps to disable built-in MCP servers
@@ -119,6 +123,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		copilotLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
@@ -126,11 +131,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Copilot CLI expects agent identifier (filename without extension), not full path
 	if workflowData.AgentFile != "" {
 		agentIdentifier := ExtractAgentIdentifier(workflowData.AgentFile)
+		copilotLog.Printf("Using custom agent: %s (identifier: %s)", workflowData.AgentFile, agentIdentifier)
 		copilotArgs = append(copilotArgs, "--agent", agentIdentifier)
 	}
 
 	// Add tool permission arguments based on configuration
 	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
+	if len(toolArgs) > 0 {
+		copilotLog.Printf("Adding %d tool permission arguments", len(toolArgs))
+	}
 	copilotArgs = append(copilotArgs, toolArgs...)
 
 	// if cache-memory tool is used, --add-dir for each cache
@@ -335,6 +344,7 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 	// Only add Squid logs collection and upload steps if firewall is enabled
 	if isFirewallEnabled(workflowData) {
+		copilotLog.Printf("Adding Squid logs collection steps for workflow: %s", workflowData.Name)
 		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
 		steps = append(steps, squidLogsCollection)
 
@@ -344,6 +354,8 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 		// Add firewall log parsing step to create step summary
 		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
 		steps = append(steps, firewallLogParsing)
+	} else {
+		copilotLog.Print("Firewall disabled, skipping Squid logs collection")
 	}
 
 	return steps

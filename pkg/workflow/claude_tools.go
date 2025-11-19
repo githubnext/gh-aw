@@ -14,8 +14,20 @@ var claudeToolsLog = logger.New("workflow:claude_tools")
 
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
-	claudeToolsLog.Printf("Expanding neutral tools to Claude-specific tools: tool_count=%d", len(tools))
 	result := make(map[string]any)
+
+	neutralToolCount := 0
+	// Count neutral tools
+	for key := range tools {
+		switch key {
+		case "bash", "web-fetch", "web-search", "edit", "playwright":
+			neutralToolCount++
+		}
+	}
+
+	if neutralToolCount > 0 {
+		claudeToolsLog.Printf("Expanding %d neutral tools to Claude-specific tools", neutralToolCount)
+	}
 
 	// Copy existing tools that are not neutral tools
 	for key, value := range tools {
@@ -187,6 +199,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	claudeSection["allowed"] = claudeExistingAllowed
 	tools["claude"] = claudeSection
 
+	claudeToolsLog.Printf("Added %d default Claude tools to allowed list", len(defaultClaudeTools))
+
 	var allowedTools []string
 
 	// Process claude-specific tools from the claude section (new format only)
@@ -346,6 +360,10 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 
 	// Sort the allowed tools alphabetically for consistent output
 	sort.Strings(allowedTools)
+
+	if log.Enabled() {
+		claudeToolsLog.Printf("Generated allowed tools string with %d tools", len(allowedTools))
+	}
 
 	return strings.Join(allowedTools, ",")
 }
