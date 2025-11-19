@@ -81,7 +81,7 @@ async function main() {
             core.info(`Inferred release tag from release_id input: ${releaseTag}`);
           }
         }
-        
+
         if (!releaseTag) {
           core.error("No tag provided and unable to infer from event context");
           core.setFailed("Release tag is required but not provided and cannot be inferred from event context");

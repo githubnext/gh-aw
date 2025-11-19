@@ -109,7 +109,7 @@ async function main() {
       if (context.payload.inputs) {
         const releaseUrl = context.payload.inputs.release_url;
         const releaseId = context.payload.inputs.release_id;
-        
+
         // If release_url is provided, extract owner/repo/tag
         if (releaseUrl) {
           const urlMatch = releaseUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/);
