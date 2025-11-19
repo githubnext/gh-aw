@@ -1278,7 +1278,7 @@ jobs:
             "@playwright/mcp@0.0.47",
             "--output-dir",
             "/tmp/gh-aw/mcp-logs/playwright",
-            "--allowed-origins",
+            "--allowed-hosts",
             "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"
           ]
           
