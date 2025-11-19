@@ -420,6 +420,50 @@ jobs:
                     text = context.payload.comment.body || "";
                   }
                   break;
+                case "release":
+                  if (context.payload.release) {
+                    const name = context.payload.release.name || context.payload.release.tag_name || "";
+                    const body = context.payload.release.body || "";
+                    text = `${name}\n\n${body}`;
+                  }
+                  break;
+                case "workflow_dispatch":
+                  if (context.payload.inputs) {
+                    const releaseUrl = context.payload.inputs.release_url;
+                    const releaseId = context.payload.inputs.release_id;
+                    if (releaseUrl) {
+                      const urlMatch = releaseUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/);
+                      if (urlMatch) {
+                        const [, urlOwner, urlRepo, tag] = urlMatch;
+                        try {
+                          const { data: release } = await github.rest.repos.getReleaseByTag({
+                            owner: urlOwner,
+                            repo: urlRepo,
+                            tag: tag,
+                          });
+                          const name = release.name || release.tag_name || "";
+                          const body = release.body || "";
+                          text = `${name}\n\n${body}`;
+                        } catch (error) {
+                          core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                      }
+                    } else if (releaseId) {
+                      try {
+                        const { data: release } = await github.rest.repos.getRelease({
+                          owner: owner,
+                          repo: repo,
+                          release_id: parseInt(releaseId, 10),
+                        });
+                        const name = release.name || release.tag_name || "";
+                        const body = release.body || "";
+                        text = `${name}\n\n${body}`;
+                      } catch (error) {
+                        core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }
+                  }
+                  break;
                 default:
                   text = "";
                   break;
@@ -2771,6 +2815,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "update_release":
+                    return 1;
                   case "noop":
                     return 1; 
                   default:
@@ -3315,6 +3361,28 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives, 512);
                       }
                       break;
+                    case "update_release":
+                      if (item.tag !== undefined && typeof item.tag !== "string") {
+                        errors.push(`Line ${i + 1}: update_release 'tag' must be a string if provided`);
+                        continue;
+                      }
+                      if (!item.operation || typeof item.operation !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires an 'operation' string field`);
+                        continue;
+                      }
+                      if (item.operation !== "replace" && item.operation !== "append" && item.operation !== "prepend") {
+                        errors.push(`Line ${i + 1}: update_release 'operation' must be 'replace', 'append', or 'prepend'`);
+                        continue;
+                      }
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: update_release requires a 'body' string field`);
+                        continue;
+                      }
+                      if (item.tag) {
+                        item.tag = sanitizeContent(item.tag, 256);
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
                     case "upload_asset":
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
@@ -3429,7 +3497,7 @@ jobs:
               const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
-                fs.mkdirSync("/tmp", { recursive: true });
+                fs.mkdirSync("/tmp/gh-aw", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
                 core.info(`Stored validated output to: ${agentOutputFile}`);
                 core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
