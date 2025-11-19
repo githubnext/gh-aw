@@ -119,22 +119,18 @@ Navigate to ` + testURL + ` and take a screenshot.
 			}
 
 			// Run mcp inspect command with proper environment variables
-			cmd := exec.Command(setup.binaryPath, "mcp", "inspect", "test-playwright-live-"+tc.name, "--server", "playwright", "--verbose")
-			cmd.Dir = setup.tempDir
-
 			// Set the PLAYWRIGHT_ALLOWED_DOMAINS environment variable
 			allowedDomains := "localhost,127.0.0.1"
-			cmd.Env = append(os.Environ(), "PLAYWRIGHT_ALLOWED_DOMAINS="+allowedDomains)
 
 			// Set timeout for the command to avoid hanging
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			
-			cmdWithTimeout := exec.CommandContext(timeoutCtx, setup.binaryPath, "mcp", "inspect", "test-playwright-live-"+tc.name, "--server", "playwright", "--verbose")
-			cmdWithTimeout.Dir = setup.tempDir
-			cmdWithTimeout.Env = append(os.Environ(), "PLAYWRIGHT_ALLOWED_DOMAINS="+allowedDomains)
 
-			output, err := cmdWithTimeout.CombinedOutput()
+			cmd := exec.CommandContext(timeoutCtx, setup.binaryPath, "mcp", "inspect", "test-playwright-live-"+tc.name, "--server", "playwright", "--verbose")
+			cmd.Dir = setup.tempDir
+			cmd.Env = append(os.Environ(), "PLAYWRIGHT_ALLOWED_DOMAINS="+allowedDomains)
+
+			output, err := cmd.CombinedOutput()
 			outputStr := string(output)
 
 			t.Logf("MCP inspect output for %s engine:\n%s", tc.name, outputStr)
@@ -216,7 +212,7 @@ func TestMCPInspectPlaywrightWithDocsServer(t *testing.T) {
 	// Find the repository root (go up from the temp directory to find the actual repo)
 	// The binary is built in the repo root, so we can use the original working directory
 	repoRoot := filepath.Dir(filepath.Dir(globalBinaryPath))
-	
+
 	// Check if docs directory exists
 	docsDir := filepath.Join(repoRoot, "docs")
 	if _, err := os.Stat(docsDir); os.IsNotExist(err) {
@@ -290,7 +286,7 @@ URL: ` + docsURL + `/gh-aw/
 	// Run mcp inspect command
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(timeoutCtx, setup.binaryPath, "mcp", "inspect", "test-playwright-docs", "--server", "playwright", "--verbose")
 	cmd.Dir = setup.tempDir
 	cmd.Env = append(os.Environ(), "PLAYWRIGHT_ALLOWED_DOMAINS=localhost")
