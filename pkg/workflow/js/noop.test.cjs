@@ -1,71 +1,80 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
-
-// Mock the global objects that GitHub Actions provides
-const mockCore = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  warning: vi.fn(),
-  error: vi.fn(),
-  setFailed: vi.fn(),
-  setOutput: vi.fn(),
-  exportVariable: vi.fn(),
-  summary: {
-    addRaw: vi.fn().mockReturnThis(),
-    write: vi.fn().mockResolvedValue(),
-  },
-};
-
-// Set up global mocks before importing the module
-global.core = mockCore;
-global.fs = fs;
+import path from "path";
 
 describe("noop", () => {
+  let mockCore;
+  let noopScript;
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
-    // Reset mocks before each test
-    vi.clearAllMocks();
+    // Mock core actions methods
+    mockCore = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      exportVariable: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(),
+      },
+    };
+
+    // Set up global mocks
+    global.core = mockCore;
+    global.fs = fs;
+
+    // Read the script content
+    const scriptPath = path.join(process.cwd(), "noop.cjs");
+    noopScript = fs.readFileSync(scriptPath, "utf8");
+
     // Reset environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_OUTPUT;
   });
 
-  it("should handle empty agent output", async () => {
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+  });
 
-    await import("./noop.cjs");
+  it("should handle empty agent output", async () => {
+    setAgentOutput({
+      items: [],
+      errors: [],
+    });
+
+    await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No noop items found"));
   });
 
   it("should process single noop message", async () => {
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [
-          {
-            type: "noop",
-            message: "No issues found in this review",
-          },
-        ],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+    setAgentOutput({
+      items: [
+        {
+          type: "noop",
+          message: "No issues found in this review",
+        },
+      ],
+      errors: [],
+    });
 
-    // Need to re-import to execute
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: No issues found in this review");
@@ -76,32 +85,25 @@ describe("noop", () => {
   });
 
   it("should process multiple noop messages", async () => {
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [
-          {
-            type: "noop",
-            message: "First message",
-          },
-          {
-            type: "noop",
-            message: "Second message",
-          },
-          {
-            type: "noop",
-            message: "Third message",
-          },
-        ],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+    setAgentOutput({
+      items: [
+        {
+          type: "noop",
+          message: "First message",
+        },
+        {
+          type: "noop",
+          message: "Second message",
+        },
+        {
+          type: "noop",
+          message: "Third message",
+        },
+      ],
+      errors: [],
+    });
 
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 3 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: First message");
@@ -113,24 +115,17 @@ describe("noop", () => {
 
   it("should show preview in staged mode", async () => {
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [
-          {
-            type: "noop",
-            message: "Test message in staged mode",
-          },
-        ],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+    setAgentOutput({
+      items: [
+        {
+          type: "noop",
+          message: "Test message in staged mode",
+        },
+      ],
+      errors: [],
+    });
 
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("📝 No-op message preview written to step summary"));
@@ -140,72 +135,56 @@ describe("noop", () => {
   });
 
   it("should ignore non-noop items", async () => {
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [
-          {
-            type: "create_issue",
-            title: "Test Issue",
-            body: "Test body",
-          },
-          {
-            type: "noop",
-            message: "This is the only noop",
-          },
-          {
-            type: "add_comment",
-            body: "Test comment",
-          },
-        ],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Test Issue",
+          body: "Test body",
+        },
+        {
+          type: "noop",
+          message: "This is the only noop",
+        },
+        {
+          type: "add_comment",
+          body: "Test comment",
+        },
+      ],
+      errors: [],
+    });
 
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
     expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: This is the only noop");
   });
 
   it("should handle missing agent output file", async () => {
-    process.env.GH_AW_AGENT_OUTPUT = "/tmp/gh-aw/nonexistent.json";
+    process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json";
 
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
-    // loadAgentOutput should handle this and return success: false
-    // The noop function should return early
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No GH_AW_AGENT_OUTPUT"));
+    // loadAgentOutput logs an error when file doesn't exist
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file"));
   });
 
   it("should generate proper step summary format", async () => {
-    const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
-    fs.writeFileSync(
-      agentOutputPath,
-      JSON.stringify({
-        items: [
-          {
-            type: "noop",
-            message: "Analysis complete",
-          },
-          {
-            type: "noop",
-            message: "No action required",
-          },
-        ],
-        errors: [],
-      })
-    );
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+    setAgentOutput({
+      items: [
+        {
+          type: "noop",
+          message: "Analysis complete",
+        },
+        {
+          type: "noop",
+          message: "No action required",
+        },
+      ],
+      errors: [],
+    });
 
-    delete require.cache[require.resolve("./noop.cjs")];
-    await import("./noop.cjs");
+    await eval(`(async () => { ${noopScript} })()`);
 
     const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryCall).toContain("## No-Op Messages");

@@ -2280,6 +2280,12 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
       await eval(`(async () => { ${collectScript} })()`);
 
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -2300,16 +2306,18 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
       await eval(`(async () => { ${collectScript} })()`);
 
-      const setOutputCalls = mockCore.setOutput.mock.calls;
-      const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("noop requires a 'message' string field");
+      // When there are only errors and no valid items, setFailed is called instead of setOutput
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(failedCall).toContain("noop requires a 'message' string field");
     });
 
     it("should reject noop with non-string message", async () => {
@@ -2319,16 +2327,18 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
+
       await eval(`(async () => { ${collectScript} })()`);
 
-      const setOutputCalls = mockCore.setOutput.mock.calls;
-      const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("noop requires a 'message' string field");
+      // When there are only errors and no valid items, setFailed is called instead of setOutput
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(failedCall).toContain("noop requires a 'message' string field");
     });
 
     it("should sanitize noop message content", async () => {
@@ -2337,6 +2347,12 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type
+      const config = '{"noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2358,6 +2374,12 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Set up config to allow noop output type with max: 3
+      const config = '{"noop": {"max": 3}}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
