@@ -2440,8 +2440,8 @@
                   "description": "Optional prefix for the discussion title"
                 },
                 "category": {
-                  "type": ["string", "integer"],
-                  "description": "Optional discussion category. Can be a category ID (string or integer), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Integer values are automatically converted to strings at runtime.",
+                  "type": ["string", "number"],
+                  "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["General", "audits", 123456789]
                 },
                 "max": {
