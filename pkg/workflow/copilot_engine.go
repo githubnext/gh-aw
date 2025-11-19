@@ -48,14 +48,38 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	)
 	steps = append(steps, secretValidation)
 
-	// First, get the setup Node.js step from npm steps
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@github/copilot",
-		string(constants.DefaultCopilotVersion),
-		"Install GitHub Copilot CLI",
-		"copilot",
-		workflowData,
-	)
+	// Determine Copilot version
+	copilotVersion := string(constants.DefaultCopilotVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		copilotVersion = workflowData.EngineConfig.Version
+	}
+
+	// Determine if Copilot should be installed globally or locally
+	// For SRT, install locally so npx can find it without network access
+	installGlobally := !isSRTEnabled(workflowData)
+
+	// Generate npm install steps based on installation scope
+	var npmSteps []GitHubActionStep
+	if installGlobally {
+		npmSteps = BuildStandardNpmEngineInstallSteps(
+			"@github/copilot",
+			copilotVersion,
+			"Install GitHub Copilot CLI",
+			"copilot",
+			workflowData,
+		)
+	} else {
+		// For SRT: install locally without -g flag
+		copilotLog.Print("Using local Copilot installation for SRT compatibility")
+		npmSteps = GenerateNpmInstallStepsWithScope(
+			"@github/copilot",
+			copilotVersion,
+			"Install GitHub Copilot CLI",
+			"copilot",
+			true,  // Include Node.js setup
+			false, // Install locally, not globally
+		)
+	}
 
 	// Add Node.js setup step first (before sandbox installation)
 	if len(npmSteps) > 0 {
@@ -198,7 +222,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
 		}
-		copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+
+		// For SRT: use locally installed package without -y flag to avoid internet fetch
+		// For AWF: use -y flag for automatic download (backward compatibility)
+		if isSRTEnabled(workflowData) {
+			// Use local installation with --no-install to prevent network fetch and fail fast if missing
+			copilotCommand = fmt.Sprintf("npx --no-install @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+		} else {
+			// AWF or other sandboxes - use -y for automatic download
+			copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+		}
 	} else {
 		// When sandbox is disabled, use unpinned copilot command
 		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))

@@ -29,7 +29,12 @@ func GenerateNodeJsSetupStep() GitHubActionStep {
 //
 // Returns steps for installing the npm package (optionally with Node.js setup)
 func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool) []GitHubActionStep {
-	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v", packageName, version, includeNodeSetup)
+	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, includeNodeSetup, true)
+}
+
+// GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation
+func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool) []GitHubActionStep {
+	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v", packageName, version, includeNodeSetup, isGlobal)
 
 	var steps []GitHubActionStep
 
@@ -40,7 +45,11 @@ func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix stri
 	}
 
 	// Add npm install step
-	installCmd := fmt.Sprintf("npm install -g %s@%s", packageName, version)
+	globalFlag := ""
+	if isGlobal {
+		globalFlag = "-g "
+	}
+	installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
 	steps = append(steps, GitHubActionStep{
 		fmt.Sprintf("      - name: %s", stepName),
 		fmt.Sprintf("        run: %s", installCmd),
