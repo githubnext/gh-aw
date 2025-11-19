@@ -236,6 +236,11 @@ jobs:
           rg --version
           bwrap --version
           socat -V
+      - name: Configure System for Sandbox Runtime
+        run: |
+          echo "Disabling AppArmor namespace restrictions for bubblewrap"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          echo "System configuration applied successfully"
       - name: Install Sandbox Runtime
         run: |
           echo "Installing @anthropic-ai/sandbox-runtime locally"

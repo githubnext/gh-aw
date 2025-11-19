@@ -70,6 +70,10 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		srtSystemDeps := generateSRTSystemDepsStep()
 		steps = append(steps, srtSystemDeps)
 
+		copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
+		srtSystemConfig := generateSRTSystemConfigStep()
+		steps = append(steps, srtSystemConfig)
+
 		copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
 		srtInstall := generateSRTInstallationStep()
 		steps = append(steps, srtInstall)
@@ -856,6 +860,19 @@ func generateSRTSystemDepsStep() GitHubActionStep {
 		"          rg --version",
 		"          bwrap --version",
 		"          socat -V",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSRTSystemConfigStep creates a GitHub Actions step to configure system for SRT
+func generateSRTSystemConfigStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Configure System for Sandbox Runtime",
+		"        run: |",
+		"          echo \"Disabling AppArmor namespace restrictions for bubblewrap\"",
+		"          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+		"          echo \"System configuration applied successfully\"",
 	}
 
 	return GitHubActionStep(stepLines)
