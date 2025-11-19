@@ -2609,11 +2609,98 @@ jobs:
                 supportsDirectories: false,
               });
             }
+            function extractMCPInitialization(lines) {
+              const mcpServers = new Map(); 
+              let serverCount = 0;
+              let connectedCount = 0;
+              let availableTools = [];
+              for (const line of lines) {
+                if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
+                }
+                const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
+                if (countMatch) {
+                  serverCount = parseInt(countMatch[1]);
+                }
+                const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
+                if (connectingMatch) {
+                  const serverName = connectingMatch[1];
+                  if (!mcpServers.has(serverName)) {
+                    mcpServers.set(serverName, { name: serverName, status: "connecting" });
+                  }
+                }
+                const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
+                if (connectedMatch) {
+                  const serverName = connectedMatch[1];
+                  mcpServers.set(serverName, { name: serverName, status: "connected" });
+                  connectedCount++;
+                }
+                const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
+                if (failedMatch) {
+                  const serverName = failedMatch[1];
+                  const error = failedMatch[2].trim();
+                  mcpServers.set(serverName, { name: serverName, status: "failed", error });
+                }
+                const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
+                if (initFailedMatch) {
+                  const serverName = initFailedMatch[1];
+                  const existing = mcpServers.get(serverName);
+                  if (existing && existing.status !== "failed") {
+                    mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
+                  }
+                }
+                const toolsMatch = line.match(/Available tools:\s*(.+)/i);
+                if (toolsMatch) {
+                  const toolsStr = toolsMatch[1];
+                  availableTools = toolsStr
+                    .split(",")
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
+                }
+              }
+              let markdown = "";
+              const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
+              if (mcpServers.size > 0) {
+                markdown += "**MCP Servers:**\n";
+                const servers = Array.from(mcpServers.values());
+                const connected = servers.filter(s => s.status === "connected");
+                const failed = servers.filter(s => s.status === "failed");
+                markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
+                markdown += `- Connected: ${connected.length}\n`;
+                if (failed.length > 0) {
+                  markdown += `- Failed: ${failed.length}\n`;
+                }
+                markdown += "\n";
+                for (const server of servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
+                  markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
+                  if (server.error) {
+                    markdown += `\n  - Error: ${server.error}`;
+                  }
+                  markdown += "\n";
+                }
+                markdown += "\n";
+              }
+              if (availableTools.length > 0) {
+                markdown += "**Available MCP Tools:**\n";
+                markdown += `- Total: ${availableTools.length} tools\n`;
+                markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
+              }
+              return {
+                hasInfo,
+                markdown,
+                servers: Array.from(mcpServers.values()),
+              };
+            }
             function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
                 const LOOKAHEAD_WINDOW = 50;
                 let markdown = "";
+                const mcpInfo = extractMCPInitialization(lines);
+                if (mcpInfo.hasInfo) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += mcpInfo.markdown;
+                }
                 markdown += "## 🤖 Reasoning\n\n";
                 let inThinkingSection = false;
                 for (let i = 0; i < lines.length; i++) {
@@ -2841,6 +2928,7 @@ jobs:
                 truncateString,
                 estimateTokens,
                 formatDuration,
+                extractMCPInitialization,
               };
             }
             main();
