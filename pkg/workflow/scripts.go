@@ -236,6 +236,7 @@ func getAddLabelsScript() string {
 // Bundling is performed on first access and cached for subsequent calls
 func getAssignMilestoneScript() string {
 	assignMilestoneScriptOnce.Do(func() {
+		scriptsLog.Print("Bundling assign_milestone script")
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(assignMilestoneScriptSource, sources, "")
 		if err != nil {
@@ -243,6 +244,7 @@ func getAssignMilestoneScript() string {
 			// If bundling fails, use the source as-is
 			assignMilestoneScript = assignMilestoneScriptSource
 		} else {
+			scriptsLog.Printf("Successfully bundled assign_milestone script: %d bytes", len(bundled))
 			assignMilestoneScript = bundled
 		}
 	})
