@@ -159,6 +159,17 @@ interface UploadAssetItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for assigning an issue to a milestone
+ */
+interface AssignMilestoneItem extends BaseSafeOutputItem {
+  type: "assign_milestone";
+  /** Issue number to assign milestone to */
+  issue_number: number | string;
+  /** Milestone number to assign */
+  milestone_number: number | string;
+}
+
+/**
  * JSONL item for updating a release
  */
 interface UpdateReleaseItem extends BaseSafeOutputItem {
@@ -195,6 +206,7 @@ type SafeOutputItem =
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem
+  | AssignMilestoneItem
   | UpdateReleaseItem
   | NoOpItem;
 
@@ -220,6 +232,7 @@ export {
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
+  AssignMilestoneItem,
   UpdateReleaseItem,
   NoOpItem,
   SafeOutputItem,

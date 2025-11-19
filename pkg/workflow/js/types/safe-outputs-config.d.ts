@@ -93,6 +93,14 @@ interface UploadAssetConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for assigning milestones
+ */
+interface AssignMilestoneConfig extends SafeOutputConfig {
+  allowed?: string[];
+  target?: string;
+}
+
+/**
  * Configuration for updating releases
  */
 interface UpdateReleaseConfig extends SafeOutputConfig {
@@ -158,6 +166,7 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
+  | AssignMilestoneConfig
   | UpdateReleaseConfig
   | NoOpConfig
   | MissingToolConfig
@@ -179,6 +188,7 @@ export {
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
+  AssignMilestoneConfig,
   UpdateReleaseConfig,
   NoOpConfig,
   MissingToolConfig,

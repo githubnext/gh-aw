@@ -2705,6 +2705,42 @@
             }
           ]
         },
+        "assign-milestone": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows assigning any milestones"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for assigning issues to milestones from agentic workflow output",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "Optional list of allowed milestone titles that can be assigned. If omitted, any milestones are allowed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of milestone assignments (default: 1)",
+                  "minimum": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository milestone assignment. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "update-issue": {
           "oneOf": [
             {

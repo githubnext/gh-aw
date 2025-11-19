@@ -37,6 +37,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
+		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
@@ -382,6 +383,76 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
 					config.AddLabels = &AddLabelsConfig{}
+				}
+			}
+
+			// Parse assign-milestone configuration
+			if milestone, exists := outputMap["assign-milestone"]; exists {
+				if milestoneMap, ok := milestone.(map[string]any); ok {
+					milestoneConfig := &AssignMilestoneConfig{}
+
+					// Parse allowed milestones (optional)
+					if allowed, exists := milestoneMap["allowed"]; exists {
+						if allowedArray, ok := allowed.([]any); ok {
+							var allowedStrings []string
+							for _, ms := range allowedArray {
+								if msStr, ok := ms.(string); ok {
+									allowedStrings = append(allowedStrings, msStr)
+								}
+							}
+							milestoneConfig.Allowed = allowedStrings
+						}
+					}
+
+					// Parse max (optional)
+					if maxCount, exists := milestoneMap["max"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							milestoneConfig.Max = maxCountInt
+						}
+					}
+
+					// Parse github-token
+					if githubToken, exists := milestoneMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							milestoneConfig.GitHubToken = githubTokenStr
+						}
+					}
+
+					// Parse target
+					if target, exists := milestoneMap["target"]; exists {
+						if targetStr, ok := target.(string); ok {
+							milestoneConfig.Target = targetStr
+						}
+					}
+
+					// Parse target-repo
+					if targetRepo, exists := milestoneMap["target-repo"]; exists {
+						if targetRepoStr, ok := targetRepo.(string); ok {
+							milestoneConfig.TargetRepoSlug = targetRepoStr
+						}
+					}
+
+					config.AssignMilestone = milestoneConfig
+				} else if milestone == nil {
+					// Handle null case: create empty config (allows any milestones)
+					config.AssignMilestone = &AssignMilestoneConfig{}
 				}
 			}
 
@@ -843,6 +914,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["add_labels"] = labelConfig
 		}
+		if data.SafeOutputs.AssignMilestone != nil {
+			assignMilestoneConfig := map[string]any{}
+			if data.SafeOutputs.AssignMilestone.Max > 0 {
+				assignMilestoneConfig["max"] = data.SafeOutputs.AssignMilestone.Max
+			}
+			if len(data.SafeOutputs.AssignMilestone.Allowed) > 0 {
+				assignMilestoneConfig["allowed"] = data.SafeOutputs.AssignMilestone.Allowed
+			}
+			safeOutputsConfig["assign_milestone"] = assignMilestoneConfig
+		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
 			if data.SafeOutputs.UpdateIssues.Max > 0 {
@@ -985,6 +1066,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
+	}
+	if data.SafeOutputs.AssignMilestone != nil {
+		enabledTools["assign_milestone"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true
