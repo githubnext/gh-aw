@@ -1279,7 +1279,7 @@ jobs:
             "--output-dir",
             "/tmp/gh-aw/mcp-logs/playwright",
             "--allowed-origins",
-            "localhost;localhost:*;127.0.0.1;127.0.0.1:*;example.com"
+            "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"
           ]
           
           [mcp_servers.safeoutputs]
@@ -1307,7 +1307,7 @@ jobs:
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${GH_AW_EXPR_D892F163}
           2. **File Writing Testing**: Create a test file `/tmp/smoke-test-codex-${GH_AW_EXPR_B50B6E9C}.txt` with content "Smoke test passed for Codex at $(date)"
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          4. **Playwright MCP Testing**: Use playwright to navigate to https://example.com and verify the page title contains "Example"
+          4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
           
           ## Output
           
@@ -1731,7 +1731,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,example.com"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
