@@ -229,6 +229,49 @@ The `manual-approval` field sets the `environment` on the activation job, enabli
 
 The field accepts a string environment name that must match a configured environment in the repository. Configure approval rules, required reviewers, and wait timers in repository Settings → Environments. See [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for environment configuration details.
 
+### Skip-If-Match Condition (`skip-if-match:`)
+
+Conditionally skip workflow execution when a GitHub search query has matches. Useful for preventing duplicate scheduled runs or waiting for prerequisites.
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"
+  skip-if-match: 'is:issue is:open in:title "[daily-report]"'
+```
+
+**How it works:**
+1. A pre-activation check runs the search query against the current repository
+2. If matches are found, the workflow is skipped (activation job returns false)
+3. The query is automatically scoped to the current repository
+
+**Common Use Cases:**
+
+Prevent duplicate scheduled reports:
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  skip-if-match: 'is:issue is:open label:weekly-summary'
+```
+
+Wait for deployment PRs to close:
+```yaml wrap
+on:
+  workflow_dispatch:
+  skip-if-match: "is:pr is:open label:deployment"
+```
+
+Skip if processing queue is full:
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  skip-if-match: "is:issue is:open label:needs-processing"
+```
+
+The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
+
 ## Related Documentation
 
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
