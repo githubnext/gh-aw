@@ -35,7 +35,9 @@ This declares that the workflow should create at most one new issue.
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
 | **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
+| **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
 | **Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
+| **No-Op** | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
 | **Missing Tool** | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
 
 Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
@@ -199,6 +201,52 @@ safe-outputs:
 ```
 
 When `create-pull-request` or `push-to-pull-request-branch` are enabled, file editing tools (Edit, Write, NotebookEdit) and git commands are automatically added.
+
+### Release Updates (`update-release:`)
+
+Updates GitHub release descriptions with three operations: replace, append, or prepend content.
+
+```yaml wrap
+safe-outputs:
+  update-release:
+    max: 1                       # Optional: max releases (default: 1, max: 10)
+    target-repo: "owner/repo"    # Optional: cross-repository
+    github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
+```
+
+**Operations:**
+- **replace** - Completely replaces the release body
+- **append** - Adds content to the end with separator and AI attribution
+- **prepend** - Adds content to the start with AI attribution and separator
+
+**Agent Output Format:**
+```jsonl
+{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New content"}
+{"type": "update_release", "tag": "v2.0.0", "operation": "append", "body": "Additional notes"}
+{"type": "update_release", "operation": "prepend", "body": "Summary (tag inferred)"}
+```
+
+The `tag` field is optional when triggered by release events (automatically inferred from context). The workflow needs read access to releases; only the generated job receives write permissions.
+
+### No-Op Logging (`noop:`)
+
+Enabled by default with any safe-outputs configuration. Allows agents to produce human-visible completion messages when no actions are needed, ensuring workflows never complete silently.
+
+```yaml wrap
+safe-outputs:
+  create-issue:     # noop enabled automatically
+  noop: false       # Or explicitly disable
+  # noop:
+  #   max: 1        # Or configure max messages (default: 1)
+```
+
+**Agent Output Format:**
+```jsonl
+{"type": "noop", "message": "Analysis complete - no issues found"}
+{"type": "noop", "message": "No changes needed, code follows best practices"}
+```
+
+Messages are displayed in the workflow conclusion comment (when reaction configured) or step summary. This provides transparency and prevents confusion from silent workflow completion.
 
 ### Missing Tool Reporting (`missing-tool:`)
 
