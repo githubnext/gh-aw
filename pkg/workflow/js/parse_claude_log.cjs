@@ -266,9 +266,46 @@ function formatInitializationSummary(initEntry) {
       const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
       markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
 
-      // Track failed MCP servers
+      // Track failed MCP servers and display detailed error information
       if (server.status === "failed") {
         mcpFailures.push(server.name);
+
+        // Display error details if available
+        const errorDetails = [];
+
+        if (server.error) {
+          errorDetails.push(`**Error:** ${server.error}`);
+        }
+
+        if (server.stderr) {
+          // Truncate stderr if too long
+          const maxStderrLength = 500;
+          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+          errorDetails.push(`**Stderr:** \`${stderr}\``);
+        }
+
+        if (server.exitCode !== undefined && server.exitCode !== null) {
+          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+        }
+
+        if (server.command) {
+          errorDetails.push(`**Command:** \`${server.command}\``);
+        }
+
+        if (server.message) {
+          errorDetails.push(`**Message:** ${server.message}`);
+        }
+
+        if (server.reason) {
+          errorDetails.push(`**Reason:** ${server.reason}`);
+        }
+
+        // Display error details with proper indentation
+        if (errorDetails.length > 0) {
+          for (const detail of errorDetails) {
+            markdown += `  - ${detail}\n`;
+          }
+        }
       }
     }
     markdown += "\n";
