@@ -32,8 +32,9 @@ func TestGetLogParserScript(t *testing.T) {
 		if !strings.Contains(script, "parseClaudeLog") {
 			t.Error("Expected script to contain parseClaudeLog function")
 		}
-		if !strings.Contains(script, "tool_use") {
-			t.Error("Expected script to contain tool_use logic")
+		// After refactoring, check for shared functions that handle tool processing
+		if !strings.Contains(script, "generateConversationMarkdown") {
+			t.Error("Expected script to contain generateConversationMarkdown from shared module")
 		}
 	})
 

@@ -282,6 +282,15 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 		}
 	}
 
+	// Write the shared helper to the temp directory
+	sharedScript := workflow.GetJavaScriptSources()["log_parser_shared.cjs"]
+	if sharedScript != "" {
+		sharedFile := filepath.Join(tempDir, "log_parser_shared.cjs")
+		if err := os.WriteFile(sharedFile, []byte(sharedScript), 0644); err != nil {
+			return fmt.Errorf("failed to write shared helper file: %w", err)
+		}
+	}
+
 	// Create a Node.js script that mimics the GitHub Actions environment
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');
