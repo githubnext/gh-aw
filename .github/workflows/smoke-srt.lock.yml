@@ -228,8 +228,8 @@ jobs:
           node-version: '24'
       - name: Install Sandbox Runtime
         run: |
-          echo "Installing @anthropic-ai/sandbox-runtime"
-          npm install -g @anthropic-ai/sandbox-runtime
+          echo "Installing @anthropic-ai/sandbox-runtime locally"
+          npm install @anthropic-ai/sandbox-runtime
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.358
@@ -590,7 +590,7 @@ jobs:
           cat .srt-settings.json
 
           # Create Node.js wrapper script for SRT
-          cat > /tmp/srt-wrapper.js << 'SRT_WRAPPER_EOF'
+          cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
           const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
           const { spawn } = require('child_process');
           const { readFileSync } = require('fs');
@@ -657,7 +657,7 @@ jobs:
           echo "SRT wrapper script created"
 
           # Run the Node.js wrapper script
-          node /tmp/srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
           COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"

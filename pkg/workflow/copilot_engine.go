@@ -873,7 +873,7 @@ echo "Sandbox Runtime configuration created"
 cat .srt-settings.json
 
 # Create Node.js wrapper script for SRT
-cat > /tmp/srt-wrapper.js << 'SRT_WRAPPER_EOF'
+cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
 const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
 const { spawn } = require('child_process');
 const { readFileSync } = require('fs');
@@ -940,7 +940,7 @@ SRT_WRAPPER_EOF
 echo "SRT wrapper script created"
 
 # Run the Node.js wrapper script
-node /tmp/srt-wrapper.js 2>&1 | tee %s
+node ./.srt-wrapper.js 2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
 COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
