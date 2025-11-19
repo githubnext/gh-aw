@@ -67,7 +67,7 @@ Copilot CLI supports MCP servers via JSON configuration at `/tmp/gh-aw/.copilot/
     "playwright": {
       "type": "local", 
       "command": "npx",
-      "args": ["@playwright/mcp@latest", "--allowed-origins", "example.com"]
+      "args": ["@playwright/mcp@latest", "--allowed-hosts", "example.com"]
     },
     "custom-server": {
       "type": "local",

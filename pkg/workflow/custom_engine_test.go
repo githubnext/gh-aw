@@ -306,14 +306,14 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it contains --allowed-origins flag when domains are configured
-	if !strings.Contains(output, "--allowed-origins") {
-		t.Errorf("Expected --allowed-origins flag in npx args")
+	// Check that it contains --allowed-hosts flag when domains are configured
+	if !strings.Contains(output, "--allowed-hosts") {
+		t.Errorf("Expected --allowed-hosts flag in npx args")
 	}
 
 	// Check that it contains the specified domains AND localhost domains with port variations
 	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*;example.com;*.github.com") {
-		t.Errorf("Expected configured domains with localhost and port variations in --allowed-origins value")
+		t.Errorf("Expected configured domains with localhost and port variations in --allowed-hosts value")
 	}
 
 	// Check that it does NOT contain the old format environment variables
@@ -357,14 +357,14 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it contains --allowed-origins flag for default domains
-	if !strings.Contains(output, "--allowed-origins") {
-		t.Errorf("Expected --allowed-origins flag in npx args")
+	// Check that it contains --allowed-hosts flag for default domains
+	if !strings.Contains(output, "--allowed-hosts") {
+		t.Errorf("Expected --allowed-hosts flag in npx args")
 	}
 
 	// Check that it contains default domains with port variations (localhost, localhost:*, 127.0.0.1, 127.0.0.1:*)
 	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*") {
-		t.Errorf("Expected default domains with port variations in --allowed-origins value")
+		t.Errorf("Expected default domains with port variations in --allowed-hosts value")
 	}
 
 	// Check that it does NOT contain the old format environment variables
