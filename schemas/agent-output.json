@@ -32,6 +32,7 @@
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddLabelsOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
+        {"$ref": "#/$defs/CloseIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
@@ -171,6 +172,34 @@
         }
       },
       "required": ["type"],
+      "additionalProperties": false
+    },
+    "CloseIssueOutput": {
+      "title": "Close Issue Output",
+      "description": "Output for closing a GitHub issue with optional comment and filtering",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_issue"
+        },
+        "issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to close"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment to add when closing the issue"
+        },
+        "state_reason": {
+          "type": "string",
+          "description": "Reason for closing the issue",
+          "enum": ["completed", "not_planned"]
+        }
+      },
+      "required": ["type", "issue_number"],
       "additionalProperties": false
     },
     "PushToPullRequestBranchOutput": {

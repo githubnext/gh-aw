@@ -25,6 +25,8 @@ async function main() {
         return 5;
       case "update_issue":
         return 1;
+      case "close_issue":
+        return 5;
       case "push_to_pull_request_branch":
         return 1;
       case "create_discussion":
@@ -481,6 +483,33 @@ async function main() {
           if (!updateIssueNumValidation.isValid) {
             if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
             continue;
+          }
+          break;
+        case "close_issue":
+          // Validate required issue_number
+          if (!item.issue_number) {
+            errors.push(`Line ${i + 1}: close_issue requires an 'issue_number' field`);
+            continue;
+          }
+          const closeIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "close_issue 'issue_number'", i + 1);
+          if (!closeIssueNumValidation.isValid) {
+            if (closeIssueNumValidation.error) errors.push(closeIssueNumValidation.error);
+            continue;
+          }
+          // Validate optional comment
+          if (item.comment !== undefined) {
+            if (typeof item.comment !== "string") {
+              errors.push(`Line ${i + 1}: close_issue 'comment' must be a string`);
+              continue;
+            }
+            item.comment = sanitizeContent(item.comment, maxBodyLength);
+          }
+          // Validate optional state_reason
+          if (item.state_reason !== undefined) {
+            if (typeof item.state_reason !== "string" || (item.state_reason !== "completed" && item.state_reason !== "not_planned")) {
+              errors.push(`Line ${i + 1}: close_issue 'state_reason' must be 'completed' or 'not_planned'`);
+              continue;
+            }
           }
           break;
         case "push_to_pull_request_branch":

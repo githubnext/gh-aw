@@ -74,6 +74,14 @@ interface UpdateIssueConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for closing issues
+ */
+interface CloseIssueConfig extends SafeOutputConfig {
+  labels?: string[];
+  "title-prefix"?: string;
+}
+
+/**
  * Configuration for pushing to pull request branches
  */
 interface PushToPullRequestBranchConfig extends SafeOutputConfig {
@@ -156,6 +164,7 @@ type SpecificSafeOutputConfig =
   | CreateCodeScanningAlertConfig
   | AddLabelsConfig
   | UpdateIssueConfig
+  | CloseIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | UpdateReleaseConfig
@@ -177,6 +186,7 @@ export {
   CreateCodeScanningAlertConfig,
   AddLabelsConfig,
   UpdateIssueConfig,
+  CloseIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   UpdateReleaseConfig,

@@ -195,6 +195,30 @@
     }
   },
   {
+    "name": "close_issue",
+    "description": "Close a GitHub issue with optional comment and filtering",
+    "inputSchema": {
+      "type": "object",
+      "required": ["issue_number"],
+      "properties": {
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to close"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment to add when closing the issue"
+        },
+        "state_reason": {
+          "type": "string",
+          "enum": ["completed", "not_planned"],
+          "description": "Reason for closing: 'completed' or 'not_planned'"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "push_to_pull_request_branch",
     "description": "Push changes to a pull request branch",
     "inputSchema": {

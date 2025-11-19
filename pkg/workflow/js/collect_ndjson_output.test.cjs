@@ -2431,4 +2431,134 @@ Line 3"}
       expect(parsedOutput.errors).toHaveLength(0);
     });
   });
+
+  describe("close_issue validation", () => {
+    it("should validate close_issue with required issue_number", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "issue_number": 42}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("close_issue");
+      expect(parsedOutput.items[0].issue_number).toBe(42);
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should validate close_issue with comment", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "issue_number": 42, "comment": "This issue has been resolved."}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+      
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].comment).toBe("This issue has been resolved.");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should validate close_issue with state_reason", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "issue_number": 42, "state_reason": "completed"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+      
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].state_reason).toBe("completed");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should reject close_issue with missing issue_number", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "comment": "Closing"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When there are no valid items, setFailed is called
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("issue_number");
+    });
+
+    it("should reject close_issue with invalid state_reason", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "issue_number": 42, "state_reason": "invalid"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When there are no valid items, setFailed is called
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("state_reason");
+      expect(failedMessage).toContain("completed");
+      expect(failedMessage).toContain("not_planned");
+    });
+
+    it("should reject close_issue with non-string comment", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "close_issue", "issue_number": 42, "comment": 123}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"close_issue": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When there are no valid items, setFailed is called
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("comment");
+      expect(failedMessage).toContain("string");
+    });
+  });
 });

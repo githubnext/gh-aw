@@ -126,6 +126,19 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for closing an issue
+ */
+interface CloseIssueItem extends BaseSafeOutputItem {
+  type: "close_issue";
+  /** Issue number to close */
+  issue_number: number | string;
+  /** Optional comment to add when closing the issue */
+  comment?: string;
+  /** Reason for closing the issue */
+  state_reason?: "completed" | "not_planned";
+}
+
+/**
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
@@ -192,6 +205,7 @@ type SafeOutputItem =
   | CreateCodeScanningAlertItem
   | AddLabelsItem
   | UpdateIssueItem
+  | CloseIssueItem
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem
@@ -217,6 +231,7 @@ export {
   CreateCodeScanningAlertItem,
   AddLabelsItem,
   UpdateIssueItem,
+  CloseIssueItem,
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
