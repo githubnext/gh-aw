@@ -648,11 +648,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Always declare comment_id and comment_repo outputs to avoid actionlint errors
 	// These will be empty if no reaction is configured, and the scripts handle empty values gracefully
+	// Use ${{ '' }} expression to ensure empty string type in YAML (not null)
 	if _, exists := outputs["comment_id"]; !exists {
-		outputs["comment_id"] = ""
+		outputs["comment_id"] = "${{ '' }}"
 	}
 	if _, exists := outputs["comment_repo"]; !exists {
-		outputs["comment_repo"] = ""
+		outputs["comment_repo"] = "${{ '' }}"
 	}
 
 	// If no steps have been added, add a dummy step to make the job valid
