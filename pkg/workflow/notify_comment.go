@@ -57,7 +57,33 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	steps = append(steps, "          echo \"Agent Output Types: $AGENT_OUTPUT_TYPES\"\n")
 	steps = append(steps, "          echo \"Agent Conclusion: $AGENT_CONCLUSION\"\n")
 
-	// Build environment variables for the script
+	// Add artifact download steps once (shared by noop and conclusion steps)
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Add noop processing step if noop is configured
+	if data.SafeOutputs.NoOp != nil {
+		// Build custom environment variables specific to noop
+		var noopEnvVars []string
+		if data.SafeOutputs.NoOp.Max > 0 {
+			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_NOOP_MAX: %d\n", data.SafeOutputs.NoOp.Max))
+		}
+
+		// Add workflow metadata for consistency
+		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithCampaign(data.Name, data.Source, data.Campaign)...)
+
+		// Build the noop processing step (without artifact downloads - already added above)
+		noopSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Process No-Op Messages",
+			StepID:        "noop",
+			MainJobName:   mainJobName,
+			CustomEnvVars: noopEnvVars,
+			Script:        getNoOpScript(),
+			Token:         data.SafeOutputs.NoOp.GitHubToken,
+		})
+		steps = append(steps, noopSteps...)
+	}
+
+	// Build environment variables for the conclusion script
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
@@ -75,8 +101,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+	// Build the conclusion GitHub Script step (without artifact downloads - already added above)
+	scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Update reaction comment with completion status",
 		StepID:        "conclusion",
 		MainJobName:   mainJobName,
@@ -134,6 +160,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 
+	// Create outputs for the job (include noop output if configured)
+	outputs := map[string]string{}
+	if data.SafeOutputs.NoOp != nil {
+		outputs["noop_message"] = "${{ steps.noop.outputs.noop_message }}"
+	}
+
 	job := &Job{
 		Name:        "conclusion",
 		If:          condition.Render(),
@@ -141,6 +173,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
 		Steps:       steps,
 		Needs:       needs,
+		Outputs:     outputs,
 	}
 
 	return job, nil

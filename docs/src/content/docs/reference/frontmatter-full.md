@@ -548,6 +548,12 @@ on:
   # (optional)
   stop-after: "example-value"
 
+  # GitHub search query string to check before running workflow. If the search
+  # returns any results, the workflow will be skipped. Query is automatically scoped
+  # to the current repository. Example: 'is:issue is:open label:bug'
+  # (optional)
+  skip-if-match: "example-value"
+
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -1676,6 +1682,28 @@ safe-outputs:
   # Option 3: Explicitly disable missing tool reporting (false). Missing tool
   # reporting is enabled by default when safe-outputs is configured.
   missing-tool: true
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for no-op safe output (logging only, no GitHub API
+  # calls). Always available as a fallback to ensure human-visible artifacts.
+  noop:
+    # Maximum number of noop messages (default: 1)
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable noop output with default configuration (max: 1)
+  noop: null
+
+  # Option 3: Explicitly disable noop output (false). Noop is enabled by default
+  # when safe-outputs is configured.
+  noop: true
 
   # (optional)
   # This field supports multiple formats (oneOf):

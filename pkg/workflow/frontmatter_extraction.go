@@ -63,12 +63,12 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from frontmatter
 func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key string) string {
-	frontmatterLog.Printf("Extracting top-level YAML section: %s", key)
 	value, exists := frontmatter[key]
 	if !exists {
-		frontmatterLog.Printf("Section %s not found in frontmatter", key)
 		return ""
 	}
+
+	frontmatterLog.Printf("Extracting YAML section: %s", key)
 
 	// Convert the value back to YAML format with field ordering
 	var yamlBytes []byte
@@ -123,6 +123,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, and reaction fields in the on section
 // These fields are processed separately and should be commented for documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
+	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
 	inPullRequest := false
@@ -276,6 +277,7 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 
 	// If it's "all: read", use the parser to expand it
 	if parser.hasAll && parser.allLevel == "read" {
+		frontmatterLog.Print("Expanding 'all: read' permissions to individual scopes")
 		permissions := parser.ToPermissions()
 		yaml := permissions.RenderToYAML()
 
@@ -321,11 +323,18 @@ func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]bool {
 	// Features should be an object with boolean values
 	if featuresMap, ok := value.(map[string]any); ok {
 		result := make(map[string]bool)
+		enabledCount := 0
 		for key, val := range featuresMap {
 			// Convert value to boolean
 			if boolVal, ok := val.(bool); ok {
 				result[key] = boolVal
+				if boolVal {
+					enabledCount++
+				}
 			}
+		}
+		if log.Enabled() {
+			frontmatterLog.Printf("Extracted %d features (%d enabled)", len(result), enabledCount)
 		}
 		return result
 	}

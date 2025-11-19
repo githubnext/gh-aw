@@ -94,16 +94,19 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add model if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
 	// Add max_turns if specified (in CLI it's max-turns)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
+		claudeLog.Print("Adding MCP configuration")
 		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
@@ -175,6 +178,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	var promptCommand string
 	if workflowData.AgentFile != "" {
 		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+		claudeLog.Printf("Using custom agent file: %s", workflowData.AgentFile)
 		// Extract markdown body from custom agent file and prepend to prompt
 		stepLines = append(stepLines, "          # Extract markdown body from custom agent file (skip frontmatter)")
 		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", agentPath))
