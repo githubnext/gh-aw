@@ -32,7 +32,7 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --pr
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the compiled `.lock.yml`. Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the compiled `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
 ### Step 3 — Add an AI secret
 
@@ -112,6 +112,8 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 ```
 
 This workflow triggers every weekday at 9 AM via cron schedule, has permissions to read repository content and create GitHub discussions, and runs AI instructions in natural language to generate status reports.
+
+The section between the `---` markers (called frontmatter) contains the YAML configuration that defines when the workflow runs, what permissions it has, and what tools it can use. The section below the frontmatter contains the natural language instructions that tell the AI agent what to do. The `safe-outputs` section specifies that this workflow can safely create GitHub discussions without needing write permissions during the AI execution phase.
 
 ## Customize Your Workflow
 

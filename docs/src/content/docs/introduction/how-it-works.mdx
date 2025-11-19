@@ -9,7 +9,7 @@ GitHub Agentic Workflows enable AI agents to perform complex, multi-step tasks a
 
 ## Workflow Structure
 
-Each workflow contains YAML frontmatter and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
+Each workflow contains YAML frontmatter (the configuration section between `---` markers) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
 
 ```aw warp
 ---
@@ -27,7 +27,7 @@ Workflows support **GitHub Copilot** (default), **Claude Code**, and **Codex**. 
 
 ## Tools and MCPs
 
-Workflows use [tools](/gh-aw/reference/tools/) through the **Model Context Protocol ([MCP](/gh-aw/guides/mcps/))** for GitHub operations, external APIs, file operations, and custom integrations.
+Workflows use [tools](/gh-aw/reference/tools/) through the **Model Context Protocol (MCP)** — a standardized protocol for connecting AI agents to external tools and services — for GitHub operations, external APIs, file operations, and custom integrations.
 
 ## Agentic vs. Traditional Workflows
 
@@ -39,7 +39,7 @@ Agentic workflows run with minimal permissions (no write access by default), use
 
 ## Compilation
 
-Use `gh aw compile` to generate `.lock.yml` files from workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
+Use `gh aw compile` to generate `.lock.yml` files (compiled GitHub Actions workflow files) from workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
 
 ## Continuous AI Patterns
 
