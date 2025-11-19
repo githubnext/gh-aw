@@ -1332,7 +1332,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.361
       - name: Downloading container images
         run: |
           set -e
@@ -2375,7 +2375,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.358",
+              agent_version: "0.0.361",
               workflow_name: "Resource Summarizer Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -5089,7 +5089,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.361
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
