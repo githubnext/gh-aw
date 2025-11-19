@@ -62,6 +62,9 @@ var createPullRequestScriptSource string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScriptSource string
 
+//go:embed js/noop.cjs
+var noopScriptSource string
+
 // Log parser source scripts
 //
 //go:embed js/parse_claude_log.cjs
@@ -125,6 +128,9 @@ var (
 
 	notifyCommentErrorScript     string
 	notifyCommentErrorScriptOnce sync.Once
+
+	noopScript     string
+	noopScriptOnce sync.Once
 
 	interpolatePromptBundled     string
 	interpolatePromptBundledOnce sync.Once
@@ -431,6 +437,25 @@ func getNotifyCommentErrorScript() string {
 		}
 	})
 	return notifyCommentErrorScript
+}
+
+// getNoOpScript returns the bundled noop script
+// Bundling is performed on first access and cached for subsequent calls
+func getNoOpScript() string {
+	noopScriptOnce.Do(func() {
+		scriptsLog.Print("Bundling noop script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(noopScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for noop, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			noopScript = noopScriptSource
+		} else {
+			scriptsLog.Printf("Successfully bundled noop script: %d bytes", len(bundled))
+			noopScript = bundled
+		}
+	})
+	return noopScript
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script
