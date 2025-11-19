@@ -79,6 +79,7 @@ pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/
 sample-logs/
 *.invalid.yml
+*.tmp
 
 # Python cache files
 __pycache__/
