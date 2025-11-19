@@ -306,3 +306,122 @@ jobs:
         run: |
           go test -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+
+  copilot-cli-mcp-integration:
+    needs: [test]
+    runs-on: ubuntu-latest
+    # Only run if COPILOT_GITHUB_TOKEN is available (won't work when building copilot agent)
+    if: ${{ vars.COPILOT_CLI_INTEGRATION_ENABLED == 'true' }}
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-copilot-cli-mcp
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot@0.0.358
+
+      - name: Setup MCP Configuration
+        run: |
+          mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
+          {
+            "mcpServers": {
+              "github": {
+                "type": "local",
+                "command": "npx",
+                "args": ["@github/github-mcp-server@v0.21.0"],
+                "tools": ["*"]
+              },
+              "playwright": {
+                "type": "local",
+                "command": "npx",
+                "args": ["@playwright/mcp@0.0.47", "--allowed-hosts", "example.com"],
+                "tools": ["*"]
+              }
+            }
+          }
+          EOF
+          echo "## MCP Configuration" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat /home/runner/.copilot/mcp-config.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Create prompt file
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          mkdir -p $(dirname "$GH_AW_PROMPT")
+          cat > $GH_AW_PROMPT << 'EOF'
+          # Verify MCP Servers are Loaded
+          
+          Please verify that the GitHub and Playwright MCP servers are loaded correctly by:
+          
+          1. List all available tools from the GitHub MCP server (should include tools like get_repository, list_commits, etc.)
+          2. List all available tools from the Playwright MCP server (should include tools like browser automation)
+          3. Report if both MCP servers are functioning correctly
+          
+          Output your findings in a structured format showing which MCP servers are detected and their available tools.
+          EOF
+
+      - name: Print prompt to step summary
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Execute GitHub Copilot CLI
+        id: copilot_execution
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          
+          # Run copilot CLI with log capture
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --prompt "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+        env:
+          XDG_CONFIG_HOME: /home/runner
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+
+      - name: Show execution logs
+        if: always()
+        run: |
+          echo "## Execution Logs (Last 50 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -50 /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY || echo "No log content available" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-cli-mcp-integration-logs
+          path: |
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/.copilot/logs/
+          if-no-files-found: ignore
+          retention-days: 7
