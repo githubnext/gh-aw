@@ -914,6 +914,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["add_labels"] = labelConfig
 		}
+		if data.SafeOutputs.AssignMilestone != nil {
+			assignMilestoneConfig := map[string]any{}
+			if data.SafeOutputs.AssignMilestone.Max > 0 {
+				assignMilestoneConfig["max"] = data.SafeOutputs.AssignMilestone.Max
+			}
+			if len(data.SafeOutputs.AssignMilestone.Allowed) > 0 {
+				assignMilestoneConfig["allowed"] = data.SafeOutputs.AssignMilestone.Allowed
+			}
+			safeOutputsConfig["assign_milestone"] = assignMilestoneConfig
+		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
 			if data.SafeOutputs.UpdateIssues.Max > 0 {
