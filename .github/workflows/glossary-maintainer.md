@@ -24,6 +24,7 @@ network:
 imports:
   - ../instructions/documentation.instructions.md
   - ../agents/technical-doc-writer.md
+  - shared/mcp/serena.md
 
 safe-outputs:
   create-pull-request:
@@ -57,6 +58,18 @@ Keep the glossary up-to-date by:
 2. Performing incremental updates daily (last 24 hours)
 3. Performing comprehensive full scan on Mondays (last 7 days)
 4. Adding new terms and updating definitions based on repository changes
+
+## Available Tools
+
+You have access to the **Serena MCP server** for advanced semantic analysis and code understanding. Serena is configured with:
+- **Active workspace**: ${{ github.workspace }}
+- **Memory location**: `/tmp/gh-aw/cache-memory/serena/`
+
+Use Serena to:
+- Analyze code semantics to understand new terminology in context
+- Identify technical concepts and their relationships
+- Help generate clear, accurate definitions for technical terms
+- Understand how terms are used across the codebase
 
 ## Task Steps
 

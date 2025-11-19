@@ -9,6 +9,7 @@
 #   Imports:
 #     - ../instructions/documentation.instructions.md
 #     - ../agents/technical-doc-writer.md
+#     - shared/mcp/serena.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -41,10 +42,16 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
+#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
+#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
+#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Glossary Maintainer"
 "on":
@@ -178,6 +185,24 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
+      - name: Verify uv
+        run: uv --version
+      - name: Install Go language service
+        run: go install golang.org/x/tools/gopls@latest
+      - name: Check gopls version
+        run: gopls version
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -897,6 +922,23 @@ jobs:
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
+              },
+              "serena": {
+                "type": "local",
+                "command": "uvx",
+                "tools": [
+                  "*"
+                ],
+                "args": [
+                  "--from",
+                  "git+https://github.com/oraios/serena",
+                  "serena",
+                  "start-mcp-server",
+                  "--context",
+                  "codex",
+                  "--project",
+                  "${{ github.workspace }}"
+                ]
               }
             }
           }
@@ -1277,6 +1319,12 @@ jobs:
           ---
           ```
           
+          ## Serena configuration
+          
+          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          
+          
+          
           # Glossary Maintainer
           
           You are an AI documentation agent that maintains the project glossary at `docs/src/content/docs/reference/glossary.md`.
@@ -1288,6 +1336,18 @@ jobs:
           2. Performing incremental updates daily (last 24 hours)
           3. Performing comprehensive full scan on Mondays (last 7 days)
           4. Adding new terms and updating definitions based on repository changes
+          
+          ## Available Tools
+          
+          You have access to the **Serena MCP server** for advanced semantic analysis and code understanding. Serena is configured with:
+          - **Active workspace**: ${GH_AW_EXPR_2D1CC6E7}
+          - **Memory location**: `/tmp/gh-aw/cache-memory/serena/`
+          
+          Use Serena to:
+          - Analyze code semantics to understand new terminology in context
+          - Identify technical concepts and their relationships
+          - Help generate clear, accurate definitions for technical terms
+          - Understand how terms are used across the codebase
           
           ## Task Steps
           
@@ -1414,6 +1474,13 @@ jobs:
           3. **Maintain alphabetical order** within each section
           
           4. **Use consistent formatting**:
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
              ```markdown
              ### Term Name
              Definition of the term. Additional explanation if needed. Example:
@@ -1441,13 +1508,6 @@ jobs:
           
           1. **Use safe-outputs create-pull-request** to create a PR
           2. **Include in the PR description**:
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
              - Whether this was an incremental (daily) or full (weekly) scan
              - List of terms added
              - List of terms updated
@@ -1675,6 +1735,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
         with:
           script: |
             const fs = require("fs");
@@ -1802,6 +1863,8 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
+        # --allow-tool serena
+        # --allow-tool serena(*)
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
@@ -1831,7 +1894,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --allow-domains '*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info \
-            "npx -y @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --agent technical-doc-writer --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find docs -name '\\''*.md'\\'')' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git log --since='\\''24 hours ago'\\'' --oneline)' --allow-tool 'shell(git log --since='\\''7 days ago'\\'' --oneline)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep -r '\\''*'\\'' docs)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.358 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --agent technical-doc-writer --allow-tool github --allow-tool safeoutputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find docs -name '\\''*.md'\\'')' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git log --since='\\''24 hours ago'\\'' --oneline)' --allow-tool 'shell(git log --since='\\''7 days ago'\\'' --oneline)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep -r '\\''*'\\'' docs)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
