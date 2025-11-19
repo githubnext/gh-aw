@@ -58,9 +58,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group:
+          - name: "CLI Compile & Poutine"
+            packages: "./pkg/cli"
+            pattern: "TestCompile|TestPoutine"
+          - name: "CLI MCP Playwright"
+            packages: "./pkg/cli"
+            pattern: "TestMCPInspectPlaywright"
+          - name: "CLI MCP Other"
+            packages: "./pkg/cli"
+            pattern: "TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig"
+          - name: "CLI Logs & Firewall"
+            packages: "./pkg/cli"
+            pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow"
+          - name: "Workflow"
+            packages: "./pkg/workflow ./cmd/gh-aw"
+            pattern: ""
     concurrency:
-      group: ci-${{ github.ref }}-integration
+      group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
+    name: "Integration: ${{ matrix.test-group.name }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -83,8 +103,13 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Run integration tests
-        run: go test -v -timeout=3m -tags 'integration' ./...
+      - name: Run integration tests - ${{ matrix.test-group.name }}
+        run: |
+          if [ -z "${{ matrix.test-group.pattern }}" ]; then
+            go test -v -timeout=3m -tags 'integration' ${{ matrix.test-group.packages }}
+          else
+            go test -v -timeout=3m -tags 'integration' -run '${{ matrix.test-group.pattern }}' ${{ matrix.test-group.packages }}
+          fi
 
   build:
     needs: [lint]
