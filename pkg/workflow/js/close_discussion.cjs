@@ -128,7 +128,9 @@ async function main() {
   const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
   const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
 
-  core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
+  core.info(
+    `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
+  );
 
   // Check if we're in a discussion context
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
@@ -141,7 +143,7 @@ async function main() {
     for (let i = 0; i < closeDiscussionItems.length; i++) {
       const item = closeDiscussionItems[i];
       summaryContent += `### Discussion ${i + 1}\n`;
-      
+
       const discussionNumber = item.discussion_number;
       if (discussionNumber) {
         const repoUrl = getRepositoryUrl();
@@ -150,13 +152,13 @@ async function main() {
       } else {
         summaryContent += `**Target:** Current discussion\n\n`;
       }
-      
+
       if (item.reason) {
         summaryContent += `**Reason:** ${item.reason}\n\n`;
       }
-      
+
       summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-      
+
       if (requiredLabels.length > 0) {
         summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
       }
@@ -166,7 +168,7 @@ async function main() {
       if (requiredCategory) {
         summaryContent += `**Required Category:** ${requiredCategory}\n\n`;
       }
-      
+
       summaryContent += "---\n\n";
     }
 
@@ -232,7 +234,7 @@ async function main() {
     try {
       // Fetch discussion details to check filters
       const discussion = await getDiscussionDetails(github, context.repo.owner, context.repo.repo, discussionNumber);
-      
+
       // Apply label filter
       if (requiredLabels.length > 0) {
         const discussionLabels = discussion.labels.nodes.map(l => l.name);
@@ -242,19 +244,19 @@ async function main() {
           continue;
         }
       }
-      
+
       // Apply title prefix filter
       if (requiredTitlePrefix && !discussion.title.startsWith(requiredTitlePrefix)) {
         core.info(`Discussion #${discussionNumber} does not have required title prefix: ${requiredTitlePrefix}`);
         continue;
       }
-      
+
       // Apply category filter
       if (requiredCategory && discussion.category.name !== requiredCategory) {
         core.info(`Discussion #${discussionNumber} is not in required category: ${requiredCategory}`);
         continue;
       }
-      
+
       // Extract body from the JSON item
       let body = item.body.trim();
 
@@ -271,15 +273,7 @@ async function main() {
       // Add fingerprint comment if present
       body += getTrackerID("markdown");
 
-      body += generateFooter(
-        workflowName,
-        runUrl,
-        workflowSource,
-        workflowSourceURL,
-        undefined,
-        undefined,
-        triggeringDiscussionNumber
-      );
+      body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
 
       core.info(`Adding comment to discussion #${discussionNumber}`);
       core.info(`Comment content length: ${body.length}`);

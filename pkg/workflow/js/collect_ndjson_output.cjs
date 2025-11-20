@@ -588,7 +588,7 @@ async function main() {
             continue;
           }
           item.body = sanitizeContent(item.body, maxBodyLength);
-          
+
           // Validate optional reason field
           if (item.reason !== undefined) {
             if (typeof item.reason !== "string") {
@@ -597,14 +597,12 @@ async function main() {
             }
             const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
             if (!allowedReasons.includes(item.reason.toUpperCase())) {
-              errors.push(
-                `Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`
-              );
+              errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
               continue;
             }
             item.reason = item.reason.toUpperCase();
           }
-          
+
           // Validate optional discussion_number field
           const discussionNumberValidation = validateOptionalPositiveInteger(
             item.discussion_number,

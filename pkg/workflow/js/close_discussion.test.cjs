@@ -58,7 +58,7 @@ describe("close_discussion", () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Reset environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_OUTPUT;
@@ -72,7 +72,7 @@ describe("close_discussion", () => {
     // Reset context to default state
     global.context.eventName = "discussion";
     global.context.payload.discussion = { number: 42 };
-    
+
     // Read the script content
     const scriptPath = path.join(process.cwd(), "close_discussion.cjs");
     closeDiscussionScript = fs.readFileSync(scriptPath, "utf8");
