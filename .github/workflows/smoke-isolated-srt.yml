@@ -65,6 +65,8 @@ jobs:
       - name: Test Copilot with SRT
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
         run: |
           set -e
@@ -127,7 +129,7 @@ jobs:
               "allowLocalBinding": false
             },
             "filesystem": {
-              "allowWrite": ["."]
+              "allowWrite": [".", "/home/runner/.copilot", "/tmp"]
             },
             "enableWeakerNestedSandbox": true
           }
@@ -154,6 +156,8 @@ jobs:
               // Environment variables to pass through
               const requiredEnvVars = [
                 'COPILOT_GITHUB_TOKEN',
+                'GH_TOKEN',
+                'GITHUB_TOKEN',
                 'COPILOT_AGENT_RUNNER_TYPE',
               ];
 
@@ -182,7 +186,7 @@ jobs:
               console.log(`Length: ${envPrefix.length} chars`);
 
               // Test command - check filesystem access and run copilot
-              const command = envPrefix + ' echo "=== Inside Sandbox ===" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\');" && echo "=== Current directory ===" && pwd && echo "=== Copilot binary exists? ===" && ls -la ./node_modules/.bin/copilot && echo "=== Running copilot ===" && node ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
+              const command = envPrefix + ' echo "=== Inside Sandbox ===" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees GH_TOKEN:\', process.env.GH_TOKEN ? \'YES [length \' + process.env.GH_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees GITHUB_TOKEN:\', process.env.GITHUB_TOKEN ? \'YES [length \' + process.env.GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\');" && echo "=== Current directory ===" && pwd && echo "=== Copilot binary exists? ===" && ls -la ./node_modules/.bin/copilot && echo "=== Running copilot ===" && node ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
 
               console.log('\n=== Command Length ===');
               console.log(`Total: ${command.length} chars`);

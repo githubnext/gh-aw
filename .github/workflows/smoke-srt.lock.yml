@@ -594,7 +594,9 @@ jobs:
             },
             "filesystem": {
               "allowWrite": [
-                "."
+                ".",
+                "/home/runner/.copilot",
+                "/tmp"
               ]
             },
             "enableWeakerNestedSandbox": true
