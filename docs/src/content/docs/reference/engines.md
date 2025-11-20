@@ -1,11 +1,15 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot and custom engines with their specific configuration options.
 sidebar:
   order: 600
 ---
 
 GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+
+:::note[Experimental Engines]
+Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
+:::
 
 ### GitHub Copilot CLI
 
@@ -195,7 +199,7 @@ All engines support custom error pattern recognition for enhanced log validation
 
 ```yaml wrap
 engine:
-  id: codex
+  id: copilot
   error_patterns:
     - pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)"
       level_group: 2

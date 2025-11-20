@@ -1043,12 +1043,12 @@ safe-outputs:
 **Error Message:**
 
 ```
-strict mode: engine 'claude' does not support firewall
+strict mode: engine does not support firewall
 ```
 
 **Cause:** The workflow specifies network restrictions but uses an engine that doesn't support network firewalling, and strict mode is enabled.
 
-**Solution:** Either use an engine with firewall support or remove network restrictions:
+**Solution:** Use an engine with firewall support or remove network restrictions:
 
 ```yaml wrap
 # Option 1: Use engine with firewall support
