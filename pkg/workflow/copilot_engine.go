@@ -379,9 +379,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	if isFirewallEnabled(workflowData) && workflowData.AgentFile != "" {
 		agentIdentifier := ExtractAgentIdentifier(workflowData.AgentFile)
 		copilotLog.Printf("Setting up custom agent for firewall mode: %s (identifier: %s)", workflowData.AgentFile, agentIdentifier)
-		
+
 		yaml.WriteString("          mkdir -p /home/runner/.copilot/agents\n")
-		yaml.WriteString(fmt.Sprintf("          cp \"/host${GITHUB_WORKSPACE}/%s\" \"/home/runner/.copilot/agents/%s.md\"\n", 
+		yaml.WriteString(fmt.Sprintf("          cp \"/host${GITHUB_WORKSPACE}/%s\" \"/home/runner/.copilot/agents/%s.md\"\n",
 			workflowData.AgentFile, agentIdentifier))
 		yaml.WriteString(fmt.Sprintf("          echo \"Copied agent file to /home/runner/.copilot/agents/%s.md\"\n", agentIdentifier))
 	}

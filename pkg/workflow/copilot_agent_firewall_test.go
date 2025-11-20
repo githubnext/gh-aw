@@ -11,38 +11,38 @@ import (
 // the agent file is copied to the location where Copilot CLI expects to find it.
 func TestCopilotAgentFileWithFirewall(t *testing.T) {
 	tests := []struct {
-		name             string
-		firewallEnabled  bool
-		agentFile        string
-		expectAgentCopy  bool
+		name               string
+		firewallEnabled    bool
+		agentFile          string
+		expectAgentCopy    bool
 		expectedIdentifier string
 	}{
 		{
-			name:             "firewall enabled with custom agent",
-			firewallEnabled:  true,
-			agentFile:        ".github/agents/test-agent.md",
-			expectAgentCopy:  true,
+			name:               "firewall enabled with custom agent",
+			firewallEnabled:    true,
+			agentFile:          ".github/agents/test-agent.md",
+			expectAgentCopy:    true,
 			expectedIdentifier: "test-agent",
 		},
 		{
-			name:             "firewall enabled without custom agent",
-			firewallEnabled:  true,
-			agentFile:        "",
-			expectAgentCopy:  false,
+			name:               "firewall enabled without custom agent",
+			firewallEnabled:    true,
+			agentFile:          "",
+			expectAgentCopy:    false,
 			expectedIdentifier: "",
 		},
 		{
-			name:             "firewall disabled with custom agent",
-			firewallEnabled:  false,
-			agentFile:        ".github/agents/test-agent.md",
-			expectAgentCopy:  false,
+			name:               "firewall disabled with custom agent",
+			firewallEnabled:    false,
+			agentFile:          ".github/agents/test-agent.md",
+			expectAgentCopy:    false,
 			expectedIdentifier: "test-agent",
 		},
 		{
-			name:             "firewall disabled without custom agent",
-			firewallEnabled:  false,
-			agentFile:        "",
-			expectAgentCopy:  false,
+			name:               "firewall disabled without custom agent",
+			firewallEnabled:    false,
+			agentFile:          "",
+			expectAgentCopy:    false,
 			expectedIdentifier: "",
 		},
 	}
@@ -132,5 +132,3 @@ func TestCopilotAgentFilePathInFirewall(t *testing.T) {
 	assert.Contains(t, yamlContent, "/home/runner/.copilot/agents/my-custom-agent.md",
 		"Agent file should be copied to /home/runner/.copilot/agents/ with correct identifier")
 }
-
-

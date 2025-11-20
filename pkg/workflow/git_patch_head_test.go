@@ -102,15 +102,15 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 	// Now run the patch generation script
 	// The script creates the patch at /tmp/gh-aw/aw.patch
 	patchFile := "/tmp/gh-aw/aw.patch"
-	
+
 	// Ensure the /tmp/gh-aw directory exists
 	if err := os.MkdirAll("/tmp/gh-aw", 0755); err != nil {
 		t.Fatalf("Failed to create /tmp/gh-aw directory: %v", err)
 	}
-	
+
 	// Remove any existing patch file
 	os.Remove(patchFile)
-	
+
 	// Create a minimal safe-outputs file (empty - no branch name)
 	safeOutputsFile := filepath.Join(tmpDir, "safe-outputs.jsonl")
 	if err := os.WriteFile(safeOutputsFile, []byte(""), 0644); err != nil {
@@ -132,11 +132,11 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 		"DEFAULT_BRANCH=main",
 		"GITHUB_STEP_SUMMARY=/dev/null",
 	)
-	
+
 	// Capture the output for debugging
 	scriptOutput, err := cmd.CombinedOutput()
 	t.Logf("Script output:\n%s", scriptOutput)
-	
+
 	if err != nil {
 		t.Fatalf("Failed to run patch generation script: %v\nOutput: %s", err, scriptOutput)
 	}
@@ -182,7 +182,7 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 	if strings.HasPrefix(patchStr, "From ") {
 		commitCount++ // Count the first commit
 	}
-	
+
 	if commitCount != 2 {
 		t.Errorf("Expected 2 commits in patch, got %d", commitCount)
 	}
