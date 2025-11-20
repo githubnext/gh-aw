@@ -76,12 +76,12 @@ Examples:
 	}
 
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
-	cmd.Flags().Bool("force", false, "Force update even if no changes detected")
+	cmd.Flags().Bool("force", false, "Force update even if no changes are detected")
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
-	cmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
-	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the updated workflow")
-	cmd.Flags().String("stop-after", "", "Override stop-after value in the updated workflow (e.g., '+48h', '2025-12-31 23:59:59')")
+	cmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
+	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
+	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
 
 	return cmd

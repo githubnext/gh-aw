@@ -27,7 +27,7 @@ func NewStatusCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output status in JSON format")
+	cmd.Flags().Bool("json", false, "Output results in JSON format")
 
 	return cmd
 }

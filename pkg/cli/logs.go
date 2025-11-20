@@ -452,18 +452,18 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by agentic engine type (claude, codex, copilot)")
+	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by engine type (claude, codex, copilot)")
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
-	logsCmd.Flags().StringP("repo", "r", "", "Repository to download logs from (owner/repo format)")
+	logsCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
-	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
-	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
+	logsCmd.Flags().Bool("json", false, "Output results in JSON format")
+	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 
 	return logsCmd
 }
