@@ -10,9 +10,21 @@ sidebar:
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## Prerequisites
+## ✅ Prerequisites
 
-You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) for GitHub Copilot CLI.
+Before you begin, make sure you have:
+
+- [ ] **GitHub account** with access to a repository where you can:
+  - Push changes and add Actions secrets
+  - Enable GitHub Actions, Issues, and Discussions
+- [ ] **GitHub CLI (gh)** installed ([installation guide](https://cli.github.com))
+  - Verify: Run `gh --version` (requires v2.0.0 or higher)
+- [ ] **Repository permissions:** Admin or write access to your target repository
+- [ ] **Repository features enabled:** 
+  - GitHub Actions
+  - Issues or Discussions (depending on your workflow needs)
+- [ ] **Operating System:** Linux, macOS, or Windows with WSL
+- [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (you'll create this in Step 3 below)
 
 ### Step 1 — Install the extension
 
