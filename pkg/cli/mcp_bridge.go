@@ -62,8 +62,8 @@ Examples:
 	cmd.Flags().StringVarP(&command, "command", "c", "", "Command to run the stdio MCP server (required)")
 	cmd.Flags().StringSliceVarP(&args, "args", "a", []string{}, "Arguments for the stdio MCP server command (comma-separated)")
 
-	cmd.MarkFlagRequired("port")
-	cmd.MarkFlagRequired("command")
+	_ = cmd.MarkFlagRequired("port")
+	_ = cmd.MarkFlagRequired("command")
 
 	return cmd
 }
