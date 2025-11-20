@@ -8,6 +8,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+tracker-id: daily-code-metrics
 engine: claude
 tools:
   cache-memory:
