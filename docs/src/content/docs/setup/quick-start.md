@@ -34,6 +34,16 @@ gh aw add githubnext/agentics/daily-team-status --pr
 
 This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
+#### Why Compile?
+
+The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
+
+Think of it like: **Markdown** (what you write) → **YAML** (what Actions runs)
+
+:::note
+The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and recompile whenever you make changes.
+:::
+
 ### Step 3 — Add an AI secret
 
 Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent): GitHub Copilot CLI (default).
