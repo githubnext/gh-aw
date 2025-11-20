@@ -66,6 +66,9 @@ jobs:
         run: |
           npm install @anthropic-ai/sandbox-runtime
 
+          # Pre-create required directories
+          mkdir -p /tmp/claude
+
           cat > .srt-test-config.json << 'EOF'
           {
             "network": {
@@ -76,7 +79,7 @@ jobs:
             },
             "filesystem": {
               "denyRead": [],
-              "allowWrite": [".", "/tmp", "/home", "/home/runner", "/var", "/usr", "/opt"],
+              "allowWrite": ["/"],
               "denyWrite": []
             },
             "enableWeakerNestedSandbox": true
@@ -319,8 +322,9 @@ jobs:
         run: |
           set -e
 
-          # Pre-create copilot directory for auth cache
+          # Pre-create required directories
           mkdir -p /home/runner/.copilot
+          mkdir -p /tmp/claude
 
           # Create minimal SRT config
           cat > .srt-settings.json << 'EOF'
@@ -402,7 +406,7 @@ jobs:
             },
             "filesystem": {
               "denyRead": [],
-              "allowWrite": [".", "/home", "/home/runner", "/home/runner/.copilot", "/tmp", "/var", "/usr", "/opt"],
+              "allowWrite": ["/"],
               "denyWrite": []
             },
             "enableWeakerNestedSandbox": true
