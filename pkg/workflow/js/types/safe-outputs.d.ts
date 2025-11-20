@@ -40,6 +40,19 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for closing a GitHub discussion
+ */
+interface CloseDiscussionItem extends BaseSafeOutputItem {
+  type: "close_discussion";
+  /** Comment body to add when closing the discussion */
+  body: string;
+  /** Optional resolution reason */
+  reason?: "RESOLVED" | "DUPLICATE" | "OUTDATED" | "ANSWERED";
+  /** Optional discussion number (uses triggering discussion if not provided) */
+  discussion_number?: number | string;
+}
+
+/**
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
@@ -197,6 +210,7 @@ interface NoOpItem extends BaseSafeOutputItem {
 type SafeOutputItem =
   | CreateIssueItem
   | CreateDiscussionItem
+  | CloseDiscussionItem
   | AddCommentItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
@@ -223,6 +237,7 @@ export {
   BaseSafeOutputItem,
   CreateIssueItem,
   CreateDiscussionItem,
+  CloseDiscussionItem,
   AddCommentItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
