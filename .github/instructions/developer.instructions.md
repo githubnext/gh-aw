@@ -247,6 +247,114 @@ Split tests by scenario rather than having one massive test file.
 #### Premature Abstraction
 Wait until you have 2-3 use cases before extracting common patterns.
 
+### Helper File Conventions
+
+Helper files contain shared utility functions used across multiple modules. Follow these guidelines when creating or modifying helper files.
+
+#### When to Create Helper Files
+
+Create a helper file when you have:
+1. **Shared utilities** used by 3+ files in the same domain
+2. **Clear domain focus** (e.g., configuration parsing, MCP rendering, CLI wrapping)
+3. **Stable functionality** that won't change frequently
+
+**Examples of Good Helper Files:**
+- `github_cli.go` - GitHub CLI wrapping functions (ExecGH, ExecGHWithOutput)
+- `config_helpers.go` - Safe output configuration parsing (parseLabelsFromConfig, parseTitlePrefixFromConfig)
+- `map_helpers.go` - Generic map/type utilities (parseIntValue, filterMapKeys)
+- `mcp_renderer.go` - MCP configuration rendering (RenderGitHubMCPDockerConfig, RenderJSONMCPConfig)
+
+#### Naming Conventions
+
+Helper file names should be **specific and descriptive**, not generic:
+
+**Good Names:**
+- `github_cli.go` - Indicates GitHub CLI helpers
+- `mcp_renderer.go` - Indicates MCP rendering helpers
+- `config_helpers.go` - Indicates configuration parsing helpers
+
+**Avoid:**
+- `helpers.go` - Too generic
+- `utils.go` - Too vague
+- `misc.go` - Indicates poor organization
+- `common.go` - Doesn't specify domain
+
+#### What Belongs in Helper Files
+
+**Include:**
+- Small (< 50 lines) utility functions used by multiple files
+- Domain-specific parsing/validation functions
+- Wrapper functions that simplify common operations
+- Type conversion utilities
+
+**Exclude:**
+- Complex business logic (belongs in domain-specific files)
+- Functions used by only 1-2 callers (co-locate with callers)
+- Large functions (> 100 lines) - consider dedicated files
+- Multiple unrelated domains in one file
+
+#### Helper File Organization
+
+**Current Helper Files in pkg/workflow:**
+
+| File | Purpose | Functions | Usage |
+|------|---------|-----------|-------|
+| `github_cli.go` | GitHub CLI wrapper | 2 functions | Used by CLI commands and workflow resolution |
+| `config_helpers.go` | Safe output config parsing | 5 functions | Used by safe output processors |
+| `map_helpers.go` | Generic map/type utilities | 2 functions | Used across workflow compilation |
+| `prompt_step_helper.go` | Prompt step generation | 1 function | Used by prompt generators |
+| `mcp_renderer.go` | MCP config rendering | Multiple rendering functions | Used by all AI engines |
+| `engine_helpers.go` | Shared engine utilities | Agent, npm install helpers | Used by Copilot, Claude, Codex engines |
+
+#### When NOT to Create Helper Files
+
+Avoid creating helper files when:
+1. **Single caller** - Co-locate with the caller instead
+2. **Tight coupling** - Function is tightly coupled to one module
+3. **Frequent changes** - Helper files should be stable
+4. **Mixed concerns** - Multiple unrelated utilities (split into focused files)
+
+**Example of co-location preference:**
+```go
+// Instead of: helpers.go containing formatStepName() used only by compiler.go
+// Do: Put formatStepName() directly in compiler.go
+```
+
+#### Refactoring Guidelines
+
+When refactoring helper files:
+1. **Group by domain** - MCP rendering → mcp_renderer.go, not engine_helpers.go
+2. **Keep functions small** - Large helpers (> 100 lines) may need dedicated files
+3. **Document usage** - Add comments explaining when to use each helper
+4. **Check call sites** - Ensure 3+ callers before keeping in helper file
+
+#### Example: MCP Function Reorganization
+
+The MCP rendering functions were moved from `engine_helpers.go` to `mcp_renderer.go` because:
+- **Domain focus**: All functions relate to MCP configuration rendering
+- **Multiple callers**: Used by Claude, Copilot, Codex, and Custom engines
+- **Cohesive**: Functions work together to render MCP configs
+- **Stable**: Rendering patterns don't change frequently
+
+**Before:**
+```
+engine_helpers.go (478 lines)
+  - Agent helpers
+  - npm install helpers
+  - MCP rendering functions ← Should be in mcp_renderer.go
+```
+
+**After:**
+```
+engine_helpers.go (213 lines)
+  - Agent helpers
+  - npm install helpers
+  
+mcp_renderer.go (523 lines)
+  - MCP rendering functions
+  - MCP configuration types
+```
+
 ### String Sanitization vs Normalization
 
 The codebase uses two distinct patterns for string processing with different purposes.
