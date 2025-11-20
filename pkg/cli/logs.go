@@ -716,6 +716,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				MissingTools:     result.MissingTools,
 				Noops:            result.Noops,
 				MCPFailures:      result.MCPFailures,
+				JobDetails:       result.JobDetails,
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
@@ -897,6 +898,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					MissingTools:     summary.MissingTools,
 					Noops:            summary.Noops,
 					MCPFailures:      summary.MCPFailures,
+					JobDetails:       summary.JobDetails,
 					LogsPath:         runOutputDir,
 				}
 				return result
