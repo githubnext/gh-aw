@@ -851,9 +851,11 @@ network:
     args: []
       # Array of strings
 
-    # AWF version to use (empty = latest release)
+    # AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0',
+    # 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted
+    # to strings at runtime.
     # (optional)
-    version: "example-value"
+    version: null
 
     # AWF log level (default: info). Valid values: debug, info, warn, error
     # (optional)
@@ -892,30 +894,31 @@ post-steps: []
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Simple engine name: 'copilot' (GitHub Copilot CLI, recommended) or
-# 'custom' (user-defined steps). Note: 'claude' and 'codex' are available but
-# experimental.
-engine: "copilot"
+# Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
+# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)
+engine: "claude"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined
-  # GitHub Actions steps). Note: 'claude' and 'codex' are available but experimental.
-  id: "copilot"
+  # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
+  # 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)
+  id: "claude"
 
-  # Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible
-  # defaults and can typically be omitted.
+  # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
+  # sensible defaults and can typically be omitted. Numeric values are automatically
+  # converted to strings at runtime.
   # (optional)
-  version: "example-value"
+  version: null
 
-  # Optional specific LLM model to use (e.g., 'gpt-5', 'claude-sonnet-4'). Has
-  # sensible defaults and can typically be omitted.
+  # Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022',
+  # 'gpt-4'). Has sensible defaults and can typically be omitted.
   # (optional)
   model: "example-value"
 
   # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted.
+  # control costs. Has sensible defaults and can typically be omitted. Note: Only
+  # supported by the claude engine.
   # (optional)
   max-turns: 1
 
@@ -941,6 +944,10 @@ engine:
     # false for agentic workflow runs.
     # (optional)
     cancel-in-progress: true
+
+  # Custom user agent string for GitHub MCP server configuration (codex engine only)
+  # (optional)
+  user-agent: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
@@ -978,6 +985,11 @@ engine:
       # Human-readable description of what this pattern matches
       # (optional)
       description: "Description of the workflow"
+
+  # Additional TOML configuration text that will be appended to the generated
+  # config.toml in the action (codex engine only)
+  # (optional)
+  config: "example-value"
 
   # Optional array of command-line arguments to pass to the AI engine CLI. These
   # arguments are injected after all other args but before the prompt.
@@ -1020,9 +1032,10 @@ tools:
     mode: "local"
 
     # Optional version specification for the GitHub MCP server (used with 'local'
-    # type)
+    # type). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11).
+    # Numeric values are automatically converted to strings at runtime.
     # (optional)
-    version: "example-value"
+    version: null
 
     # Optional additional arguments to append to the generated MCP server command
     # (used with 'local' type)
@@ -1109,9 +1122,10 @@ tools:
   # Option 2: Playwright tool configuration with custom version and domain
   # restrictions
   playwright:
-    # Optional Playwright container version (e.g., 'v1.41.0')
+    # Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric
+    # values are automatically converted to strings at runtime.
     # (optional)
-    version: "example-value"
+    version: null
 
     # Domains allowed for Playwright browser network access. Defaults to localhost
     # only for security.
@@ -1358,18 +1372,13 @@ safe-outputs:
     # (optional)
     title-prefix: "example-value"
 
-    # Optional discussion category. Can be a category ID (string or number), category
-    # name, or category slug/route. If not specified, uses the first available
-    # category. Matched first against category IDs, then against category names, then
-    # against category slugs.
+    # Optional discussion category. Can be a category ID (string or numeric value),
+    # category name, or category slug/route. If not specified, uses the first
+    # available category. Matched first against category IDs, then against category
+    # names, then against category slugs. Numeric values are automatically converted
+    # to strings at runtime.
     # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Discussion category name or ID
-    category: "example-value"
-
-    # Option 2: Discussion category ID as a number
-    category: 1
+    category: null
 
     # Maximum number of discussions to create (default: 1)
     # (optional)
@@ -1560,6 +1569,35 @@ safe-outputs:
 
     # Target repository in format 'owner/repo' for cross-repository label addition.
     # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null configuration allows assigning any milestones
+  assign-milestone: null
+
+  # Option 2: Configuration for assigning issues to milestones from agentic workflow
+  # output
+  assign-milestone:
+    # Optional list of allowed milestone titles that can be assigned. If omitted, any
+    # milestones are allowed.
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Optional maximum number of milestone assignments (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository milestone
+    # assignment. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
 
