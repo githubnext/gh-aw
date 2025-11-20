@@ -26,293 +26,24 @@ jobs:
 
       - name: Install Sandbox Runtime System Dependencies
         run: |
-          echo "Installing system dependencies for Sandbox Runtime"
           sudo apt-get update
           sudo apt-get install -y ripgrep bubblewrap socat
-          echo "System dependencies installed successfully"
-          echo "Verifying installations:"
-          rg --version
-          bwrap --version
-          socat -V
 
       - name: Configure System
         run: |
-          echo "Disabling AppArmor namespace restrictions for bubblewrap"
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Install Sandbox Runtime
+      - name: Install Dependencies
         run: |
-          echo "Installing @anthropic-ai/sandbox-runtime"
           npm install @anthropic-ai/sandbox-runtime
-
-      - name: Install GitHub Copilot CLI
-        run: npm install @github/copilot@0.0.358
+          npm install @github/copilot@0.0.358
 
       - name: Test Copilot (without SRT)
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
         run: |
-          echo "=== Testing Copilot directly (no sandbox) ==="
-          echo "COPILOT_GITHUB_TOKEN length: ${#COPILOT_GITHUB_TOKEN}"
-          echo "COPILOT_AGENT_RUNNER_TYPE: $COPILOT_AGENT_RUNNER_TYPE"
-          echo ""
-          echo "Running: ./node_modules/.bin/copilot -p \"what's on example.com\" --allow-all-tools"
           ./node_modules/.bin/copilot -p "what's on example.com" --allow-all-tools
-          echo ""
-          echo "✓ Copilot authentication works without SRT"
-
-      - name: SRT Diagnostic 1 - Basic Environment Check
-        run: |
-          npm install @anthropic-ai/sandbox-runtime
-
-          # Pre-create required directories
-          mkdir -p /tmp/claude
-
-          cat > .srt-test-config.json << 'EOF'
-          {
-            "network": {
-              "allowedDomains": ["*"],
-              "deniedDomains": [],
-              "allowLocalBinding": true,
-              "allowAllUnixSockets": true
-            },
-            "filesystem": {
-              "denyRead": [],
-              "allowWrite": ["/"],
-              "denyWrite": []
-            },
-            "enableWeakerNestedSandbox": true
-          }
-          EOF
-
-          cat > .srt-diagnostic-1.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const testCmd = 'echo "===Test 1: Basic Env===" && echo "PWD: $(pwd)" && echo "USER: $(whoami)" && echo "PATH: $PATH" && env | grep -E "(HOME|USER|PWD)" | head -10';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit' });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-1.js
-
-      - name: SRT Diagnostic 2 - DNS Resolution
-        run: |
-          cat > .srt-diagnostic-2.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const testCmd = 'echo "===Test 2: DNS Resolution===" && nslookup api.github.com 2>&1 || echo "nslookup FAILED" && echo "" && nslookup api.enterprise.githubcopilot.com 2>&1 || echo "nslookup FAILED"';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit' });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-2.js
-
-      - name: SRT Diagnostic 3 - Network Connectivity
-        run: |
-          cat > .srt-diagnostic-3.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const testCmd = 'echo "===Test 3: Network Connectivity===" && curl -v --max-time 10 https://api.github.com/zen 2>&1 | head -30 || echo "CURL api.github.com FAILED" && echo "" && curl -v --max-time 10 https://api.enterprise.githubcopilot.com 2>&1 | head -30 || echo "CURL copilot API FAILED"';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit' });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-3.js
-
-      - name: SRT Diagnostic 4 - SSL Certificates
-        run: |
-          cat > .srt-diagnostic-4.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const testCmd = 'echo "===Test 4: SSL Certificates===" && ls -la /etc/ssl/certs/ 2>&1 | head -20 || echo "Cannot access /etc/ssl/certs/" && echo "" && echo "CA Bundle:" && ls -la /etc/ssl/certs/ca-certificates.crt || echo "ca-certificates.crt NOT FOUND"';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit' });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-4.js
-
-      - name: SRT Diagnostic 5 - GitHub API with Token
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
-        run: |
-          cat > .srt-diagnostic-5.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const token = process.env.COPILOT_GITHUB_TOKEN;
-            const testCmd = `echo "===Test 5: GitHub API Auth===" && echo "Token length: ${token.length}" && curl -H "Authorization: Bearer ${token}" https://api.github.com/user 2>&1 | head -50 || echo "GitHub API call FAILED"`;
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit', env: process.env });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-5.js
-
-      - name: SRT Diagnostic 6 - Copilot with Strace
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          XDG_CONFIG_HOME: /home/runner
-        run: |
-          mkdir -p /home/runner/.copilot
-
-          cat > .srt-diagnostic-6.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const envVars = ['COPILOT_GITHUB_TOKEN', 'COPILOT_AGENT_RUNNER_TYPE', 'XDG_CONFIG_HOME'];
-            const exports = envVars.filter(k => process.env[k]).map(k => {
-              const val = process.env[k].replace(/'/g, "'\\''");
-              return `export ${k}='${val}';`;
-            }).join(' ');
-
-            const testCmd = exports + ' echo "===Test 6: Copilot Strace===" && strace -f -e trace=openat,connect,socket,access node ./node_modules/.bin/copilot --version 2>&1 | grep -E "(openat|connect|socket|copilot|EACCES|EPERM|ENOENT)" | head -100';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit', env: process.env });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-6.js
-
-      - name: SRT Diagnostic 7 - gh CLI Auth Test
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
-        run: |
-          cat > .srt-diagnostic-7.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const token = process.env.COPILOT_GITHUB_TOKEN;
-            const testCmd = `echo "===Test 7: gh CLI Auth===" && echo "${token}" | gh auth login --with-token 2>&1 && gh auth status 2>&1 || echo "gh auth FAILED"`;
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit', env: process.env });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-7.js
-
-      - name: SRT Diagnostic 8 - File Access Patterns
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          XDG_CONFIG_HOME: /home/runner
-        run: |
-          mkdir -p /home/runner/.copilot
-
-          cat > .srt-diagnostic-8.js << 'EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            const config = JSON.parse(readFileSync('.srt-test-config.json', 'utf-8'));
-            await SandboxManager.initialize(config);
-
-            const envVars = ['COPILOT_GITHUB_TOKEN', 'COPILOT_AGENT_RUNNER_TYPE', 'XDG_CONFIG_HOME'];
-            const exports = envVars.filter(k => process.env[k]).map(k => {
-              const val = process.env[k].replace(/'/g, "'\\''");
-              return `export ${k}='${val}';`;
-            }).join(' ');
-
-            const testCmd = exports + ' echo "===Test 8: File Access===" && strace -e openat,access,stat node ./node_modules/.bin/copilot --version 2>&1 | grep -E "(/home/runner|/root|/.config|/.copilot|EACCES|ENOENT)" | head -100 || echo "strace completed"';
-            const sandboxed = await SandboxManager.wrapWithSandbox(testCmd);
-
-            const child = spawn(sandboxed, { shell: true, stdio: 'inherit', env: process.env });
-            child.on('exit', async (code) => {
-              await SandboxManager.reset();
-              process.exit(code || 0);
-            });
-          }
-          main();
-          EOF
-
-          node .srt-diagnostic-8.js
 
       - name: Test Copilot with SRT
         env:
@@ -326,7 +57,7 @@ jobs:
           mkdir -p /home/runner/.copilot
           mkdir -p /tmp/claude
 
-          # Create minimal SRT config
+          # Create SRT config
           cat > .srt-settings.json << 'EOF'
           {
             "network": {
@@ -406,120 +137,56 @@ jobs:
             },
             "filesystem": {
               "denyRead": [],
-              "allowWrite": ["/"],
+              "allowWrite": [
+                ".",
+                "/tmp",
+                "/home/runner/.copilot",
+                "/home/runner"
+              ],
               "denyWrite": []
             },
             "enableWeakerNestedSandbox": true
           }
           EOF
 
-          echo "=== SRT Config ==="
-          cat .srt-settings.json
-
           # Create SRT wrapper
-          cat > ./.srt-wrapper.js << 'EOF'
+          cat > .srt-wrapper.js << 'EOF'
           const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
           const { spawn } = require('child_process');
           const { readFileSync } = require('fs');
 
           async function main() {
             try {
-              const configData = readFileSync('.srt-settings.json', 'utf-8');
-              const config = JSON.parse(configData);
-
-              console.log('=== Initializing Sandbox Runtime ===');
+              const config = JSON.parse(readFileSync('.srt-settings.json', 'utf-8'));
               await SandboxManager.initialize(config);
-              console.log('Sandbox Runtime initialized');
 
-              // Environment variables to pass through
-              const requiredEnvVars = [
-                'COPILOT_GITHUB_TOKEN',
-                'COPILOT_AGENT_RUNNER_TYPE',
-                'XDG_CONFIG_HOME',
-              ];
+              const envVars = ['COPILOT_GITHUB_TOKEN', 'COPILOT_AGENT_RUNNER_TYPE', 'XDG_CONFIG_HOME'];
+              const envPrefix = envVars
+                .filter(k => process.env[k])
+                .map(k => `export ${k}='${process.env[k].replace(/'/g, "'\\''")}'`)
+                .join('; ') + '; ';
 
-              console.log('\n=== Environment Variables in Node.js ===');
-              requiredEnvVars.forEach(key => {
-                if (process.env[key] !== undefined) {
-                  const displayValue = key.includes('TOKEN') ?
-                    `[${process.env[key].length} chars]` :
-                    process.env[key];
-                  console.log(`  ${key}=${displayValue}`);
-                } else {
-                  console.log(`  ${key}=<not set>`);
-                }
-              });
-
-              // Build export statements AND also test the env vars are in process.env
-              const envPrefix = requiredEnvVars
-                .filter(key => process.env[key] !== undefined)
-                .map(key => {
-                  const value = process.env[key].replace(/'/g, "'\\''");
-                  return `export ${key}='${value}';`;
-                })
-                .join(' ');
-
-              console.log('\n=== Export Prefix ===');
-              console.log(`Length: ${envPrefix.length} chars`);
-
-              // Test command - check filesystem access and run copilot
-              const command = envPrefix + ' echo "=== Inside Sandbox ===" && echo "XDG_CONFIG_HOME=$XDG_CONFIG_HOME" && echo "HOME=$HOME" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\'); console.log(\'Node.js sees XDG_CONFIG_HOME:\', process.env.XDG_CONFIG_HOME || \'NO\');" && echo "=== Current directory ===" && pwd && echo "=== Copilot directory check ===" && ls -la /home/runner/.copilot || echo "Directory does not exist" && echo "=== Copilot binary exists? ===" && ls -la ./node_modules/.bin/copilot && echo "=== Running copilot ===" && node ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
-
-              console.log('\n=== Command Length ===');
-              console.log(`Total: ${command.length} chars`);
-
-              // Wrap with sandbox
+              const command = envPrefix + 'node ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
               const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
 
-              console.log('\n=== Sandboxed Command ===');
-              console.log(sandboxedCommand);
-
-              console.log('\n=== Executing Command ===');
-
-              // Build environment for the sandboxed process
-              // Pass all required env vars directly through spawn's env option
-              const sandboxEnv = { ...process.env };
-              requiredEnvVars.forEach(key => {
-                if (process.env[key] !== undefined) {
-                  sandboxEnv[key] = process.env[key];
-                }
-              });
-
-              console.log('\n=== Environment passed to spawn ===');
-              requiredEnvVars.forEach(key => {
-                if (sandboxEnv[key] !== undefined) {
-                  const displayValue = key.includes('TOKEN') ?
-                    `[${sandboxEnv[key].length} chars]` :
-                    sandboxEnv[key];
-                  console.log(`  ${key}=${displayValue}`);
-                }
-              });
-
-              // Execute
               const child = spawn(sandboxedCommand, {
                 shell: true,
                 stdio: 'inherit',
-                env: sandboxEnv
+                env: process.env
               });
 
               child.on('exit', async (code) => {
-                console.log(`\n=== Command exited with code ${code} ===`);
                 await SandboxManager.reset();
                 process.exit(code || 0);
               });
 
               child.on('error', async (err) => {
-                console.error('\n=== Error executing command ===', err);
+                console.error('Error:', err);
                 await SandboxManager.reset();
                 process.exit(1);
               });
             } catch (err) {
-              console.error('\n=== Fatal error ===', err);
-              try {
-                await SandboxManager.reset();
-              } catch (cleanupErr) {
-                console.error('Error during cleanup:', cleanupErr);
-              }
+              console.error('Fatal error:', err);
               process.exit(1);
             }
           }
@@ -527,6 +194,4 @@ jobs:
           main();
           EOF
 
-          echo ""
-          echo "=== Running SRT Wrapper ==="
-          node ./.srt-wrapper.js
+          node .srt-wrapper.js
