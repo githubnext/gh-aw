@@ -170,6 +170,19 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for assigning a GitHub Copilot agent to an issue or project item
+ */
+interface AssignToAgentItem extends BaseSafeOutputItem {
+  type: "assign_to_agent";
+  /** Issue number to assign agent to */
+  issue_number: number | string;
+  /** Agent name or slug (defaults to 'copilot' if not provided) */
+  agent?: string;
+  /** Optional project item ID for project-specific assignments */
+  project_item_id?: string;
+}
+
+/**
  * JSONL item for updating a release
  */
 interface UpdateReleaseItem extends BaseSafeOutputItem {
@@ -207,6 +220,7 @@ type SafeOutputItem =
   | MissingToolItem
   | UploadAssetItem
   | AssignMilestoneItem
+  | AssignToAgentItem
   | UpdateReleaseItem
   | NoOpItem;
 
@@ -233,6 +247,7 @@ export {
   MissingToolItem,
   UploadAssetItem,
   AssignMilestoneItem,
+  AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,
   SafeOutputItem,

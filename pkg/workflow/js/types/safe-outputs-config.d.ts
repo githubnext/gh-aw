@@ -101,6 +101,15 @@ interface AssignMilestoneConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for assigning agents to issues
+ */
+interface AssignToAgentConfig extends SafeOutputConfig {
+  "default-agent"?: string;
+  target?: string;
+  "target-repo"?: string;
+}
+
+/**
  * Configuration for updating releases
  */
 interface UpdateReleaseConfig extends SafeOutputConfig {
@@ -167,6 +176,7 @@ type SpecificSafeOutputConfig =
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | AssignMilestoneConfig
+  | AssignToAgentConfig
   | UpdateReleaseConfig
   | NoOpConfig
   | MissingToolConfig
@@ -189,6 +199,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   AssignMilestoneConfig,
+  AssignToAgentConfig,
   UpdateReleaseConfig,
   NoOpConfig,
   MissingToolConfig,

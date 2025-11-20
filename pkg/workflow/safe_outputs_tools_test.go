@@ -275,6 +275,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"create_code_scanning_alert",
 		"add_labels",
 		"assign_milestone",
+		"assign_to_agent",
 		"update_issue",
 		"push_to_pull_request_branch",
 		"upload_asset",

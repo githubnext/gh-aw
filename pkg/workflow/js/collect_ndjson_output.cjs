@@ -25,6 +25,8 @@ async function main() {
         return 5;
       case "assign_milestone":
         return 1;
+      case "assign_to_agent":
+        return 1;
       case "update_issue":
         return 1;
       case "push_to_pull_request_branch":
@@ -498,6 +500,32 @@ async function main() {
           if (!milestoneValidation.isValid) {
             if (milestoneValidation.error) errors.push(milestoneValidation.error);
             continue;
+          }
+          break;
+        case "assign_to_agent":
+          // Validate issue_number (required)
+          const assignToAgentIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_to_agent 'issue_number'", i + 1);
+          if (!assignToAgentIssueValidation.isValid) {
+            if (assignToAgentIssueValidation.error) errors.push(assignToAgentIssueValidation.error);
+            continue;
+          }
+
+          // Validate agent (optional string)
+          if (item.agent !== undefined) {
+            if (typeof item.agent !== "string") {
+              errors.push(`Line ${i + 1}: assign_to_agent 'agent' must be a string`);
+              continue;
+            }
+            item.agent = sanitizeContent(item.agent, 128);
+          }
+
+          // Validate project_item_id (optional string)
+          if (item.project_item_id !== undefined) {
+            if (typeof item.project_item_id !== "string") {
+              errors.push(`Line ${i + 1}: assign_to_agent 'project_item_id' must be a string`);
+              continue;
+            }
+            item.project_item_id = sanitizeContent(item.project_item_id, 128);
           }
           break;
         case "push_to_pull_request_branch":

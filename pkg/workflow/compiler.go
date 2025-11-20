@@ -260,6 +260,7 @@ type SafeOutputsConfig struct {
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
+	AssignToAgent                   *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
