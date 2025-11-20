@@ -19,6 +19,7 @@ tools:
 safe-outputs:
   close-discussion:
     max: 1
+    target: "*"
   threat-detection:
     engine: false
     steps:
