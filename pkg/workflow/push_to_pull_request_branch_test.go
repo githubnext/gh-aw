@@ -66,6 +66,15 @@ Please make changes and push them to the feature branch.
 	if !strings.Contains(lockContentStr, "contents: write") {
 		t.Errorf("Generated workflow should have contents: write permission")
 	}
+	if !strings.Contains(lockContentStr, "issues: write") {
+		t.Errorf("Generated workflow should have issues: write permission")
+	}
+	if !strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Generated workflow should have pull-requests: write permission")
+	}
+	if !strings.Contains(lockContentStr, "discussions: write") {
+		t.Errorf("Generated workflow should have discussions: write permission")
+	}
 
 	// Verify that the job depends on the main workflow job
 	if !strings.Contains(lockContentStr, "needs: agent") {

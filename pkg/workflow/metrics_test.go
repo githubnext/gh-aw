@@ -953,69 +953,69 @@ func TestFinalizeToolCallsAndSequence(t *testing.T) {
 // TestConvertToIntTruncation tests float truncation scenarios in ConvertToInt
 func TestConvertToIntTruncation(t *testing.T) {
 	tests := []struct {
-		name          string
-		val           float64
-		expected      int
+		name           string
+		val            float64
+		expected       int
 		shouldTruncate bool
 	}{
 		{
-			name:          "clean conversion - no truncation",
-			val:           60.0,
-			expected:      60,
+			name:           "clean conversion - no truncation",
+			val:            60.0,
+			expected:       60,
 			shouldTruncate: false,
 		},
 		{
-			name:          "truncation required - 60.5",
-			val:           60.5,
-			expected:      60,
+			name:           "truncation required - 60.5",
+			val:            60.5,
+			expected:       60,
 			shouldTruncate: true,
 		},
 		{
-			name:          "truncation required - 60.7",
-			val:           60.7,
-			expected:      60,
+			name:           "truncation required - 60.7",
+			val:            60.7,
+			expected:       60,
 			shouldTruncate: true,
 		},
 		{
-			name:          "clean conversion - 100.0",
-			val:           100.0,
-			expected:      100,
+			name:           "clean conversion - 100.0",
+			val:            100.0,
+			expected:       100,
 			shouldTruncate: false,
 		},
 		{
-			name:          "truncation required - 123.99",
-			val:           123.99,
-			expected:      123,
+			name:           "truncation required - 123.99",
+			val:            123.99,
+			expected:       123,
 			shouldTruncate: true,
 		},
 		{
-			name:          "truncation required - negative with fraction",
-			val:           -5.5,
-			expected:      -5,
+			name:           "truncation required - negative with fraction",
+			val:            -5.5,
+			expected:       -5,
 			shouldTruncate: true,
 		},
 		{
-			name:          "clean conversion - negative integer",
-			val:           -10.0,
-			expected:      -10,
+			name:           "clean conversion - negative integer",
+			val:            -10.0,
+			expected:       -10,
 			shouldTruncate: false,
 		},
 		{
-			name:          "truncation required - small fraction",
-			val:           1.1,
-			expected:      1,
+			name:           "truncation required - small fraction",
+			val:            1.1,
+			expected:       1,
 			shouldTruncate: true,
 		},
 		{
-			name:          "clean conversion - zero",
-			val:           0.0,
-			expected:      0,
+			name:           "clean conversion - zero",
+			val:            0.0,
+			expected:       0,
 			shouldTruncate: false,
 		},
 		{
-			name:          "truncation required - 0.9",
-			val:           0.9,
-			expected:      0,
+			name:           "truncation required - 0.9",
+			val:            0.9,
+			expected:       0,
 			shouldTruncate: true,
 		},
 	}
@@ -1030,4 +1030,3 @@ func TestConvertToIntTruncation(t *testing.T) {
 		})
 	}
 }
-
