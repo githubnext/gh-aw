@@ -1184,13 +1184,13 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 	return customEnvVars
 }
 
-// buildWorkflowMetadataEnvVarsWithCampaign builds workflow metadata env vars including campaign
-func buildWorkflowMetadataEnvVarsWithCampaign(workflowName string, workflowSource string, campaign string) []string {
+// buildWorkflowMetadataEnvVarsWithTrackerID builds workflow metadata env vars including tracker-id
+func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSource string, trackerID string) []string {
 	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
 
-	// Add campaign if present
-	if campaign != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CAMPAIGN: %q\n", campaign))
+	// Add tracker-id if present
+	if trackerID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", trackerID))
 	}
 
 	return customEnvVars
@@ -1222,8 +1222,8 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
 	var customEnvVars []string
 
-	// Add workflow metadata (name, source, and campaign)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithCampaign(data.Name, data.Source, data.Campaign)...)
+	// Add workflow metadata (name, source, and tracker-id)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(

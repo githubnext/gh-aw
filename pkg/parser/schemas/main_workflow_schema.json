@@ -22,11 +22,11 @@
         "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
       ]
     },
-    "campaign": {
+    "tracker-id": {
       "type": "string",
       "minLength": 8,
       "pattern": "^[a-zA-Z0-9_-]+$",
-      "description": "Optional campaign identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
+      "description": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
       "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
     },
     "imports": {

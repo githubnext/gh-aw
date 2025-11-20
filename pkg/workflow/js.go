@@ -113,8 +113,8 @@ func getUpdateProjectScript() string {
 //go:embed js/generate_footer.cjs
 var generateFooterScript string
 
-//go:embed js/get_campaign.cjs
-var getCampaignScript string
+//go:embed js/get_tracker_id.cjs
+var getTrackerIDScript string
 
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
@@ -133,7 +133,7 @@ func GetJavaScriptSources() map[string]string {
 		"log_parser_shared.cjs":         logParserSharedScript,
 		"update_activation_comment.cjs": updateActivationCommentScript,
 		"generate_footer.cjs":           generateFooterScript,
-		"get_campaign.cjs":              getCampaignScript,
+		"get_tracker_id.cjs":            getTrackerIDScript,
 		"get_repository_url.cjs":        getRepositoryUrlScript,
 	}
 }

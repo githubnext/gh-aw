@@ -151,20 +151,20 @@ func TestErrorMessageQuality(t *testing.T) {
 			shouldNotBeVague: true,
 		},
 		{
-			name: "campaign type error shows actual type and example",
+			name: "tracker-id type error shows actual type and example",
 			testFunc: func() error {
 				c := NewCompiler(false, "", "")
 				frontmatter := map[string]any{
-					"campaign": 12345678, // Wrong type: integer instead of string
+					"tracker-id": 12345678, // Wrong type: integer instead of string
 				}
-				_, err := c.extractCampaign(frontmatter)
+				_, err := c.extractTrackerID(frontmatter)
 				return err
 			},
 			shouldContain: []string{
-				"campaign must be a string",
+				"tracker-id must be a string",
 				"got",
 				"Example:",
-				"campaign:",
+				"tracker-id:",
 			},
 			shouldNotBeVague: true,
 		},

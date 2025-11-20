@@ -9,7 +9,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-campaign: daily-repo-chronicle
+tracker-id: daily-repo-chronicle
 engine: copilot
 
 timeout-minutes: 45
