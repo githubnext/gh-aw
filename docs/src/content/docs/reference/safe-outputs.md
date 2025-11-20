@@ -30,6 +30,7 @@ This declares that the workflow should create at most one new issue.
 | **Update Issue** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
 | **Update Project** | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
 | **Add Labels** | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
+| **Assign Milestone** | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
 | **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
@@ -112,6 +113,18 @@ safe-outputs:
     max: 3                       # Optional: max labels (default: 3)
     target: "*"                  # Optional: "triggering" (default), "*", or number
     target-repo: "owner/repo"    # Optional: cross-repository
+```
+
+### Assign Milestone (`assign-milestone:`)
+
+Assigns issues to milestones. If `allowed` is specified, only those milestone titles are permitted.
+
+```yaml wrap
+safe-outputs:
+  assign-milestone:
+    allowed: [v1.0, v2.0]    # Optional: restrict to specific milestone titles
+    max: 1                   # Optional: max assignments (default: 1)
+    target-repo: "owner/repo" # Optional: cross-repository
 ```
 
 ### Issue Updates (`update-issue:`)
@@ -376,7 +389,6 @@ safe-outputs:
   # threat-detection:
   #   enabled: true
   #   prompt: "Focus on SQL injection"
-  #   engine: claude                  # Or object, or false for custom-only
   #   steps:                          # Custom security scanning steps
   #     - name: Run TruffleHog
   #       uses: trufflesecurity/trufflehog@main

@@ -87,6 +87,29 @@ describe("collect_ndjson_output.cjs", () => {
       }
     });
 
+    // Clean up safeoutputs directory to prevent test contamination
+    const safeOutputsDir = "/tmp/gh-aw/safeoutputs";
+    try {
+      if (fs.existsSync(safeOutputsDir)) {
+        // Remove all files in the directory
+        const files = fs.readdirSync(safeOutputsDir);
+        files.forEach(file => {
+          const filePath = path.join(safeOutputsDir, file);
+          const stat = fs.statSync(filePath);
+          if (stat.isDirectory()) {
+            // Recursively remove subdirectories
+            fs.rmSync(filePath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(filePath);
+          }
+        });
+        // Remove the directory itself
+        fs.rmdirSync(safeOutputsDir);
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
     // Clean up globals safely - don't delete console as vitest may still need it
     if (typeof global !== "undefined") {
       delete global.fs;
@@ -2428,6 +2451,32 @@ Line 3"}
       expect(parsedOutput.items[0].message).toBe("First message");
       expect(parsedOutput.items[1].message).toBe("Second message");
       expect(parsedOutput.items[2].message).toBe("Third message");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should validate assign_milestone with required fields", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "assign_milestone", "issue_number": 42, "milestone_number": 5}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"assign_milestone": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      // Item should be valid
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].issue_number).toBe(42);
+      expect(parsedOutput.items[0].milestone_number).toBe(5);
       expect(parsedOutput.errors).toHaveLength(0);
     });
   });

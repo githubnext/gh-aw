@@ -12,7 +12,7 @@ sidebar:
 
 ## Prerequisites
 
-You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a Personal Access Token (PAT) for GitHub Copilot CLI, or an Anthropic Claude or OpenAI API key. 
+You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a Personal Access Token (PAT) for GitHub Copilot CLI.
 
 ### Step 1 — Install the extension
 
@@ -36,7 +36,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Codex.
+Agentic workflows use a coding agent: GitHub Copilot CLI (default).
 
 **For GitHub Copilot CLI**, create a fine-grained Personal Access Token (PAT) with the "Copilot Requests" permission enabled:
 
@@ -57,8 +57,6 @@ Once this work is deployed, you will not need to create a token for Copilot CLI.
 :::
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
-
-**For Claude and Codex**, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 
 ### Step 4 — Trigger a workflow run
 

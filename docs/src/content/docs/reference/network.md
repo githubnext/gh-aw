@@ -16,7 +16,7 @@ If no `network:` permission is specified, it defaults to `network: defaults` whi
 ```yaml wrap
 # Default: basic infrastructure only
 engine:
-  id: claude
+  id: copilot
 network: defaults
 
 # Ecosystems + custom domains
@@ -65,10 +65,6 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 ## Implementation
 
 Network permissions are enforced differently depending on the AI engine:
-
-### Claude Engine
-
-The Claude engine uses hook-based enforcement via Claude Code's PreToolUse hooks to intercept network requests. This provides fine-grained control with minimal performance overhead (~10ms per request).
 
 ### Copilot Engine
 

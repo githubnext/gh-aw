@@ -1,13 +1,17 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot and custom engines with their specific configuration options.
 sidebar:
   order: 600
 ---
 
 GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
-### GitHub Copilot (Default)
+:::note[Experimental Engines]
+Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
+:::
+
+### GitHub Copilot CLI
 
 GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
 
@@ -44,7 +48,7 @@ engine:
 
 To use the Copilot engine, you need a fine-grained Personal Access Token with the "Copilot Requests" permission enabled:
 
-1. Visit https://github.com/settings/personal-access-tokens/new
+1. Visit <https://github.com/settings/personal-access-tokens/new>
 2. Under "Resource owner", select your user account (not an organization, see note below).
 3. Under "Repository access," select "Public repositories"
 4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
@@ -60,6 +64,7 @@ The legacy secret names `COPILOT_CLI_TOKEN`, `GH_AW_COPILOT_TOKEN`, and `GH_AW_G
 :::
 
 For GitHub Tools Remote Mode, also configure:
+
 ```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
@@ -141,95 +146,6 @@ Using `firewall: "disable"` with `network.allowed` domains will emit a warning i
 
 See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
 
-### Anthropic Claude Code
-
-Claude Code excels at reasoning, code analysis, and understanding complex contexts.
-
-```yaml wrap
-engine: claude
-```
-
-#### Extended Configuration
-
-```yaml wrap
-engine:
-  id: claude
-  version: beta
-  model: claude-3-5-sonnet-20241022
-  max-turns: 5
-  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
-  env:
-    AWS_REGION: us-west-2
-    DEBUG_MODE: "true"
-```
-
-#### Required Secrets
-
-- **`CLAUDE_CODE_OAUTH_TOKEN`** or **`ANTHROPIC_API_KEY`**: Authentication token for Claude Code. Both secrets are passed to the CLI if configured, and the CLI determines which to use (with `CLAUDE_CODE_OAUTH_TOKEN` taking precedence)
-- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions)
-
-Set secrets using (choose one):
-```bash wrap
-# Option 1: Using CLAUDE_CODE_OAUTH_TOKEN
-gh secret set CLAUDE_CODE_OAUTH_TOKEN -a actions --body "<your-claude-oauth-token>"
-
-# Option 2: Using ANTHROPIC_API_KEY
-gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
-
-# GitHub token (optional)
-gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
-```
-
-:::note[Tool Specification: `--allowed-tools` vs `--tools`]
-Claude Code CLI v2.0.31 introduced a simpler `--tools` flag for basic tool specification (e.g., `--tools "Bash,Edit,Read"`). However, gh-aw uses the more powerful `--allowed-tools` flag which supports:
-
-- **Specific bash commands**: `Bash(git:*)`, `Bash(ls)`
-- **MCP tool prefixes**: `mcp__github__get_issue`, `mcp__github__*`
-- **Path-specific access**: `Read(/tmp/gh-aw/cache-memory/*)`
-
-The `--tools` flag is too simplistic for gh-aw's fine-grained security and flexibility requirements. Tool permissions are automatically configured based on your workflow's `tools:` section.
-:::
-
-### OpenAI Codex
-
-OpenAI Codex CLI with MCP server support. Designed for code-focused tasks.
-
-```yaml wrap
-engine: codex
-```
-
-#### Extended Configuration
-
-```yaml wrap
-engine:
-  id: codex
-  model: gpt-4
-  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
-  user-agent: custom-workflow-name      # Optional: custom user agent for GitHub MCP
-  env:
-    CODEX_API_KEY: ${{ secrets.CODEX_API_KEY_CI }}
-  config: |
-    [custom_section]
-    key1 = "value1"
-    [server_settings]
-    timeout = 60
-```
-
-#### Codex-Specific Fields
-
-- **`user-agent`**: Custom user agent string for GitHub MCP server
-- **`config`**: Additional TOML configuration appended to generated config.toml
-- **`args`**: Custom command-line arguments (supported by all engines)
-
-#### Required Secrets
-
-- **`OPENAI_API_KEY`**: OpenAI API key
-
-Set secrets using:
-```bash wrap
-gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
-```
-
 ### Custom Engine
 
 Define custom GitHub Actions steps without AI interpretation for deterministic workflows.
@@ -258,7 +174,7 @@ All engines support custom environment variables through the `env` field:
 
 ```yaml wrap
 engine:
-  id: claude
+  id: copilot
   env:
     DEBUG_MODE: "true"
     AWS_REGION: us-west-2
@@ -283,7 +199,7 @@ All engines support custom error pattern recognition for enhanced log validation
 
 ```yaml wrap
 engine:
-  id: codex
+  id: copilot
   error_patterns:
     - pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)"
       level_group: 2

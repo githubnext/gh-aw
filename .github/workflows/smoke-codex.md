@@ -13,13 +13,42 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
+network:
+  allowed:
+    - defaults
+    - github
+    - playwright
 tools:
   github:
+  playwright:
+    allowed_domains:
+      - github.com
+  edit:
+  bash:
+    - "*"
 safe-outputs:
     staged: true
-    create-issue:
+    add-comment:
 timeout-minutes: 10
-strict: true
+strict: false
 ---
 
-Review the last 2 merged pull requests in the ${{ github.repository }} repository and post summary in an issue.
+# Smoke Test: Codex Engine Validation
+
+This smoke test validates Codex engine functionality by testing core capabilities:
+
+## Test Requirements
+
+1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
+2. **File Writing Testing**: Create a test file `/tmp/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)"
+3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+
+## Output
+
+Add a comment to the current pull request with:
+- Summary of the 2 merged PRs
+- File writing test result (success/failure)
+- Bash tool test result (file content verification)
+- Playwright test result (page title verification)
+- Overall smoke test status for **Codex engine**

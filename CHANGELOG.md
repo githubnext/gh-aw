@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.30.1 - 2025-11-20
+
+### Bug Fixes
+
+#### Update CLI tool versions to latest releases: Claude Code 2.0.44, GitHub MCP Server v0.21.0
+
+#### Add noop safe output for transparent workflow completion
+
+Agents need to emit human-visible artifacts even when no actions are required (e.g., "No issues found"). The noop safe output provides a fallback mechanism ensuring workflows never complete silently.
+
+#### Move noop processing step from separate job into conclusion job
+
+#### Update smoke test workflows to use add-comment and add comprehensive capability testing
+
+
 ## v0.30.0 - 2025-11-18
 
 ### Features

@@ -285,6 +285,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
 	}
 
+	// Build assign_milestone job if output.assign-milestone is configured
+	if data.SafeOutputs.AssignMilestone != nil {
+		assignMilestoneJob, err := c.buildAssignMilestoneJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build assign_milestone job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			assignMilestoneJob.Needs = append(assignMilestoneJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			assignMilestoneJob.If = AddDetectionSuccessCheck(assignMilestoneJob.If)
+		}
+		if err := c.jobManager.AddJob(assignMilestoneJob); err != nil {
+			return fmt.Errorf("failed to add assign_milestone job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, assignMilestoneJob.Name)
+	}
+
 	// Build update_issue job if output.update-issue is configured
 	if data.SafeOutputs.UpdateIssues != nil {
 		updateIssueJob, err := c.buildCreateOutputUpdateIssueJob(data, jobName)
@@ -644,6 +662,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
 		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
 		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
+	}
+
+	// Always declare comment_id and comment_repo outputs to avoid actionlint errors
+	// These will be empty if no reaction is configured, and the scripts handle empty values gracefully
+	// Use ${{ '' }} expression to ensure empty string type in YAML (not null)
+	if _, exists := outputs["comment_id"]; !exists {
+		outputs["comment_id"] = "${{ '' }}"
+	}
+	if _, exists := outputs["comment_repo"]; !exists {
+		outputs["comment_repo"] = "${{ '' }}"
 	}
 
 	// If no steps have been added, add a dummy step to make the job valid

@@ -149,7 +149,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-engine: claude
 tools:
   github:
     toolsets: [pull_requests]

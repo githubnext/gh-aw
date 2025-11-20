@@ -78,7 +78,7 @@
     "github/codeql-action/upload-sarif@v3": {
       "repo": "github/codeql-action/upload-sarif",
       "version": "v3",
-      "sha": "fb2a9d4376843ba94460a73c39ca9a98b33a12ac"
+      "sha": "901f0fdebfadabaa0664a07bd572cbd2ff90b07e"
     },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",

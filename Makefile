@@ -37,16 +37,37 @@ build-windows:
 # Test the code (runs both unit and integration tests)
 .PHONY: test
 test:
-	go test -v -timeout=3m -tags 'integration' ./...
+	go test -v -timeout=3m -tags 'integration' -run='^Test' ./...
 
 # Test unit tests only (excludes integration tests)
 .PHONY: test-unit
 test-unit:
-	go test -v -timeout=3m -tags '!integration' ./...
+	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
+
+# Test specific integration test groups (matching CI workflow)
+.PHONY: test-integration-compile
+test-integration-compile:
+	go test -v -timeout=3m -tags 'integration' -run 'TestCompile|TestPoutine' ./pkg/cli
+
+.PHONY: test-integration-mcp-playwright
+test-integration-mcp-playwright:
+	go test -v -timeout=3m -tags 'integration' -run 'TestMCPInspectPlaywright' ./pkg/cli
+
+.PHONY: test-integration-mcp-other
+test-integration-mcp-other:
+	go test -v -timeout=3m -tags 'integration' -run 'TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig' ./pkg/cli
+
+.PHONY: test-integration-logs
+test-integration-logs:
+	go test -v -timeout=3m -tags 'integration' -run 'TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow' ./pkg/cli
+
+.PHONY: test-integration-workflow
+test-integration-workflow:
+	go test -v -timeout=3m -tags 'integration' ./pkg/workflow ./cmd/gh-aw
 
 .PHONY: test-perf
 test-perf:
-	go test -v -count=1 -timeout=3m -tags 'integration' ./... | tee /tmp/gh-aw/test-output.log; \
+	go test -v -count=1 -timeout=3m -tags 'integration' -run='^Test' ./... | tee /tmp/gh-aw/test-output.log; \
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=== SLOWEST TESTS ==="; \

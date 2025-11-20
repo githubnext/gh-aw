@@ -23,6 +23,8 @@ async function main() {
         return 1;
       case "add_labels":
         return 5;
+      case "assign_milestone":
+        return 1;
       case "update_issue":
         return 1;
       case "push_to_pull_request_branch":
@@ -480,6 +482,21 @@ async function main() {
           const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
           if (!updateIssueNumValidation.isValid) {
             if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
+            continue;
+          }
+          break;
+        case "assign_milestone":
+          // Validate issue_number
+          const assignMilestoneIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_milestone 'issue_number'", i + 1);
+          if (!assignMilestoneIssueValidation.isValid) {
+            if (assignMilestoneIssueValidation.error) errors.push(assignMilestoneIssueValidation.error);
+            continue;
+          }
+
+          // Validate milestone_number
+          const milestoneValidation = validatePositiveInteger(item.milestone_number, "assign_milestone 'milestone_number'", i + 1);
+          if (!milestoneValidation.isValid) {
+            if (milestoneValidation.error) errors.push(milestoneValidation.error);
             continue;
           }
           break;

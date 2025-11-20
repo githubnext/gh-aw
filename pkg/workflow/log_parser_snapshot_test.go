@@ -104,6 +104,18 @@ func runJSLogParser(jsScript, logContent string) (string, error) {
 		return "", fmt.Errorf("failed to write bootstrap file: %v", err)
 	}
 
+	// Read the shared helper script and write it to temp dir
+	sharedPath := filepath.Join("js", "log_parser_shared.cjs")
+	sharedContent, err := os.ReadFile(sharedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read shared helper: %v", err)
+	}
+
+	sharedFile := filepath.Join(tempDir, "log_parser_shared.cjs")
+	if err := os.WriteFile(sharedFile, sharedContent, 0644); err != nil {
+		return "", fmt.Errorf("failed to write shared file: %v", err)
+	}
+
 	// Create a Node.js script that will run our parser
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');

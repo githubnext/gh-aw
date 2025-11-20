@@ -71,7 +71,6 @@ The compiler wraps expressions with `${{ }}` if needed, detects `{{#if` patterns
 on:
   issues:
     types: [opened]
-engine: claude
 ---
 
 # Issue Analysis

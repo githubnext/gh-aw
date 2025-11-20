@@ -39,6 +39,7 @@
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
         {"$ref": "#/$defs/UpdateProjectOutput"},
         {"$ref": "#/$defs/UpdateReleaseOutput"},
+        {"$ref": "#/$defs/AssignMilestoneOutput"},
         {"$ref": "#/$defs/NoOpOutput"}
       ]
     },
@@ -385,6 +386,32 @@
         }
       },
       "required": ["type", "operation", "body"],
+      "additionalProperties": false
+    },
+    "AssignMilestoneOutput": {
+      "title": "Assign Milestone Output",
+      "description": "Output for assigning an issue to a milestone",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "assign_milestone"
+        },
+        "issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to assign milestone to"
+        },
+        "milestone_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Milestone number to assign (required)"
+        }
+      },
+      "required": ["type", "issue_number", "milestone_number"],
       "additionalProperties": false
     },
     "NoOpOutput": {

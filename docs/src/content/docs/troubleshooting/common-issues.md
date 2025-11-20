@@ -278,20 +278,6 @@ safe-outputs:
 
 **Solution:** Ensure the Copilot CLI installation step is included in the workflow. This is typically handled automatically by the compiled workflow.
 
-### Claude Engine Timeout
-
-**Symptoms:** Workflow times out before completing.
-
-**Cause:** Task is too complex or `max-turns` is set too high.
-
-**Solution:** Reduce scope or adjust timeout:
-
-```yaml wrap
-timeout-minutes: 30
-engine:
-  id: claude
-  max-turns: 5  # Reduce if timing out
-```
 
 ### Model Not Available
 
@@ -525,5 +511,4 @@ If the issue persists after trying these solutions:
 
 For more information, see:
 - [Error Reference](/gh-aw/troubleshooting/errors/)
-- [Validation Timing](/gh-aw/troubleshooting/validation-timing/)
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/)

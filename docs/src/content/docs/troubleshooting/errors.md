@@ -18,6 +18,7 @@ When you make a typo in frontmatter field names, the compiler automatically sugg
 ### Frontmatter Not Properly Closed
 
 **Error Message:**
+
 ```
 frontmatter not properly closed
 ```
@@ -41,6 +42,7 @@ permissions:
 ### Failed to Parse Frontmatter
 
 **Error Message:**
+
 ```
 failed to parse frontmatter: [yaml error details]
 ```
@@ -69,6 +71,7 @@ on:
 ### Invalid Field Type
 
 **Error Message:**
+
 ```
 timeout-minutes must be an integer
 ```
@@ -88,6 +91,7 @@ timeout-minutes: 10
 ### Unknown Property
 
 **Error Message:**
+
 ```
 Unknown property: permisions. Did you mean 'permissions'?
 ```
@@ -113,6 +117,7 @@ permissions:
 ```
 
 **Common typos detected:**
+
 - `permisions` → `permissions`
 - `engnie` → `engine`
 - `toolz` → `tools`
@@ -122,6 +127,7 @@ permissions:
 ### Imports Field Must Be Array
 
 **Error Message:**
+
 ```
 imports field must be an array of strings
 ```
@@ -143,6 +149,7 @@ imports:
 ### Multiple Agent Files in Imports
 
 **Error Message:**
+
 ```
 multiple agent files found in imports: 'file1.md' and 'file2.md'. Only one agent file is allowed per workflow
 ```
@@ -169,6 +176,7 @@ Compilation errors occur when the workflow file is being converted to a GitHub A
 ### Workflow File Not Found
 
 **Error Message:**
+
 ```
 workflow file not found: [path]
 ```
@@ -180,6 +188,7 @@ workflow file not found: [path]
 ### Failed to Resolve Import
 
 **Error Message:**
+
 ```
 failed to resolve import 'path': [details]
 ```
@@ -201,6 +210,7 @@ imports:
 ### Invalid Workflow Specification
 
 **Error Message:**
+
 ```
 invalid workflowspec: must be owner/repo/path[@ref]
 ```
@@ -217,6 +227,7 @@ imports:
 ### Section Not Found
 
 **Error Message:**
+
 ```
 section 'name' not found
 ```
@@ -232,6 +243,7 @@ Runtime errors occur when the compiled workflow executes in GitHub Actions.
 ### Time Delta Errors
 
 **Error Message:**
+
 ```
 invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m
 ```
@@ -248,12 +260,14 @@ on:
 ```
 
 **Supported units:**
+
 - `h` - hours (minimum unit for stop-after)
 - `d` - days
 - `w` - weeks
 - `mo` - months
 
 **Error Message:**
+
 ```
 minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[hours]h instead of +[minutes]m
 ```
@@ -273,6 +287,7 @@ stop-after: +2h
 ### Time Delta Too Large
 
 **Error Message:**
+
 ```
 time delta too large: [value] [unit] exceeds maximum of [max]
 ```
@@ -294,6 +309,7 @@ stop-after: +12mo
 ### Duplicate Time Unit
 
 **Error Message:**
+
 ```
 duplicate unit '[unit]' in time delta: +[value]
 ```
@@ -313,6 +329,7 @@ stop-after: +3d
 ### Unable to Parse Date-Time
 
 **Error Message:**
+
 ```
 unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc
 ```
@@ -332,6 +349,7 @@ stop-after: "12/31/2025"
 ### JQ Not Found
 
 **Error Message:**
+
 ```
 jq not found in PATH
 ```
@@ -351,6 +369,7 @@ brew install jq
 ### Authentication Errors
 
 **Error Message:**
+
 ```
 authentication required
 ```
@@ -375,6 +394,7 @@ env:
 ### Manual Approval Invalid Format
 
 **Error Message:**
+
 ```
 manual-approval value must be a string
 ```
@@ -396,6 +416,7 @@ on:
 ### Invalid On Section Format
 
 **Error Message:**
+
 ```
 invalid on: section format
 ```
@@ -424,6 +445,7 @@ on:
 ### Failed to Read File
 
 **Error Message:**
+
 ```
 failed to read file [path]: [details]
 ```
@@ -431,6 +453,7 @@ failed to read file [path]: [details]
 **Cause:** The file cannot be read due to permissions, missing file, or I/O error.
 
 **Solution:** Verify:
+
 - File exists at the specified path
 - File permissions allow reading
 - Disk is not full or experiencing errors
@@ -438,6 +461,7 @@ failed to read file [path]: [details]
 ### Failed to Create Directory
 
 **Error Message:**
+
 ```
 failed to create .github/workflows directory: [details]
 ```
@@ -449,6 +473,7 @@ failed to create .github/workflows directory: [details]
 ### Workflow File Already Exists
 
 **Error Message:**
+
 ```
 workflow file '[path]' already exists. Use --force to overwrite
 ```
@@ -466,6 +491,7 @@ gh aw init my-workflow --force
 ### Failed to Parse Existing MCP Config
 
 **Error Message:**
+
 ```
 failed to parse existing mcp.json: [details]
 ```
@@ -485,6 +511,7 @@ rm .vscode/mcp.json
 ### Failed to Marshal MCP Config
 
 **Error Message:**
+
 ```
 failed to marshal mcp.json: [details]
 ```
@@ -500,6 +527,7 @@ This section documents the most common errors you may encounter when working wit
 ### Cannot Use Command with Event Trigger
 
 **Error Message:**
+
 ```
 cannot use 'command' with 'issues' in the same workflow
 ```
@@ -534,6 +562,7 @@ on:
 ### Strict Mode Network Configuration Required
 
 **Error Message:**
+
 ```
 strict mode: 'network' configuration is required
 ```
@@ -577,6 +606,7 @@ Process issues with network access restricted to defaults.
 ### Strict Mode Write Permission Not Allowed
 
 **Error Message:**
+
 ```
 strict mode: write permission 'contents: write' is not allowed
 ```
@@ -625,6 +655,7 @@ Analyze changes and create an issue with findings.
 ### Strict Mode Network Wildcard Not Allowed
 
 **Error Message:**
+
 ```
 strict mode: wildcard '*' is not allowed in network.allowed domains
 ```
@@ -653,6 +684,7 @@ network: defaults
 ### HTTP MCP Tool Missing Required URL Field
 
 **Error Message:**
+
 ```
 http MCP tool 'my-tool' missing required 'url' field
 ```
@@ -702,6 +734,7 @@ Use custom MCP server to process data.
 ### Job Name Cannot Be Empty
 
 **Error Message:**
+
 ```
 job name cannot be empty
 ```
@@ -724,6 +757,7 @@ steps:
 ### Invalid Time Delta Format
 
 **Error Message:**
+
 ```
 invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m
 ```
@@ -747,6 +781,7 @@ stop-after: "+1d12h"  # 1 day and 12 hours
 ```
 
 **Supported units:**
+
 - `h` - hours
 - `d` - days
 - `w` - weeks
@@ -769,6 +804,7 @@ Task will automatically stop after configured time.
 ### Minute Unit Not Allowed for Stop-After
 
 **Error Message:**
+
 ```
 minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +2h instead of +90m
 ```
@@ -786,6 +822,7 @@ stop-after: "+2h"
 ```
 
 **Conversion examples:**
+
 - 90 minutes → `+2h` (rounds up)
 - 120 minutes → `+2h`
 - 30 minutes → `+1h` (rounds up)
@@ -793,6 +830,7 @@ stop-after: "+2h"
 ### Time Delta Too Large
 
 **Error Message:**
+
 ```
 time delta too large: 400 days exceeds maximum of 365 days
 ```
@@ -802,6 +840,7 @@ time delta too large: 400 days exceeds maximum of 365 days
 **Solution:** Use a smaller value or larger unit:
 
 **Maximums:**
+
 - Hours: 8,760 (1 year)
 - Days: 365 (1 year)
 - Weeks: 52 (1 year)
@@ -822,6 +861,7 @@ stop-after: "+12mo"
 ### Duplicate Time Unit in Time Delta
 
 **Error Message:**
+
 ```
 duplicate unit 'd' in time delta: +1d2d
 ```
@@ -843,6 +883,7 @@ stop-after: "+8h"
 ### Unable to Determine MCP Type
 
 **Error Message:**
+
 ```
 unable to determine MCP type for tool 'my-tool': missing type, url, command, or container
 ```
@@ -880,6 +921,7 @@ mcp-servers:
 ### Tool MCP Configuration Cannot Specify Both Container and Command
 
 **Error Message:**
+
 ```
 tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'
 ```
@@ -912,6 +954,7 @@ mcp-servers:
 ### HTTP MCP Configuration Cannot Use Container
 
 **Error Message:**
+
 ```
 tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field
 ```
@@ -940,6 +983,7 @@ mcp-servers:
 ### Strict Mode Custom MCP Server Requires Network Configuration
 
 **Error Message:**
+
 ```
 strict mode: custom MCP server 'my-server' with container must have network configuration
 ```
@@ -964,41 +1008,10 @@ mcp-servers:
         - "*.safe-domain.com"
 ```
 
-### HTTP Transport Not Supported by Engine
-
-**Error Message:**
-```
-tool 'my-tool' uses HTTP transport which is not supported by engine 'codex' (only stdio transport is supported)
-```
-
-**Cause:** The workflow uses an HTTP MCP server with an engine that only supports stdio transport.
-
-**Solution:** Either switch to a stdio-based MCP server or use a different engine that supports HTTP transport:
-
-```yaml wrap
-# Option 1: Switch to stdio transport
-mcp-servers:
-  my-tool:
-    type: stdio
-    command: "node"
-    args: ["server.js"]
-
-# Option 2: Use engine that supports HTTP (e.g., copilot)
-engine: copilot
-mcp-servers:
-  my-tool:
-    type: http
-    url: "https://api.example.com/mcp"
-```
-
-**Engines and HTTP support:**
-- ✅ Copilot: Supports HTTP
-- ❌ Claude: stdio only
-- ❌ Codex: stdio only
-
 ### Repository Features Not Enabled for Safe Outputs
 
 **Error Message:**
+
 ```
 workflow uses safe-outputs.create-issue but repository owner/repo does not have issues enabled
 ```
@@ -1021,19 +1034,21 @@ safe-outputs:
 ```
 
 **Similar errors:**
+
 - `create-discussion` requires discussions enabled
 - `add-comment` with `discussion: true` requires discussions enabled
 
 ### Engine Does Not Support Firewall
 
 **Error Message:**
+
 ```
-strict mode: engine 'claude' does not support firewall
+strict mode: engine does not support firewall
 ```
 
 **Cause:** The workflow specifies network restrictions but uses an engine that doesn't support network firewalling, and strict mode is enabled.
 
-**Solution:** Either use an engine with firewall support or remove network restrictions:
+**Solution:** Use an engine with firewall support or remove network restrictions:
 
 ```yaml wrap
 # Option 1: Use engine with firewall support
@@ -1048,11 +1063,6 @@ network:
 # Option 3: Use network: defaults with no specific restrictions
 network: defaults
 ```
-
-**Firewall support by engine:**
-- ✅ Copilot: Full firewall support
-- ❌ Claude: No firewall support (warnings only in non-strict mode)
-- ❌ Codex: No firewall support (warnings only in non-strict mode)
 
 ## Troubleshooting Tips
 
@@ -1072,7 +1082,6 @@ If you encounter an error not documented here:
 1. **Search this page:** Use Ctrl+F / Cmd+F to search for keywords from your error message
 2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/examples/scheduled/research-planning/), [Triage & Analysis](/gh-aw/examples/issue-pr-events/triage-analysis/), [Coding & Development](/gh-aw/examples/issue-pr-events/coding-development/), or [Quality & Testing](/gh-aw/examples/issue-pr-events/quality-testing/)
 3. **Enable verbose mode:** Run `gh aw compile --verbose` for detailed error context
-4. **Review validation timing:** See [Validation Timing](/gh-aw/troubleshooting/validation-timing/) to understand when errors occur
-5. **Report issues:** If you believe you've found a bug, [report it on GitHub](https://github.com/githubnext/gh-aw/issues)
+4. **Report issues:** If you believe you've found a bug, [report it on GitHub](https://github.com/githubnext/gh-aw/issues)
 
-For additional help, see [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Validation Timing](/gh-aw/troubleshooting/validation-timing/).
+For additional help, see [Common Issues](/gh-aw/troubleshooting/common-issues/).

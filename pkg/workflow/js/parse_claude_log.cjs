@@ -2,7 +2,15 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { formatDuration, formatBashCommand, truncateString, estimateTokens } = require("./log_parser_shared.cjs");
+const {
+  formatDuration,
+  formatBashCommand,
+  truncateString,
+  estimateTokens,
+  formatMcpName,
+  generateConversationMarkdown,
+  generateInformationSection,
+} = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
@@ -77,142 +85,26 @@ function parseClaudeLog(logContent) {
       };
     }
 
-    const toolUsePairs = new Map(); // Map tool_use_id to tool_result
-
-    // First pass: collect tool results by tool_use_id
-    for (const entry of logEntries) {
-      if (entry.type === "user" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_result" && content.tool_use_id) {
-            toolUsePairs.set(content.tool_use_id, content);
-          }
-        }
-      }
-    }
-
-    let markdown = "";
     const mcpFailures = [];
 
-    // Check for initialization data first
-    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
-    if (initEntry) {
-      markdown += "## 🚀 Initialization\n\n";
-      const initResult = formatInitializationSummary(initEntry);
-      markdown += initResult.markdown;
-      mcpFailures.push(...initResult.mcpFailures);
-      markdown += "\n";
-    }
-
-    markdown += "\n## 🤖 Reasoning\n\n";
-
-    // Second pass: process assistant messages in sequence
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "text" && content.text) {
-            // Add reasoning text directly (no header)
-            const text = content.text.trim();
-            if (text && text.length > 0) {
-              markdown += text + "\n\n";
-            }
-          } else if (content.type === "tool_use") {
-            // Process tool use with its result
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolUse(content, toolResult);
-            if (toolMarkdown) {
-              markdown += toolMarkdown;
-            }
-          }
+    // Generate conversation markdown using shared function
+    const conversationResult = generateConversationMarkdown(logEntries, {
+      formatToolCallback: formatToolUse,
+      formatInitCallback: initEntry => {
+        const result = formatInitializationSummary(initEntry);
+        // Track MCP failures
+        if (result.mcpFailures) {
+          mcpFailures.push(...result.mcpFailures);
         }
-      }
-    }
+        return result;
+      },
+    });
 
-    markdown += "## 🤖 Commands and Tools\n\n";
-    const commandSummary = []; // For the succinct summary
-
-    // Collect all tool uses for summary
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_use") {
-            const toolName = content.name;
-            const input = content.input || {};
-
-            // Skip internal tools - only show external commands and API calls
-            if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-              continue; // Skip internal file operations and searches
-            }
-
-            // Find the corresponding tool result to get status
-            const toolResult = toolUsePairs.get(content.id);
-            let statusIcon = "❓";
-            if (toolResult) {
-              statusIcon = toolResult.is_error === true ? "❌" : "✅";
-            }
-
-            // Add to command summary (only external tools)
-            if (toolName === "Bash") {
-              const formattedCommand = formatBashCommand(input.command || "");
-              commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-            } else if (toolName.startsWith("mcp__")) {
-              const mcpName = formatMcpName(toolName);
-              commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-            } else {
-              // Handle other external tools (if any)
-              commandSummary.push(`* ${statusIcon} ${toolName}`);
-            }
-          }
-        }
-      }
-    }
-
-    // Add command summary
-    if (commandSummary.length > 0) {
-      for (const cmd of commandSummary) {
-        markdown += `${cmd}\n`;
-      }
-    } else {
-      markdown += "No commands or tools used.\n";
-    }
+    let markdown = conversationResult.markdown;
 
     // Add Information section from the last entry with result metadata
-    markdown += "\n## 📊 Information\n\n";
-
-    // Find the last entry with metadata
     const lastEntry = logEntries[logEntries.length - 1];
-    if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-      if (lastEntry.num_turns) {
-        markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-      }
-
-      if (lastEntry.duration_ms) {
-        const durationSec = Math.round(lastEntry.duration_ms / 1000);
-        const minutes = Math.floor(durationSec / 60);
-        const seconds = durationSec % 60;
-        markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-      }
-
-      if (lastEntry.total_cost_usd) {
-        markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-      }
-
-      if (lastEntry.usage) {
-        const usage = lastEntry.usage;
-        if (usage.input_tokens || usage.output_tokens) {
-          markdown += `**Token Usage:**\n`;
-          if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-          if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-          if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-          if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-          markdown += "\n";
-        }
-      }
-
-      if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
-        markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
-      }
-    }
+    markdown += generateInformationSection(lastEntry);
 
     // Check if max-turns limit was hit
     let maxTurnsHit = false;
@@ -266,9 +158,46 @@ function formatInitializationSummary(initEntry) {
       const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
       markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
 
-      // Track failed MCP servers
+      // Track failed MCP servers and display detailed error information
       if (server.status === "failed") {
         mcpFailures.push(server.name);
+
+        // Display error details if available
+        const errorDetails = [];
+
+        if (server.error) {
+          errorDetails.push(`**Error:** ${server.error}`);
+        }
+
+        if (server.stderr) {
+          // Truncate stderr if too long
+          const maxStderrLength = 500;
+          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+          errorDetails.push(`**Stderr:** \`${stderr}\``);
+        }
+
+        if (server.exitCode !== undefined && server.exitCode !== null) {
+          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+        }
+
+        if (server.command) {
+          errorDetails.push(`**Command:** \`${server.command}\``);
+        }
+
+        if (server.message) {
+          errorDetails.push(`**Message:** ${server.message}`);
+        }
+
+        if (server.reason) {
+          errorDetails.push(`**Reason:** ${server.reason}`);
+        }
+
+        // Display error details with proper indentation
+        if (errorDetails.length > 0) {
+          for (const detail of errorDetails) {
+            markdown += `  - ${detail}\n`;
+          }
+        }
       }
     }
     markdown += "\n";
@@ -454,24 +383,6 @@ function formatToolUse(toolUse, toolResult) {
     // No details, just show summary
     return `${summary}\n\n`;
   }
-}
-
-/**
- * Formats MCP tool name from internal format to display format
- * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
- * @returns {string} Formatted tool name (e.g., github::search_issues)
- */
-function formatMcpName(toolName) {
-  // Convert mcp__github__search_issues to github::search_issues
-  if (toolName.startsWith("mcp__")) {
-    const parts = toolName.split("__");
-    if (parts.length >= 3) {
-      const provider = parts[1]; // github, etc.
-      const method = parts.slice(2).join("_"); // search_issues, etc.
-      return `${provider}::${method}`;
-    }
-  }
-  return toolName;
 }
 
 /**

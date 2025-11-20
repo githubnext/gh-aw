@@ -73,11 +73,12 @@ The YAML frontmatter supports these fields:
 - **`features:`** - Feature flags for experimental features (object)
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default), `"claude"`, `"codex"`, `"custom"` (⚠️ experimental)
+  - String format: `"copilot"` (default, recommended), `"custom"` (user-defined steps)
+  - ⚠️ **Experimental engines**: `"claude"` and `"codex"` are available but experimental
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, custom)
+      id: copilot                       # Required: coding agent identifier (copilot, custom, or experimental: claude, codex)
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
@@ -953,9 +954,9 @@ gh aw logs
 gh aw logs weekly-research
 
 # Filter logs by AI engine type
-gh aw logs --engine claude           # Only Claude workflows
-gh aw logs --engine codex            # Only Codex workflows
 gh aw logs --engine copilot          # Only Copilot workflows
+gh aw logs --engine claude           # Only Claude workflows (experimental)
+gh aw logs --engine codex            # Only Codex workflows (experimental)
 
 # Limit number of runs and filter by date (absolute dates)
 gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
@@ -1148,7 +1149,7 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 
 - **Invalid field names** - Only fields in the schema are allowed
 - **Wrong field types** - e.g., `timeout-minutes` must be integer
-- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex" or "custom"
+- **Invalid enum values** - e.g., `engine` must be "copilot", "custom", or experimental: "claude", "codex"
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.

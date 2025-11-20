@@ -68,6 +68,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    outputs:
+      comment_id: ${{ '' }}
+      comment_repo: ${{ '' }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -973,7 +976,7 @@ jobs:
                   "@playwright/mcp@0.0.47",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
-                  "--allowed-origins",
+                  "--allowed-hosts",
                   "localhost:*;127.0.0.1:*;localhost;127.0.0.1"
                 ]
               },
@@ -1322,7 +1325,7 @@ jobs:
               version: "",
               agent_version: "2.0.44",
               workflow_name: "Multi-Device Docs Tester",
-              experimental: false,
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -1804,6 +1807,8 @@ jobs:
                     return 1;
                   case "add_labels":
                     return 5;
+                  case "assign_milestone":
+                    return 1;
                   case "update_issue":
                     return 1;
                   case "push_to_pull_request_branch":
@@ -2256,6 +2261,18 @@ jobs:
                         continue;
                       }
                       break;
+                    case "assign_milestone":
+                      const assignMilestoneIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_milestone 'issue_number'", i + 1);
+                      if (!assignMilestoneIssueValidation.isValid) {
+                        if (assignMilestoneIssueValidation.error) errors.push(assignMilestoneIssueValidation.error);
+                        continue;
+                      }
+                      const milestoneValidation = validatePositiveInteger(item.milestone_number, "assign_milestone 'milestone_number'", i + 1);
+                      if (!milestoneValidation.isValid) {
+                        if (milestoneValidation.error) errors.push(milestoneValidation.error);
+                        continue;
+                      }
+                      break;
                     case "push_to_pull_request_branch":
                       if (!item.branch || typeof item.branch !== "string") {
                         errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'branch' string field`);
@@ -2648,6 +2665,138 @@ jobs:
               if (!text) return 0;
               return Math.ceil(text.length / 4);
             }
+            function formatMcpName(toolName) {
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1]; 
+                  const method = parts.slice(2).join("_"); 
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            function generateConversationMarkdown(logEntries, options) {
+              const { formatToolCallback, formatInitCallback } = options;
+              const toolUsePairs = new Map(); 
+              for (const entry of logEntries) {
+                if (entry.type === "user" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_result" && content.tool_use_id) {
+                      toolUsePairs.set(content.tool_use_id, content);
+                    }
+                  }
+                }
+              }
+              let markdown = "";
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && formatInitCallback) {
+                markdown += "## 🚀 Initialization\n\n";
+                const initResult = formatInitCallback(initEntry);
+                if (typeof initResult === "string") {
+                  markdown += initResult;
+                } else if (initResult && initResult.markdown) {
+                  markdown += initResult.markdown;
+                }
+                markdown += "\n";
+              }
+              markdown += "\n## 🤖 Reasoning\n\n";
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "text" && content.text) {
+                      const text = content.text.trim();
+                      if (text && text.length > 0) {
+                        markdown += text + "\n\n";
+                      }
+                    } else if (content.type === "tool_use") {
+                      const toolResult = toolUsePairs.get(content.id);
+                      const toolMarkdown = formatToolCallback(content, toolResult);
+                      if (toolMarkdown) {
+                        markdown += toolMarkdown;
+                      }
+                    }
+                  }
+                }
+              }
+              markdown += "## 🤖 Commands and Tools\n\n";
+              const commandSummary = []; 
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      const input = content.input || {};
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue; 
+                      }
+                      const toolResult = toolUsePairs.get(content.id);
+                      let statusIcon = "❓";
+                      if (toolResult) {
+                        statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                      }
+                      if (toolName === "Bash") {
+                        const formattedCommand = formatBashCommand(input.command || "");
+                        commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                      } else if (toolName.startsWith("mcp__")) {
+                        const mcpName = formatMcpName(toolName);
+                        commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} ${toolName}`);
+                      }
+                    }
+                  }
+                }
+              }
+              if (commandSummary.length > 0) {
+                for (const cmd of commandSummary) {
+                  markdown += `${cmd}\n`;
+                }
+              } else {
+                markdown += "No commands or tools used.\n";
+              }
+              return { markdown, commandSummary };
+            }
+            function generateInformationSection(lastEntry, options = {}) {
+              const { additionalInfoCallback } = options;
+              let markdown = "\n## 📊 Information\n\n";
+              if (!lastEntry) {
+                return markdown;
+              }
+              if (lastEntry.num_turns) {
+                markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+              }
+              if (lastEntry.duration_ms) {
+                const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                const minutes = Math.floor(durationSec / 60);
+                const seconds = durationSec % 60;
+                markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+              }
+              if (lastEntry.total_cost_usd) {
+                markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+              }
+              if (additionalInfoCallback) {
+                const additionalInfo = additionalInfoCallback(lastEntry);
+                if (additionalInfo) {
+                  markdown += additionalInfo;
+                }
+              }
+              if (lastEntry.usage) {
+                const usage = lastEntry.usage;
+                if (usage.input_tokens || usage.output_tokens) {
+                  markdown += `**Token Usage:**\n`;
+                  if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                  if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                  markdown += "\n";
+                }
+              }
+              if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+                markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+              }
+              return markdown;
+            }
             function main() {
               runLogParser({
                 parseLog: parseClaudeLog,
@@ -2700,111 +2849,20 @@ jobs:
                     maxTurnsHit: false,
                   };
                 }
-                const toolUsePairs = new Map(); 
-                for (const entry of logEntries) {
-                  if (entry.type === "user" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_result" && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
-                      }
-                    }
-                  }
-                }
-                let markdown = "";
                 const mcpFailures = [];
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                if (initEntry) {
-                  markdown += "## 🚀 Initialization\n\n";
-                  const initResult = formatInitializationSummary(initEntry);
-                  markdown += initResult.markdown;
-                  mcpFailures.push(...initResult.mcpFailures);
-                  markdown += "\n";
-                }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
-                      }
+                const conversationResult = generateConversationMarkdown(logEntries, {
+                  formatToolCallback: formatToolUse,
+                  formatInitCallback: initEntry => {
+                    const result = formatInitializationSummary(initEntry);
+                    if (result.mcpFailures) {
+                      mcpFailures.push(...result.mcpFailures);
                     }
-                  }
-                }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                const commandSummary = []; 
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_use") {
-                        const toolName = content.name;
-                        const input = content.input || {};
-                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                          continue; 
-                        }
-                        const toolResult = toolUsePairs.get(content.id);
-                        let statusIcon = "❓";
-                        if (toolResult) {
-                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
-                        }
-                        if (toolName === "Bash") {
-                          const formattedCommand = formatBashCommand(input.command || "");
-                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                        } else if (toolName.startsWith("mcp__")) {
-                          const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-                        } else {
-                          commandSummary.push(`* ${statusIcon} ${toolName}`);
-                        }
-                      }
-                    }
-                  }
-                }
-                if (commandSummary.length > 0) {
-                  for (const cmd of commandSummary) {
-                    markdown += `${cmd}\n`;
-                  }
-                } else {
-                  markdown += "No commands or tools used.\n";
-                }
-                markdown += "\n## 📊 Information\n\n";
+                    return result;
+                  },
+                });
+                let markdown = conversationResult.markdown;
                 const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-                  if (lastEntry.num_turns) {
-                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-                  }
-                  if (lastEntry.duration_ms) {
-                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
-                    const minutes = Math.floor(durationSec / 60);
-                    const seconds = durationSec % 60;
-                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-                  }
-                  if (lastEntry.total_cost_usd) {
-                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-                  }
-                  if (lastEntry.usage) {
-                    const usage = lastEntry.usage;
-                    if (usage.input_tokens || usage.output_tokens) {
-                      markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-                      markdown += "\n";
-                    }
-                  }
-                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
-                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
-                  }
-                }
+                markdown += generateInformationSection(lastEntry);
                 let maxTurnsHit = false;
                 const maxTurns = process.env.GH_AW_MAX_TURNS;
                 if (maxTurns && lastEntry && lastEntry.num_turns) {
@@ -2843,6 +2901,32 @@ jobs:
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
                   if (server.status === "failed") {
                     mcpFailures.push(server.name);
+                    const errorDetails = [];
+                    if (server.error) {
+                      errorDetails.push(`**Error:** ${server.error}`);
+                    }
+                    if (server.stderr) {
+                      const maxStderrLength = 500;
+                      const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+                      errorDetails.push(`**Stderr:** \`${stderr}\``);
+                    }
+                    if (server.exitCode !== undefined && server.exitCode !== null) {
+                      errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+                    }
+                    if (server.command) {
+                      errorDetails.push(`**Command:** \`${server.command}\``);
+                    }
+                    if (server.message) {
+                      errorDetails.push(`**Message:** ${server.message}`);
+                    }
+                    if (server.reason) {
+                      errorDetails.push(`**Reason:** ${server.reason}`);
+                    }
+                    if (errorDetails.length > 0) {
+                      for (const detail of errorDetails) {
+                        markdown += `  - ${detail}\n`;
+                      }
+                    }
                   }
                 }
                 markdown += "\n";
@@ -2981,17 +3065,6 @@ jobs:
               } else {
                 return `${summary}\n\n`;
               }
-            }
-            function formatMcpName(toolName) {
-              if (toolName.startsWith("mcp__")) {
-                const parts = toolName.split("__");
-                if (parts.length >= 3) {
-                  const provider = parts[1]; 
-                  const method = parts.slice(2).join("_"); 
-                  return `${provider}::${method}`;
-                }
-              }
-              return toolName;
             }
             function formatMcpParameters(input) {
               const keys = Object.keys(input);

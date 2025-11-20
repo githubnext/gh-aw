@@ -892,30 +892,30 @@ post-steps: []
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
-# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)
-engine: "claude"
+# Option 1: Simple engine name: 'copilot' (GitHub Copilot CLI, recommended) or
+# 'custom' (user-defined steps). Note: 'claude' and 'codex' are available but
+# experimental.
+engine: "copilot"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
-  # 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)
-  id: "claude"
+  # AI engine identifier: 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined
+  # GitHub Actions steps). Note: 'claude' and 'codex' are available but experimental.
+  id: "copilot"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible
   # defaults and can typically be omitted.
   # (optional)
   version: "example-value"
 
-  # Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022',
-  # 'gpt-4'). Has sensible defaults and can typically be omitted.
+  # Optional specific LLM model to use (e.g., 'gpt-5', 'claude-sonnet-4'). Has
+  # sensible defaults and can typically be omitted.
   # (optional)
   model: "example-value"
 
   # Maximum number of chat iterations per run. Helps prevent runaway loops and
-  # control costs. Has sensible defaults and can typically be omitted. Note: Only
-  # supported by the claude engine.
+  # control costs. Has sensible defaults and can typically be omitted.
   # (optional)
   max-turns: 1
 
@@ -941,10 +941,6 @@ engine:
     # false for agentic workflow runs.
     # (optional)
     cancel-in-progress: true
-
-  # Custom user agent string for GitHub MCP server configuration (codex engine only)
-  # (optional)
-  user-agent: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
@@ -982,11 +978,6 @@ engine:
       # Human-readable description of what this pattern matches
       # (optional)
       description: "Description of the workflow"
-
-  # Additional TOML configuration text that will be appended to the generated
-  # config.toml in the action (codex engine only)
-  # (optional)
-  config: "example-value"
 
   # Optional array of command-line arguments to pass to the AI engine CLI. These
   # arguments are injected after all other args but before the prompt.

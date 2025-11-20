@@ -13,7 +13,7 @@ This glossary provides definitions for key technical terms and concepts used in 
 A workflow that uses AI agents to interpret natural language instructions and execute tasks autonomously. Unlike traditional GitHub Actions that follow pre-programmed steps, agentic workflows understand context, make decisions, and adapt to situations.
 
 ### Agent
-An AI system (such as GitHub Copilot, Claude, or Codex) that executes the natural language instructions in an agentic workflow. The agent interprets the task, uses available tools, and generates appropriate outputs.
+An AI system, GitHub Copilot CLI, that executes the natural language instructions in an agentic workflow. The agent interprets the task, uses available tools, and generates appropriate outputs.
 
 ### Frontmatter
 The YAML configuration section at the beginning of a workflow file, enclosed between `---` markers. The frontmatter defines triggers, permissions, tools, engines, and other workflow settings. Example:
@@ -57,9 +57,6 @@ Access controls that define what operations a workflow can perform. Workflows fo
 ### Engine
 The AI system that powers the agentic workflow. GitHub Agentic Workflows supports multiple engines:
 - **GitHub Copilot** (default): Uses GitHub's coding assistant
-- **Claude**: Uses Anthropic's Claude AI
-- **Codex**: Uses OpenAI's Codex
-- **Custom**: Allows defining custom execution steps
 
 ### Triggers
 Events that cause a workflow to run. Triggers are defined in the `on:` section of frontmatter and can include:

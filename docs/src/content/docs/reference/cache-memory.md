@@ -26,7 +26,6 @@ Enable cache-memory with default settings:
 
 ```aw wrap
 ---
-engine: claude
 tools:
   cache-memory: true
   github:
@@ -56,7 +55,6 @@ Customize cache key and artifact retention:
 
 ```aw wrap
 ---
-engine: claude
 tools:
   cache-memory:
     key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
@@ -74,7 +72,6 @@ Configure multiple independent cache folders using array notation:
 
 ```aw wrap
 ---
-engine: claude
 tools:
   cache-memory:
     - id: default
@@ -102,7 +99,6 @@ Cache-memory configurations can be imported and merged from shared workflow file
 
 ```aw wrap
 ---
-engine: claude
 imports:
   - shared/mcp/server-memory.md
 tools:
@@ -192,7 +188,6 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 
 ```aw wrap
 ---
-engine: claude
 on:
   workflow_dispatch:
     inputs:
@@ -211,7 +206,6 @@ tools:
 
 ```aw wrap
 ---
-engine: claude
 tools:
   cache-memory:
     key: project-docs-${{ github.repository }}
@@ -224,7 +218,6 @@ tools:
 
 ```aw wrap
 ---
-engine: claude
 on: workflow_dispatch
 tools:
   cache-memory:

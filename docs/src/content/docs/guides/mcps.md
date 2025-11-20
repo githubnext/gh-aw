@@ -25,8 +25,6 @@ permissions:
   contents: read
   issues: write
 
-engine: claude
-
 mcp-servers:
   microsoftdocs:
     url: "https://learn.microsoft.com/api/mcp"
@@ -73,14 +71,6 @@ gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1
 
 This automatically searches the registry (default: `https://api.mcp.github.com/v0`), adds server configuration, and compiles the workflow.
 
-### Engine Compatibility
-
-All AI engines support the full range of MCP features:
-
-- **Copilot** (default): ✅ Full MCP support (stdio, Docker, HTTP)
-- **Claude**: ✅ Full MCP support (stdio, Docker, HTTP)
-- **Codex** (experimental): ✅ Full MCP support (stdio, Docker, HTTP)
-
 ## MCP Server Types
 
 ### 1. Stdio MCP Servers
@@ -97,7 +87,7 @@ mcp-servers:
       - "serena"
       - "start-mcp-server"
       - "--context"
-      - "codex"
+      - "copilot"
       - "--project"
       - "${{ github.workspace }}"
     allowed: ["*"]
@@ -246,7 +236,7 @@ Token precedence: `GH_AW_GITHUB_TOKEN` (highest priority) or `GITHUB_TOKEN` (fal
 
 ## Tool Allow-listing
 
-Control which MCP tools are available with `allowed:` (Claude engine support):
+Control which MCP tools are available with `allowed:` lists:
 
 **Specific tools**:
 ```yaml wrap
