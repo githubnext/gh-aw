@@ -87,7 +87,7 @@ mcp-servers:
       - "serena"
       - "start-mcp-server"
       - "--context"
-      - "codex"
+      - "copilot"
       - "--project"
       - "${{ github.workspace }}"
     allowed: ["*"]

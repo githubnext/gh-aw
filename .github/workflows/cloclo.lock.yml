@@ -2705,7 +2705,7 @@ jobs:
               version: "",
               agent_version: "2.0.44",
               workflow_name: "Claude Command Processor - /cloclo",
-              experimental: false,
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
