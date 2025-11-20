@@ -500,13 +500,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					// Parse target
-					if target, exists := agentMap["target"]; exists {
-						if targetStr, ok := target.(string); ok {
-							agentConfig.Target = targetStr
-						}
-					}
-
 					// Parse target-repo
 					if targetRepo, exists := agentMap["target-repo"]; exists {
 						if targetRepoStr, ok := targetRepo.(string); ok {
