@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var mapHelpersLog = logger.New("workflow:map_helpers")
+
 // parseIntValue safely parses various numeric types to int
 // This is a common utility used across multiple parsing functions
 func parseIntValue(value any) (int, bool) {
@@ -11,7 +15,12 @@ func parseIntValue(value any) (int, bool) {
 	case uint64:
 		return int(v), true
 	case float64:
-		return int(v), true
+		intVal := int(v)
+		// Warn if truncation occurs (value has fractional part)
+		if v != float64(intVal) {
+			mapHelpersLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
+		}
+		return intVal, true
 	default:
 		return 0, false
 	}

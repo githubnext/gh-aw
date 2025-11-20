@@ -71,6 +71,64 @@ The YAML frontmatter supports these fields:
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
 - **`strict:`** - Enable enhanced validation for production workflows (boolean)
 - **`features:`** - Feature flags for experimental features (object)
+- **`imports:`** - Array of workflow specifications to import (array)
+  - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
+  - Markdown files under `.github/agents/` are treated as custom agent files
+  - Only one agent file is allowed per workflow
+  - See [Imports Field](#imports-field) section for detailed documentation
+- **`mcp-servers:`** - MCP (Model Context Protocol) server definitions (object)
+  - Defines custom MCP servers for additional tools beyond built-in ones
+  - See [Custom MCP Tools](#custom-mcp-tools) section for detailed documentation
+
+- **`tracker-id:`** - Optional identifier to tag all created assets (string)
+  - Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores
+  - This identifier is inserted in the body/description of all created assets (issues, discussions, comments, pull requests)
+  - Enables searching and retrieving assets associated with this workflow
+  - Examples: `"workflow-2024-q1"`, `"team-alpha-bot"`, `"security_audit_v2"`
+
+- **`secret-masking:`** - Configuration for secret redaction behavior in workflow outputs and artifacts (object)
+  - `steps:` - Additional secret redaction steps to inject after the built-in secret redaction (array)
+  - Use this to mask secrets in generated files using custom patterns
+  - Example:
+    ```yaml
+    secret-masking:
+      steps:
+        - name: Redact custom secrets
+          run: find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
+    ```
+
+- **`runtimes:`** - Runtime environment version overrides (object)
+  - Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes
+  - Runtimes from imported shared workflows are also merged
+  - Each runtime is identified by a runtime ID (e.g., 'node', 'python', 'go')
+  - Runtime configuration properties:
+    - `version:` - Runtime version as string or number (e.g., '22', '3.12', 'latest', 22, 3.12)
+    - `action-repo:` - GitHub Actions repository for setup (e.g., 'actions/setup-node')
+    - `action-version:` - Version of the setup action (e.g., 'v4', 'v5')
+  - Example:
+    ```yaml
+    runtimes:
+      node:
+        version: "22"
+      python:
+        version: "3.12"
+        action-repo: "actions/setup-python"
+        action-version: "v5"
+    ```
+
+- **`jobs:`** - Groups together all the jobs that run in the workflow (object)
+  - Standard GitHub Actions jobs configuration
+  - Each job can have: `name`, `runs-on`, `steps`, `needs`, `if`, `env`, `permissions`, `timeout-minutes`, etc.
+  - For most agentic workflows, jobs are auto-generated; only specify this for advanced multi-job workflows
+  - Example:
+    ```yaml
+    jobs:
+      custom-job:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Custom step
+            run: echo "Custom job"
+    ```
 
 - **`engine:`** - AI processor configuration
   - String format: `"copilot"` (default, recommended), `"custom"` (user-defined steps)

@@ -249,7 +249,12 @@ func ConvertToInt(val any) int {
 	case int64:
 		return int(v)
 	case float64:
-		return int(v)
+		intVal := int(v)
+		// Warn if truncation occurs (value has fractional part)
+		if v != float64(intVal) {
+			metricsLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
+		}
+		return intVal
 	case string:
 		if i, err := strconv.Atoi(v); err == nil {
 			return i

@@ -12,6 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 
+tracker-id: daily-file-diet
 engine: codex
 
 imports:
