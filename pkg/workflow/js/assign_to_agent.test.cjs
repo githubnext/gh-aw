@@ -307,29 +307,7 @@ describe("assign_to_agent", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign 1 agent(s)");
   });
 
-  it("should handle project_item_id field", async () => {
-    setAgentOutput({
-      items: [
-        {
-          type: "assign_to_agent",
-          issue_number: 42,
-          agent: "copilot",
-          project_item_id: "PVTI_12345",
-        },
-      ],
-      errors: [],
-    });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: { title: "Test Issue" },
-    });
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
-
-    await eval(`(async () => { ${assignToAgentScript} })()`);
-
-    expect(mockCore.info).toHaveBeenCalledWith('Successfully assigned agent "copilot" to issue #42');
-    // project_item_id is recorded but not used in the comment
-  });
 
   it("should handle invalid issue numbers", async () => {
     setAgentOutput({

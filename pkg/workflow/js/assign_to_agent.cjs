@@ -27,9 +27,6 @@ async function main() {
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Agent:** ${item.agent || "copilot"}\n`;
-        if (item.project_item_id) {
-          content += `**Project Item ID:** ${item.project_item_id}\n`;
-        }
         content += "\n";
         return content;
       },
@@ -110,7 +107,6 @@ async function main() {
       results.push({
         issue_number: issueNumber,
         agent: agentName,
-        project_item_id: item.project_item_id,
         success: true,
       });
     } catch (error) {
@@ -119,7 +115,6 @@ async function main() {
       results.push({
         issue_number: issueNumber,
         agent: agentName,
-        project_item_id: item.project_item_id,
         success: false,
         error: errorMessage,
       });

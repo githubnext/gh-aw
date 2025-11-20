@@ -433,10 +433,6 @@
         "agent": {
           "type": "string",
           "description": "Agent name or slug (defaults to 'copilot' if not provided)"
-        },
-        "project_item_id": {
-          "type": "string",
-          "description": "Optional project item ID for project-specific assignments"
         }
       },
       "required": ["type", "issue_number"],

@@ -2507,7 +2507,7 @@ Line 3"}
 
     it("should validate assign_to_agent with optional fields", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "assign_to_agent", "issue_number": 42, "agent": "my-agent", "project_item_id": "PVTI_12345"}`;
+      const ndjsonContent = `{"type": "assign_to_agent", "issue_number": 42, "agent": "my-agent"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
@@ -2528,7 +2528,6 @@ Line 3"}
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].issue_number).toBe(42);
       expect(parsedOutput.items[0].agent).toBe("my-agent");
-      expect(parsedOutput.items[0].project_item_id).toBe("PVTI_12345");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 

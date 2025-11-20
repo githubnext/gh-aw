@@ -178,8 +178,6 @@ interface AssignToAgentItem extends BaseSafeOutputItem {
   issue_number: number | string;
   /** Agent name or slug (defaults to 'copilot' if not provided) */
   agent?: string;
-  /** Optional project item ID for project-specific assignments */
-  project_item_id?: string;
 }
 
 /**

@@ -519,14 +519,6 @@ async function main() {
             item.agent = sanitizeContent(item.agent, 128);
           }
 
-          // Validate project_item_id (optional string)
-          if (item.project_item_id !== undefined) {
-            if (typeof item.project_item_id !== "string") {
-              errors.push(`Line ${i + 1}: assign_to_agent 'project_item_id' must be a string`);
-              continue;
-            }
-            item.project_item_id = sanitizeContent(item.project_item_id, 128);
-          }
           break;
         case "push_to_pull_request_branch":
           if (!item.branch || typeof item.branch !== "string") {
