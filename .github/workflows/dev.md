@@ -11,14 +11,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
 tools:
   edit:
   github:
-    toolsets: [default, repos, issues]
+    toolsets: [default, repos, issues, discussions]
 safe-outputs:
-  update-issue:
-    target: "*"
-    status:
+  close-discussion:
     max: 1
   threat-detection:
     engine: false
@@ -338,14 +337,17 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Dev Workflow: Close Old AI-Generated Issue
+# Dev Workflow: Close Random Discussion
 
 **Tasks:**
 
-## Close Old Issue
+## Close Random Discussion
 
-1. List issues from this repository with the "ai-generated" label
-2. Find the oldest open issue with this label
-3. Use the `update_issue` safe output to close the issue
-4. Add a comment explaining why it's being closed (e.g., "Closing old ai-generated issue for cleanup")
-5. If there are no open issues with the "ai-generated" label, report that no action was needed
+1. List open discussions from this repository
+2. Select a random discussion from the list
+3. Use the `close_discussion` safe output to close the discussion
+4. Add a comment explaining why it's being closed (e.g., "Closing as part of dev workflow test")
+5. Use "RESOLVED" as the resolution reason
+6. If there are no open discussions, report that no action was needed
+
+Output the discussion closure as JSONL format.
