@@ -11,9 +11,9 @@ import (
 // TestCommandGroupAssignments verifies that commands are assigned to appropriate groups
 func TestCommandGroupAssignments(t *testing.T) {
 	tests := []struct {
-		name           string
-		commandName    string
-		expectedGroup  string
+		name            string
+		commandName     string
+		expectedGroup   string
 		shouldHaveGroup bool
 	}{
 		// Setup Commands
@@ -90,10 +90,10 @@ func TestCommandGroupsExist(t *testing.T) {
 
 	groups := rootCmd.Groups()
 	foundGroups := make(map[string]bool)
-	
+
 	for _, group := range groups {
 		foundGroups[group.ID] = true
-		
+
 		// Check if the group title matches expected
 		if expectedTitle, exists := expectedGroups[group.ID]; exists {
 			if group.Title != expectedTitle {
