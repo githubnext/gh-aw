@@ -10,20 +10,20 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   assign_milestone["assign_milestone"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   update_issue["update_issue"]
 #   activation --> agent
-#   agent --> assign_milestone
-#   detection --> assign_milestone
 #   agent --> conclusion
 #   activation --> conclusion
-#   assign_milestone --> conclusion
+#   update_issue --> conclusion
 #   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> update_issue
+#   detection --> update_issue
 # ```
 #
 # Pinned GitHub Actions:
@@ -253,10 +253,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_milestone":{"max":1},"missing_tool":{},"noop":{"max":1}}
+          {"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Assign an issue to a milestone","inputSchema":{"additionalProperties":false,"properties":{"issue_number":{"description":"Issue number to assign milestone to","type":["number","string"]},"milestone_number":{"description":"Milestone number to assign","type":["number","string"]}},"required":["issue_number","milestone_number"],"type":"object"},"name":"assign_milestone"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Update a GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Optional new issue body","type":"string"},"issue_number":{"description":"Optional issue number for target '*'","type":["number","string"]},"status":{"description":"Optional new issue status","enum":["open","closed"],"type":"string"},"title":{"description":"Optional new issue title","type":"string"}},"type":"object"},"name":"update_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -881,16 +881,17 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Dev Workflow: Random Milestone Assignment
+          # Dev Workflow: Close Old AI-Generated Issue
           
           **Tasks:**
           
-          ## Milestone Assignment
+          ## Close Old Issue
           
-          1. List the last 3 issues from this repository
-          2. Pick a random open issue (that doesn't already have a milestone)
-          3. Use the `assign_milestone` safe output to assign the issue to milestone 1 (v0.Later: https://github.com/githubnext/gh-aw/milestone/1)
-          4. If there are no open issues without milestones, fail with an error
+          1. List issues from this repository with the "ai-generated" label
+          2. Find the oldest open issue with this label
+          3. Use the `update_issue` safe output to close the issue
+          4. Add a comment explaining why it's being closed (e.g., "Closing old ai-generated issue for cleanup")
+          5. If there are no open issues with the "ai-generated" label, report that no action was needed
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -969,9 +970,13 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Updating Issues, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Updating an Issue**
+          
+          To udpate an issue, use the update-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -2042,9 +2047,7 @@ jobs:
                         }
                         const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
                         if (!allowedReasons.includes(item.reason.toUpperCase())) {
-                          errors.push(
-                            `Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`
-                          );
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
                           continue;
                         }
                         item.reason = item.reason.toUpperCase();
@@ -3451,239 +3454,11 @@ jobs:
               main();
             }
 
-  assign_milestone:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_milestone'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      assigned_milestones: ${{ steps.assign_milestone.outputs.assigned_milestones }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Assign Milestone
-        id: assign_milestone
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MILESTONE_MAX_COUNT: 1
-          GH_AW_WORKFLOW_NAME: "Dev"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
-              if (milestoneItems.length === 0) {
-                core.info("No assign_milestone items found in agent output");
-                return;
-              }
-              core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                await generateStagedPreview({
-                  title: "Assign Milestone",
-                  description: "The following milestone assignments would be made if staged mode was disabled:",
-                  items: milestoneItems,
-                  renderItem: item => {
-                    let content = `**Issue:** #${item.issue_number}\n`;
-                    content += `**Milestone Number:** ${item.milestone_number}\n\n`;
-                    return content;
-                  },
-                });
-                return;
-              }
-              const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
-              const allowedMilestones = allowedMilestonesEnv
-                ? allowedMilestonesEnv
-                    .split(",")
-                    .map(m => m.trim())
-                    .filter(m => m)
-                : undefined;
-              if (allowedMilestones) {
-                core.info(`Allowed milestones: ${JSON.stringify(allowedMilestones)}`);
-              } else {
-                core.info("No milestone restrictions - any milestones are allowed");
-              }
-              const maxCountEnv = process.env.GH_AW_MILESTONE_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.info(`Max count: ${maxCount}`);
-              const itemsToProcess = milestoneItems.slice(0, maxCount);
-              if (milestoneItems.length > maxCount) {
-                core.warning(`Found ${milestoneItems.length} milestone assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
-              }
-              let allMilestones = [];
-              if (allowedMilestones) {
-                try {
-                  const milestonesResponse = await github.rest.issues.listMilestones({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    state: "all",
-                    per_page: 100,
-                  });
-                  allMilestones = milestonesResponse.data;
-                  core.info(`Fetched ${allMilestones.length} milestones from repository`);
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to fetch milestones: ${errorMessage}`);
-                  core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
-                  return;
-                }
-              }
-              const results = [];
-              for (const item of itemsToProcess) {
-                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-                const milestoneNumber = typeof item.milestone_number === "number" ? item.milestone_number : parseInt(String(item.milestone_number), 10);
-                if (isNaN(issueNumber) || issueNumber <= 0) {
-                  core.error(`Invalid issue_number: ${item.issue_number}`);
-                  continue;
-                }
-                if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
-                  core.error(`Invalid milestone_number: ${item.milestone_number}`);
-                  continue;
-                }
-                if (allowedMilestones && allowedMilestones.length > 0) {
-                  const milestone = allMilestones.find(m => m.number === milestoneNumber);
-                  if (!milestone) {
-                    core.warning(`Milestone #${milestoneNumber} not found in repository. Skipping.`);
-                    continue;
-                  }
-                  const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
-                  if (!isAllowed) {
-                    core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list. Skipping.`);
-                    continue;
-                  }
-                }
-                try {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    milestone: milestoneNumber,
-                  });
-                  core.info(`Successfully assigned milestone #${milestoneNumber} to issue #${issueNumber}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
-                    success: true,
-                  });
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
-                    success: false,
-                    error: errorMessage,
-                  });
-                }
-              }
-              const successCount = results.filter(r => r.success).length;
-              const failureCount = results.filter(r => !r.success).length;
-              let summaryContent = "## Milestone Assignment\n\n";
-              if (successCount > 0) {
-                summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
-                for (const result of results.filter(r => r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}\n`;
-                }
-                summaryContent += "\n";
-              }
-              if (failureCount > 0) {
-                summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
-                for (const result of results.filter(r => !r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}: ${result.error}\n`;
-                }
-              }
-              await core.summary.addRaw(summaryContent).write();
-              const assignedMilestones = results
-                .filter(r => r.success)
-                .map(r => `${r.issue_number}:${r.milestone_number}`)
-                .join("\n");
-              core.setOutput("assigned_milestones", assignedMilestones);
-              if (failureCount > 0) {
-                core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
-              }
-            }
-            await main();
-
   conclusion:
     needs:
       - agent
       - activation
-      - assign_milestone
+      - update_issue
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -4597,4 +4372,247 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  update_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.update_issue.outputs.issue_number }}
+      issue_url: ${{ steps.update_issue.outputs.issue_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update Issue
+        id: update_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_UPDATE_STATUS: true
+          GH_AW_UPDATE_TITLE: false
+          GH_AW_UPDATE_BODY: false
+          GH_AW_UPDATE_TARGET: "*"
+          GH_AW_WORKFLOW_NAME: "Dev"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const updateItems = result.items.filter( item => item.type === "update_issue");
+              if (updateItems.length === 0) {
+                core.info("No update-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${updateItems.length} update-issue item(s)`);
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Update Issues",
+                  description: "The following issue updates would be applied if staged mode was disabled:",
+                  items: updateItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue Update ${index + 1}\n`;
+                    if (item.issue_number) {
+                      content += `**Target Issue:** #${item.issue_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current issue\n\n`;
+                    }
+                    if (item.title !== undefined) {
+                      content += `**New Title:** ${item.title}\n\n`;
+                    }
+                    if (item.body !== undefined) {
+                      content += `**New Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.status !== undefined) {
+                      content += `**New Status:** ${item.status}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
+              const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
+              const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
+              const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+              core.info(`Update target configuration: ${updateTarget}`);
+              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              if (updateTarget === "triggering" && !isIssueContext) {
+                core.info('Target is "triggering" but not running in issue context, skipping issue update');
+                return;
+              }
+              const updatedIssues = [];
+              for (let i = 0; i < updateItems.length; i++) {
+                const updateItem = updateItems[i];
+                core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
+                let issueNumber;
+                if (updateTarget === "*") {
+                  if (updateItem.issue_number) {
+                    issueNumber = parseInt(updateItem.issue_number, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
+                      continue;
+                    }
+                  } else {
+                    core.info('Target is "*" but no issue_number specified in update item');
+                    continue;
+                  }
+                } else if (updateTarget && updateTarget !== "triggering") {
+                  issueNumber = parseInt(updateTarget, 10);
+                  if (isNaN(issueNumber) || issueNumber <= 0) {
+                    core.info(`Invalid issue number in target configuration: ${updateTarget}`);
+                    continue;
+                  }
+                } else {
+                  if (isIssueContext) {
+                    if (context.payload.issue) {
+                      issueNumber = context.payload.issue.number;
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else {
+                    core.info("Could not determine issue number");
+                    continue;
+                  }
+                }
+                if (!issueNumber) {
+                  core.info("Could not determine issue number");
+                  continue;
+                }
+                core.info(`Updating issue #${issueNumber}`);
+                const updateData = {};
+                let hasUpdates = false;
+                if (canUpdateStatus && updateItem.status !== undefined) {
+                  if (updateItem.status === "open" || updateItem.status === "closed") {
+                    updateData.state = updateItem.status;
+                    hasUpdates = true;
+                    core.info(`Will update status to: ${updateItem.status}`);
+                  } else {
+                    core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
+                  }
+                }
+                if (canUpdateTitle && updateItem.title !== undefined) {
+                  if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
+                    updateData.title = updateItem.title.trim();
+                    hasUpdates = true;
+                    core.info(`Will update title to: ${updateItem.title.trim()}`);
+                  } else {
+                    core.info("Invalid title value: must be a non-empty string");
+                  }
+                }
+                if (canUpdateBody && updateItem.body !== undefined) {
+                  if (typeof updateItem.body === "string") {
+                    updateData.body = updateItem.body;
+                    hasUpdates = true;
+                    core.info(`Will update body (length: ${updateItem.body.length})`);
+                  } else {
+                    core.info("Invalid body value: must be a string");
+                  }
+                }
+                if (!hasUpdates) {
+                  core.info("No valid updates to apply for this item");
+                  continue;
+                }
+                try {
+                  const { data: issue } = await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    ...updateData,
+                  });
+                  core.info("Updated issue #" + issue.number + ": " + issue.html_url);
+                  updatedIssues.push(issue);
+                  if (i === updateItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (updatedIssues.length > 0) {
+                let summaryContent = "\n\n## Updated Issues\n";
+                for (const issue of updatedIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
+              return updatedIssues;
+            }
+            await main();
 

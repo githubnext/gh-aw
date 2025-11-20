@@ -16,7 +16,9 @@ tools:
   github:
     toolsets: [default, repos, issues]
 safe-outputs:
-  assign-milestone:
+  update-issue:
+    target: "*"
+    status:
     max: 1
   threat-detection:
     engine: false
@@ -336,13 +338,14 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Dev Workflow: Random Milestone Assignment
+# Dev Workflow: Close Old AI-Generated Issue
 
 **Tasks:**
 
-## Milestone Assignment
+## Close Old Issue
 
-1. List the last 3 issues from this repository
-2. Pick a random open issue (that doesn't already have a milestone)
-3. Use the `assign_milestone` safe output to assign the issue to milestone 1 (v0.Later: https://github.com/githubnext/gh-aw/milestone/1)
-4. If there are no open issues without milestones, fail with an error
+1. List issues from this repository with the "ai-generated" label
+2. Find the oldest open issue with this label
+3. Use the `update_issue` safe output to close the issue
+4. Add a comment explaining why it's being closed (e.g., "Closing old ai-generated issue for cleanup")
+5. If there are no open issues with the "ai-generated" label, report that no action was needed

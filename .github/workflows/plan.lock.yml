@@ -2794,9 +2794,7 @@ jobs:
                         }
                         const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
                         if (!allowedReasons.includes(item.reason.toUpperCase())) {
-                          errors.push(
-                            `Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`
-                          );
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
                           continue;
                         }
                         item.reason = item.reason.toUpperCase();
@@ -4402,7 +4400,9 @@ jobs:
               const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
               const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
               const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
-              core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
+              core.info(
+                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
+              );
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
@@ -4505,15 +4505,7 @@ jobs:
                     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                     : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   body += getTrackerID("markdown");
-                  body += generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    undefined,
-                    undefined,
-                    triggeringDiscussionNumber
-                  );
+                  body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
                   core.info(`Adding comment to discussion #${discussionNumber}`);
                   core.info(`Comment content length: ${body.length}`);
                   const comment = await addDiscussionComment(github, discussion.id, body);
