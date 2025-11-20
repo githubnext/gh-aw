@@ -279,6 +279,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateDiscussions = discussionsConfig
 			}
 
+			// Handle close-discussion
+			closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap)
+			if closeDiscussionsConfig != nil {
+				config.CloseDiscussions = closeDiscussionsConfig
+			}
+
 			// Handle add-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {
