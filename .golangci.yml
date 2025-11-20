@@ -1,5 +1,3 @@
-version: "2"
-
 run:
   timeout: 5m
   tests: true
@@ -7,17 +5,15 @@ run:
 linters:
   enable:
     - errcheck
+    - gofmt
+    - goimports
     - revive
     - govet
     - ineffassign
     - misspell
     - staticcheck
+    - typecheck
     - unused
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
 
 linters-settings:
   errcheck:
@@ -59,5 +55,3 @@ issues:
     - linters:
         - revive
       text: "exported"
-
-
