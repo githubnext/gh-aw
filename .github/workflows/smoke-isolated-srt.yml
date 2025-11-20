@@ -319,6 +319,8 @@ jobs:
             "network": {
               "allowedDomains": [
                 "*.githubusercontent.com",
+                "*.github.com",
+                "*.githubcopilot.com",
                 "api.enterprise.githubcopilot.com",
                 "api.github.com",
                 "api.snapcraft.io",
