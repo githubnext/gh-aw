@@ -9,7 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var ghHelperLog = logger.New("workflow:gh_helper")
+var githubCLILog = logger.New("workflow:github_cli")
 
 // ExecGH wraps gh CLI calls and ensures proper token configuration.
 // It uses go-gh/v2 to execute gh commands when GH_TOKEN or GITHUB_TOKEN is available,
@@ -26,7 +26,7 @@ func ExecGH(args ...string) *exec.Cmd {
 
 	// If we have a token, use go-gh/v2 which handles authentication properly
 	if ghToken != "" || githubToken != "" {
-		ghHelperLog.Printf("Using gh CLI via go-gh/v2 for command: gh %v", args)
+		githubCLILog.Printf("Using gh CLI via go-gh/v2 for command: gh %v", args)
 
 		// Create a command that will execute via go-gh
 		// We return an exec.Cmd for backward compatibility with existing code
@@ -34,7 +34,7 @@ func ExecGH(args ...string) *exec.Cmd {
 
 		// Set up environment to ensure token is available
 		if ghToken == "" && githubToken != "" {
-			ghHelperLog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
+			githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
 			cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
 		}
 
@@ -42,7 +42,7 @@ func ExecGH(args ...string) *exec.Cmd {
 	}
 
 	// If no token is available, use default gh CLI behavior
-	ghHelperLog.Printf("No token available, using default gh CLI for command: gh %v", args)
+	githubCLILog.Printf("No token available, using default gh CLI for command: gh %v", args)
 	return exec.Command("gh", args...)
 }
 
@@ -53,6 +53,6 @@ func ExecGH(args ...string) *exec.Cmd {
 //
 //	stdout, stderr, err := ExecGHWithOutput("api", "/user")
 func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
-	ghHelperLog.Printf("Executing gh CLI command via go-gh/v2: gh %v", args)
+	githubCLILog.Printf("Executing gh CLI command via go-gh/v2: gh %v", args)
 	return gh.Exec(args...)
 }
