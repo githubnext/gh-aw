@@ -10,16 +10,16 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   assign_milestone["assign_milestone"]
+#   close_discussion["close_discussion"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
-#   agent --> assign_milestone
-#   detection --> assign_milestone
+#   agent --> close_discussion
+#   detection --> close_discussion
 #   agent --> conclusion
 #   activation --> conclusion
-#   assign_milestone --> conclusion
+#   close_discussion --> conclusion
 #   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
@@ -44,6 +44,7 @@ name: "Dev"
 
 permissions:
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
 
@@ -155,6 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
     concurrency:
@@ -253,10 +255,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_milestone":{"max":1},"missing_tool":{},"noop":{"max":1}}
+          {"close_discussion":{"max":1},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Assign an issue to a milestone","inputSchema":{"additionalProperties":false,"properties":{"issue_number":{"description":"Issue number to assign milestone to","type":["number","string"]},"milestone_number":{"description":"Milestone number to assign","type":["number","string"]}},"required":["issue_number","milestone_number"],"type":"object"},"name":"assign_milestone"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Close a GitHub discussion with a comment and optional resolution reason","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment body to add when closing the discussion","type":"string"},"discussion_number":{"description":"Optional discussion number (uses triggering discussion if not provided)","type":["number","string"]},"reason":{"description":"Optional resolution reason","enum":["RESOLVED","DUPLICATE","OUTDATED","ANSWERED"],"type":"string"}},"required":["body"],"type":"object"},"name":"close_discussion"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -840,7 +842,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default,repos,issues",
+                  "GITHUB_TOOLSETS=default,repos,issues,discussions",
                   "ghcr.io/github/github-mcp-server:v0.21.0"
                 ],
                 "tools": ["*"],
@@ -881,16 +883,20 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Dev Workflow: Random Milestone Assignment
+          # Dev Workflow: Close Random Discussion
           
           **Tasks:**
           
-          ## Milestone Assignment
+          ## Close Random Discussion
           
-          1. List the last 3 issues from this repository
-          2. Pick a random open issue (that doesn't already have a milestone)
-          3. Use the `assign_milestone` safe output to assign the issue to milestone 1 (v0.Later: https://github.com/githubnext/gh-aw/milestone/1)
-          4. If there are no open issues without milestones, fail with an error
+          1. List open discussions from this repository
+          2. Select a random discussion from the list
+          3. Use the `close_discussion` safe output to close the discussion
+          4. Add a comment explaining why it's being closed (e.g., "Closing as part of dev workflow test")
+          5. Use "RESOLVED" as the resolution reason
+          6. If there are no open discussions, report that no action was needed
+          
+          Output the discussion closure as JSONL format.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1489,6 +1495,8 @@ jobs:
                     return 1;
                   case "create_discussion":
                     return 1;
+                  case "close_discussion":
+                    return 1;
                   case "missing_tool":
                     return 20;
                   case "create_code_scanning_alert":
@@ -2026,6 +2034,34 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "close_discussion":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      if (item.reason !== undefined) {
+                        if (typeof item.reason !== "string") {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
+                          continue;
+                        }
+                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
+                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
+                          continue;
+                        }
+                        item.reason = item.reason.toUpperCase();
+                      }
+                      const discussionNumberValidation = validateOptionalPositiveInteger(
+                        item.discussion_number,
+                        "close_discussion 'discussion_number'",
+                        i + 1
+                      );
+                      if (!discussionNumberValidation.isValid) {
+                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -3419,20 +3455,22 @@ jobs:
               main();
             }
 
-  assign_milestone:
+  close_discussion:
     needs:
       - agent
       - detection
     if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_milestone'))) &&
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_discussion'))) &&
       (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      issues: write
+      discussions: write
     timeout-minutes: 10
     outputs:
-      assigned_milestones: ${{ steps.assign_milestone.outputs.assigned_milestones }}
+      comment_url: ${{ steps.close_discussion.outputs.comment_url }}
+      discussion_number: ${{ steps.close_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.close_discussion.outputs.discussion_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -3445,12 +3483,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Assign Milestone
-        id: assign_milestone
+      - name: Close Discussion
+        id: close_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MILESTONE_MAX_COUNT: 1
+          GH_AW_CLOSE_DISCUSSION_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Dev"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -3489,161 +3527,271 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
               }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function getRepositoryUrl() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${targetRepoSlug}`;
+              } else if (context.payload.repository?.html_url) {
+                return context.payload.repository.html_url;
+              } else {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
+            async function getDiscussionDetails(github, owner, repo, discussionNumber) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id
+                      title
+                      category {
+                        name
+                      }
+                      labels(first: 100) {
+                        nodes {
+                          name
+                        }
+                      }
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              return repository.discussion;
+            }
+            async function addDiscussionComment(github, discussionId, message) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              return result.addDiscussionComment.comment;
+            }
+            async function closeDiscussion(github, discussionId, reason) {
+              const mutation = reason
+                ? `
+                  mutation($dId: ID!, $reason: DiscussionCloseReason!) {
+                    closeDiscussion(input: { discussionId: $dId, reason: $reason }) {
+                      discussion { 
+                        id
+                        url
+                      }
+                    }
+                  }`
+                : `
+                  mutation($dId: ID!) {
+                    closeDiscussion(input: { discussionId: $dId }) {
+                      discussion { 
+                        id
+                        url
+                      }
+                    }
+                  }`;
+              const variables = reason ? { dId: discussionId, reason } : { dId: discussionId };
+              const result = await github.graphql(mutation, variables);
+              return result.closeDiscussion.discussion;
+            }
             async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
               }
-              const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
-              if (milestoneItems.length === 0) {
-                core.info("No assign_milestone items found in agent output");
+              const closeDiscussionItems = result.items.filter( item => item.type === "close_discussion");
+              if (closeDiscussionItems.length === 0) {
+                core.info("No close-discussion items found in agent output");
                 return;
               }
-              core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                await generateStagedPreview({
-                  title: "Assign Milestone",
-                  description: "The following milestone assignments would be made if staged mode was disabled:",
-                  items: milestoneItems,
-                  renderItem: item => {
-                    let content = `**Issue:** #${item.issue_number}\n`;
-                    content += `**Milestone Number:** ${item.milestone_number}\n\n`;
-                    return content;
-                  },
-                });
+              core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
+              const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS
+                ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim())
+                : [];
+              const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
+              const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
+              const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
+              core.info(
+                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
+              );
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
+                summaryContent += "The following discussions would be closed if staged mode was disabled:\n\n";
+                for (let i = 0; i < closeDiscussionItems.length; i++) {
+                  const item = closeDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
+                  const discussionNumber = item.discussion_number;
+                  if (discussionNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    const discussionUrl = `${repoUrl}/discussions/${discussionNumber}`;
+                    summaryContent += `**Target Discussion:** [#${discussionNumber}](${discussionUrl})\n\n`;
+                  } else {
+                    summaryContent += `**Target:** Current discussion\n\n`;
+                  }
+                  if (item.reason) {
+                    summaryContent += `**Reason:** ${item.reason}\n\n`;
+                  }
+                  summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
+                  if (requiredLabels.length > 0) {
+                    summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
+                  }
+                  if (requiredTitlePrefix) {
+                    summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
+                  }
+                  if (requiredCategory) {
+                    summaryContent += `**Required Category:** ${requiredCategory}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Discussion close preview written to step summary");
                 return;
               }
-              const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
-              const allowedMilestones = allowedMilestonesEnv
-                ? allowedMilestonesEnv
-                    .split(",")
-                    .map(m => m.trim())
-                    .filter(m => m)
-                : undefined;
-              if (allowedMilestones) {
-                core.info(`Allowed milestones: ${JSON.stringify(allowedMilestones)}`);
-              } else {
-                core.info("No milestone restrictions - any milestones are allowed");
-              }
-              const maxCountEnv = process.env.GH_AW_MILESTONE_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+              if (target === "triggering" && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in discussion context, skipping discussion close');
                 return;
               }
-              core.info(`Max count: ${maxCount}`);
-              const itemsToProcess = milestoneItems.slice(0, maxCount);
-              if (milestoneItems.length > maxCount) {
-                core.warning(`Found ${milestoneItems.length} milestone assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
-              }
-              let allMilestones = [];
-              if (allowedMilestones) {
-                try {
-                  const milestonesResponse = await github.rest.issues.listMilestones({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    state: "all",
-                    per_page: 100,
-                  });
-                  allMilestones = milestonesResponse.data;
-                  core.info(`Fetched ${allMilestones.length} milestones from repository`);
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to fetch milestones: ${errorMessage}`);
-                  core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
-                  return;
-                }
-              }
-              const results = [];
-              for (const item of itemsToProcess) {
-                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-                const milestoneNumber = typeof item.milestone_number === "number" ? item.milestone_number : parseInt(String(item.milestone_number), 10);
-                if (isNaN(issueNumber) || issueNumber <= 0) {
-                  core.error(`Invalid issue_number: ${item.issue_number}`);
-                  continue;
-                }
-                if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
-                  core.error(`Invalid milestone_number: ${item.milestone_number}`);
-                  continue;
-                }
-                if (allowedMilestones && allowedMilestones.length > 0) {
-                  const milestone = allMilestones.find(m => m.number === milestoneNumber);
-                  if (!milestone) {
-                    core.warning(`Milestone #${milestoneNumber} not found in repository. Skipping.`);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const closedDiscussions = [];
+              for (let i = 0; i < closeDiscussionItems.length; i++) {
+                const item = closeDiscussionItems[i];
+                core.info(`Processing close-discussion item ${i + 1}/${closeDiscussionItems.length}: bodyLength=${item.body.length}`);
+                let discussionNumber;
+                if (target === "*") {
+                  const targetNumber = item.discussion_number;
+                  if (targetNumber) {
+                    discussionNumber = parseInt(targetNumber, 10);
+                    if (isNaN(discussionNumber) || discussionNumber <= 0) {
+                      core.info(`Invalid discussion number specified: ${targetNumber}`);
+                      continue;
+                    }
+                  } else {
+                    core.info(`Target is "*" but no discussion_number specified in close-discussion item`);
                     continue;
                   }
-                  const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
-                  if (!isAllowed) {
-                    core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list. Skipping.`);
+                } else if (target && target !== "triggering") {
+                  discussionNumber = parseInt(target, 10);
+                  if (isNaN(discussionNumber) || discussionNumber <= 0) {
+                    core.info(`Invalid discussion number in target configuration: ${target}`);
+                    continue;
+                  }
+                } else {
+                  if (isDiscussionContext) {
+                    discussionNumber = context.payload.discussion?.number;
+                    if (!discussionNumber) {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  } else {
+                    core.info("Not in discussion context and no explicit target specified");
                     continue;
                   }
                 }
                 try {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    milestone: milestoneNumber,
+                  const discussion = await getDiscussionDetails(github, context.repo.owner, context.repo.repo, discussionNumber);
+                  if (requiredLabels.length > 0) {
+                    const discussionLabels = discussion.labels.nodes.map(l => l.name);
+                    const hasRequiredLabel = requiredLabels.some(required => discussionLabels.includes(required));
+                    if (!hasRequiredLabel) {
+                      core.info(`Discussion #${discussionNumber} does not have required labels: ${requiredLabels.join(", ")}`);
+                      continue;
+                    }
+                  }
+                  if (requiredTitlePrefix && !discussion.title.startsWith(requiredTitlePrefix)) {
+                    core.info(`Discussion #${discussionNumber} does not have required title prefix: ${requiredTitlePrefix}`);
+                    continue;
+                  }
+                  if (requiredCategory && discussion.category.name !== requiredCategory) {
+                    core.info(`Discussion #${discussionNumber} is not in required category: ${requiredCategory}`);
+                    continue;
+                  }
+                  let body = item.body.trim();
+                  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                  const runId = context.runId;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  body += getTrackerID("markdown");
+                  body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
+                  core.info(`Adding comment to discussion #${discussionNumber}`);
+                  core.info(`Comment content length: ${body.length}`);
+                  const comment = await addDiscussionComment(github, discussion.id, body);
+                  core.info("Added discussion comment: " + comment.url);
+                  core.info(`Closing discussion #${discussionNumber} with reason: ${item.reason || "none"}`);
+                  const closedDiscussion = await closeDiscussion(github, discussion.id, item.reason);
+                  core.info("Closed discussion: " + closedDiscussion.url);
+                  closedDiscussions.push({
+                    number: discussionNumber,
+                    url: discussion.url,
+                    comment_url: comment.url,
                   });
-                  core.info(`Successfully assigned milestone #${milestoneNumber} to issue #${issueNumber}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
-                    success: true,
-                  });
+                  if (i === closeDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussionNumber);
+                    core.setOutput("discussion_url", discussion.url);
+                    core.setOutput("comment_url", comment.url);
+                  }
                 } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
-                    success: false,
-                    error: errorMessage,
-                  });
+                  core.error(`✗ Failed to close discussion #${discussionNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
                 }
               }
-              const successCount = results.filter(r => r.success).length;
-              const failureCount = results.filter(r => !r.success).length;
-              let summaryContent = "## Milestone Assignment\n\n";
-              if (successCount > 0) {
-                summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
-                for (const result of results.filter(r => r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}\n`;
+              if (closedDiscussions.length > 0) {
+                let summaryContent = "\n\n## Closed Discussions\n";
+                for (const discussion of closedDiscussions) {
+                  summaryContent += `- Discussion #${discussion.number}: [View Discussion](${discussion.url})\n`;
+                  summaryContent += `  - Comment: [View Comment](${discussion.comment_url})\n`;
                 }
-                summaryContent += "\n";
+                await core.summary.addRaw(summaryContent).write();
               }
-              if (failureCount > 0) {
-                summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
-                for (const result of results.filter(r => !r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}: ${result.error}\n`;
-                }
-              }
-              await core.summary.addRaw(summaryContent).write();
-              const assignedMilestones = results
-                .filter(r => r.success)
-                .map(r => `${r.issue_number}:${r.milestone_number}`)
-                .join("\n");
-              core.setOutput("assigned_milestones", assignedMilestones);
-              if (failureCount > 0) {
-                core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
-              }
+              core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
+              return closedDiscussions;
             }
             await main();
 
@@ -3651,7 +3799,7 @@ jobs:
     needs:
       - agent
       - activation
-      - assign_milestone
+      - close_discussion
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim

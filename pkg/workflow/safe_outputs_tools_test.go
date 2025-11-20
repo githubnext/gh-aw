@@ -269,6 +269,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"create_issue",
 		"create_agent_task",
 		"create_discussion",
+		"close_discussion",
 		"add_comment",
 		"create_pull_request",
 		"create_pull_request_review_comment",
