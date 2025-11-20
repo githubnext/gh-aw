@@ -181,8 +181,8 @@ jobs:
               console.log('\n=== Export Prefix ===');
               console.log(`Length: ${envPrefix.length} chars`);
 
-              // Test command - focus on what Node.js sees
-              const command = envPrefix + ' echo "=== Inside Sandbox ===" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\');" && ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
+              // Test command - check filesystem access and run copilot
+              const command = envPrefix + ' echo "=== Inside Sandbox ===" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\');" && echo "=== Current directory ===" && pwd && echo "=== Copilot binary exists? ===" && ls -la ./node_modules/.bin/copilot && echo "=== Running copilot ===" && node ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
 
               console.log('\n=== Command Length ===');
               console.log(`Total: ${command.length} chars`);
