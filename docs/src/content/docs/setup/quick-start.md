@@ -22,8 +22,7 @@ Before you begin, make sure you have:
 - [ ] **Repository permissions:** Admin or write access to your target repository
 - [ ] **Repository features enabled:** 
   - GitHub Actions
-  - Issues
-  - Discussions
+  - Issues or Discussions (depending on your workflow needs)
 - [ ] **Operating System:** Linux, macOS, or Windows with WSL
 - [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (you'll create this in Step 3 below)
 
