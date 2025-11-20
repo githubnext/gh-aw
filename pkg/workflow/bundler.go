@@ -55,7 +55,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 
 	// Find all requires and their positions
 	matches := requireRegex.FindAllStringSubmatchIndex(content, -1)
-	
+
 	if len(matches) == 0 {
 		// No requires found, return content as-is
 		return content, nil
