@@ -1,0 +1,268 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+)
+
+// TestCheckoutRuntimeOrderInCustomSteps verifies that when custom steps contain
+// a checkout step, runtime setup steps are inserted AFTER the checkout step,
+// not before it. This ensures that checkout is always the first step.
+func TestCheckoutRuntimeOrderInCustomSteps(t *testing.T) {
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v5
+  - name: Use Node
+    run: node --version
+---
+
+# Test workflow with checkout in custom steps
+`
+
+	// Create temporary directory for test
+	tempDir, err := os.MkdirTemp("", "checkout-runtime-order-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create workflows directory
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write test workflow file
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile workflow
+	compiler := NewCompiler(false, "", "test-version")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read generated lock file
+	lockPath := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Extract the agent job section
+	agentJobStart := strings.Index(lockStr, "  agent:")
+	if agentJobStart == -1 {
+		t.Fatal("Could not find agent job in compiled workflow")
+	}
+
+	// Find the next job (starts with "  " followed by a non-space character, e.g., "  activation:")
+	// We need to skip the agent job content which has more indentation
+	remainingContent := lockStr[agentJobStart+10:]
+	nextJobStart := -1
+	lines := strings.Split(remainingContent, "\n")
+	for i, line := range lines {
+		// A new job starts with exactly 2 spaces followed by a letter/number (not more spaces)
+		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && line[2] != '\t' {
+			// Calculate the position in the original string
+			nextJobStart = 0
+			for j := 0; j < i; j++ {
+				nextJobStart += len(lines[j]) + 1 // +1 for newline
+			}
+			break
+		}
+	}
+
+	var agentJobSection string
+	if nextJobStart == -1 {
+		agentJobSection = lockStr[agentJobStart:]
+	} else {
+		agentJobSection = lockStr[agentJobStart : agentJobStart+10+nextJobStart]
+	}
+
+	// Debug: print first 1000 chars of agent job section
+	sampleSize := min(1000, len(agentJobSection))
+	t.Logf("Agent job section (first %d chars):\n%s", sampleSize, agentJobSection[:sampleSize])
+
+	// Find all step names in order
+	stepNames := []string{}
+	stepLines := strings.Split(agentJobSection, "\n")
+	for _, line := range stepLines {
+		// Check if line contains "- name:" (with any amount of leading whitespace)
+		if strings.Contains(line, "- name:") {
+			// Extract the name part after "- name:"
+			parts := strings.SplitN(line, "- name:", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[1])
+				stepNames = append(stepNames, name)
+			}
+		}
+	}
+
+	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
+
+	if len(stepNames) < 3 {
+		t.Fatalf("Expected at least 3 steps, got %d: %v", len(stepNames), stepNames)
+	}
+
+	// Verify the order:
+	// 1. First step should be "Checkout code" (from custom steps)
+	// 2. Second step should be "Setup Node.js" (runtime setup, inserted after checkout)
+	// 3. Third step should be "Use Node" (from custom steps)
+
+	if stepNames[0] != "Checkout code" {
+		t.Errorf("First step should be 'Checkout code', got '%s'", stepNames[0])
+	}
+
+	if stepNames[1] != "Setup Node.js" {
+		t.Errorf("Second step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[1])
+	}
+
+	if stepNames[2] != "Use Node" {
+		t.Errorf("Third step should be 'Use Node', got '%s'", stepNames[2])
+	}
+
+	// Additional check: verify Setup Node.js appears AFTER Checkout code
+	checkoutIndex := strings.Index(agentJobSection, "Checkout code")
+	setupNodeIndex := strings.Index(agentJobSection, "Setup Node.js")
+
+	if checkoutIndex == -1 {
+		t.Fatal("Could not find 'Checkout code' step in agent job")
+	}
+
+	if setupNodeIndex == -1 {
+		t.Fatal("Could not find 'Setup Node.js' step in agent job")
+	}
+
+	if setupNodeIndex < checkoutIndex {
+		t.Error("Setup Node.js appears before Checkout code, should be after")
+	}
+
+	t.Logf("Step order is correct:")
+	for i, name := range stepNames[:3] {
+		t.Logf("  %d. %s", i+1, name)
+	}
+}
+
+// TestCheckoutFirstWhenNoCustomSteps verifies that when there are no custom steps,
+// the automatic checkout is added first.
+func TestCheckoutFirstWhenNoCustomSteps(t *testing.T) {
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Test workflow without custom steps
+
+Run node --version to check the Node.js version.
+`
+
+	// Create temporary directory for test
+	tempDir, err := os.MkdirTemp("", "checkout-first-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create workflows directory
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write test workflow file
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile workflow
+	compiler := NewCompiler(false, "", "test-version")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read generated lock file
+	lockPath := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Extract the agent job section
+	agentJobStart := strings.Index(lockStr, "  agent:")
+	if agentJobStart == -1 {
+		t.Fatal("Could not find agent job in compiled workflow")
+	}
+
+	// Find the next job (starts with "  " followed by a non-space character, e.g., "  activation:")
+	// We need to skip the agent job content which has more indentation
+	remainingContent := lockStr[agentJobStart+10:]
+	nextJobStart := -1
+	lines := strings.Split(remainingContent, "\n")
+	for i, line := range lines {
+		// A new job starts with exactly 2 spaces followed by a letter/number (not more spaces)
+		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && line[2] != '\t' {
+			// Calculate the position in the original string
+			nextJobStart = 0
+			for j := 0; j < i; j++ {
+				nextJobStart += len(lines[j]) + 1 // +1 for newline
+			}
+			break
+		}
+	}
+
+	var agentJobSection string
+	if nextJobStart == -1 {
+		agentJobSection = lockStr[agentJobStart:]
+	} else {
+		agentJobSection = lockStr[agentJobStart : agentJobStart+10+nextJobStart]
+	}
+
+	// Find all step names in order
+	stepNames := []string{}
+	stepLines := strings.Split(agentJobSection, "\n")
+	for _, line := range stepLines {
+		// Check if line contains "- name:" (with any amount of leading whitespace)
+		if strings.Contains(line, "- name:") {
+			// Extract the name part after "- name:"
+			parts := strings.SplitN(line, "- name:", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[1])
+				stepNames = append(stepNames, name)
+			}
+		}
+	}
+
+	if len(stepNames) < 1 {
+		t.Fatalf("Expected at least 1 step, got %d: %v", len(stepNames), stepNames)
+	}
+
+	// Verify the order:
+	// 1. First step should be "Checkout repository" (automatic)
+
+	if stepNames[0] != "Checkout repository" {
+		t.Errorf("First step should be 'Checkout repository', got '%s'", stepNames[0])
+	}
+
+	t.Logf("Step order is correct:")
+	t.Logf("  1. %s (first step is checkout)", stepNames[0])
+}
