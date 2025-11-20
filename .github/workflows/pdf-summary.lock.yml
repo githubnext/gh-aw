@@ -687,12 +687,30 @@ jobs:
               }
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
             }
+            function buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL) {
+              let linkText = `Agentic [${workflowName}](${runUrl})`;
+              const additionalLinks = [];
+              if (workflowSource && workflowSourceURL) {
+                additionalLinks.push(`[source](${workflowSourceURL})`);
+              }
+              if (runId) {
+                additionalLinks.push(`[run #${runId}](${runUrl})`);
+              }
+              if (additionalLinks.length > 0) {
+                linkText += ` (${additionalLinks.join(", ")})`;
+              }
+              return linkText;
+            }
             async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
+                  const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+                  const workflowLinkText = `${workflowLinkPart} triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -728,7 +746,8 @@ jobs:
                   return;
                 } else if (eventName === "discussion_comment") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+                  const workflowLinkText = `${workflowLinkPart} triggered by this discussion comment.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -781,7 +800,8 @@ jobs:
                   default:
                     eventTypeDescription = "event";
                 }
-                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+                const workflowLinkText = `${workflowLinkPart} triggered by this ${eventTypeDescription}.`;
                 const createResponse = await github.request("POST " + endpoint, {
                   body: workflowLinkText,
                   headers: {

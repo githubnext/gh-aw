@@ -657,5 +657,36 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
       expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: push");
     });
+
+    it("should include workflow source and run ID in comment when available", async () => {
+      process.env.GH_AW_REACTION = "eyes";
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_SOURCE = "testowner/testrepo/.github/workflows/test.md@main";
+      process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/testowner/testrepo/tree/main/.github/workflows/test.md";
+
+      global.context.eventName = "issues";
+      global.context.runId = 67890;
+      global.context.payload = {
+        issue: { number: 123 },
+        repository: { html_url: "https://github.com/testowner/testrepo" },
+      };
+
+      mockGithub.request.mockResolvedValue({
+        data: { id: "987", html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-987" },
+      });
+
+      // Execute the script
+      await eval(`(async () => { ${reactionScript} })()`);
+
+      // Verify comment includes workflow name, source link, and run ID
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/issues/123/comments",
+        expect.objectContaining({
+          body: expect.stringMatching(
+            /Agentic \[Test Workflow\]\(.*\) \(\[source\]\(.*test\.md\), \[run #67890\]\(.*\)\) triggered by this issue\./
+          ),
+        })
+      );
+    });
   });
 });

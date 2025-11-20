@@ -668,6 +668,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
+		// Add workflow source and source URL if present
+		if data.Source != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+			sourceURL := buildSourceURL(data.Source)
+			if sourceURL != "" {
+				steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+			}
+		}
+
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
