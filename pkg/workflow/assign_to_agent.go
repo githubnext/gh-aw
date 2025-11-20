@@ -39,9 +39,6 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
-	if data.SafeOutputs.AssignToAgent.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_TARGET: %q\n", data.SafeOutputs.AssignToAgent.Target))
-	}
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AssignToAgent.TargetRepoSlug)...)
