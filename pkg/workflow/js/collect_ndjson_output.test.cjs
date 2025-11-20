@@ -2531,5 +2531,29 @@ Line 3"}
       expect(parsedOutput.items[0].project_item_id).toBe("PVTI_12345");
       expect(parsedOutput.errors).toHaveLength(0);
     });
+
+    it("should reject assign_to_agent with missing issue_number", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "assign_to_agent"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"assign_to_agent": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Since there are errors and no valid items, setFailed should be called
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("assign_to_agent 'issue_number' is required");
+
+      // setOutput should not be called because of early return
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeUndefined();
+    });
   });
 });

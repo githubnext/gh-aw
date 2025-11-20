@@ -504,7 +504,7 @@ async function main() {
           break;
         case "assign_to_agent":
           // Validate issue_number (required)
-          const assignToAgentIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_to_agent 'issue_number'", i + 1);
+          const assignToAgentIssueValidation = validatePositiveInteger(item.issue_number, "assign_to_agent 'issue_number'", i + 1);
           if (!assignToAgentIssueValidation.isValid) {
             if (assignToAgentIssueValidation.error) errors.push(assignToAgentIssueValidation.error);
             continue;
