@@ -12,6 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 
+tracker-id: daily-firewall-report
 timeout-minutes: 45
 
 safe-outputs:
