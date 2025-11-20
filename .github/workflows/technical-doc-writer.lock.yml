@@ -1309,6 +1309,9 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
+          mkdir -p /home/runner/.copilot/agents
+          cp "/host${GITHUB_WORKSPACE}/.github/agents/technical-doc-writer.md" "/home/runner/.copilot/agents/technical-doc-writer.md"
+          echo "Copied agent file to /home/runner/.copilot/agents/technical-doc-writer.md"
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
