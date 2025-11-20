@@ -5131,8 +5131,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
-      issues: read
-      pull-requests: read
+      discussions: write
+      issues: write
+      pull-requests: write
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
