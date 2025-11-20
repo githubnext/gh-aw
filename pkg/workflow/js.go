@@ -21,7 +21,31 @@ var assignIssueScript string
 var addReactionAndEditCommentScript string
 
 //go:embed js/check_membership.cjs
-var checkMembershipScript string
+var checkMembershipScriptSource string
+
+var (
+	checkMembershipScript     string
+	checkMembershipScriptOnce sync.Once
+)
+
+// getCheckMembershipScript returns the bundled check_membership script
+// Bundling is performed on first access and cached for subsequent calls
+func getCheckMembershipScript() string {
+	checkMembershipScriptOnce.Do(func() {
+		jsLog.Print("Bundling check_membership script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(checkMembershipScriptSource, sources, "")
+		if err != nil {
+			jsLog.Printf("Failed to bundle check_membership script, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			checkMembershipScript = checkMembershipScriptSource
+		} else {
+			jsLog.Printf("Successfully bundled check_membership script: %d bytes", len(bundled))
+			checkMembershipScript = bundled
+		}
+	})
+	return checkMembershipScript
+}
 
 //go:embed js/check_stop_time.cjs
 var checkStopTimeScript string
@@ -119,6 +143,9 @@ var getTrackerIDScript string
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
 
+//go:embed js/check_permissions_utils.cjs
+var checkPermissionsUtilsScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -135,6 +162,7 @@ func GetJavaScriptSources() map[string]string {
 		"generate_footer.cjs":           generateFooterScript,
 		"get_tracker_id.cjs":            getTrackerIDScript,
 		"get_repository_url.cjs":        getRepositoryUrlScript,
+		"check_permissions_utils.cjs":   checkPermissionsUtilsScript,
 	}
 }
 
