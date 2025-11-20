@@ -125,7 +125,7 @@ func (c *Compiler) buildCreateOutputCloseDiscussionJob(data *WorkflowData, mainJ
 	// Build job condition with discussion event check only for "triggering" target
 	// If target is "*" (any discussion) or explicitly set, allow agent to provide discussion_number
 	jobCondition := BuildSafeOutputType("close_discussion")
-	if data.SafeOutputs.CloseDiscussions != nil && 
+	if data.SafeOutputs.CloseDiscussions != nil &&
 		(data.SafeOutputs.CloseDiscussions.Target == "" || data.SafeOutputs.CloseDiscussions.Target == "triggering") {
 		// Only require event discussion context for "triggering" target
 		eventCondition := buildOr(
