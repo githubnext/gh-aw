@@ -342,6 +342,10 @@ func init() {
 		ID:    "analysis",
 		Title: "Analysis Commands:",
 	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "utilities",
+		Title: "Utilities:",
+	})
 
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
@@ -478,26 +482,37 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpCmd := cli.NewMCPCommand()
 	logsCmd := cli.NewLogsCommand()
 	auditCmd := cli.NewAuditCommand()
+	mcpServerCmd := cli.NewMCPServerCommand()
+	prCmd := cli.NewPRCommand()
 
 	// Assign commands to groups
 	// Setup Commands
 	initCmd.GroupID = "setup"
 	newCmd.GroupID = "setup"
 	addCmd.GroupID = "setup"
+	removeCmd.GroupID = "setup"
+	updateCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
+	mcpServerCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
 	enableCmd.GroupID = "execution"
 	disableCmd.GroupID = "execution"
+	trialCmd.GroupID = "execution"
 
 	// Analysis Commands
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
+
+	// Utilities
+	prCmd.GroupID = "utilities"
+
+	// version command is intentionally left without a group (common practice)
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
@@ -514,8 +529,8 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(mcpCmd)
-	rootCmd.AddCommand(cli.NewMCPServerCommand())
-	rootCmd.AddCommand(cli.NewPRCommand())
+	rootCmd.AddCommand(mcpServerCmd)
+	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
