@@ -538,15 +538,15 @@ jobs:
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": false
+              "allowLocalBinding": false,
+              "allowAllUnixSockets": false
             },
             "filesystem": {
               "allowWrite": [
                 "."
               ]
             },
-            "enableWeakerNestedSandbox": true,
-            "allowAllUnixSockets": false
+            "enableWeakerNestedSandbox": true
           }
           SRT_CONFIG_EOF
 

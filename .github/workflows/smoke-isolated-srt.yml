@@ -68,10 +68,9 @@ jobs:
 
           cat > .srt-test-config.json << 'EOF'
           {
-            "network": { "allowedDomains": ["*"], "allowLocalBinding": false },
+            "network": { "allowedDomains": ["*"], "allowLocalBinding": false, "allowAllUnixSockets": true },
             "filesystem": { "allowWrite": [".", "/tmp"] },
-            "enableWeakerNestedSandbox": true,
-            "allowAllUnixSockets": true
+            "enableWeakerNestedSandbox": true
           }
           EOF
 
@@ -386,13 +385,13 @@ jobs:
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": false
+              "allowLocalBinding": false,
+              "allowAllUnixSockets": true
             },
             "filesystem": {
               "allowWrite": [".", "/home/runner/.copilot", "/tmp", "/home/runner"]
             },
-            "enableWeakerNestedSandbox": true,
-            "allowAllUnixSockets": true
+            "enableWeakerNestedSandbox": true
           }
           EOF
 

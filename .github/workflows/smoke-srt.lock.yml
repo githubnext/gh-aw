@@ -590,7 +590,8 @@ jobs:
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": false
+              "allowLocalBinding": false,
+              "allowAllUnixSockets": true
             },
             "filesystem": {
               "allowWrite": [
@@ -599,8 +600,7 @@ jobs:
                 "/tmp"
               ]
             },
-            "enableWeakerNestedSandbox": true,
-            "allowAllUnixSockets": true
+            "enableWeakerNestedSandbox": true
           }
           SRT_CONFIG_EOF
 

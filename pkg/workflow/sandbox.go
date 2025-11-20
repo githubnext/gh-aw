@@ -30,15 +30,15 @@ type SandboxRuntimeConfig struct {
 	Filesystem                 *SRTFilesystemConfig         `json:"filesystem,omitempty"`
 	IgnoreViolations           map[string][]string          `json:"ignoreViolations,omitempty"`
 	EnableWeakerNestedSandbox  bool                         `json:"enableWeakerNestedSandbox"`
-	AllowAllUnixSockets        bool                         `json:"allowAllUnixSockets"`
 }
 
 // SRTNetworkConfig represents network configuration for SRT
 type SRTNetworkConfig struct {
-	AllowedDomains    []string `json:"allowedDomains,omitempty"`
-	DeniedDomains     []string `json:"deniedDomains,omitempty"`
-	AllowUnixSockets  []string `json:"allowUnixSockets,omitempty"`
-	AllowLocalBinding bool     `json:"allowLocalBinding"`
+	AllowedDomains      []string `json:"allowedDomains,omitempty"`
+	DeniedDomains       []string `json:"deniedDomains,omitempty"`
+	AllowUnixSockets    []string `json:"allowUnixSockets,omitempty"`
+	AllowLocalBinding   bool     `json:"allowLocalBinding"`
+	AllowAllUnixSockets bool     `json:"allowAllUnixSockets"`
 }
 
 // SRTFilesystemConfig represents filesystem configuration for SRT
@@ -125,10 +125,11 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 
 		srtConfig = &SandboxRuntimeConfig{
 			Network: &SRTNetworkConfig{
-				AllowedDomains:    allowedDomains,
-				DeniedDomains:     []string{},
-				AllowUnixSockets:  []string{"/var/run/docker.sock"},
-				AllowLocalBinding: false,
+				AllowedDomains:      allowedDomains,
+				DeniedDomains:       []string{},
+				AllowUnixSockets:    []string{"/var/run/docker.sock"},
+				AllowLocalBinding:   false,
+				AllowAllUnixSockets: true,
 			},
 			Filesystem: &SRTFilesystemConfig{
 				DenyRead:   []string{},
@@ -137,7 +138,6 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 			},
 			IgnoreViolations:          map[string][]string{},
 			EnableWeakerNestedSandbox: true,
-			AllowAllUnixSockets:       true,
 		}
 	}
 
