@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var missingToolLog = logger.New("workflow:missing_tool")
 
 // MissingToolConfig holds configuration for reporting missing tools or functionality
 type MissingToolConfig struct {
@@ -11,6 +15,8 @@ type MissingToolConfig struct {
 
 // buildCreateOutputMissingToolJob creates the missing_tool job
 func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	missingToolLog.Printf("Building missing_tool job for workflow: %s", data.Name)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingTool == nil {
 		return nil, fmt.Errorf("safe-outputs.missing-tool configuration is required")
 	}
@@ -18,6 +24,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	// Build custom environment variables specific to missing-tool
 	var customEnvVars []string
 	if data.SafeOutputs.MissingTool.Max > 0 {
+		missingToolLog.Printf("Setting max missing tools limit: %d", data.SafeOutputs.MissingTool.Max)
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 	}
 
@@ -63,6 +70,7 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 	if configData, exists := outputMap["missing-tool"]; exists {
 		// Handle the case where configData is false (explicitly disabled)
 		if configBool, ok := configData.(bool); ok && !configBool {
+			missingToolLog.Print("Missing-tool configuration explicitly disabled")
 			return nil
 		}
 
@@ -70,10 +78,12 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 
 		// Handle the case where configData is nil (missing-tool: with no value)
 		if configData == nil {
+			missingToolLog.Print("Missing-tool configuration enabled with defaults")
 			return missingToolConfig
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
+			missingToolLog.Print("Parsing missing-tool configuration from map")
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &missingToolConfig.BaseSafeOutputConfig, 0)
 		}
