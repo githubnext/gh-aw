@@ -24,7 +24,7 @@ This ensures workflows on different issues, PRs, or branches run concurrently wi
 
 ## Per-Engine Concurrency
 
-The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID (`copilot`, `claude`, `codex`) and `gh-aw-` prefix—workflow name, issue/PR numbers, and branches are excluded.
+The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID and `gh-aw-` prefix—workflow name, issue/PR numbers, and branches are excluded.
 
 ```yaml wrap
 jobs:
@@ -44,9 +44,9 @@ concurrency:  # Workflow-level
   group: custom-group-${{ github.ref }}
   cancel-in-progress: true
 engine:
-  id: claude
+  id: copilot
   concurrency:  # Engine-level
-    group: "gh-aw-claude-${{ github.workflow }}"
+    group: "gh-aw-copilot-${{ github.workflow }}"
 tools:
   github:
     allowed: [list_issues]

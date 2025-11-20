@@ -206,21 +206,9 @@ will mean the agentic workflow no longer operates 7 days after time of compilati
 
 For complete documentation on `stop-after:` configuration and supported formats, see [Trigger Events](/gh-aw/reference/triggers/#stop-after-configuration-stop-after).
 
-#### Limit workflow runs by engine `max-turns:`
-
-Use `max-turns:` in the engine configuration to limit the number of chat iterations per run. This prevents runaway loops and excessive resource consumption. For example:
-
-```yaml wrap
-engine:
-  id: claude
-  max-turns: 5
-```
-
-This limits the workflow to a maximum of 5 interactions with the AI engine per run.
-
 #### Monitor costs by `gh aw logs`
 
-Use `gh aw logs` to monitor the costs of running agentic workflows. This command provides insights into the number of turns, tokens used, and other metrics that can help you understand the cost implications of your workflows. Reported information may differ based on the AI engine used (e.g., Claude vs. Codex).
+Use `gh aw logs` to monitor the costs of running agentic workflows. This command provides insights into the number of turns, tokens used, and other metrics that can help you understand the cost implications of your workflows.
 
 ### Repository Access Control
 
@@ -283,7 +271,6 @@ tools:
     allowed: [get_issue, add_issue_comment]
 
 # Specific bash commands (recommended for security)
-engine: claude
 tools:
   edit:
   bash: ["echo", "git status"]
@@ -344,8 +331,6 @@ safe-outputs:
   threat-detection:
     enabled: true                    # Default
     prompt: "Focus on SQL injection" # Optional
-    engine:                          # Optional custom engine
-      id: claude
     steps:                           # Optional additional scanning
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
@@ -377,8 +362,6 @@ See the [Network Reference](/gh-aw/reference/network/) for detailed configuratio
 
 Fine-grained control over AI engine network access, separate from MCP tool permissions. Provides defense in depth, compliance, audit trails, and least privilege.
 
-**Claude Engine**: Hook-based enforcement (PreToolUse hooks), runtime validation, clear error messages, ~10ms overhead.
-
 **Copilot Engine with AWF**: Uses [AWF](https://github.com/githubnext/gh-aw-firewall) firewall wrapper, process-level domain allowlisting, execution wrapping, activity logging. See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions).
 
 **Best Practices**: Start with `defaults`, add needed ecosystems; use ecosystem identifiers over individual domains; use wildcards carefully (matches all subdomains); test thoroughly, monitor logs, document reasoning.
@@ -388,7 +371,7 @@ Fine-grained control over AI engine network access, separate from MCP tool permi
 ```yaml wrap
 # No network (defaults to basic infrastructure)
 engine:
-  id: claude
+  id: copilot
 
 # Basic infrastructure only
 network: defaults
@@ -410,12 +393,6 @@ network:
 # Complete denial
 network: {}
 ```
-
-## Engine Security Guide
-
-**Claude**: Restrict `claude.allowed` to needed capabilities, keep `allowed_tools` minimal, use network permissions with ecosystem identifiers.
-
-**Security posture**: Copilot/Claude expose richer default tools and optional Bash; Codex relies on CLI behaviors. Primary controls: tool allow-lists, network restrictions, pinned dependencies.
 
 ## See also
 

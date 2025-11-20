@@ -49,7 +49,7 @@ safe-outputs:
   create-pull-request:
 ```
 
-The default configuration uses AI-powered analysis with the workflow's Claude or Copilot engine to detect:
+The default configuration uses AI-powered analysis with the Agentic engine to detect:
 
 - **Prompt Injection**: Malicious instructions attempting to manipulate AI behavior
 - **Secret Leaks**: Exposed API keys, tokens, passwords, or credentials
@@ -82,9 +82,6 @@ safe-outputs:
   threat-detection:
     enabled: true                    # Enable/disable detection
     prompt: "Focus on SQL injection" # Additional analysis instructions
-    engine:                          # Custom engine configuration
-      id: claude
-      model: claude-sonnet-4
     steps:                           # Custom detection steps
       - name: Custom Security Check
         run: echo "Running additional checks"
@@ -95,7 +92,7 @@ safe-outputs:
 - **`enabled`** (boolean): Enable or disable threat detection. Default: `true` when safe-outputs exist
 - **`prompt`** (string): Additional custom instructions appended to the default threat detection prompt
 - **`engine`** (string | object | false): AI engine configuration for detection
-  - String format: `"claude"`, `"copilot"`, `"codex"`
+  - String format: `"copilot"`
   - Object format: Full engine configuration (same as main workflow engine)
   - `false`: Disable AI-based detection, run only custom steps
 - **`steps`** (array): Additional GitHub Actions steps to run after AI analysis
@@ -109,7 +106,6 @@ By default, threat detection uses the same AI engine as your main workflow to an
 ```yaml wrap
 ---
 on: push
-engine: claude
 safe-outputs:
   create-pull-request:
   threat-detection: true  # Uses Claude for analysis
@@ -178,8 +174,7 @@ safe-outputs:
   create-pull-request:
   threat-detection:
     engine:
-      id: claude
-      model: claude-sonnet-4
+      id: copilot
       max-turns: 3
 ```
 
@@ -327,9 +322,7 @@ safe-outputs:
   create-pull-request:
   threat-detection:
     prompt: "Check for authentication bypass vulnerabilities"
-    engine:
-      id: claude
-      model: claude-sonnet-4
+    engine: copilot
     steps:
       - name: Static Analysis
         run: |
@@ -341,11 +334,6 @@ safe-outputs:
         with:
           path: /tmp/gh-aw/threat-detection/aw.patch
 ```
-
-This configuration:
-1. Uses Claude with custom prompt for AI analysis
-2. Runs Semgrep for static code analysis
-3. Scans for exposed secrets with TruffleHog
 
 ## Error Handling
 

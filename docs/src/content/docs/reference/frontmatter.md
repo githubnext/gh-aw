@@ -244,7 +244,7 @@ Control network access for AI engines using ecosystem identifiers and domain all
 Quick example:
 ```yaml wrap
 engine:
-  id: claude
+  id: copilot
 
 network:
   allowed:

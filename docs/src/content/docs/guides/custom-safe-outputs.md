@@ -134,7 +134,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine: claude
+
 imports:
   - shared/mcp/notion.md
 ---

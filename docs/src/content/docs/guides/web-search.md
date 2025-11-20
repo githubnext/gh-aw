@@ -68,17 +68,14 @@ gh aw mcp list-tools tavily my-workflow --verbose
 
 ## Network Permissions
 
-Engines like Claude require explicit network permissions for MCP servers:
+Agentic engines explicit network permissions for MCP servers:
 
 ```yaml wrap
-engine: claude
 network:
   allowed:
     - defaults
     - "*.tavily.com"
 ```
-
-The Copilot engine doesn't require this configuration.
 
 ## Related Documentation
 

@@ -376,7 +376,6 @@ safe-outputs:
   # threat-detection:
   #   enabled: true
   #   prompt: "Focus on SQL injection"
-  #   engine: claude                  # Or object, or false for custom-only
   #   steps:                          # Custom security scanning steps
   #     - name: Run TruffleHog
   #       uses: trufflesecurity/trufflehog@main
