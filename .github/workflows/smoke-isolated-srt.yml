@@ -68,8 +68,17 @@ jobs:
 
           cat > .srt-test-config.json << 'EOF'
           {
-            "network": { "allowedDomains": ["*"], "allowLocalBinding": false, "allowAllUnixSockets": true },
-            "filesystem": { "allowWrite": [".", "/tmp"] },
+            "network": {
+              "allowedDomains": ["*"],
+              "deniedDomains": [],
+              "allowLocalBinding": true,
+              "allowAllUnixSockets": true
+            },
+            "filesystem": {
+              "denyRead": [],
+              "allowWrite": [".", "/tmp", "/home", "/home/runner", "/var", "/usr", "/opt"],
+              "denyWrite": []
+            },
             "enableWeakerNestedSandbox": true
           }
           EOF
@@ -384,14 +393,17 @@ jobs:
                 "ts-ocsp.ws.symantec.com",
                 "example.com"
               ],
+              "deniedDomains": [],
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": false,
+              "allowLocalBinding": true,
               "allowAllUnixSockets": true
             },
             "filesystem": {
-              "allowWrite": [".", "/home/runner/.copilot", "/tmp", "/home/runner"]
+              "denyRead": [],
+              "allowWrite": [".", "/home", "/home/runner", "/home/runner/.copilot", "/tmp", "/var", "/usr", "/opt"],
+              "denyWrite": []
             },
             "enableWeakerNestedSandbox": true
           }
