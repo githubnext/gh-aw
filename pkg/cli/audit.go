@@ -253,6 +253,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools: %v", err)))
 	}
 
+	// Extract noops
+	noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
+	if noopErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops: %v", noopErr)))
+	}
+
 	// Extract MCP failures
 	mcpFailures, err := extractMCPFailuresFromRun(runOutputDir, run, verbose)
 	if err != nil && verbose {
@@ -282,6 +288,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		Run:              run,
 		FirewallAnalysis: firewallAnalysis,
 		MissingTools:     missingTools,
+		Noops:            noops,
 		MCPFailures:      mcpFailures,
 		JobDetails:       jobDetails,
 	}
@@ -343,6 +350,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		AccessAnalysis:   accessAnalysis,
 		FirewallAnalysis: firewallAnalysis,
 		MissingTools:     missingTools,
+		Noops:            noops,
 		MCPFailures:      mcpFailures,
 		ArtifactsList:    artifacts,
 		JobDetails:       jobDetails,
@@ -566,6 +574,18 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 				report.WriteString(fmt.Sprintf("- **Timestamp**: %s\n", tool.Timestamp))
 			}
 			report.WriteString("\n")
+		}
+	}
+
+	// No-Op Messages
+	if len(processedRun.Noops) > 0 {
+		report.WriteString("## No-Op Messages\n\n")
+		for i, noop := range processedRun.Noops {
+			report.WriteString(fmt.Sprintf("### Message %d\n\n", i+1))
+			report.WriteString(fmt.Sprintf("%s\n\n", noop.Message))
+			if noop.Timestamp != "" {
+				report.WriteString(fmt.Sprintf("**Timestamp**: %s\n\n", noop.Timestamp))
+			}
 		}
 	}
 
