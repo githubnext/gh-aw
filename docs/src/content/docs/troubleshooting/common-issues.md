@@ -511,5 +511,4 @@ If the issue persists after trying these solutions:
 
 For more information, see:
 - [Error Reference](/gh-aw/troubleshooting/errors/)
-- [Validation Timing](/gh-aw/troubleshooting/validation-timing/)
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/)
