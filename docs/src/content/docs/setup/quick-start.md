@@ -7,12 +7,12 @@ sidebar:
 
 > [!WARNING]
 > **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
-> Using agentic workflows requires careful attention to security considerations and human supervision.
+> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 ## Prerequisites
 
-You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a Personal Access Token (PAT) for GitHub Copilot CLI.
+You'll need a repository where you can push changes and add Actions secrets, with Actions, Discussions and Issues enabled. You'll also need a [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) for GitHub Copilot CLI.
 
 ### Step 1 — Install the extension
 
@@ -32,13 +32,13 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --pr
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the compiled `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows use a coding agent: GitHub Copilot CLI (default).
+Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent): GitHub Copilot CLI (default).
 
-**For GitHub Copilot CLI**, create a fine-grained Personal Access Token (PAT) with the "Copilot Requests" permission enabled:
+**For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled:
 
 1. Visit https://github.com/settings/personal-access-tokens/new
 2. Under "Resource owner", select your user account (not an organization, see note below).
@@ -109,9 +109,9 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 2. Create a new GitHub discussion with your findings and insights
 ```
 
-This workflow triggers every weekday at 9 AM via cron schedule, has permissions to read repository content and create GitHub discussions, and runs AI instructions in natural language to generate status reports.
+This workflow triggers every weekday at 9 AM via cron schedule, has [permissions](/gh-aw/reference/glossary/#permissions) to read repository content and create GitHub discussions, and runs AI instructions in natural language to generate status reports.
 
-The section between the `---` markers (called frontmatter) contains the YAML configuration that defines when the workflow runs, what permissions it has, and what tools it can use. The section below the frontmatter contains the natural language instructions that tell the AI agent what to do. The `safe-outputs` section specifies that this workflow can safely create GitHub discussions without needing write permissions during the AI execution phase.
+The section between the `---` markers (called [frontmatter](/gh-aw/reference/glossary/#frontmatter)) contains the [YAML](/gh-aw/reference/glossary/#yaml) configuration that defines when the workflow runs, what permissions it has, and what tools it can use. The section below the frontmatter contains the natural language instructions that tell the AI agent what to do. The [`safe-outputs`](/gh-aw/reference/glossary/#safe-outputs) section specifies that this workflow can safely create GitHub discussions without needing write permissions during the AI execution phase.
 
 ## Customize Your Workflow
 

@@ -127,6 +127,7 @@ export default defineConfig({
 				{
 					label: 'Reference',
 					items: [
+						{ label: 'Glossary', link: '/reference/glossary/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
 						{ label: 'Frontmatter', link: '/reference/frontmatter/' },
 						{ label: 'Frontmatter (Full)', link: '/reference/frontmatter-full/' },
