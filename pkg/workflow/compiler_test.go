@@ -5333,6 +5333,16 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			expected: 2048,
 		},
 		{
+			name: "float64 with fractional part truncates to int",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"max-patch-size":      1536.7,
+					"create-pull-request": nil,
+				},
+			},
+			expected: 1536,
+		},
+		{
 			name: "custom value as uint64 (from YAML parsing)",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{

@@ -68,6 +68,78 @@ func TestParseIntValue(t *testing.T) {
 	}
 }
 
+// TestParseIntValueTruncation tests float truncation scenarios
+func TestParseIntValueTruncation(t *testing.T) {
+	tests := []struct {
+		name          string
+		value         float64
+		expected      int
+		shouldTruncate bool
+	}{
+		{
+			name:          "clean conversion - no truncation",
+			value:         60.0,
+			expected:      60,
+			shouldTruncate: false,
+		},
+		{
+			name:          "truncation required - 60.5",
+			value:         60.5,
+			expected:      60,
+			shouldTruncate: true,
+		},
+		{
+			name:          "truncation required - 60.7",
+			value:         60.7,
+			expected:      60,
+			shouldTruncate: true,
+		},
+		{
+			name:          "clean conversion - 100.0",
+			value:         100.0,
+			expected:      100,
+			shouldTruncate: false,
+		},
+		{
+			name:          "truncation required - 123.99",
+			value:         123.99,
+			expected:      123,
+			shouldTruncate: true,
+		},
+		{
+			name:          "truncation required - negative with fraction",
+			value:         -5.5,
+			expected:      -5,
+			shouldTruncate: true,
+		},
+		{
+			name:          "clean conversion - negative integer",
+			value:         -10.0,
+			expected:      -10,
+			shouldTruncate: false,
+		},
+		{
+			name:          "truncation required - small fraction",
+			value:         1.1,
+			expected:      1,
+			shouldTruncate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, ok := parseIntValue(tt.value)
+			if !ok {
+				t.Errorf("parseIntValue() should return ok=true for float64")
+			}
+			if result != tt.expected {
+				t.Errorf("parseIntValue(%v) = %v, want %v", tt.value, result, tt.expected)
+			}
+			// Note: We can't directly test if warning was logged, but we verify the conversion is correct
+		})
+	}
+}
+
 func TestFilterMapKeys(t *testing.T) {
 	tests := []struct {
 		name        string
