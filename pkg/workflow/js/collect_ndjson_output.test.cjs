@@ -87,6 +87,29 @@ describe("collect_ndjson_output.cjs", () => {
       }
     });
 
+    // Clean up safeoutputs directory to prevent test contamination
+    const safeOutputsDir = "/tmp/gh-aw/safeoutputs";
+    try {
+      if (fs.existsSync(safeOutputsDir)) {
+        // Remove all files in the directory
+        const files = fs.readdirSync(safeOutputsDir);
+        files.forEach(file => {
+          const filePath = path.join(safeOutputsDir, file);
+          const stat = fs.statSync(filePath);
+          if (stat.isDirectory()) {
+            // Recursively remove subdirectories
+            fs.rmSync(filePath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(filePath);
+          }
+        });
+        // Remove the directory itself
+        fs.rmdirSync(safeOutputsDir);
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
     // Clean up globals safely - don't delete console as vitest may still need it
     if (typeof global !== "undefined") {
       delete global.fs;
