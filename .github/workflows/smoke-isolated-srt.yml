@@ -70,7 +70,8 @@ jobs:
           {
             "network": { "allowedDomains": ["*"], "allowLocalBinding": false },
             "filesystem": { "allowWrite": [".", "/tmp"] },
-            "enableWeakerNestedSandbox": true
+            "enableWeakerNestedSandbox": true,
+            "allowAllUnixSockets": true
           }
           EOF
 
@@ -390,7 +391,8 @@ jobs:
             "filesystem": {
               "allowWrite": [".", "/home/runner/.copilot", "/tmp", "/home/runner"]
             },
-            "enableWeakerNestedSandbox": true
+            "enableWeakerNestedSandbox": true,
+            "allowAllUnixSockets": true
           }
           EOF
 

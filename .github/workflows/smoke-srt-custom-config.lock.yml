@@ -545,7 +545,8 @@ jobs:
                 "."
               ]
             },
-            "enableWeakerNestedSandbox": true
+            "enableWeakerNestedSandbox": true,
+            "allowAllUnixSockets": false
           }
           SRT_CONFIG_EOF
 

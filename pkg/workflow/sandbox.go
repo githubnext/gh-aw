@@ -30,6 +30,7 @@ type SandboxRuntimeConfig struct {
 	Filesystem                 *SRTFilesystemConfig         `json:"filesystem,omitempty"`
 	IgnoreViolations           map[string][]string          `json:"ignoreViolations,omitempty"`
 	EnableWeakerNestedSandbox  bool                         `json:"enableWeakerNestedSandbox"`
+	AllowAllUnixSockets        bool                         `json:"allowAllUnixSockets"`
 }
 
 // SRTNetworkConfig represents network configuration for SRT
@@ -136,6 +137,7 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 			},
 			IgnoreViolations:          map[string][]string{},
 			EnableWeakerNestedSandbox: true,
+			AllowAllUnixSockets:       true,
 		}
 	}
 

@@ -599,7 +599,8 @@ jobs:
                 "/tmp"
               ]
             },
-            "enableWeakerNestedSandbox": true
+            "enableWeakerNestedSandbox": true,
+            "allowAllUnixSockets": true
           }
           SRT_CONFIG_EOF
 
