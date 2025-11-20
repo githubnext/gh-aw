@@ -36,32 +36,13 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		engine := NewClaudeEngine()
 		steps := engine.GetInstallationSteps(workflowData)
 
-		// Should have 5 steps: secret validation, Node.js setup, install, settings, hook
-		if len(steps) != 5 {
-			t.Errorf("Expected 5 installation steps with network permissions, got %d", len(steps))
-		}
-
-		// Check the network permissions hook step (5th step, index 4)
-		hookStepStr := strings.Join(steps[4], "\n")
-		if !strings.Contains(hookStepStr, "Generate Network Permissions Hook") {
-			t.Error("Fifth step should generate network permissions hook")
-		}
-
-		// Verify example.com is NOT in the allowed domains
-		if strings.Contains(hookStepStr, "\"example.com\"") {
-			t.Error("example.com should not be in the allowed domains for firewall workflow")
-		}
-
-		// Verify some default domains ARE present
-		defaultDomains := []string{"json-schema.org", "archive.ubuntu.com"}
-		for _, domain := range defaultDomains {
-			if !strings.Contains(hookStepStr, domain) {
-				t.Errorf("Expected default domain '%s' to be in allowed domains", domain)
-			}
+		// Should have 3 steps: secret validation, Node.js setup, install (no hooks)
+		if len(steps) != 3 {
+			t.Errorf("Expected 3 installation steps without hooks support, got %d", len(steps))
 		}
 	})
 
-	t.Run("execution step includes settings parameter", func(t *testing.T) {
+	t.Run("execution step does not include settings parameter", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
 
@@ -71,9 +52,9 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present (required for network permissions)
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
-			t.Error("Settings parameter should be present with network permissions")
+		// Verify settings parameter is not present (hooks removed)
+		if strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
+			t.Error("Settings parameter should not be present after hooks removal")
 		}
 	})
 }

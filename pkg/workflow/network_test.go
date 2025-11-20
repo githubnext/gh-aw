@@ -330,20 +330,6 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 			t.Error("Expected 'api.example.com' to be included in the expanded domains")
 		}
 	})
-
-	t.Run("Deprecated HasNetworkPermissions still works", func(t *testing.T) {
-		// Test the deprecated function that takes EngineConfig
-		config := &EngineConfig{
-			ID:    "claude",
-			Model: "claude-3-5-sonnet-20241022",
-		}
-
-		// This should return false since the deprecated function
-		// doesn't have the nested permissions anymore
-		if HasNetworkPermissions(config) {
-			t.Error("Expected false for engine config without nested permissions")
-		}
-	})
 }
 
 // Test helper functions for network permissions

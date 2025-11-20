@@ -688,7 +688,6 @@ network: {}
 - When custom permissions are specified with `allowed:` list, deny-by-default policy is enforced
 - Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
 - **Firewall support**: Copilot engine supports AWF (Agent Workflow Firewall) for domain-based access control
-- Claude engine uses hooks for enforcement; Codex support planned
 
 **Permission Modes:**
 1. **Basic infrastructure**: `network: defaults` or no `network:` field (certificates, JSON schema, Ubuntu only)

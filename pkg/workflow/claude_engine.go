@@ -54,23 +54,6 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	)
 	steps = append(steps, npmSteps...)
 
-	// Check if network permissions are configured (only for Claude engine)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// Generate network hook generator and settings generator
-		hookGenerator := &NetworkHookGenerator{}
-		settingsGenerator := &ClaudeSettingsGenerator{}
-
-		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
-
-		// Add settings generation step
-		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
-		steps = append(steps, settingsStep)
-
-		// Add hook generation step
-		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
-		steps = append(steps, hookStep)
-	}
-
 	return steps
 }
 
@@ -133,11 +116,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add output format for structured output
 	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
-
-	// Add network settings if configured
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
-	}
 
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
@@ -270,19 +248,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	steps = append(steps, GitHubActionStep(stepLines))
-
-	// Add cleanup step for network proxy hook files (if proxy was enabled)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		cleanupStep := GitHubActionStep{
-			"      - name: Clean up network proxy hook files",
-			"        if: always()",
-			"        run: |",
-			"          rm -rf .claude/hooks/network_permissions.py || true",
-			"          rm -rf .claude/hooks || true",
-			"          rm -rf .claude || true",
-		}
-		steps = append(steps, cleanupStep)
-	}
 
 	return steps
 }
