@@ -66,7 +66,6 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          DUMMY_TEST_ENV: "Hello from test!"
         run: |
           set -e
 
@@ -156,7 +155,6 @@ jobs:
               const requiredEnvVars = [
                 'COPILOT_GITHUB_TOKEN',
                 'COPILOT_AGENT_RUNNER_TYPE',
-                'DUMMY_TEST_ENV',
               ];
 
               console.log('\n=== Environment Variables in Node.js ===');
@@ -171,7 +169,7 @@ jobs:
                 }
               });
 
-              // Build export statements
+              // Build export statements AND also test the env vars are in process.env
               const envPrefix = requiredEnvVars
                 .filter(key => process.env[key] !== undefined)
                 .map(key => {
@@ -182,12 +180,9 @@ jobs:
 
               console.log('\n=== Export Prefix ===');
               console.log(`Length: ${envPrefix.length} chars`);
-              console.log(`First 200 chars: ${envPrefix.substring(0, 200)}`);
 
-              // Test command
-              const baseCommand = 'echo "=== Inside Sandbox ===" && echo "DUMMY_TEST_ENV=$DUMMY_TEST_ENV" && echo "COPILOT_GITHUB_TOKEN length: ${#COPILOT_GITHUB_TOKEN}" && env | grep -E "(COPILOT|DUMMY)" && ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
-
-              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
+              // Test command - focus on what Node.js sees
+              const command = envPrefix + ' echo "=== Inside Sandbox ===" && node -e "console.log(\'Node.js sees COPILOT_GITHUB_TOKEN:\', process.env.COPILOT_GITHUB_TOKEN ? \'YES [length \' + process.env.COPILOT_GITHUB_TOKEN.length + \']\' : \'NO\'); console.log(\'Node.js sees COPILOT_AGENT_RUNNER_TYPE:\', process.env.COPILOT_AGENT_RUNNER_TYPE || \'NO\');" && ./node_modules/.bin/copilot -p "what\'s on example.com" --allow-all-tools';
 
               console.log('\n=== Command Length ===');
               console.log(`Total: ${command.length} chars`);
@@ -200,11 +195,30 @@ jobs:
 
               console.log('\n=== Executing Command ===');
 
+              // Build environment for the sandboxed process
+              // Pass all required env vars directly through spawn's env option
+              const sandboxEnv = { ...process.env };
+              requiredEnvVars.forEach(key => {
+                if (process.env[key] !== undefined) {
+                  sandboxEnv[key] = process.env[key];
+                }
+              });
+
+              console.log('\n=== Environment passed to spawn ===');
+              requiredEnvVars.forEach(key => {
+                if (sandboxEnv[key] !== undefined) {
+                  const displayValue = key.includes('TOKEN') ?
+                    `[${sandboxEnv[key].length} chars]` :
+                    sandboxEnv[key];
+                  console.log(`  ${key}=${displayValue}`);
+                }
+              });
+
               // Execute
               const child = spawn(sandboxedCommand, {
                 shell: true,
                 stdio: 'inherit',
-                env: process.env
+                env: sandboxEnv
               });
 
               child.on('exit', async (code) => {

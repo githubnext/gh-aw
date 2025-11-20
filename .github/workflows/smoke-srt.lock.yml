@@ -668,6 +668,7 @@ jobs:
               const baseCommand = './node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
 
               // Prepend environment variables to the command
+              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
 
               console.log('DEBUG: Export prefix length:', envPrefix.length);
               console.log('DEBUG: Command length:', command.length);
