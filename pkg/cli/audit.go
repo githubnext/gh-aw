@@ -77,7 +77,7 @@ Examples:
 
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	auditCmd.Flags().Bool("json", false, "Output audit report as JSON instead of formatted console tables")
+	auditCmd.Flags().Bool("json", false, "Output results in JSON format")
 	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 
 	return auditCmd
