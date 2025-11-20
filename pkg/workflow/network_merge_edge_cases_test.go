@@ -63,8 +63,9 @@ imports:
 		}
 
 		// Count occurrences of github.com (should only appear once in the list, not duplicated)
+		// Note: JSON is escaped in the string, so we look for \"github.com\"
 		lockStr := string(content)
-		count := strings.Count(lockStr, `"github.com"`)
+		count := strings.Count(lockStr, `\"github.com\"`)
 		if count != 1 {
 			t.Errorf("Expected github.com to appear exactly once in ALLOWED_DOMAINS, but found %d occurrences", count)
 		}

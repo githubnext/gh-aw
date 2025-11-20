@@ -2182,8 +2182,8 @@ This is a test workflow with empty network permissions (deny all).
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
 			t.Error("Should contain network hook setup for network: {}")
 		}
-		// Should have empty ALLOWED_DOMAINS array for deny-all
-		if !strings.Contains(string(lockContent), "ALLOWED_DOMAINS = []") {
+		// Should have empty ALLOWED_DOMAINS array for deny-all (using json.loads)
+		if !strings.Contains(string(lockContent), `json.loads("[]")`) {
 			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
 		}
 	})
@@ -2219,14 +2219,14 @@ This is a test workflow with explicit network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup with specified domains
+		// Should contain network hook setup with specified domains (escaped in JSON)
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
 			t.Error("Should contain network hook setup with explicit network permissions")
 		}
-		if !strings.Contains(string(lockContent), `"example.com"`) {
+		if !strings.Contains(string(lockContent), `\"example.com\"`) {
 			t.Error("Should contain example.com in allowed domains")
 		}
-		if !strings.Contains(string(lockContent), `"api.github.com"`) {
+		if !strings.Contains(string(lockContent), `\"api.github.com\"`) {
 			t.Error("Should contain api.github.com in allowed domains")
 		}
 	})

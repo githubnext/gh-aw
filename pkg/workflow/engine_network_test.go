@@ -12,14 +12,14 @@ func TestNetworkHookGenerator(t *testing.T) {
 		allowedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
 		script := generator.GenerateNetworkHookScript(allowedDomains)
 
-		// Check that script contains the expected domains
-		if !strings.Contains(script, `"example.com"`) {
+		// Check that script contains the expected domains (escaped in the JSON string)
+		if !strings.Contains(script, `\"example.com\"`) {
 			t.Error("Script should contain example.com")
 		}
-		if !strings.Contains(script, `"*.trusted.com"`) {
+		if !strings.Contains(script, `\"*.trusted.com\"`) {
 			t.Error("Script should contain *.trusted.com")
 		}
-		if !strings.Contains(script, `"api.service.org"`) {
+		if !strings.Contains(script, `\"api.service.org\"`) {
 			t.Error("Script should contain api.service.org")
 		}
 
@@ -68,8 +68,8 @@ func TestNetworkHookGenerator(t *testing.T) {
 		allowedDomains := []string{} // Empty list means deny-all
 		script := generator.GenerateNetworkHookScript(allowedDomains)
 
-		// Should still generate a valid script
-		if !strings.Contains(script, "ALLOWED_DOMAINS = []") {
+		// Should still generate a valid script with json.loads("[]")
+		if !strings.Contains(script, `json.loads("[]")`) {
 			t.Error("Script should handle empty domains list (deny-all policy)")
 		}
 		if !strings.Contains(script, "def is_domain_allowed") {
