@@ -191,12 +191,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add automatic runtime setup steps if needed
 	// This detects runtimes from custom steps and MCP configs
-	// Runtime steps are added BEFORE custom steps so the runtimes are available
 	runtimeRequirements := DetectRuntimeRequirements(data)
 
 	// Deduplicate runtime setup steps from custom steps
 	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
-	// since we're adding them above. It also preserves user-customized setup actions and
+	// since we're adding them. It also preserves user-customized setup actions and
 	// filters those runtimes from requirements so we don't generate duplicates.
 	if len(runtimeRequirements) > 0 && data.CustomSteps != "" {
 		deduplicatedCustomSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(data.CustomSteps, runtimeRequirements)
@@ -211,27 +210,37 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Generate runtime setup steps (after filtering out user-customized ones)
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
-	for _, step := range runtimeSetupSteps {
-		for _, line := range step {
-			yaml.WriteString(line + "\n")
+
+	// Decision logic for where to place runtime steps:
+	// 1. If we added checkout above (needsCheckout == true), add runtime steps now (after checkout, before custom steps)
+	// 2. If custom steps contain checkout, add runtime steps AFTER the first checkout in custom steps
+	// 3. Otherwise, add runtime steps now (before custom steps)
+
+	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
+	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
+
+	if needsCheckout || !customStepsContainCheckout {
+		// Case 1 or 3: Add runtime steps before custom steps
+		// This ensures checkout -> runtime -> custom steps order
+		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
+		for _, step := range runtimeSetupSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
 		}
 	}
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {
-		// Remove "steps:" line and adjust indentation
-		lines := strings.Split(data.CustomSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Skip empty lines
-				if strings.TrimSpace(line) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-
-				// Simply add 6 spaces for job context indentation
-				yaml.WriteString("      " + line + "\n")
-			}
+		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
+			// Custom steps contain checkout and we have runtime steps to insert
+			// Insert runtime steps after the first checkout step
+			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
+			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps)
+		} else {
+			// No checkout in custom steps or no runtime steps, just add custom steps as-is
+			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
+			c.addCustomStepsAsIs(yaml, data.CustomSteps)
 		}
 	}
 
@@ -1019,4 +1028,108 @@ func generatePinnedActionsComment(usedPins map[string]ActionPin) string {
 	}
 
 	return comment.String()
+}
+
+// addCustomStepsAsIs adds custom steps without modification
+func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string) {
+	// Remove "steps:" line and adjust indentation
+	lines := strings.Split(customSteps, "\n")
+	if len(lines) > 1 {
+		for _, line := range lines[1:] {
+			// Skip empty lines
+			if strings.TrimSpace(line) == "" {
+				yaml.WriteString("\n")
+				continue
+			}
+
+			// Simply add 6 spaces for job context indentation
+			yaml.WriteString("      " + line + "\n")
+		}
+	}
+}
+
+// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep) {
+	// Remove "steps:" line and adjust indentation
+	lines := strings.Split(customSteps, "\n")
+	if len(lines) <= 1 {
+		return
+	}
+
+	insertedRuntime := false
+	i := 1 // Start from index 1 to skip "steps:" line
+
+	for i < len(lines) {
+		line := lines[i]
+
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			yaml.WriteString("\n")
+			i++
+			continue
+		}
+
+		// Add the line with proper indentation
+		yaml.WriteString("      " + line + "\n")
+
+		// Check if this line starts a step with "- name:" or "- uses:"
+		trimmed := strings.TrimSpace(line)
+		isStepStart := strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
+
+		if isStepStart && !insertedRuntime {
+			// This is the start of a step, check if it's a checkout step
+			isCheckoutStep := false
+
+			// Look ahead to find "uses:" line with "checkout"
+			for j := i + 1; j < len(lines); j++ {
+				nextLine := lines[j]
+				nextTrimmed := strings.TrimSpace(nextLine)
+
+				// Stop if we hit the next step
+				if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+					break
+				}
+
+				// Check if this is a uses line with checkout
+				if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
+					isCheckoutStep = true
+					break
+				}
+			}
+
+			if isCheckoutStep {
+				// This is a checkout step, copy all its lines until the next step
+				i++
+				for i < len(lines) {
+					nextLine := lines[i]
+					nextTrimmed := strings.TrimSpace(nextLine)
+
+					// Stop if we hit the next step
+					if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+						break
+					}
+
+					// Add the line
+					if nextTrimmed == "" {
+						yaml.WriteString("\n")
+					} else {
+						yaml.WriteString("      " + nextLine + "\n")
+					}
+					i++
+				}
+
+				// Now insert runtime steps after the checkout step
+				compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
+				for _, step := range runtimeSetupSteps {
+					for _, stepLine := range step {
+						yaml.WriteString(stepLine + "\n")
+					}
+				}
+				insertedRuntime = true
+				continue // Continue with the next iteration (i is already advanced)
+			}
+		}
+
+		i++
+	}
 }
