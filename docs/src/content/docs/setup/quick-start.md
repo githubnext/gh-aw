@@ -34,7 +34,7 @@ gh aw add githubnext/agentics/daily-team-status --pr
 
 This creates a pull request that adds `.github/workflows/daily-team-status.md` and the compiled `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
-## Why Compile?
+#### Why Compile?
 
 The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
 
