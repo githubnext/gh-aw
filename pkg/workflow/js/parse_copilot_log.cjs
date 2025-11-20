@@ -2,7 +2,15 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { formatDuration, formatBashCommand, truncateString, estimateTokens } = require("./log_parser_shared.cjs");
+const {
+  formatDuration,
+  formatBashCommand,
+  truncateString,
+  estimateTokens,
+  formatMcpName,
+  generateConversationMarkdown,
+  generateInformationSection,
+} = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
@@ -106,143 +114,30 @@ function parseCopilotLog(logContent) {
       return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
     }
 
-    const toolUsePairs = new Map(); // Map tool_use_id to tool_result
+    // Generate conversation markdown using shared function
+    const conversationResult = generateConversationMarkdown(logEntries, {
+      formatToolCallback: formatToolUseWithDetails,
+      formatInitCallback: formatInitializationSummary,
+    });
 
-    // First pass: collect tool results by tool_use_id
-    for (const entry of logEntries) {
-      if (entry.type === "user" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_result" && content.tool_use_id) {
-            toolUsePairs.set(content.tool_use_id, content);
-          }
-        }
-      }
-    }
-    let markdown = "";
-
-    // Check for initialization data first
-    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
-    if (initEntry) {
-      markdown += "## 🚀 Initialization\n\n";
-      markdown += formatInitializationSummary(initEntry);
-      markdown += "\n";
-    }
-
-    markdown += "\n## 🤖 Reasoning\n\n";
-
-    // Second pass: process assistant messages in sequence
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "text" && content.text) {
-            // Add user message text directly as markdown
-            const text = content.text.trim();
-            if (text && text.length > 0) {
-              markdown += text + "\n\n";
-            }
-          } else if (content.type === "tool_use") {
-            // Process tool use with its result using HTML details
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolUseWithDetails(content, toolResult);
-            if (toolMarkdown) {
-              markdown += toolMarkdown;
-            }
-          }
-        }
-      }
-    }
-
-    markdown += "## 🤖 Commands and Tools\n\n";
-
-    const commandSummary = []; // For the succinct summary
-
-    // Collect all tool uses for summary
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "tool_use") {
-            const toolName = content.name;
-            const input = content.input || {};
-
-            // Skip internal tools - only show external commands and API calls
-            if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-              continue;
-            }
-
-            // Find the corresponding tool result to get status
-            const toolResult = toolUsePairs.get(content.id);
-            let statusIcon = "❓";
-            if (toolResult) {
-              statusIcon = toolResult.is_error === true ? "❌" : "✅";
-            }
-
-            // Add to command summary (only external tools)
-            if (toolName === "Bash") {
-              const formattedCommand = formatBashCommand(input.command || "");
-              commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-            } else if (toolName.startsWith("mcp__")) {
-              const mcpName = formatMcpName(toolName);
-              commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-            } else {
-              commandSummary.push(`* ${statusIcon} ${toolName}`);
-            }
-          }
-        }
-      }
-    }
-
-    // Add command summary
-    if (commandSummary.length > 0) {
-      for (const cmd of commandSummary) {
-        markdown += `${cmd}\n`;
-      }
-    } else {
-      markdown += "No commands or tools used.\n";
-    }
+    let markdown = conversationResult.markdown;
 
     // Add Information section
-    markdown += "\n## 📊 Information\n\n";
-
-    // Find the last entry with metadata
     const lastEntry = logEntries[logEntries.length - 1];
-    if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-      if (lastEntry.num_turns) {
-        markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-      }
+    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
-      if (lastEntry.duration_ms) {
-        const durationSec = Math.round(lastEntry.duration_ms / 1000);
-        const minutes = Math.floor(durationSec / 60);
-        const seconds = durationSec % 60;
-        markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-      }
-
-      if (lastEntry.total_cost_usd) {
-        markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-      }
-
-      // Display premium request consumption if using a premium model
-      // Extract the number from the stdio log if available, otherwise default to 1
-      const isPremiumModel =
-        initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-      if (isPremiumModel) {
-        const premiumRequestCount = extractPremiumRequestCount(logContent);
-        markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
-      }
-
-      if (lastEntry.usage) {
-        const usage = lastEntry.usage;
-        if (usage.input_tokens || usage.output_tokens) {
-          markdown += `**Token Usage:**\n`;
-          if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-          if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-          if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-          if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-          markdown += "\n";
+    markdown += generateInformationSection(lastEntry, {
+      additionalInfoCallback: entry => {
+        // Display premium request consumption if using a premium model
+        const isPremiumModel =
+          initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+        if (isPremiumModel) {
+          const premiumRequestCount = extractPremiumRequestCount(logContent);
+          return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
         }
-      }
-    }
+        return "";
+      },
+    });
 
     return markdown;
   } catch (error) {
@@ -1041,24 +936,6 @@ function formatToolUseWithDetails(toolUse, toolResult) {
     // No details, just show summary
     return `${summary}\n\n`;
   }
-}
-
-/**
- * Formats MCP tool name from internal format to display format
- * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
- * @returns {string} Formatted tool name (e.g., github::search_issues)
- */
-function formatMcpName(toolName) {
-  // Convert mcp__github__search_issues to github::search_issues
-  if (toolName.startsWith("mcp__")) {
-    const parts = toolName.split("__");
-    if (parts.length >= 3) {
-      const provider = parts[1];
-      const method = parts.slice(2).join("_");
-      return `${provider}::${method}`;
-    }
-  }
-  return toolName;
 }
 
 /**

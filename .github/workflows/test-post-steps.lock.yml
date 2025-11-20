@@ -763,6 +763,138 @@ jobs:
               if (!text) return 0;
               return Math.ceil(text.length / 4);
             }
+            function formatMcpName(toolName) {
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1]; 
+                  const method = parts.slice(2).join("_"); 
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            function generateConversationMarkdown(logEntries, options) {
+              const { formatToolCallback, formatInitCallback } = options;
+              const toolUsePairs = new Map(); 
+              for (const entry of logEntries) {
+                if (entry.type === "user" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_result" && content.tool_use_id) {
+                      toolUsePairs.set(content.tool_use_id, content);
+                    }
+                  }
+                }
+              }
+              let markdown = "";
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && formatInitCallback) {
+                markdown += "## 🚀 Initialization\n\n";
+                const initResult = formatInitCallback(initEntry);
+                if (typeof initResult === "string") {
+                  markdown += initResult;
+                } else if (initResult && initResult.markdown) {
+                  markdown += initResult.markdown;
+                }
+                markdown += "\n";
+              }
+              markdown += "\n## 🤖 Reasoning\n\n";
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "text" && content.text) {
+                      const text = content.text.trim();
+                      if (text && text.length > 0) {
+                        markdown += text + "\n\n";
+                      }
+                    } else if (content.type === "tool_use") {
+                      const toolResult = toolUsePairs.get(content.id);
+                      const toolMarkdown = formatToolCallback(content, toolResult);
+                      if (toolMarkdown) {
+                        markdown += toolMarkdown;
+                      }
+                    }
+                  }
+                }
+              }
+              markdown += "## 🤖 Commands and Tools\n\n";
+              const commandSummary = []; 
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      const input = content.input || {};
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue; 
+                      }
+                      const toolResult = toolUsePairs.get(content.id);
+                      let statusIcon = "❓";
+                      if (toolResult) {
+                        statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                      }
+                      if (toolName === "Bash") {
+                        const formattedCommand = formatBashCommand(input.command || "");
+                        commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                      } else if (toolName.startsWith("mcp__")) {
+                        const mcpName = formatMcpName(toolName);
+                        commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} ${toolName}`);
+                      }
+                    }
+                  }
+                }
+              }
+              if (commandSummary.length > 0) {
+                for (const cmd of commandSummary) {
+                  markdown += `${cmd}\n`;
+                }
+              } else {
+                markdown += "No commands or tools used.\n";
+              }
+              return { markdown, commandSummary };
+            }
+            function generateInformationSection(lastEntry, options = {}) {
+              const { additionalInfoCallback } = options;
+              let markdown = "\n## 📊 Information\n\n";
+              if (!lastEntry) {
+                return markdown;
+              }
+              if (lastEntry.num_turns) {
+                markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+              }
+              if (lastEntry.duration_ms) {
+                const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                const minutes = Math.floor(durationSec / 60);
+                const seconds = durationSec % 60;
+                markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+              }
+              if (lastEntry.total_cost_usd) {
+                markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+              }
+              if (additionalInfoCallback) {
+                const additionalInfo = additionalInfoCallback(lastEntry);
+                if (additionalInfo) {
+                  markdown += additionalInfo;
+                }
+              }
+              if (lastEntry.usage) {
+                const usage = lastEntry.usage;
+                if (usage.input_tokens || usage.output_tokens) {
+                  markdown += `**Token Usage:**\n`;
+                  if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                  if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                  markdown += "\n";
+                }
+              }
+              if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+                markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+              }
+              return markdown;
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -833,111 +965,24 @@ jobs:
                 if (!Array.isArray(logEntries) || logEntries.length === 0) {
                   return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
                 }
-                const toolUsePairs = new Map(); 
-                for (const entry of logEntries) {
-                  if (entry.type === "user" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_result" && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
-                      }
-                    }
-                  }
-                }
-                let markdown = "";
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                if (initEntry) {
-                  markdown += "## 🚀 Initialization\n\n";
-                  markdown += formatInitializationSummary(initEntry);
-                  markdown += "\n";
-                }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
-                      }
-                    }
-                  }
-                }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                const commandSummary = []; 
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_use") {
-                        const toolName = content.name;
-                        const input = content.input || {};
-                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                          continue;
-                        }
-                        const toolResult = toolUsePairs.get(content.id);
-                        let statusIcon = "❓";
-                        if (toolResult) {
-                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
-                        }
-                        if (toolName === "Bash") {
-                          const formattedCommand = formatBashCommand(input.command || "");
-                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                        } else if (toolName.startsWith("mcp__")) {
-                          const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-                        } else {
-                          commandSummary.push(`* ${statusIcon} ${toolName}`);
-                        }
-                      }
-                    }
-                  }
-                }
-                if (commandSummary.length > 0) {
-                  for (const cmd of commandSummary) {
-                    markdown += `${cmd}\n`;
-                  }
-                } else {
-                  markdown += "No commands or tools used.\n";
-                }
-                markdown += "\n## 📊 Information\n\n";
+                const conversationResult = generateConversationMarkdown(logEntries, {
+                  formatToolCallback: formatToolUseWithDetails,
+                  formatInitCallback: formatInitializationSummary,
+                });
+                let markdown = conversationResult.markdown;
                 const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-                  if (lastEntry.num_turns) {
-                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-                  }
-                  if (lastEntry.duration_ms) {
-                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
-                    const minutes = Math.floor(durationSec / 60);
-                    const seconds = durationSec % 60;
-                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-                  }
-                  if (lastEntry.total_cost_usd) {
-                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-                  }
-                  const isPremiumModel =
-                    initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-                  if (isPremiumModel) {
-                    const premiumRequestCount = extractPremiumRequestCount(logContent);
-                    markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
-                  }
-                  if (lastEntry.usage) {
-                    const usage = lastEntry.usage;
-                    if (usage.input_tokens || usage.output_tokens) {
-                      markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-                      markdown += "\n";
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                markdown += generateInformationSection(lastEntry, {
+                  additionalInfoCallback: entry => {
+                    const isPremiumModel =
+                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    if (isPremiumModel) {
+                      const premiumRequestCount = extractPremiumRequestCount(logContent);
+                      return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
                     }
-                  }
-                }
+                    return "";
+                  },
+                });
                 return markdown;
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1519,17 +1564,6 @@ jobs:
               } else {
                 return `${summary}\n\n`;
               }
-            }
-            function formatMcpName(toolName) {
-              if (toolName.startsWith("mcp__")) {
-                const parts = toolName.split("__");
-                if (parts.length >= 3) {
-                  const provider = parts[1];
-                  const method = parts.slice(2).join("_");
-                  return `${provider}::${method}`;
-                }
-              }
-              return toolName;
             }
             function formatMcpParameters(input) {
               const keys = Object.keys(input);

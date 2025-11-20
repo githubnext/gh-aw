@@ -44,46 +44,64 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 // bundleFromSources processes content and recursively bundles its dependencies from the sources map
 func bundleFromSources(content string, currentPath string, sources map[string]string, processed map[string]bool) (string, error) {
 	// Regular expression to match require('./...') or require("./...")
-	// Captures: require('path') or require("path") where path starts with ./ or ../
-	requireRegex := regexp.MustCompile(`(?m)^.*?(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*require\(['"](\.\.?/[^'"]+)['"]\);?\s*$`)
+	// This matches both single-line and multi-line destructuring:
+	// const { x } = require("./file.cjs");
+	// const {
+	//   x,
+	//   y
+	// } = require("./file.cjs");
+	// Captures the require path where it starts with ./ or ../
+	requireRegex := regexp.MustCompile(`(?s)(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*require\(['"](\.\.?/[^'"]+)['"]\);?`)
+
+	// Find all requires and their positions
+	matches := requireRegex.FindAllStringSubmatchIndex(content, -1)
+	
+	if len(matches) == 0 {
+		// No requires found, return content as-is
+		return content, nil
+	}
 
 	var result strings.Builder
-	lines := strings.Split(content, "\n")
+	lastEnd := 0
 
-	for i, line := range lines {
-		// Check if this line is a local require
-		matches := requireRegex.FindStringSubmatch(line)
+	for _, match := range matches {
+		// match[0], match[1] are the start and end of the full match
+		// match[2], match[3] are the start and end of the captured group (the path)
+		matchStart := match[0]
+		matchEnd := match[1]
+		pathStart := match[2]
+		pathEnd := match[3]
 
-		if len(matches) > 1 {
-			// This is a local require - inline it
-			requirePath := matches[1]
+		// Write content before this require
+		result.WriteString(content[lastEnd:matchStart])
 
-			// Resolve the full path relative to current path
-			var fullPath string
-			if currentPath == "" {
-				fullPath = requirePath
-			} else {
-				fullPath = filepath.Join(currentPath, requirePath)
-			}
+		// Extract the require path
+		requirePath := content[pathStart:pathEnd]
 
-			// Ensure .cjs extension
-			if !strings.HasSuffix(fullPath, ".cjs") && !strings.HasSuffix(fullPath, ".js") {
-				fullPath += ".cjs"
-			}
+		// Resolve the full path relative to current path
+		var fullPath string
+		if currentPath == "" {
+			fullPath = requirePath
+		} else {
+			fullPath = filepath.Join(currentPath, requirePath)
+		}
 
-			// Normalize the path (clean up ./ and ../)
-			fullPath = filepath.Clean(fullPath)
+		// Ensure .cjs extension
+		if !strings.HasSuffix(fullPath, ".cjs") && !strings.HasSuffix(fullPath, ".js") {
+			fullPath += ".cjs"
+		}
 
-			// Convert Windows path separators to forward slashes for consistency
-			fullPath = filepath.ToSlash(fullPath)
+		// Normalize the path (clean up ./ and ../)
+		fullPath = filepath.Clean(fullPath)
 
-			// Check if we've already processed this file
-			if processed[fullPath] {
-				// Skip - already inlined
-				result.WriteString("// Already inlined: " + requirePath + "\n")
-				continue
-			}
+		// Convert Windows path separators to forward slashes for consistency
+		fullPath = filepath.ToSlash(fullPath)
 
+		// Check if we've already processed this file
+		if processed[fullPath] {
+			// Skip - already inlined
+			result.WriteString("// Already inlined: " + requirePath + "\n")
+		} else {
 			// Mark as processed
 			processed[fullPath] = true
 
@@ -107,15 +125,13 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 			result.WriteString(fmt.Sprintf("// === Inlined from %s ===\n", requirePath))
 			result.WriteString(cleanedRequired)
 			result.WriteString(fmt.Sprintf("// === End of %s ===\n", requirePath))
-
-		} else {
-			// Not a local require - keep the line as is
-			result.WriteString(line)
-			if i < len(lines)-1 {
-				result.WriteString("\n")
-			}
 		}
+
+		lastEnd = matchEnd
 	}
+
+	// Write any remaining content after the last require
+	result.WriteString(content[lastEnd:])
 
 	return result.String(), nil
 }

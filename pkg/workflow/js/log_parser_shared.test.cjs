@@ -163,4 +163,229 @@ describe("log_parser_shared.cjs", () => {
       expect(estimateTokens(largeText)).toBe(2500); // 10000 chars = 2500 tokens
     });
   });
+
+  describe("formatMcpName", () => {
+    it("should format MCP tool names", async () => {
+      const { formatMcpName } = await import("./log_parser_shared.cjs");
+
+      expect(formatMcpName("mcp__github__search_issues")).toBe("github::search_issues");
+      expect(formatMcpName("mcp__playwright__navigate")).toBe("playwright::navigate");
+      expect(formatMcpName("mcp__server__tool_name")).toBe("server::tool_name");
+    });
+
+    it("should handle tool names with multiple underscores", async () => {
+      const { formatMcpName } = await import("./log_parser_shared.cjs");
+
+      expect(formatMcpName("mcp__github__get_pull_request_files")).toBe("github::get_pull_request_files");
+    });
+
+    it("should return non-MCP names unchanged", async () => {
+      const { formatMcpName } = await import("./log_parser_shared.cjs");
+
+      expect(formatMcpName("Bash")).toBe("Bash");
+      expect(formatMcpName("Read")).toBe("Read");
+      expect(formatMcpName("regular_tool")).toBe("regular_tool");
+    });
+
+    it("should handle malformed MCP names", async () => {
+      const { formatMcpName } = await import("./log_parser_shared.cjs");
+
+      expect(formatMcpName("mcp__")).toBe("mcp__");
+      expect(formatMcpName("mcp__github")).toBe("mcp__github");
+    });
+  });
+
+  describe("generateConversationMarkdown", () => {
+    it("should generate markdown from log entries", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "system",
+          subtype: "init",
+          model: "test-model",
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "Let me help with that." },
+              { type: "tool_use", id: "tool1", name: "Bash", input: { command: "echo hello" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "tool1", content: "hello", is_error: false }],
+          },
+        },
+      ];
+
+      const formatToolCallback = (content, toolResult) => {
+        return `Tool: ${content.name}\n\n`;
+      };
+
+      const formatInitCallback = initEntry => {
+        return `Model: ${initEntry.model}\n\n`;
+      };
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback,
+        formatInitCallback,
+      });
+
+      expect(result.markdown).toContain("## 🚀 Initialization");
+      expect(result.markdown).toContain("Model: test-model");
+      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("Let me help with that.");
+      expect(result.markdown).toContain("Tool: Bash");
+      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.commandSummary).toHaveLength(1);
+      expect(result.commandSummary[0]).toContain("✅");
+      expect(result.commandSummary[0]).toContain("echo hello");
+    });
+
+    it("should handle empty log entries", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const result = generateConversationMarkdown([], {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+      });
+
+      expect(result.markdown).toContain("## 🤖 Reasoning");
+      expect(result.markdown).toContain("## 🤖 Commands and Tools");
+      expect(result.markdown).toContain("No commands or tools used.");
+      expect(result.commandSummary).toHaveLength(0);
+    });
+
+    it("should skip internal tools in command summary", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "tool1", name: "Read", input: { path: "/file.txt" } },
+              { type: "tool_use", id: "tool2", name: "Bash", input: { command: "ls" } },
+              { type: "tool_use", id: "tool3", name: "Edit", input: { path: "/file.txt" } },
+            ],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+      });
+
+      // Should only include Bash, not Read or Edit
+      expect(result.commandSummary).toHaveLength(1);
+      expect(result.commandSummary[0]).toContain("ls");
+    });
+
+    it("should format MCP tool names in command summary", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: "tool1", name: "mcp__github__search_issues", input: { query: "test" } }],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+      });
+
+      expect(result.commandSummary).toHaveLength(1);
+      expect(result.commandSummary[0]).toContain("github::search_issues");
+    });
+  });
+
+  describe("generateInformationSection", () => {
+    it("should generate information section with metadata", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        num_turns: 5,
+        duration_ms: 125000,
+        total_cost_usd: 0.0123,
+        usage: {
+          input_tokens: 1000,
+          output_tokens: 500,
+        },
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).toContain("## 📊 Information");
+      expect(result).toContain("**Turns:** 5");
+      expect(result).toContain("**Duration:** 2m 5s");
+      expect(result).toContain("**Total Cost:** $0.0123");
+      expect(result).toContain("**Token Usage:**");
+      expect(result).toContain("- Input: 1,000");
+      expect(result).toContain("- Output: 500");
+    });
+
+    it("should handle additional info callback", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        num_turns: 3,
+      };
+
+      const result = generateInformationSection(lastEntry, {
+        additionalInfoCallback: () => "**Custom Info:** test\n\n",
+      });
+
+      expect(result).toContain("**Turns:** 3");
+      expect(result).toContain("**Custom Info:** test");
+    });
+
+    it("should handle cache tokens", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        usage: {
+          input_tokens: 1000,
+          cache_creation_input_tokens: 500,
+          cache_read_input_tokens: 200,
+          output_tokens: 300,
+        },
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).toContain("- Input: 1,000");
+      expect(result).toContain("- Cache Creation: 500");
+      expect(result).toContain("- Cache Read: 200");
+      expect(result).toContain("- Output: 300");
+    });
+
+    it("should handle permission denials", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const lastEntry = {
+        permission_denials: ["tool1", "tool2", "tool3"],
+      };
+
+      const result = generateInformationSection(lastEntry);
+
+      expect(result).toContain("**Permission Denials:** 3");
+    });
+
+    it("should handle empty lastEntry", async () => {
+      const { generateInformationSection } = await import("./log_parser_shared.cjs");
+
+      const result = generateInformationSection(null);
+
+      expect(result).toBe("\n## 📊 Information\n\n");
+    });
+  });
 });
