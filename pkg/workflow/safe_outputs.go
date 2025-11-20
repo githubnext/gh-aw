@@ -32,6 +32,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	enabled := safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentTasks != nil ||
 		safeOutputs.CreateDiscussions != nil ||
+		safeOutputs.CloseDiscussions != nil ||
 		safeOutputs.AddComments != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
@@ -890,6 +891,22 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["create_discussion"] = discussionConfig
 		}
+		if data.SafeOutputs.CloseDiscussions != nil {
+			closeDiscussionConfig := map[string]any{}
+			if data.SafeOutputs.CloseDiscussions.Max > 0 {
+				closeDiscussionConfig["max"] = data.SafeOutputs.CloseDiscussions.Max
+			}
+			if data.SafeOutputs.CloseDiscussions.RequiredCategory != "" {
+				closeDiscussionConfig["required_category"] = data.SafeOutputs.CloseDiscussions.RequiredCategory
+			}
+			if len(data.SafeOutputs.CloseDiscussions.RequiredLabels) > 0 {
+				closeDiscussionConfig["required_labels"] = data.SafeOutputs.CloseDiscussions.RequiredLabels
+			}
+			if data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix != "" {
+				closeDiscussionConfig["required_title_prefix"] = data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix
+			}
+			safeOutputsConfig["close_discussion"] = closeDiscussionConfig
+		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
 			// Note: max is always 1 for pull requests, not configurable
@@ -1057,6 +1074,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
 		enabledTools["create_discussion"] = true
+	}
+	if data.SafeOutputs.CloseDiscussions != nil {
+		enabledTools["close_discussion"] = true
 	}
 	if data.SafeOutputs.AddComments != nil {
 		enabledTools["add_comment"] = true
