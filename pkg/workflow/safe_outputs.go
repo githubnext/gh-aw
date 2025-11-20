@@ -547,6 +547,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 				case float64:
 					intVal := int(v)
+					// Warn if truncation occurs (value has fractional part)
+					if v != float64(intVal) {
+						safeOutputsLog.Printf("max-patch-size: float value %.2f truncated to integer %d", v, intVal)
+					}
 					if intVal >= 1 {
 						config.MaximumPatchSize = intVal
 					}
