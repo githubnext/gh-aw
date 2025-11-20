@@ -24,6 +24,17 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install Sandbox Runtime System Dependencies
+        run: |
+          echo "Installing system dependencies for Sandbox Runtime"
+          sudo apt-get update
+          sudo apt-get install -y ripgrep bubblewrap socat
+          echo "System dependencies installed successfully"
+          echo "Verifying installations:"
+          rg --version
+          bwrap --version
+          socat -V
+
       - name: Configure System
         run: |
           echo "Disabling AppArmor namespace restrictions for bubblewrap"
