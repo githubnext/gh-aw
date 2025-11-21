@@ -71,8 +71,7 @@ Run `--help` for each of these commands:
 
 ### PR Subcommands
 ```bash
-./gh-aw pr create --help
-./gh-aw pr open --help
+./gh-aw pr transfer --help
 ```
 
 **IMPORTANT**: Capture the EXACT output of each command. This is what users actually see.
