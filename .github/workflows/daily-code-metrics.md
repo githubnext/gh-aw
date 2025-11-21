@@ -23,6 +23,7 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/reporting.md
+  - shared/trending-charts-simple.md
 ---
 
 # Daily Code Metrics and Trend Tracking Agent

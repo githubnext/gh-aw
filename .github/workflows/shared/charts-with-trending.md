@@ -2,6 +2,9 @@
 # Charts with Trending - Shared Agentic Workflow
 # Provides complete setup for generating charts with trending analysis and cache-memory
 #
+# For quick setup with minimal configuration, use: shared/trending-charts-simple.md
+# For comprehensive trending patterns and advanced features, use this file
+#
 # Usage:
 #   imports:
 #     - shared/charts-with-trending.md
@@ -30,6 +33,16 @@ tools:
 # Charts with Trending - Complete Guide
 
 This shared workflow provides everything you need to create compelling trend visualizations with persistent data storage.
+
+:::tip[Quick Start Alternative]
+Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
+- No nested imports (standalone configuration)
+- No network restrictions (strict mode compatible)
+- Quick start examples for common trending patterns
+- Minimal configuration overhead
+
+The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
+:::
 
 ## Cache-Memory for Trending Data
 
