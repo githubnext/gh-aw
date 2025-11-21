@@ -293,14 +293,12 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
  * @returns {string} Formatted workflow link text
  */
 function buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL) {
-  let linkText = `Agentic [${workflowName}](${runUrl})`;
+  // If we have a source URL, use it for the workflow name link, otherwise use the run URL
+  const workflowUrl = workflowSourceURL || runUrl;
+  let linkText = `Agentic Workflow [${workflowName}](${workflowUrl})`;
 
-  // Add source link and run ID in parentheses
+  // Add run ID link in parentheses if available
   const additionalLinks = [];
-
-  if (workflowSource && workflowSourceURL) {
-    additionalLinks.push(`[source](${workflowSourceURL})`);
-  }
 
   if (runId) {
     additionalLinks.push(`[run #${runId}](${runUrl})`);

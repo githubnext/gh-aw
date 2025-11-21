@@ -688,11 +688,9 @@ jobs:
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
             }
             function buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL) {
-              let linkText = `Agentic [${workflowName}](${runUrl})`;
+              const workflowUrl = workflowSourceURL || runUrl;
+              let linkText = `Agentic Workflow [${workflowName}](${workflowUrl})`;
               const additionalLinks = [];
-              if (workflowSource && workflowSourceURL) {
-                additionalLinks.push(`[source](${workflowSourceURL})`);
-              }
               if (runId) {
                 additionalLinks.push(`[run #${runId}](${runUrl})`);
               }
@@ -4958,21 +4956,21 @@ jobs:
               let message;
               if (agentConclusion === "success") {
                 statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+                message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) completed successfully.`;
               } else if (agentConclusion === "cancelled") {
                 statusEmoji = "🚫";
                 statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else if (agentConclusion === "skipped") {
                 statusEmoji = "⏭️";
                 statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else if (agentConclusion === "timed_out") {
                 statusEmoji = "⏱️";
                 statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               }
               if (noopMessages.length > 0) {
                 message += "\n\n";

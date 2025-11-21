@@ -174,7 +174,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("Agentic Workflow [Test Workflow]"),
         })
       );
 
@@ -385,7 +385,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("Agentic Workflow [Test Workflow]"),
         })
       );
 
@@ -424,7 +424,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("Agentic Workflow [Test Workflow]"),
         })
       );
 
@@ -466,7 +466,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [PR Review Bot]"),
+          body: expect.stringContaining("Agentic Workflow [PR Review Bot]"),
         })
       );
 
@@ -538,7 +538,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         expect.stringContaining("addDiscussionComment"),
         expect.objectContaining({
           dId: "D_kwDOABcD1M4AaBbC",
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("Agentic Workflow [Test Workflow]"),
         })
       );
 
@@ -601,7 +601,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         expect.stringContaining("addDiscussionComment"),
         expect.objectContaining({
           dId: "D_kwDOABcD1M4AaBbC",
-          body: expect.stringContaining("Agentic [Discussion Bot]"),
+          body: expect.stringContaining("Agentic Workflow [Discussion Bot]"),
           replyToId: "DC_kwDOABcD1M4AaBbC",
         })
       );
@@ -678,12 +678,12 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify comment includes workflow name, source link, and run ID
+      // Verify comment includes "Agentic Workflow", workflow name links to source, and run ID links to run
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
           body: expect.stringMatching(
-            /Agentic \[Test Workflow\]\(.*\) \(\[source\]\(.*test\.md\), \[run #67890\]\(.*\)\) triggered by this issue\./
+            /Agentic Workflow \[Test Workflow\]\(.*test\.md\) \(\[run #67890\]\(.*actions\/runs\/67890\)\) triggered by this issue\./
           ),
         })
       );

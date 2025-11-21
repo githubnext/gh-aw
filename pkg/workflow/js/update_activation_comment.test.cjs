@@ -81,7 +81,7 @@ describe("update_activation_comment.cjs", () => {
       if (method.startsWith("GET")) {
         return {
           data: {
-            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
+            body: "Agentic Workflow [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
           },
         };
       }
@@ -141,7 +141,7 @@ describe("update_activation_comment.cjs", () => {
         // Mock GET query
         return {
           node: {
-            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
+            body: "Agentic Workflow [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
           },
         };
       }
@@ -423,7 +423,7 @@ describe("update_activation_comment.cjs", () => {
       if (method.startsWith("GET")) {
         return {
           data: {
-            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
+            body: "Agentic Workflow [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
           },
         };
       }
@@ -474,7 +474,7 @@ describe("update_activation_comment.cjs", () => {
         // Mock GET query
         return {
           node: {
-            body: "Agentic [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
+            body: "Agentic Workflow [workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
           },
         };
       }

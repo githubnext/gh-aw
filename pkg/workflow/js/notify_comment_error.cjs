@@ -73,22 +73,22 @@ async function main() {
 
   if (agentConclusion === "success") {
     statusEmoji = "✅";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+    message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) completed successfully.`;
   } else if (agentConclusion === "cancelled") {
     statusEmoji = "🚫";
     statusText = "was cancelled";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   } else if (agentConclusion === "skipped") {
     statusEmoji = "⏭️";
     statusText = "was skipped";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   } else if (agentConclusion === "timed_out") {
     statusEmoji = "⏱️";
     statusText = "timed out";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   } else {
     // Default to failure message
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    message = `${statusEmoji} Agentic Workflow [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   }
 
   // Add noop messages to the comment if any
