@@ -4085,7 +4085,7 @@ jobs:
               await main();
             })();
       - name: Invalidate GitHub App token
-        if: always()
+        if: always() && steps.app-token.outputs.token != ''
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}
         run: |

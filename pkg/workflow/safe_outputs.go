@@ -1336,11 +1336,12 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig) []string {
 
 // buildGitHubAppTokenInvalidationStep generates the step to invalidate the GitHub App token
 // This step always runs (even on failure) to ensure tokens are properly cleaned up
+// Only runs if a token was successfully minted
 func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
 	var steps []string
 
 	steps = append(steps, "      - name: Invalidate GitHub App token\n")
-	steps = append(steps, "        if: always()\n")
+	steps = append(steps, "        if: always() && steps.app-token.outputs.token != ''\n")
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          TOKEN: ${{ steps.app-token.outputs.token }}\n")
 	steps = append(steps, "        run: |\n")
