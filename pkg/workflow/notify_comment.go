@@ -119,6 +119,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	})
 	steps = append(steps, scriptSteps...)
 
+	// Add GitHub App token invalidation step if app is configured
+	if data.SafeOutputs.App != nil {
+		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
+	}
+
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
 	// 2. agent was activated (not skipped)

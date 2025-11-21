@@ -3771,6 +3771,19 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
   create_issue:
     needs:
