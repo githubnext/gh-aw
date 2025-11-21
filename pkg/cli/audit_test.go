@@ -346,8 +346,22 @@ func TestGenerateAuditReport(t *testing.T) {
 		MCPFailures:  mcpFailures,
 	}
 
+	// Create test downloaded files
+	downloadedFiles := []FileInfo{
+		{
+			Path:        "aw_info.json",
+			Size:        256,
+			Description: "Engine configuration and workflow metadata",
+		},
+		{
+			Path:        "safe_output.jsonl",
+			Size:        512,
+			Description: "Safe outputs from workflow execution",
+		},
+	}
+
 	// Generate report
-	report := generateAuditReport(processedRun, metrics)
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify report contains expected sections
 	expectedSections := []string{
@@ -357,7 +371,7 @@ func TestGenerateAuditReport(t *testing.T) {
 		"## MCP Tool Usage",
 		"## MCP Server Failures",
 		"## Missing Tools",
-		"## Available Artifacts",
+		"## Downloaded Files",
 	}
 
 	for _, section := range expectedSections {
@@ -409,15 +423,16 @@ func TestGenerateAuditReportMinimal(t *testing.T) {
 		Run: run,
 	}
 
-	// Generate report
-	report := generateAuditReport(processedRun, metrics)
+	// Generate report with empty downloaded files
+	downloadedFiles := []FileInfo{}
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify report contains basic sections even with minimal data
 	expectedSections := []string{
 		"# Workflow Run Audit Report",
 		"## Overview",
 		"## Metrics",
-		"## Available Artifacts",
+		"## Downloaded Files",
 	}
 
 	for _, section := range expectedSections {
@@ -495,8 +510,9 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 		Run: run,
 	}
 
-	// Generate report
-	report := generateAuditReport(processedRun, metrics)
+	// Generate report with empty downloaded files
+	downloadedFiles := []FileInfo{}
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify issue summary is present
 	if !strings.Contains(report, "## Issue Summary") {
@@ -567,8 +583,32 @@ func TestGenerateAuditReportArtifacts(t *testing.T) {
 		Run: run,
 	}
 
+	// Create test downloaded files matching the artifacts
+	downloadedFiles := []FileInfo{
+		{
+			Path:        "aw_info.json",
+			Size:        4,
+			Description: "Engine configuration and workflow metadata",
+		},
+		{
+			Path:        "safe_output.jsonl",
+			Size:        4,
+			Description: "Safe outputs from workflow execution",
+		},
+		{
+			Path:        "aw.patch",
+			Size:        4,
+			Description: "Git patch of changes made during execution",
+		},
+		{
+			Path:        "agent_output.json",
+			Size:        4,
+			Description: "Validated safe outputs",
+		},
+	}
+
 	// Generate report
-	report := generateAuditReport(processedRun, metrics)
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify all artifacts are listed
 	expectedArtifacts := []string{
@@ -727,8 +767,20 @@ func TestDescribeFile(t *testing.T) {
 		{"aw.patch", "Git patch of changes made during execution"},
 		{"agent-stdio.log", "Agent standard output/error logs"},
 		{"log.md", "Human-readable agent session summary"},
+		{"firewall.md", "Firewall log analysis report"},
+		{"run_summary.json", "Cached summary of workflow run analysis"},
+		{"prompt.txt", "Input prompt for AI agent"},
 		{"random.log", "Log file"},
-		{"unknown.txt", ""},
+		{"unknown.txt", "Text file"},
+		{"data.json", "JSON data file"},
+		{"output.jsonl", "JSON Lines data file"},
+		{"changes.patch", "Git patch file"},
+		{"notes.md", "Markdown documentation"},
+		{"agent_output", "Directory containing log files"},
+		{"firewall-logs", "Directory containing log files"},
+		{"squid-logs", "Directory containing log files"},
+		{"aw-prompts", "Directory containing AI prompts"},
+		{"somedir/", "Directory"},
 	}
 
 	for _, tt := range tests {
@@ -770,11 +822,9 @@ func TestRenderJSON(t *testing.T) {
 		},
 		DownloadedFiles: []FileInfo{
 			{
-				Path:          "aw_info.json",
-				Size:          1024,
-				SizeFormatted: "1.0 KB",
-				Description:   "Engine configuration and workflow metadata",
-				IsDirectory:   false,
+				Path:        "aw_info.json",
+				Size:        1024,
+				Description: "Engine configuration and workflow metadata",
 			},
 		},
 		MissingTools: []MissingToolReport{
@@ -1140,8 +1190,9 @@ func TestGenerateAuditReportWithFirewall(t *testing.T) {
 		MCPFailures:      []MCPFailureReport{},
 	}
 
-	// Generate report
-	report := generateAuditReport(processedRun, metrics)
+	// Generate report with empty downloaded files
+	downloadedFiles := []FileInfo{}
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify firewall section is present
 	if !strings.Contains(report, "## Firewall Analysis") {

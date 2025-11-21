@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
@@ -66,11 +65,9 @@ type JobData struct {
 
 // FileInfo contains information about downloaded artifact files
 type FileInfo struct {
-	Path          string `json:"path"`
-	Size          int64  `json:"size"`
-	SizeFormatted string `json:"size_formatted"`
-	Description   string `json:"description"`
-	IsDirectory   bool   `json:"is_directory"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	Description string `json:"description"`
 }
 
 // ErrorInfo contains detailed error information
@@ -233,28 +230,37 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		return files
 	}
 
+	// Get current working directory to calculate relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		auditReportLog.Printf("Failed to get current directory: %v", err)
+		cwd = ""
+	}
+
 	for _, entry := range entries {
+		// Skip directories
+		if entry.IsDir() {
+			continue
+		}
+
 		name := entry.Name()
 		fullPath := filepath.Join(logsPath, name)
 
+		// Calculate relative path from workspace root (current working directory)
+		relativePath := fullPath
+		if cwd != "" {
+			if relPath, err := filepath.Rel(cwd, fullPath); err == nil {
+				relativePath = relPath
+			}
+		}
+
 		fileInfo := FileInfo{
-			Path:        name,
-			IsDirectory: entry.IsDir(),
+			Path:        relativePath,
 			Description: describeFile(name),
 		}
 
-		if !entry.IsDir() {
-			if info, err := os.Stat(fullPath); err == nil {
-				fileInfo.Size = info.Size()
-				fileInfo.SizeFormatted = console.FormatFileSize(info.Size())
-			}
-		} else {
-			// For directories, sum the sizes of files inside
-			totalSize := fileutil.CalculateDirectorySize(fullPath)
-			fileInfo.Size = totalSize
-			if totalSize > 0 {
-				fileInfo.SizeFormatted = console.FormatFileSize(totalSize)
-			}
+		if info, err := os.Stat(fullPath); err == nil {
+			fileInfo.Size = info.Size()
 		}
 
 		files = append(files, fileInfo)
@@ -273,6 +279,9 @@ func describeFile(filename string) string {
 		"aw.patch":          "Git patch of changes made during execution",
 		"agent-stdio.log":   "Agent standard output/error logs",
 		"log.md":            "Human-readable agent session summary",
+		"firewall.md":       "Firewall log analysis report",
+		"run_summary.json":  "Cached summary of workflow run analysis",
+		"prompt.txt":        "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
@@ -280,13 +289,36 @@ func describeFile(filename string) string {
 	}
 
 	// Handle directories
-	if strings.HasSuffix(filename, "/") || filename == "agent_output" {
-		return "Directory containing agent output files"
+	if strings.HasSuffix(filename, "/") {
+		return "Directory"
+	}
+	
+	// Common directory names
+	if filename == "agent_output" || filename == "firewall-logs" || filename == "squid-logs" {
+		return "Directory containing log files"
+	}
+	if filename == "aw-prompts" {
+		return "Directory containing AI prompts"
 	}
 
-	// Generic log file
+	// Handle file patterns by extension
 	if strings.HasSuffix(filename, ".log") {
 		return "Log file"
+	}
+	if strings.HasSuffix(filename, ".md") {
+		return "Markdown documentation"
+	}
+	if strings.HasSuffix(filename, ".json") {
+		return "JSON data file"
+	}
+	if strings.HasSuffix(filename, ".jsonl") {
+		return "JSON Lines data file"
+	}
+	if strings.HasSuffix(filename, ".patch") {
+		return "Git patch file"
+	}
+	if strings.HasSuffix(filename, ".txt") {
+		return "Text file"
 	}
 
 	return ""
@@ -334,14 +366,8 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Println(console.FormatInfoMessage("## Downloaded Files"))
 		fmt.Println()
 		for _, file := range data.DownloadedFiles {
-			if file.IsDirectory {
-				fmt.Printf("  • %s/", file.Path)
-				if file.SizeFormatted != "" {
-					fmt.Printf(" (%s)", file.SizeFormatted)
-				}
-			} else {
-				fmt.Printf("  • %s (%s)", file.Path, file.SizeFormatted)
-			}
+			formattedSize := console.FormatFileSize(file.Size)
+			fmt.Printf("  • %s (%s)", file.Path, formattedSize)
 			if file.Description != "" {
 				fmt.Printf(" - %s", file.Description)
 			}
