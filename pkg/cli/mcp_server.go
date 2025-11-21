@@ -11,9 +11,12 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
+
+var mcpLog = logger.New("cli:mcp_server")
 
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
@@ -61,10 +64,17 @@ Examples:
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(port int, cmdPath string) error {
+	if port > 0 {
+		mcpLog.Printf("Starting MCP server on HTTP port %d", port)
+	} else {
+		mcpLog.Print("Starting MCP server with stdio transport")
+	}
+
 	// Validate that the CLI and secrets are properly configured
 	// Note: Validation failures are logged as warnings but don't prevent server startup
 	// This allows the server to start in test environments or non-repository directories
 	if err := validateMCPServerConfiguration(cmdPath); err != nil {
+		mcpLog.Printf("Configuration validation warning: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Configuration validation warning: %v", err)))
 	}
 
@@ -77,6 +87,7 @@ func runMCPServer(port int, cmdPath string) error {
 	}
 
 	// Run stdio transport
+	mcpLog.Print("MCP server ready on stdio")
 	return server.Run(context.Background(), &mcp.StdioTransport{})
 }
 
@@ -629,6 +640,8 @@ func loggingHandler(handler http.Handler) http.Handler {
 
 // runHTTPServer runs the MCP server with HTTP/SSE transport
 func runHTTPServer(server *mcp.Server, port int) error {
+	mcpLog.Printf("Creating HTTP server on port %d", port)
+
 	// Create the streamable HTTP handler.
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
@@ -644,9 +657,11 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost%s", addr)))
+	mcpLog.Printf("HTTP server listening on %s", addr)
 
 	// Run the HTTP server
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		mcpLog.Printf("HTTP server failed: %v", err)
 		return fmt.Errorf("HTTP server failed: %w", err)
 	}
 
