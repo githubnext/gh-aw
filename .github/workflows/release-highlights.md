@@ -259,8 +259,9 @@ OPERATION: prepend
 BODY: [Your complete highlights markdown here]
 ```
 
+**CRITICAL: You MUST include `TAG: ${RELEASE_TAG}` in your output.** The workflow sets this environment variable, and you need to explicitly include it in your update_release output.
+
 **Important Notes:**
-- The `TAG` will be automatically inferred from the release event if you don't specify it
 - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
 - Include all your markdown formatting in the BODY section
 - The system will automatically add an AI attribution footer
@@ -280,6 +281,7 @@ Here's a sample of what your output might look like:
 
 ```
 TYPE: update_release
+TAG: ${RELEASE_TAG}
 OPERATION: prepend
 BODY: ## 🌟 Release Highlights
 

@@ -30,7 +30,7 @@ async function main() {
       items: updateItems,
       renderItem: (item, index) => {
         let content = `### Release Update ${index + 1}\n`;
-        content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
+        content += `**Tag:** ${item.tag || process.env.RELEASE_TAG || "(inferred from event context)"}\n`;
         content += `**Operation:** ${item.operation}\n\n`;
         content += `**Body Content:**\n${item.body}\n\n`;
         return content;
@@ -54,22 +54,29 @@ async function main() {
       // Infer tag from event context if not provided
       let releaseTag = updateItem.tag;
       if (!releaseTag) {
-        // Try to get tag from release event context
-        if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
+        // First, try to get tag from RELEASE_TAG environment variable (set by workflow steps)
+        if (process.env.RELEASE_TAG) {
+          releaseTag = process.env.RELEASE_TAG;
+          core.info(`Using release tag from RELEASE_TAG environment variable: ${releaseTag}`);
+        } else if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
+          // Try to get tag from release event context
           releaseTag = context.payload.release.tag_name;
           core.info(`Inferred release tag from event context: ${releaseTag}`);
         } else if (context.eventName === "workflow_dispatch" && context.payload.inputs) {
-          // Try to extract from release_url input
-          const releaseUrl = context.payload.inputs.release_url;
-          if (releaseUrl) {
+          // Try to get from release_tag input (workflow_dispatch)
+          if (context.payload.inputs.release_tag) {
+            releaseTag = context.payload.inputs.release_tag;
+            core.info(`Using release tag from workflow_dispatch input: ${releaseTag}`);
+          } else if (context.payload.inputs.release_url) {
+            // Try to extract from release_url input
+            const releaseUrl = context.payload.inputs.release_url;
             const urlMatch = releaseUrl.match(/github\.com\/[^\/]+\/[^\/]+\/releases\/tag\/([^\/\?#]+)/);
             if (urlMatch && urlMatch[1]) {
               releaseTag = decodeURIComponent(urlMatch[1]);
               core.info(`Inferred release tag from release_url input: ${releaseTag}`);
             }
-          }
-          // Try to fetch from release_id input
-          if (!releaseTag && context.payload.inputs.release_id) {
+          } else if (context.payload.inputs.release_id) {
+            // Try to fetch from release_id input
             const releaseId = context.payload.inputs.release_id;
             core.info(`Fetching release with ID: ${releaseId}`);
             const { data: release } = await github.rest.repos.getRelease({
@@ -84,7 +91,9 @@ async function main() {
 
         if (!releaseTag) {
           core.error("No tag provided and unable to infer from event context");
-          core.setFailed("Release tag is required but not provided and cannot be inferred from event context");
+          core.setFailed(
+            "Release tag is required but not provided and cannot be inferred from event context. Ensure your workflow sets the RELEASE_TAG environment variable or includes TAG in the update_release output."
+          );
           return;
         }
       }

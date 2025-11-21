@@ -393,8 +393,149 @@ describe("update_release", () => {
 
     expect(mockCore.error).toHaveBeenCalledWith("No tag provided and unable to infer from event context");
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Release tag is required"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("RELEASE_TAG environment variable"));
 
     // Clean up
+    delete mockContext.eventName;
+    delete mockContext.payload;
+  });
+
+  it("should use RELEASE_TAG environment variable when tag is not provided", async () => {
+    // Set up RELEASE_TAG environment variable
+    process.env.RELEASE_TAG = "v1.2.3";
+    mockContext.eventName = "workflow_dispatch";
+    mockContext.payload = { inputs: {} };
+
+    const mockRelease = {
+      id: 5,
+      tag_name: "v1.2.3",
+      body: "Original release body",
+      html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.2.3",
+    };
+
+    mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease });
+    mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } });
+
+    // Agent output without tag field
+    setAgentOutput({
+      items: [
+        {
+          type: "update_release",
+          operation: "replace",
+          body: "Updated body",
+        },
+      ],
+      errors: [],
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${updateReleaseScript} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using release tag from RELEASE_TAG environment variable: v1.2.3"));
+    expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      tag: "v1.2.3",
+    });
+
+    // Clean up
+    delete process.env.RELEASE_TAG;
+    delete mockContext.eventName;
+    delete mockContext.payload;
+  });
+
+  it("should use release_tag from workflow_dispatch input", async () => {
+    // Set up workflow_dispatch context with release_tag input
+    mockContext.eventName = "workflow_dispatch";
+    mockContext.payload = {
+      inputs: {
+        release_tag: "v2.0.0",
+      },
+    };
+
+    const mockRelease = {
+      id: 6,
+      tag_name: "v2.0.0",
+      body: "Original release body",
+      html_url: "https://github.com/test-owner/test-repo/releases/tag/v2.0.0",
+    };
+
+    mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease });
+    mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } });
+
+    // Agent output without tag field
+    setAgentOutput({
+      items: [
+        {
+          type: "update_release",
+          operation: "replace",
+          body: "Updated body",
+        },
+      ],
+      errors: [],
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${updateReleaseScript} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using release tag from workflow_dispatch input: v2.0.0"));
+    expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      tag: "v2.0.0",
+    });
+
+    // Clean up
+    delete mockContext.eventName;
+    delete mockContext.payload;
+  });
+
+  it("should prioritize RELEASE_TAG environment variable over other sources", async () => {
+    // Set up multiple sources
+    process.env.RELEASE_TAG = "v1.0.0-from-env";
+    mockContext.eventName = "workflow_dispatch";
+    mockContext.payload = {
+      inputs: {
+        release_tag: "v1.0.0-from-input",
+      },
+    };
+
+    const mockRelease = {
+      id: 7,
+      tag_name: "v1.0.0-from-env",
+      body: "Original release body",
+      html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.0.0-from-env",
+    };
+
+    mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease });
+    mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } });
+
+    // Agent output without tag field
+    setAgentOutput({
+      items: [
+        {
+          type: "update_release",
+          operation: "replace",
+          body: "Updated body",
+        },
+      ],
+      errors: [],
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${updateReleaseScript} })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(
+      expect.stringContaining("Using release tag from RELEASE_TAG environment variable: v1.0.0-from-env")
+    );
+    expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      tag: "v1.0.0-from-env",
+    });
+
+    // Clean up
+    delete process.env.RELEASE_TAG;
     delete mockContext.eventName;
     delete mockContext.payload;
   });
