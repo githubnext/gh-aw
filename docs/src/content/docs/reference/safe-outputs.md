@@ -374,6 +374,81 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # Per-output override
 ```
 
+### GitHub App Token (`app:`)
+
+Use GitHub App installation tokens instead of Personal Access Tokens for enhanced security. Tokens are minted on-demand at job start and automatically revoked at job end, even on failure.
+
+```yaml wrap
+safe-outputs:
+  app:
+    id: ${{ vars.APP_ID }}                    # Required: GitHub App ID
+    secret: ${{ secrets.APP_PRIVATE_KEY }}    # Required: App private key
+    repository-ids:                           # Optional: scope to repositories
+      - "12345678"
+      - "87654321"
+  create-issue:
+  create-pull-request:
+```
+
+**Benefits:**
+- **Enhanced Security**: Tokens are minted on-demand and automatically revoked after use
+- **Fine-grained Permissions**: Scope tokens to specific repositories
+- **Better Attribution**: Actions appear as the GitHub App, not a user
+- **Audit Trail**: Clear tracking of automated actions
+
+**Token Lifecycle:**
+1. **Mint** - Token generated at job start using `actions/create-github-app-token@v2`
+2. **Use** - All safe output operations use the minted token
+3. **Revoke** - Token invalidated at job end (runs even on failure with `if: always()`)
+
+**Import Support:**
+
+App configuration can be imported from shared workflows. Local configuration takes precedence:
+
+```yaml wrap
+# In shared/app-config.md
+safe-outputs:
+  app:
+    id: ${{ vars.ORG_APP_ID }}
+    secret: ${{ secrets.ORG_APP_SECRET }}
+
+# In main workflow
+imports:
+  - shared/app-config.md
+safe-outputs:
+  create-issue:  # Uses imported app config
+```
+
+To override imported configuration:
+
+```yaml wrap
+imports:
+  - shared/app-config.md
+safe-outputs:
+  app:
+    id: ${{ vars.CUSTOM_APP_ID }}    # Overrides imported config
+    secret: ${{ secrets.CUSTOM_APP_SECRET }}
+  create-issue:
+```
+
+**Repository Scoping:**
+
+When `repository-ids` is specified, the token is scoped to only those repositories. Omit for access to all repositories the app is installed on:
+
+```yaml wrap
+safe-outputs:
+  app:
+    id: ${{ vars.APP_ID }}
+    secret: ${{ secrets.APP_PRIVATE_KEY }}
+    repository-ids: ["12345678"]  # Limit to specific repository
+  create-issue:
+    target-repo: "org/specific-repo"  # Must match scoped repository
+```
+
+:::tip
+Use GitHub App tokens for organization-wide automation. They provide better security and audit capabilities than PATs while avoiding per-user token management.
+:::
+
 ### Maximum Patch Size (`max-patch-size:`)
 
 Limits git patch size for PR operations (range: 1-10,240 KB, default: 1024 KB):
