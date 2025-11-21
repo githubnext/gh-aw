@@ -258,6 +258,17 @@ Before finishing:
    - Why it was changed
    - Expected improvement
    - Next steps (commit, push, test)
+   
+4. **Ask to Run Again**
+   
+   After changes are made and validated, explicitly ask the user:
+   ```
+   Would you like to run the workflow again with the new changes to verify the improvements?
+   
+   I can help you:
+   - Run it now: `gh aw run <workflow-name>`
+   - Or monitor the next scheduled/triggered run
+   ```
 
 ## Guidelines
 
