@@ -250,13 +250,8 @@ jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+      - name: Some step
+        run: echo 'some'
 
       - name: Build code
         run: make build
@@ -284,17 +279,17 @@ jobs:
 		t.Errorf("Expected extension install command to be present")
 	}
 
-	// Verify it was injected after Set up Go step
-	goIndex := strings.Index(contentStr, "Set up Go")
+	// Verify it was injected at the beginning (before other steps)
 	extensionIndex := strings.Index(contentStr, "Install gh-aw extension")
+	someStepIndex := strings.Index(contentStr, "Some step")
 	buildIndex := strings.Index(contentStr, "Build code")
 
-	if goIndex == -1 || extensionIndex == -1 || buildIndex == -1 {
+	if extensionIndex == -1 || someStepIndex == -1 || buildIndex == -1 {
 		t.Fatalf("Could not find expected steps in file")
 	}
 
-	if !(goIndex < extensionIndex && extensionIndex < buildIndex) {
-		t.Errorf("Extension install step not in correct position (should be after Go setup, before Build)")
+	if !(extensionIndex < someStepIndex && someStepIndex < buildIndex) {
+		t.Errorf("Extension install step not in correct position (should be at beginning, before other steps)")
 	}
 }
 
