@@ -224,7 +224,7 @@ Results are saved to `trials/` directory.
 Execute workflows immediately in GitHub Actions.
 
 ```bash wrap
-gh aw run WorkflowName                      # Run workflow
+gh aw run workflow-name                     # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
