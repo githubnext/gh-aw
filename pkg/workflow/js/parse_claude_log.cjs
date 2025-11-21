@@ -174,10 +174,6 @@ function parseClaudeLog(logContent) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseClaudeLog,
-    formatBashCommand,
-    truncateString,
-    estimateTokens,
-    formatDuration,
   };
 }
 

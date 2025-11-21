@@ -736,14 +736,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseCopilotLog,
     extractPremiumRequestCount,
-    formatInitializationSummary,
-    formatToolUseWithDetails,
-    formatBashCommand,
-    truncateString,
-    formatMcpName,
-    formatMcpParameters,
-    estimateTokens,
-    formatDuration,
   };
 }
 

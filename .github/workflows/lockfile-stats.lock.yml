@@ -3538,95 +3538,31 @@ jobs:
               }
               return markdown;
             }
-            function main() {
-              runLogParser({
-                parseLog: parseClaudeLog,
-                parserName: "Claude",
-                supportsDirectories: false,
-              });
-            }
-            function parseClaudeLog(logContent) {
-              try {
-                let logEntries;
-                try {
-                  logEntries = JSON.parse(logContent);
-                  if (!Array.isArray(logEntries)) {
-                    throw new Error("Not a JSON array");
-                  }
-                } catch (jsonArrayError) {
-                  logEntries = [];
-                  const lines = logContent.split("\n");
-                  for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    if (trimmedLine === "") {
-                      continue; 
-                    }
-                    if (trimmedLine.startsWith("[{")) {
-                      try {
-                        const arrayEntries = JSON.parse(trimmedLine);
-                        if (Array.isArray(arrayEntries)) {
-                          logEntries.push(...arrayEntries);
-                          continue;
-                        }
-                      } catch (arrayParseError) {
-                        continue;
-                      }
-                    }
-                    if (!trimmedLine.startsWith("{")) {
-                      continue;
-                    }
-                    try {
-                      const jsonEntry = JSON.parse(trimmedLine);
-                      logEntries.push(jsonEntry);
-                    } catch (jsonLineError) {
-                      continue;
-                    }
-                  }
-                }
-                if (!Array.isArray(logEntries) || logEntries.length === 0) {
-                  return {
-                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
-                    mcpFailures: [],
-                    maxTurnsHit: false,
-                  };
-                }
-                const mcpFailures = [];
-                const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: formatToolUse,
-                  formatInitCallback: initEntry => {
-                    const result = formatInitializationSummary(initEntry);
-                    if (result.mcpFailures) {
-                      mcpFailures.push(...result.mcpFailures);
-                    }
-                    return result;
-                  },
-                });
-                let markdown = conversationResult.markdown;
-                const lastEntry = logEntries[logEntries.length - 1];
-                markdown += generateInformationSection(lastEntry);
-                let maxTurnsHit = false;
-                const maxTurns = process.env.GH_AW_MAX_TURNS;
-                if (maxTurns && lastEntry && lastEntry.num_turns) {
-                  const configuredMaxTurns = parseInt(maxTurns, 10);
-                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
-                    maxTurnsHit = true;
-                  }
-                }
-                return { markdown, mcpFailures, maxTurnsHit };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return {
-                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
-                  mcpFailures: [],
-                  maxTurnsHit: false,
-                };
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
               }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
             }
-            function formatInitializationSummary(initEntry) {
+            function formatInitializationSummary(initEntry, options = {}) {
+              const { mcpFailureCallback, modelInfoCallback, includeSlashCommands = false } = options;
               let markdown = "";
               const mcpFailures = [];
               if (initEntry.model) {
                 markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (modelInfoCallback) {
+                const modelInfo = modelInfoCallback(initEntry);
+                if (modelInfo) {
+                  markdown += modelInfo;
+                }
               }
               if (initEntry.session_id) {
                 markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
@@ -3642,30 +3578,10 @@ jobs:
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
                   if (server.status === "failed") {
                     mcpFailures.push(server.name);
-                    const errorDetails = [];
-                    if (server.error) {
-                      errorDetails.push(`**Error:** ${server.error}`);
-                    }
-                    if (server.stderr) {
-                      const maxStderrLength = 500;
-                      const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
-                      errorDetails.push(`**Stderr:** \`${stderr}\``);
-                    }
-                    if (server.exitCode !== undefined && server.exitCode !== null) {
-                      errorDetails.push(`**Exit Code:** ${server.exitCode}`);
-                    }
-                    if (server.command) {
-                      errorDetails.push(`**Command:** \`${server.command}\``);
-                    }
-                    if (server.message) {
-                      errorDetails.push(`**Message:** ${server.message}`);
-                    }
-                    if (server.reason) {
-                      errorDetails.push(`**Reason:** ${server.reason}`);
-                    }
-                    if (errorDetails.length > 0) {
-                      for (const detail of errorDetails) {
-                        markdown += `  - ${detail}\n`;
+                    if (mcpFailureCallback) {
+                      const failureDetails = mcpFailureCallback(server);
+                      if (failureDetails) {
+                        markdown += failureDetails;
                       }
                     }
                   }
@@ -3702,7 +3618,7 @@ jobs:
                 }
                 markdown += "\n";
               }
-              if (initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
+              if (includeSlashCommands && initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
                 const commandCount = initEntry.slash_commands.length;
                 markdown += `**Slash Commands:** ${commandCount} available\n`;
                 if (commandCount <= 10) {
@@ -3712,9 +3628,13 @@ jobs:
                 }
                 markdown += "\n";
               }
-              return { markdown, mcpFailures };
+              if (mcpFailures.length > 0) {
+                return { markdown, mcpFailures };
+              }
+              return { markdown };
             }
-            function formatToolUse(toolUse, toolResult) {
+            function formatToolUse(toolUse, toolResult, options = {}) {
+              const { includeDetailedParameters = false } = options;
               const toolName = toolUse.name;
               const input = toolUse.input || {};
               if (toolName === "TodoWrite") {
@@ -3800,35 +3720,145 @@ jobs:
                   }
               }
               if (details && details.trim()) {
-                const maxDetailsLength = 500;
-                const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-                return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+                let detailsContent = "";
+                if (includeDetailedParameters) {
+                  const inputKeys = Object.keys(input);
+                  if (inputKeys.length > 0) {
+                    detailsContent += "**Parameters:**\n\n";
+                    detailsContent += "``````json\n";
+                    detailsContent += JSON.stringify(input, null, 2);
+                    detailsContent += "\n``````\n\n";
+                  }
+                  detailsContent += "**Response:**\n\n";
+                  detailsContent += "``````\n";
+                  detailsContent += details;
+                  detailsContent += "\n``````";
+                } else {
+                  const maxDetailsLength = 500;
+                  const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+                  detailsContent = `\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\``;
+                }
+                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
               } else {
                 return `${summary}\n\n`;
               }
             }
-            function formatMcpParameters(input) {
-              const keys = Object.keys(input);
-              if (keys.length === 0) return "";
-              const paramStrs = [];
-              for (const key of keys.slice(0, 4)) {
-                const value = String(input[key] || "");
-                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+            function main() {
+              runLogParser({
+                parseLog: parseClaudeLog,
+                parserName: "Claude",
+                supportsDirectories: false,
+              });
+            }
+            function parseClaudeLog(logContent) {
+              try {
+                let logEntries;
+                try {
+                  logEntries = JSON.parse(logContent);
+                  if (!Array.isArray(logEntries)) {
+                    throw new Error("Not a JSON array");
+                  }
+                } catch (jsonArrayError) {
+                  logEntries = [];
+                  const lines = logContent.split("\n");
+                  for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === "") {
+                      continue; 
+                    }
+                    if (trimmedLine.startsWith("[{")) {
+                      try {
+                        const arrayEntries = JSON.parse(trimmedLine);
+                        if (Array.isArray(arrayEntries)) {
+                          logEntries.push(...arrayEntries);
+                          continue;
+                        }
+                      } catch (arrayParseError) {
+                        continue;
+                      }
+                    }
+                    if (!trimmedLine.startsWith("{")) {
+                      continue;
+                    }
+                    try {
+                      const jsonEntry = JSON.parse(trimmedLine);
+                      logEntries.push(jsonEntry);
+                    } catch (jsonLineError) {
+                      continue;
+                    }
+                  }
+                }
+                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                  return {
+                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+                    mcpFailures: [],
+                    maxTurnsHit: false,
+                  };
+                }
+                const mcpFailures = [];
+                const conversationResult = generateConversationMarkdown(logEntries, {
+                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
+                  formatInitCallback: initEntry => {
+                    const result = formatInitializationSummary(initEntry, {
+                      includeSlashCommands: true,
+                      mcpFailureCallback: server => {
+                        const errorDetails = [];
+                        if (server.error) {
+                          errorDetails.push(`**Error:** ${server.error}`);
+                        }
+                        if (server.stderr) {
+                          const maxStderrLength = 500;
+                          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+                          errorDetails.push(`**Stderr:** \`${stderr}\``);
+                        }
+                        if (server.exitCode !== undefined && server.exitCode !== null) {
+                          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+                        }
+                        if (server.command) {
+                          errorDetails.push(`**Command:** \`${server.command}\``);
+                        }
+                        if (server.message) {
+                          errorDetails.push(`**Message:** ${server.message}`);
+                        }
+                        if (server.reason) {
+                          errorDetails.push(`**Reason:** ${server.reason}`);
+                        }
+                        if (errorDetails.length > 0) {
+                          return errorDetails.map(detail => `  - ${detail}\n`).join("");
+                        }
+                        return "";
+                      },
+                    });
+                    if (result.mcpFailures) {
+                      mcpFailures.push(...result.mcpFailures);
+                    }
+                    return result;
+                  },
+                });
+                let markdown = conversationResult.markdown;
+                const lastEntry = logEntries[logEntries.length - 1];
+                markdown += generateInformationSection(lastEntry);
+                let maxTurnsHit = false;
+                const maxTurns = process.env.GH_AW_MAX_TURNS;
+                if (maxTurns && lastEntry && lastEntry.num_turns) {
+                  const configuredMaxTurns = parseInt(maxTurns, 10);
+                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
+                    maxTurnsHit = true;
+                  }
+                }
+                return { markdown, mcpFailures, maxTurnsHit };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return {
+                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  mcpFailures: [],
+                  maxTurnsHit: false,
+                };
               }
-              if (keys.length > 4) {
-                paramStrs.push("...");
-              }
-              return paramStrs.join(", ");
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseClaudeLog,
-                formatToolUse,
-                formatInitializationSummary,
-                formatBashCommand,
-                truncateString,
-                estimateTokens,
-                formatDuration,
               };
             }
             main();
