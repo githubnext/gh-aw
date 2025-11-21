@@ -971,6 +971,211 @@ jobs:
               }
               return markdown;
             }
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+              }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
+            }
+            function formatInitializationSummary(initEntry, options = {}) {
+              const { mcpFailureCallback, modelInfoCallback, includeSlashCommands = false } = options;
+              let markdown = "";
+              const mcpFailures = [];
+              if (initEntry.model) {
+                markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (modelInfoCallback) {
+                const modelInfo = modelInfoCallback(initEntry);
+                if (modelInfo) {
+                  markdown += modelInfo;
+                }
+              }
+              if (initEntry.session_id) {
+                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
+              }
+              if (initEntry.cwd) {
+                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
+                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
+              }
+              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
+                markdown += "**MCP Servers:**\n";
+                for (const server of initEntry.mcp_servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
+                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                  if (server.status === "failed") {
+                    mcpFailures.push(server.name);
+                    if (mcpFailureCallback) {
+                      const failureDetails = mcpFailureCallback(server);
+                      if (failureDetails) {
+                        markdown += failureDetails;
+                      }
+                    }
+                  }
+                }
+                markdown += "\n";
+              }
+              if (initEntry.tools && Array.isArray(initEntry.tools)) {
+                markdown += "**Available Tools:**\n";
+                const categories = {
+                  Core: [],
+                  "File Operations": [],
+                  "Git/GitHub": [],
+                  MCP: [],
+                  Other: [],
+                };
+                for (const tool of initEntry.tools) {
+                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
+                    categories["Core"].push(tool);
+                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
+                    categories["File Operations"].push(tool);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    markdown += `- **${category}:** ${tools.length} tools\n`;
+                    markdown += `  - ${tools.join(", ")}\n`;
+                  }
+                }
+                markdown += "\n";
+              }
+              if (includeSlashCommands && initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
+                const commandCount = initEntry.slash_commands.length;
+                markdown += `**Slash Commands:** ${commandCount} available\n`;
+                if (commandCount <= 10) {
+                  markdown += `- ${initEntry.slash_commands.join(", ")}\n`;
+                } else {
+                  markdown += `- ${initEntry.slash_commands.slice(0, 5).join(", ")}, and ${commandCount - 5} more\n`;
+                }
+                markdown += "\n";
+              }
+              if (mcpFailures.length > 0) {
+                return { markdown, mcpFailures };
+              }
+              return { markdown };
+            }
+            function formatToolUse(toolUse, toolResult, options = {}) {
+              const { includeDetailedParameters = false } = options;
+              const toolName = toolUse.name;
+              const input = toolUse.input || {};
+              if (toolName === "TodoWrite") {
+                return ""; 
+              }
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? "❌" : "✅";
+                }
+                return "❓"; 
+              }
+              const statusIcon = getStatusIcon();
+              let summary = "";
+              let details = "";
+              if (toolResult && toolResult.content) {
+                if (typeof toolResult.content === "string") {
+                  details = toolResult.content;
+                } else if (Array.isArray(toolResult.content)) {
+                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
+                }
+              }
+              const inputText = JSON.stringify(input);
+              const outputText = details;
+              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
+              let metadata = "";
+              if (toolResult && toolResult.duration_ms) {
+                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+              }
+              if (totalTokens > 0) {
+                metadata += ` <code>~${totalTokens}t</code>`;
+              }
+              switch (toolName) {
+                case "Bash":
+                  const command = input.command || "";
+                  const description = input.description || "";
+                  const formattedCommand = formatBashCommand(command);
+                  if (description) {
+                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
+                  } else {
+                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
+                  }
+                  break;
+                case "Read":
+                  const filePath = input.file_path || input.path || "";
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
+                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
+                  break;
+                case "Write":
+                case "Edit":
+                case "MultiEdit":
+                  const writeFilePath = input.file_path || input.path || "";
+                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
+                  break;
+                case "Grep":
+                case "Glob":
+                  const query = input.query || input.pattern || "";
+                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
+                  break;
+                case "LS":
+                  const lsPath = input.path || "";
+                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
+                  break;
+                default:
+                  if (toolName.startsWith("mcp__")) {
+                    const mcpName = formatMcpName(toolName);
+                    const params = formatMcpParameters(input);
+                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
+                  } else {
+                    const keys = Object.keys(input);
+                    if (keys.length > 0) {
+                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
+                      const value = String(input[mainParam] || "");
+                      if (value) {
+                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
+                      } else {
+                        summary = `${statusIcon} ${toolName}${metadata}`;
+                      }
+                    } else {
+                      summary = `${statusIcon} ${toolName}${metadata}`;
+                    }
+                  }
+              }
+              if (details && details.trim()) {
+                let detailsContent = "";
+                if (includeDetailedParameters) {
+                  const inputKeys = Object.keys(input);
+                  if (inputKeys.length > 0) {
+                    detailsContent += "**Parameters:**\n\n";
+                    detailsContent += "``````json\n";
+                    detailsContent += JSON.stringify(input, null, 2);
+                    detailsContent += "\n``````\n\n";
+                  }
+                  detailsContent += "**Response:**\n\n";
+                  detailsContent += "``````\n";
+                  detailsContent += details;
+                  detailsContent += "\n``````";
+                } else {
+                  const maxDetailsLength = 500;
+                  const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+                  detailsContent = `\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\``;
+                }
+                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+              } else {
+                return `${summary}\n\n`;
+              }
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -1042,8 +1247,40 @@ jobs:
                   return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: formatToolUseWithDetails,
-                  formatInitCallback: formatInitializationSummary,
+                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+                  formatInitCallback: initEntry =>
+                    formatInitializationSummary(initEntry, {
+                      includeSlashCommands: false,
+                      modelInfoCallback: entry => {
+                        if (!entry.model_info) return "";
+                        const modelInfo = entry.model_info;
+                        let markdown = "";
+                        if (modelInfo.name) {
+                          markdown += `**Model Name:** ${modelInfo.name}`;
+                          if (modelInfo.vendor) {
+                            markdown += ` (${modelInfo.vendor})`;
+                          }
+                          markdown += "\n\n";
+                        }
+                        if (modelInfo.billing) {
+                          const billing = modelInfo.billing;
+                          if (billing.is_premium === true) {
+                            markdown += `**Premium Model:** Yes`;
+                            if (billing.multiplier && billing.multiplier !== 1) {
+                              markdown += ` (${billing.multiplier}x cost multiplier)`;
+                            }
+                            markdown += "\n";
+                            if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                              markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                            }
+                            markdown += "\n";
+                          } else if (billing.is_premium === false) {
+                            markdown += `**Premium Model:** No\n\n`;
+                          }
+                        }
+                        return markdown;
+                      },
+                    }),
                 });
                 let markdown = conversationResult.markdown;
                 const lastEntry = logEntries[logEntries.length - 1];
@@ -1460,212 +1697,10 @@ jobs:
               }
               return entries;
             }
-            function formatInitializationSummary(initEntry) {
-              let markdown = "";
-              if (initEntry.model) {
-                markdown += `**Model:** ${initEntry.model}\n\n`;
-              }
-              if (initEntry.model_info) {
-                const modelInfo = initEntry.model_info;
-                if (modelInfo.name) {
-                  markdown += `**Model Name:** ${modelInfo.name}`;
-                  if (modelInfo.vendor) {
-                    markdown += ` (${modelInfo.vendor})`;
-                  }
-                  markdown += "\n\n";
-                }
-                if (modelInfo.billing) {
-                  const billing = modelInfo.billing;
-                  if (billing.is_premium === true) {
-                    markdown += `**Premium Model:** Yes`;
-                    if (billing.multiplier && billing.multiplier !== 1) {
-                      markdown += ` (${billing.multiplier}x cost multiplier)`;
-                    }
-                    markdown += "\n";
-                    if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-                      markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-                    }
-                    markdown += "\n";
-                  } else if (billing.is_premium === false) {
-                    markdown += `**Premium Model:** No\n\n`;
-                  }
-                }
-              }
-              if (initEntry.session_id) {
-                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
-              }
-              if (initEntry.cwd) {
-                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
-                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
-              }
-              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
-                markdown += "**MCP Servers:**\n";
-                for (const server of initEntry.mcp_servers) {
-                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
-                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
-                }
-                markdown += "\n";
-              }
-              if (initEntry.tools && Array.isArray(initEntry.tools)) {
-                markdown += "**Available Tools:**\n";
-                const categories = {
-                  Core: [],
-                  "File Operations": [],
-                  "Git/GitHub": [],
-                  MCP: [],
-                  Other: [],
-                };
-                for (const tool of initEntry.tools) {
-                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
-                    categories["Core"].push(tool);
-                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
-                    categories["File Operations"].push(tool);
-                  } else if (tool.startsWith("mcp__github__")) {
-                    categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
-                  } else {
-                    categories["Other"].push(tool);
-                  }
-                }
-                for (const [category, tools] of Object.entries(categories)) {
-                  if (tools.length > 0) {
-                    markdown += `- **${category}:** ${tools.length} tools\n`;
-                    markdown += `  - ${tools.join(", ")}\n`;
-                  }
-                }
-                markdown += "\n";
-              }
-              return markdown;
-            }
-            function formatToolUseWithDetails(toolUse, toolResult) {
-              const toolName = toolUse.name;
-              const input = toolUse.input || {};
-              if (toolName === "TodoWrite") {
-                return "";
-              }
-              function getStatusIcon() {
-                if (toolResult) {
-                  return toolResult.is_error === true ? "❌" : "✅";
-                }
-                return "❓"; 
-              }
-              const statusIcon = getStatusIcon();
-              let summary = "";
-              let details = "";
-              if (toolResult && toolResult.content) {
-                if (typeof toolResult.content === "string") {
-                  details = toolResult.content;
-                } else if (Array.isArray(toolResult.content)) {
-                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
-                }
-              }
-              const inputText = JSON.stringify(input);
-              const outputText = details;
-              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
-              let metadata = "";
-              if (toolResult && toolResult.duration_ms) {
-                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
-              }
-              if (totalTokens > 0) {
-                metadata += ` <code>~${totalTokens}t</code>`;
-              }
-              switch (toolName) {
-                case "Bash":
-                  const command = input.command || "";
-                  const description = input.description || "";
-                  const formattedCommand = formatBashCommand(command);
-                  if (description) {
-                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
-                  } else {
-                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
-                  }
-                  break;
-                case "Read":
-                  const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
-                  break;
-                case "Write":
-                case "Edit":
-                case "MultiEdit":
-                  const writeFilePath = input.file_path || input.path || "";
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
-                  break;
-                case "Grep":
-                case "Glob":
-                  const query = input.query || input.pattern || "";
-                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
-                  break;
-                case "LS":
-                  const lsPath = input.path || "";
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
-                  break;
-                default:
-                  if (toolName.startsWith("mcp__")) {
-                    const mcpName = formatMcpName(toolName);
-                    const params = formatMcpParameters(input);
-                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
-                  } else {
-                    const keys = Object.keys(input);
-                    if (keys.length > 0) {
-                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
-                      const value = String(input[mainParam] || "");
-                      if (value) {
-                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
-                      } else {
-                        summary = `${statusIcon} ${toolName}${metadata}`;
-                      }
-                    } else {
-                      summary = `${statusIcon} ${toolName}${metadata}`;
-                    }
-                  }
-              }
-              if (details && details.trim()) {
-                let detailsContent = "";
-                const inputKeys = Object.keys(input);
-                if (inputKeys.length > 0) {
-                  detailsContent += "**Parameters:**\n\n";
-                  detailsContent += "``````json\n";
-                  detailsContent += JSON.stringify(input, null, 2);
-                  detailsContent += "\n``````\n\n";
-                }
-                detailsContent += "**Response:**\n\n";
-                detailsContent += "``````\n";
-                detailsContent += details;
-                detailsContent += "\n``````";
-                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
-              } else {
-                return `${summary}\n\n`;
-              }
-            }
-            function formatMcpParameters(input) {
-              const keys = Object.keys(input);
-              if (keys.length === 0) return "";
-              const paramStrs = [];
-              for (const key of keys.slice(0, 4)) {
-                const value = String(input[key] || "");
-                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
-              }
-              if (keys.length > 4) {
-                paramStrs.push("...");
-              }
-              return paramStrs.join(", ");
-            }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseCopilotLog,
                 extractPremiumRequestCount,
-                formatInitializationSummary,
-                formatToolUseWithDetails,
-                formatBashCommand,
-                truncateString,
-                formatMcpName,
-                formatMcpParameters,
-                estimateTokens,
-                formatDuration,
               };
             }
             main();
