@@ -277,11 +277,11 @@
     "description": "Update a GitHub release description",
     "inputSchema": {
       "type": "object",
-      "required": ["operation", "body"],
+      "required": ["tag", "operation", "body"],
       "properties": {
         "tag": {
           "type": "string",
-          "description": "Release tag name (optional - inferred from event context if omitted)"
+          "description": "Release tag name"
         },
         "operation": {
           "type": "string",

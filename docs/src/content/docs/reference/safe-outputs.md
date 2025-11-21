@@ -237,10 +237,10 @@ safe-outputs:
 ```jsonl
 {"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New content"}
 {"type": "update_release", "tag": "v2.0.0", "operation": "append", "body": "Additional notes"}
-{"type": "update_release", "operation": "prepend", "body": "Summary (tag inferred)"}
+{"type": "update_release", "tag": "v3.0.0", "operation": "prepend", "body": "Summary"}
 ```
 
-The `tag` field is optional when triggered by release events (automatically inferred from context). The workflow needs read access to releases; only the generated job receives write permissions.
+The `tag` field is required. The workflow needs read access to releases; only the generated job receives write permissions.
 
 ### No-Op Logging (`noop:`)
 

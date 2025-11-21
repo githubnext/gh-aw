@@ -401,7 +401,7 @@
         },
         "tag": {
           "type": "string",
-          "description": "Tag name of the release to update (optional - inferred from event context if omitted)",
+          "description": "Tag name of the release to update",
           "minLength": 1
         },
         "operation": {
@@ -415,7 +415,7 @@
           "minLength": 1
         }
       },
-      "required": ["type", "operation", "body"],
+      "required": ["type", "tag", "operation", "body"],
       "additionalProperties": false
     },
     "AssignMilestoneOutput": {
