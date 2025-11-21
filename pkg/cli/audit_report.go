@@ -273,6 +273,9 @@ func describeFile(filename string) string {
 		"aw.patch":          "Git patch of changes made during execution",
 		"agent-stdio.log":   "Agent standard output/error logs",
 		"log.md":            "Human-readable agent session summary",
+		"firewall.md":       "Firewall log analysis report",
+		"run_summary.json":  "Cached summary of workflow run analysis",
+		"prompt.txt":        "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
@@ -280,13 +283,36 @@ func describeFile(filename string) string {
 	}
 
 	// Handle directories
-	if strings.HasSuffix(filename, "/") || filename == "agent_output" {
-		return "Directory containing agent output files"
+	if strings.HasSuffix(filename, "/") {
+		return "Directory"
+	}
+	
+	// Common directory names
+	if filename == "agent_output" || filename == "firewall-logs" || filename == "squid-logs" {
+		return "Directory containing log files"
+	}
+	if filename == "aw-prompts" {
+		return "Directory containing AI prompts"
 	}
 
-	// Generic log file
+	// Handle file patterns by extension
 	if strings.HasSuffix(filename, ".log") {
 		return "Log file"
+	}
+	if strings.HasSuffix(filename, ".md") {
+		return "Markdown documentation"
+	}
+	if strings.HasSuffix(filename, ".json") {
+		return "JSON data file"
+	}
+	if strings.HasSuffix(filename, ".jsonl") {
+		return "JSON Lines data file"
+	}
+	if strings.HasSuffix(filename, ".patch") {
+		return "Git patch file"
+	}
+	if strings.HasSuffix(filename, ".txt") {
+		return "Text file"
 	}
 
 	return ""
