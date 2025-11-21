@@ -38,23 +38,27 @@ If this step fails, you may need to use a personal access token or run the [inst
 
 ### Step 2 — Add a sample workflow
 
-Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
+#### Understanding the files
+
+Agentic workflows use two files:
+- **`.md` file** — What you write (human-friendly markdown with natural language instructions)
+- **`.lock.yml` file** — What GitHub Actions runs (auto-generated YAML workflow)
+
+Think of compilation like translating: **Markdown** → **YAML**
+
+The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The [compilation](/gh-aw/reference/glossary/#compilation) process translates your markdown into the YAML workflow file that GitHub Actions can execute.
+
+:::note
+The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and recompile whenever you make changes.
+:::
+
+Now let's add a sample workflow from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
 gh aw add githubnext/agentics/daily-team-status --pr
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). The [compilation](/gh-aw/reference/glossary/#compilation) process (converting markdown to GitHub Actions YAML) translates your human-friendly markdown into the YAML format that GitHub Actions can execute. Review and merge the PR into your repo.
-
-#### Why Compile?
-
-The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
-
-Think of it like: **Markdown** (what you write) → **YAML** (what Actions runs)
-
-:::note
-The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and recompile whenever you make changes.
-:::
+This creates a pull request that adds both `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` file. Review and merge the PR into your repo.
 
 ### Step 3 — Add an AI secret
 
