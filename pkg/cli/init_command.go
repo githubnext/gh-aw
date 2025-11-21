@@ -24,6 +24,7 @@ This command:
 - Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
 - Creates the custom agent for workflow creation at .github/agents/create-agentic-workflow.md
 - Creates the setup agentic workflows agent at .github/agents/setup-agentic-workflows.md
+- Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.md
 - Removes the old /create-agentic-workflow prompt if it exists
 
 With --mcp flag:
@@ -33,6 +34,7 @@ With --mcp flag:
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
 - Use GitHub Copilot Chat: type /agent and select setup-agentic-workflows for setup guidance
+- Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
 - Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
 - Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
 
