@@ -415,7 +415,7 @@
           "minLength": 1
         }
       },
-      "required": ["type", "operation", "body"],
+      "required": ["type", "tag", "operation", "body"],
       "additionalProperties": false
     },
     "AssignMilestoneOutput": {
