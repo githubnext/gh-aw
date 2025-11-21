@@ -29,7 +29,7 @@ imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
   - shared/reporting.md
-  - shared/trends.md
+  - shared/trending-charts-simple.md
 ---
 
 # Agentic Workflow Audit Agent

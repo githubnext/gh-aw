@@ -15,6 +15,11 @@
       "version": "v5",
       "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     },
+    "actions/create-github-app-token@v2": {
+      "repo": "actions/create-github-app-token",
+      "version": "v2",
+      "sha": "67018539274d69449ef7c02e8e71183d1719ab42"
+    },
     "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",
       "version": "v6",

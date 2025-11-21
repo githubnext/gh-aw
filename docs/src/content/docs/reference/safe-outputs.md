@@ -374,6 +374,94 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # Per-output override
 ```
 
+### GitHub App Token (`app:`)
+
+Use GitHub App installation tokens instead of Personal Access Tokens for enhanced security. Tokens are minted on-demand at job start and automatically revoked at job end, even on failure.
+
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}                 # Required: GitHub App ID
+    private-key: ${{ secrets.APP_PRIVATE_KEY }} # Required: App private key
+    owner: "my-org"                             # Optional: installation owner
+    repositories:                               # Optional: scope to repositories
+      - "repo1"
+      - "repo2"
+  create-issue:
+  create-pull-request:
+```
+
+**Configuration Fields:**
+- **`app-id`** (required): GitHub App ID - should reference a variable (e.g., `${{ vars.APP_ID }}`)
+- **`private-key`** (required): GitHub App private key - should reference a secret (e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+- **`owner`** (optional): Owner of the GitHub App installation. If empty, defaults to the current repository owner
+- **`repositories`** (optional): List of repositories to grant access to. See Repository Scoping below
+
+**Note:** The GitHub API URL is automatically inferred from the GitHub Actions environment variable (`github.api_url`) and does not need to be configured in frontmatter.
+
+**Benefits:**
+- **Enhanced Security**: Tokens are minted on-demand and automatically revoked after use
+- **Fine-grained Permissions**: Scope tokens to specific repositories or organizations
+- **Better Attribution**: Actions appear as the GitHub App, not a user
+- **Audit Trail**: Clear tracking of automated actions
+
+**Token Lifecycle:**
+1. **Mint** - Token generated at job start using `actions/create-github-app-token@v2`
+2. **Use** - All safe output operations use the minted token
+3. **Revoke** - Token invalidated at job end (runs even on failure with `if: always()`)
+
+**Import Support:**
+
+App configuration can be imported from shared workflows. Local configuration takes precedence:
+
+```yaml wrap
+# In shared/app-config.md
+safe-outputs:
+  app:
+    app-id: ${{ vars.ORG_APP_ID }}
+    private-key: ${{ secrets.ORG_APP_SECRET }}
+
+# In main workflow
+imports:
+  - shared/app-config.md
+safe-outputs:
+  create-issue:  # Uses imported app config
+```
+
+To override imported configuration:
+
+```yaml wrap
+imports:
+  - shared/app-config.md
+safe-outputs:
+  app:
+    app-id: ${{ vars.CUSTOM_APP_ID }}        # Overrides imported config
+    private-key: ${{ secrets.CUSTOM_APP_SECRET }}
+  create-issue:
+```
+
+**Repository Scoping:**
+
+The `repositories` field controls token scope:
+
+- **Not specified**: Token scoped to current repository only
+- **Empty with `owner`**: Token scoped to all repositories in the owner's installation
+- **Specified**: Token scoped to only listed repositories
+
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories: ["repo1"]  # Limit to specific repository
+  create-issue:
+    target-repo: "org/specific-repo"  # Must match scoped repository
+```
+
+:::tip
+Use GitHub App tokens for organization-wide automation. They provide better security and audit capabilities than PATs while avoiding per-user token management.
+:::
+
 ### Maximum Patch Size (`max-patch-size:`)
 
 Limits git patch size for PR operations (range: 1-10,240 KB, default: 1024 KB):

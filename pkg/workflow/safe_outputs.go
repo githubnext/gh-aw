@@ -648,6 +648,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.Jobs = c.parseSafeJobsConfig(jobsFrontmatter)
 				}
 			}
+
+			// Handle app configuration for GitHub App token minting
+			if app, exists := outputMap["app"]; exists {
+				if appMap, ok := app.(map[string]any); ok {
+					config.App = parseAppConfig(appMap)
+				}
+			}
 		}
 	}
 
@@ -859,6 +866,12 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	safeOutputsLog.Printf("Building safe output job: %s", config.JobName)
 	var steps []string
 
+	// Add GitHub App token minting step if app is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		safeOutputsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, config.Permissions)...)
+	}
+
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)
 	if len(config.PreSteps) > 0 {
 		safeOutputsLog.Printf("Adding %d pre-steps to job", len(config.PreSteps))
@@ -880,6 +893,12 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	// Add post-steps if provided (e.g., assignees, reviewers)
 	if len(config.PostSteps) > 0 {
 		steps = append(steps, config.PostSteps...)
+	}
+
+	// Add GitHub App token invalidation step if app is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		safeOutputsLog.Print("Adding GitHub App token invalidation step")
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
 	// Determine job condition
