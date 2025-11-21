@@ -1232,12 +1232,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
 
+	// Merge app configuration from included safe-outputs configurations
+	includedApp, err := c.mergeAppFromIncludedConfigs(workflowData.SafeOutputs, allSafeOutputsConfigs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge app from includes: %w", err)
+	}
+
 	// Ensure SafeOutputs exists and populate the Jobs field
 	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
 	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
+	}
+
+	// Populate the App field if it's not set in the top-level workflow but is in an included config
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.App == nil && includedApp != nil {
+		workflowData.SafeOutputs.App = includedApp
 	}
 
 	// Parse the "on" section for command triggers, reactions, and other events
@@ -1443,6 +1454,70 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 	}
 
 	return result, nil
+}
+
+// mergeAppFromIncludedConfigs merges app configuration from included safe-outputs configurations
+// If the top-level workflow has an app configured, it takes precedence
+// Otherwise, the first app configuration found in included configs is used
+func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) (*GitHubAppConfig, error) {
+	// If top-level workflow already has app configured, use it (no merge needed)
+	if topSafeOutputs != nil && topSafeOutputs.App != nil {
+		return topSafeOutputs.App, nil
+	}
+
+	// Otherwise, find the first app configuration in included configs
+	for _, configJSON := range includedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the safe-outputs configuration
+		var safeOutputsConfig map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
+			continue // Skip invalid JSON
+		}
+
+		// Extract app from the safe-outputs.app field
+		if appData, exists := safeOutputsConfig["app"]; exists {
+			if appMap, ok := appData.(map[string]any); ok {
+				appConfig := &GitHubAppConfig{}
+
+				// Parse id (required)
+				if id, exists := appMap["id"]; exists {
+					if idStr, ok := id.(string); ok {
+						appConfig.ID = idStr
+					}
+				}
+
+				// Parse secret (required)
+				if secret, exists := appMap["secret"]; exists {
+					if secretStr, ok := secret.(string); ok {
+						appConfig.Secret = secretStr
+					}
+				}
+
+				// Parse repository-ids (optional)
+				if repoIDs, exists := appMap["repository-ids"]; exists {
+					if repoIDsArray, ok := repoIDs.([]any); ok {
+						var repoIDStrings []string
+						for _, repoID := range repoIDsArray {
+							if repoIDStr, ok := repoID.(string); ok {
+								repoIDStrings = append(repoIDStrings, repoIDStr)
+							}
+						}
+						appConfig.RepositoryIDs = repoIDStrings
+					}
+				}
+
+				// Return first valid app configuration found
+				if appConfig.ID != "" && appConfig.Secret != "" {
+					return appConfig, nil
+				}
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
