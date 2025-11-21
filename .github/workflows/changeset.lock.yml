@@ -5174,6 +5174,17 @@ jobs:
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+          permission-discussions: write
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -5891,10 +5902,10 @@ jobs:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           github-api-url: ${{ github.api_url }}
-          permission-pull-requests: write
-          permission-discussions: write
           permission-contents: write
           permission-issues: write
+          permission-pull-requests: write
+          permission-discussions: write
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
