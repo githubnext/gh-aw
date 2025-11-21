@@ -3050,6 +3050,37 @@
             "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           ]
         },
+        "app": {
+          "type": "object",
+          "description": "GitHub App credentials for minting installation access tokens. When configured, a token will be generated using the app credentials and used for all safe output operations.",
+          "properties": {
+            "app-id": {
+              "type": "string",
+              "description": "GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).",
+              "examples": ["${{ vars.APP_ID }}", "${{ secrets.APP_ID }}"]
+            },
+            "private-key": {
+              "type": "string",
+              "description": "GitHub App private key. Should reference a secret (e.g., ${{ secrets.APP_PRIVATE_KEY }}).",
+              "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
+            },
+            "owner": {
+              "type": "string",
+              "description": "Optional: The owner of the GitHub App installation. If empty, defaults to the current repository owner.",
+              "examples": ["my-organization", "${{ github.repository_owner }}"]
+            },
+            "repositories": {
+              "type": "array",
+              "description": "Optional: Comma or newline-separated list of repositories to grant access to. If owner is set and repositories is empty, access will be scoped to all repositories in the provided repository owner's installation. If owner and repositories are empty, access will be scoped to only the current repository.",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["repo1", "repo2"], ["my-repo"]]
+            }
+          },
+          "required": ["app-id", "private-key"],
+          "additionalProperties": false
+        },
         "max-patch-size": {
           "type": "integer",
           "description": "Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1 MB). If patch exceeds this size, the job will fail.",
