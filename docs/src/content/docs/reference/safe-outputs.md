@@ -381,18 +381,27 @@ Use GitHub App installation tokens instead of Personal Access Tokens for enhance
 ```yaml wrap
 safe-outputs:
   app:
-    id: ${{ vars.APP_ID }}                    # Required: GitHub App ID
-    secret: ${{ secrets.APP_PRIVATE_KEY }}    # Required: App private key
-    repository-ids:                           # Optional: scope to repositories
-      - "12345678"
-      - "87654321"
+    app-id: ${{ vars.APP_ID }}                 # Required: GitHub App ID
+    private-key: ${{ secrets.APP_PRIVATE_KEY }} # Required: App private key
+    owner: "my-org"                             # Optional: installation owner
+    repositories:                               # Optional: scope to repositories
+      - "repo1"
+      - "repo2"
+    github-api-url: ${{ github.api_url }}       # Optional: API URL
   create-issue:
   create-pull-request:
 ```
 
+**Configuration Fields:**
+- **`app-id`** (required): GitHub App ID - should reference a variable (e.g., `${{ vars.APP_ID }}`)
+- **`private-key`** (required): GitHub App private key - should reference a secret (e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+- **`owner`** (optional): Owner of the GitHub App installation. If empty, defaults to the current repository owner
+- **`repositories`** (optional): List of repositories to grant access to. See Repository Scoping below
+- **`github-api-url`** (optional): URL of the GitHub REST API. Defaults to the workflow's API URL
+
 **Benefits:**
 - **Enhanced Security**: Tokens are minted on-demand and automatically revoked after use
-- **Fine-grained Permissions**: Scope tokens to specific repositories
+- **Fine-grained Permissions**: Scope tokens to specific repositories or organizations
 - **Better Attribution**: Actions appear as the GitHub App, not a user
 - **Audit Trail**: Clear tracking of automated actions
 
@@ -409,8 +418,8 @@ App configuration can be imported from shared workflows. Local configuration tak
 # In shared/app-config.md
 safe-outputs:
   app:
-    id: ${{ vars.ORG_APP_ID }}
-    secret: ${{ secrets.ORG_APP_SECRET }}
+    app-id: ${{ vars.ORG_APP_ID }}
+    private-key: ${{ secrets.ORG_APP_SECRET }}
 
 # In main workflow
 imports:
@@ -426,21 +435,25 @@ imports:
   - shared/app-config.md
 safe-outputs:
   app:
-    id: ${{ vars.CUSTOM_APP_ID }}    # Overrides imported config
-    secret: ${{ secrets.CUSTOM_APP_SECRET }}
+    app-id: ${{ vars.CUSTOM_APP_ID }}        # Overrides imported config
+    private-key: ${{ secrets.CUSTOM_APP_SECRET }}
   create-issue:
 ```
 
 **Repository Scoping:**
 
-When `repository-ids` is specified, the token is scoped to only those repositories. Omit for access to all repositories the app is installed on:
+The `repositories` field controls token scope:
+
+- **Not specified**: Token scoped to current repository only
+- **Empty with `owner`**: Token scoped to all repositories in the owner's installation
+- **Specified**: Token scoped to only listed repositories
 
 ```yaml wrap
 safe-outputs:
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
-    repository-ids: ["12345678"]  # Limit to specific repository
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories: ["repo1"]  # Limit to specific repository
   create-issue:
     target-repo: "org/specific-repo"  # Must match scoped repository
 ```

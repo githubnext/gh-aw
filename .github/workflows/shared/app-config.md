@@ -1,8 +1,8 @@
 ---
 safe-outputs:
   app:
-    id: ${{ vars.ORG_APP_ID }}
-    secret: ${{ secrets.ORG_APP_PRIVATE_KEY }}
+    app-id: ${{ vars.ORG_APP_ID }}
+    private-key: ${{ secrets.ORG_APP_PRIVATE_KEY }}
 ---
 
 # Shared GitHub App Configuration
@@ -43,8 +43,8 @@ imports:
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.CUSTOM_APP_ID }}
-    secret: ${{ secrets.CUSTOM_APP_SECRET }}
+    app-id: ${{ vars.CUSTOM_APP_ID }}
+    private-key: ${{ secrets.CUSTOM_APP_SECRET }}
 ---
 
 # Your Workflow

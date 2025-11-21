@@ -19,11 +19,11 @@ on: issues
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
-    repository-ids:
-      - "12345678"
-      - "87654321"
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories:
+      - "repo1"
+      - "repo2"
 ---
 
 # Test Workflow
@@ -43,12 +43,12 @@ Test workflow with app configuration.
 	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.ID)
-	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.Secret)
-	assert.Equal(t, []string{"12345678", "87654321"}, workflowData.SafeOutputs.App.RepositoryIDs)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.PrivateKey)
+	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.SafeOutputs.App.Repositories)
 }
 
-// TestSafeOutputsAppConfigurationMinimal tests minimal app configuration without repository-ids
+// TestSafeOutputsAppConfigurationMinimal tests minimal app configuration without repositories
 func TestSafeOutputsAppConfigurationMinimal(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
 
@@ -57,8 +57,8 @@ on: issues
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
 # Test Workflow
@@ -78,9 +78,9 @@ Test workflow with minimal app configuration.
 	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.ID)
-	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.Secret)
-	assert.Empty(t, workflowData.SafeOutputs.App.RepositoryIDs)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.PrivateKey)
+	assert.Empty(t, workflowData.SafeOutputs.App.Repositories)
 }
 
 // TestSafeOutputsAppTokenMintingStep tests that token minting step is generated
@@ -94,8 +94,8 @@ permissions:
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
 # Test Workflow
@@ -135,7 +135,7 @@ Test workflow with app token minting.
 	assert.Contains(t, stepsStr, "${{ steps.app-token.outputs.token }}", "Should use app token in github-script")
 }
 
-// TestSafeOutputsAppTokenMintingStepWithRepositories tests token minting with repository-ids
+// TestSafeOutputsAppTokenMintingStepWithRepositories tests token minting with repositories
 func TestSafeOutputsAppTokenMintingStepWithRepositories(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
 
@@ -146,11 +146,11 @@ permissions:
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
-    repository-ids:
-      - "12345678"
-      - "87654321"
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories:
+      - "repo1"
+      - "repo2"
 ---
 
 # Test Workflow
@@ -175,8 +175,8 @@ Test workflow with app token minting and repository restrictions.
 	// Convert steps to string for easier assertion
 	stepsStr := strings.Join(job.Steps, "")
 
-	// Verify repository-ids are included in the minting step
-	assert.Contains(t, stepsStr, "repositories: 12345678,87654321", "Should include repository-ids")
+	// Verify repositories are included in the minting step
+	assert.Contains(t, stepsStr, "repositories: repo1,repo2", "Should include repositories")
 }
 
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break

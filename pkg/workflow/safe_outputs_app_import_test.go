@@ -24,10 +24,10 @@ func TestSafeOutputsAppImport(t *testing.T) {
 	sharedWorkflow := `---
 safe-outputs:
   app:
-    id: ${{ vars.SHARED_APP_ID }}
-    secret: ${{ secrets.SHARED_APP_SECRET }}
-    repository-ids:
-      - "11111111"
+    app-id: ${{ vars.SHARED_APP_ID }}
+    private-key: ${{ secrets.SHARED_APP_SECRET }}
+    repositories:
+      - "repo1"
 ---
 
 # Shared App Configuration
@@ -73,9 +73,9 @@ This workflow uses the imported app configuration.
 	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be imported")
 
 	// Verify app configuration was imported correctly
-	assert.Equal(t, "${{ vars.SHARED_APP_ID }}", workflowData.SafeOutputs.App.ID)
-	assert.Equal(t, "${{ secrets.SHARED_APP_SECRET }}", workflowData.SafeOutputs.App.Secret)
-	assert.Equal(t, []string{"11111111"}, workflowData.SafeOutputs.App.RepositoryIDs)
+	assert.Equal(t, "${{ vars.SHARED_APP_ID }}", workflowData.SafeOutputs.App.AppID)
+	assert.Equal(t, "${{ secrets.SHARED_APP_SECRET }}", workflowData.SafeOutputs.App.PrivateKey)
+	assert.Equal(t, []string{"repo1"}, workflowData.SafeOutputs.App.Repositories)
 }
 
 // TestSafeOutputsAppImportOverride tests that local app configuration overrides imported one
@@ -92,8 +92,8 @@ func TestSafeOutputsAppImportOverride(t *testing.T) {
 	sharedWorkflow := `---
 safe-outputs:
   app:
-    id: ${{ vars.SHARED_APP_ID }}
-    secret: ${{ secrets.SHARED_APP_SECRET }}
+    app-id: ${{ vars.SHARED_APP_ID }}
+    private-key: ${{ secrets.SHARED_APP_SECRET }}
 ---
 
 # Shared App Configuration
@@ -113,10 +113,10 @@ imports:
 safe-outputs:
   create-issue:
   app:
-    id: ${{ vars.LOCAL_APP_ID }}
-    secret: ${{ secrets.LOCAL_APP_SECRET }}
-    repository-ids:
-      - "22222222"
+    app-id: ${{ vars.LOCAL_APP_ID }}
+    private-key: ${{ secrets.LOCAL_APP_SECRET }}
+    repositories:
+      - "repo2"
 ---
 
 # Main Workflow
@@ -142,9 +142,9 @@ This workflow overrides the imported app configuration.
 	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be present")
 
 	// Verify local app configuration takes precedence
-	assert.Equal(t, "${{ vars.LOCAL_APP_ID }}", workflowData.SafeOutputs.App.ID)
-	assert.Equal(t, "${{ secrets.LOCAL_APP_SECRET }}", workflowData.SafeOutputs.App.Secret)
-	assert.Equal(t, []string{"22222222"}, workflowData.SafeOutputs.App.RepositoryIDs)
+	assert.Equal(t, "${{ vars.LOCAL_APP_ID }}", workflowData.SafeOutputs.App.AppID)
+	assert.Equal(t, "${{ secrets.LOCAL_APP_SECRET }}", workflowData.SafeOutputs.App.PrivateKey)
+	assert.Equal(t, []string{"repo2"}, workflowData.SafeOutputs.App.Repositories)
 }
 
 // TestSafeOutputsAppImportStepGeneration tests that imported app config generates correct steps
@@ -161,8 +161,8 @@ func TestSafeOutputsAppImportStepGeneration(t *testing.T) {
 	sharedWorkflow := `---
 safe-outputs:
   app:
-    id: ${{ vars.SHARED_APP_ID }}
-    secret: ${{ secrets.SHARED_APP_SECRET }}
+    app-id: ${{ vars.SHARED_APP_ID }}
+    private-key: ${{ secrets.SHARED_APP_SECRET }}
 ---
 
 # Shared App Configuration

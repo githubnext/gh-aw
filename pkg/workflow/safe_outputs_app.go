@@ -12,9 +12,11 @@ import (
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	ID            string   `yaml:"id,omitempty"`             // GitHub App ID (e.g., "${{ vars.APP_ID }}")
-	Secret        string   `yaml:"secret,omitempty"`         // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	RepositoryIDs []string `yaml:"repository-ids,omitempty"` // Optional: specific repository IDs to scope the token
+	AppID         string   `yaml:"app-id,omitempty"`      // GitHub App ID (e.g., "${{ vars.APP_ID }}")
+	PrivateKey    string   `yaml:"private-key,omitempty"` // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	Owner         string   `yaml:"owner,omitempty"`       // Optional: owner of the GitHub App installation (defaults to current repository owner)
+	Repositories  []string `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
+	GitHubAPIURL  string   `yaml:"github-api-url,omitempty"` // Optional: GitHub REST API URL (defaults to workflow's API URL)
 }
 
 // ========================================
@@ -25,30 +27,44 @@ type GitHubAppConfig struct {
 func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	appConfig := &GitHubAppConfig{}
 
-	// Parse id (required)
-	if id, exists := appMap["id"]; exists {
-		if idStr, ok := id.(string); ok {
-			appConfig.ID = idStr
+	// Parse app-id (required)
+	if appID, exists := appMap["app-id"]; exists {
+		if appIDStr, ok := appID.(string); ok {
+			appConfig.AppID = appIDStr
 		}
 	}
 
-	// Parse secret (required)
-	if secret, exists := appMap["secret"]; exists {
-		if secretStr, ok := secret.(string); ok {
-			appConfig.Secret = secretStr
+	// Parse private-key (required)
+	if privateKey, exists := appMap["private-key"]; exists {
+		if privateKeyStr, ok := privateKey.(string); ok {
+			appConfig.PrivateKey = privateKeyStr
 		}
 	}
 
-	// Parse repository-ids (optional)
-	if repoIDs, exists := appMap["repository-ids"]; exists {
-		if repoIDsArray, ok := repoIDs.([]any); ok {
-			var repoIDStrings []string
-			for _, repoID := range repoIDsArray {
-				if repoIDStr, ok := repoID.(string); ok {
-					repoIDStrings = append(repoIDStrings, repoIDStr)
+	// Parse owner (optional)
+	if owner, exists := appMap["owner"]; exists {
+		if ownerStr, ok := owner.(string); ok {
+			appConfig.Owner = ownerStr
+		}
+	}
+
+	// Parse repositories (optional)
+	if repos, exists := appMap["repositories"]; exists {
+		if reposArray, ok := repos.([]any); ok {
+			var repoStrings []string
+			for _, repo := range reposArray {
+				if repoStr, ok := repo.(string); ok {
+					repoStrings = append(repoStrings, repoStr)
 				}
 			}
-			appConfig.RepositoryIDs = repoIDStrings
+			appConfig.Repositories = repoStrings
+		}
+	}
+
+	// Parse github-api-url (optional)
+	if apiURL, exists := appMap["github-api-url"]; exists {
+		if apiURLStr, ok := apiURL.(string); ok {
+			appConfig.GitHubAPIURL = apiURLStr
 		}
 	}
 
@@ -86,7 +102,7 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 				appConfig := parseAppConfig(appMap)
 
 				// Return first valid app configuration found
-				if appConfig.ID != "" && appConfig.Secret != "" {
+				if appConfig.AppID != "" && appConfig.PrivateKey != "" {
 					return appConfig, nil
 				}
 			}
@@ -108,13 +124,23 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig) []string {
 	steps = append(steps, "        id: app-token\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.ID))
-	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.Secret))
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
-	// Add repository-ids if specified
-	if len(app.RepositoryIDs) > 0 {
-		repoIDsStr := strings.Join(app.RepositoryIDs, ",")
-		steps = append(steps, fmt.Sprintf("          repositories: %s\n", repoIDsStr))
+	// Add owner if specified
+	if app.Owner != "" {
+		steps = append(steps, fmt.Sprintf("          owner: %s\n", app.Owner))
+	}
+
+	// Add repositories if specified
+	if len(app.Repositories) > 0 {
+		reposStr := strings.Join(app.Repositories, ",")
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	}
+
+	// Add github-api-url if specified
+	if app.GitHubAPIURL != "" {
+		steps = append(steps, fmt.Sprintf("          github-api-url: %s\n", app.GitHubAPIURL))
 	}
 
 	return steps

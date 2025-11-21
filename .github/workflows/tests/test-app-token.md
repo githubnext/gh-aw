@@ -9,10 +9,10 @@ safe-outputs:
     title-prefix: "[automated] "
     labels: [automation]
   app:
-    id: ${{ vars.APP_ID }}
-    secret: ${{ secrets.APP_PRIVATE_KEY }}
-    repository-ids:
-      - "12345678"  # Scope token to specific repository
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    repositories:
+      - "repo1"  # Scope token to specific repositories
 ---
 
 # Issue Triage with GitHub App Token
