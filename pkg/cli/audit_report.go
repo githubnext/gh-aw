@@ -292,7 +292,7 @@ func describeFile(filename string) string {
 	if strings.HasSuffix(filename, "/") {
 		return "Directory"
 	}
-	
+
 	// Common directory names
 	if filename == "agent_output" || filename == "firewall-logs" || filename == "squid-logs" {
 		return "Directory containing log files"
