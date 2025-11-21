@@ -401,7 +401,7 @@
         },
         "tag": {
           "type": "string",
-          "description": "Tag name of the release to update",
+          "description": "Tag name of the release to update (optional - inferred from event context if omitted)",
           "minLength": 1
         },
         "operation": {
