@@ -810,8 +810,8 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
-		safeOutputsLog.Print("Adding GitHub App token minting step")
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App)...)
+		safeOutputsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, config.Permissions)...)
 	}
 
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)

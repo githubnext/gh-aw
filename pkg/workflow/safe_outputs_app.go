@@ -117,7 +117,8 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 // ========================================
 
 // buildGitHubAppTokenMintStep generates the step to mint a GitHub App installation access token
-func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig) []string {
+// Permissions are automatically computed from the safe output job requirements
+func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions) []string {
 	var steps []string
 
 	steps = append(steps, "      - name: Generate GitHub App token\n")
@@ -143,7 +144,55 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig) []string {
 		steps = append(steps, fmt.Sprintf("          github-api-url: %s\n", app.GitHubAPIURL))
 	}
 
+	// Add permission-* fields automatically computed from job permissions
+	if permissions != nil {
+		permissionFields := convertPermissionsToAppTokenFields(permissions)
+		for key, value := range permissionFields {
+			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, value))
+		}
+	}
+
 	return steps
+}
+
+// convertPermissionsToAppTokenFields converts job Permissions to permission-* action inputs
+// This follows GitHub's recommendation for explicit permission control
+func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
+	fields := make(map[string]string)
+
+	// Check each permission scope and add to fields if set
+	if level, ok := permissions.Get(PermissionContents); ok {
+		fields["permission-contents"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionIssues); ok {
+		fields["permission-issues"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionPullRequests); ok {
+		fields["permission-pull-requests"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionDiscussions); ok {
+		fields["permission-discussions"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionChecks); ok {
+		fields["permission-checks"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionStatuses); ok {
+		fields["permission-statuses"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionActions); ok {
+		fields["permission-actions"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionDeployments); ok {
+		fields["permission-deployments"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionSecurityEvents); ok {
+		fields["permission-security-events"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionModels); ok {
+		fields["permission-models"] = string(level)
+	}
+
+	return fields
 }
 
 // buildGitHubAppTokenInvalidationStep generates the step to invalidate the GitHub App token
