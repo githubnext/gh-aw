@@ -299,14 +299,13 @@ Examples:
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
-		progress, _ := cmd.Flags().GetBool("progress")
 
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
 
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, progress, verboseFlag); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -475,7 +474,6 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
-	runCmd.Flags().Bool("progress", false, "Emit regular progress messages to keep agent CLI tools alive during long operations")
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
