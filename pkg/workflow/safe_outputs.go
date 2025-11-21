@@ -594,36 +594,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle app configuration for GitHub App token minting
 			if app, exists := outputMap["app"]; exists {
 				if appMap, ok := app.(map[string]any); ok {
-					appConfig := &GitHubAppConfig{}
-
-					// Parse id (required)
-					if id, exists := appMap["id"]; exists {
-						if idStr, ok := id.(string); ok {
-							appConfig.ID = idStr
-						}
-					}
-
-					// Parse secret (required)
-					if secret, exists := appMap["secret"]; exists {
-						if secretStr, ok := secret.(string); ok {
-							appConfig.Secret = secretStr
-						}
-					}
-
-					// Parse repository-ids (optional)
-					if repoIDs, exists := appMap["repository-ids"]; exists {
-						if repoIDsArray, ok := repoIDs.([]any); ok {
-							var repoIDStrings []string
-							for _, repoID := range repoIDsArray {
-								if repoIDStr, ok := repoID.(string); ok {
-									repoIDStrings = append(repoIDStrings, repoIDStr)
-								}
-							}
-							appConfig.RepositoryIDs = repoIDStrings
-						}
-					}
-
-					config.App = appConfig
+					config.App = parseAppConfig(appMap)
 				}
 			}
 		}
@@ -1312,47 +1283,4 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 	)...)
 
 	return customEnvVars
-}
-
-// buildGitHubAppTokenMintStep generates the step to mint a GitHub App installation access token
-func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig) []string {
-	var steps []string
-
-	steps = append(steps, "      - name: Generate GitHub App token\n")
-	steps = append(steps, "        id: app-token\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.ID))
-	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.Secret))
-
-	// Add repository-ids if specified
-	if len(app.RepositoryIDs) > 0 {
-		repoIDsStr := strings.Join(app.RepositoryIDs, ",")
-		steps = append(steps, fmt.Sprintf("          repositories: %s\n", repoIDsStr))
-	}
-
-	return steps
-}
-
-// buildGitHubAppTokenInvalidationStep generates the step to invalidate the GitHub App token
-// This step always runs (even on failure) to ensure tokens are properly cleaned up
-// Only runs if a token was successfully minted
-func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
-	var steps []string
-
-	steps = append(steps, "      - name: Invalidate GitHub App token\n")
-	steps = append(steps, "        if: always() && steps.app-token.outputs.token != ''\n")
-	steps = append(steps, "        env:\n")
-	steps = append(steps, "          TOKEN: ${{ steps.app-token.outputs.token }}\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          echo \"Revoking GitHub App installation token...\"\n")
-	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")
-	steps = append(steps, "          gh api \\\n")
-	steps = append(steps, "            --method DELETE \\\n")
-	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
-	steps = append(steps, "            /installation/token || echo \"Token revoke may already be expired.\"\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
-
-	return steps
 }

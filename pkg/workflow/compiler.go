@@ -280,13 +280,6 @@ type SafeOutputsConfig struct {
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
 }
 
-// GitHubAppConfig holds configuration for GitHub App-based token minting
-type GitHubAppConfig struct {
-	ID            string   `yaml:"id,omitempty"`             // GitHub App ID (e.g., "${{ vars.APP_ID }}")
-	Secret        string   `yaml:"secret,omitempty"`         // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	RepositoryIDs []string `yaml:"repository-ids,omitempty"` // Optional: specific repository IDs to scope the token
-}
-
 // SecretMaskingConfig holds configuration for secret redaction behavior
 type SecretMaskingConfig struct {
 	Steps []map[string]any `yaml:"steps,omitempty"` // Additional secret redaction steps to inject after built-in redaction
@@ -1454,70 +1447,6 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 	}
 
 	return result, nil
-}
-
-// mergeAppFromIncludedConfigs merges app configuration from included safe-outputs configurations
-// If the top-level workflow has an app configured, it takes precedence
-// Otherwise, the first app configuration found in included configs is used
-func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) (*GitHubAppConfig, error) {
-	// If top-level workflow already has app configured, use it (no merge needed)
-	if topSafeOutputs != nil && topSafeOutputs.App != nil {
-		return topSafeOutputs.App, nil
-	}
-
-	// Otherwise, find the first app configuration in included configs
-	for _, configJSON := range includedConfigs {
-		if configJSON == "" || configJSON == "{}" {
-			continue
-		}
-
-		// Parse the safe-outputs configuration
-		var safeOutputsConfig map[string]any
-		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
-			continue // Skip invalid JSON
-		}
-
-		// Extract app from the safe-outputs.app field
-		if appData, exists := safeOutputsConfig["app"]; exists {
-			if appMap, ok := appData.(map[string]any); ok {
-				appConfig := &GitHubAppConfig{}
-
-				// Parse id (required)
-				if id, exists := appMap["id"]; exists {
-					if idStr, ok := id.(string); ok {
-						appConfig.ID = idStr
-					}
-				}
-
-				// Parse secret (required)
-				if secret, exists := appMap["secret"]; exists {
-					if secretStr, ok := secret.(string); ok {
-						appConfig.Secret = secretStr
-					}
-				}
-
-				// Parse repository-ids (optional)
-				if repoIDs, exists := appMap["repository-ids"]; exists {
-					if repoIDsArray, ok := repoIDs.([]any); ok {
-						var repoIDStrings []string
-						for _, repoID := range repoIDsArray {
-							if repoIDStr, ok := repoID.(string); ok {
-								repoIDStrings = append(repoIDStrings, repoIDStr)
-							}
-						}
-						appConfig.RepositoryIDs = repoIDStrings
-					}
-				}
-
-				// Return first valid app configuration found
-				if appConfig.ID != "" && appConfig.Secret != "" {
-					return appConfig, nil
-				}
-			}
-		}
-	}
-
-	return nil, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
