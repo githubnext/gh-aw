@@ -93,13 +93,13 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 
 	// Add repository flag to add command
-	cmd.Flags().StringP("repo", "r", "", "Install and use workflows from specified repository (org/repo)")
+	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")
 
 	// Add PR flag to add command
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 
 	// Add force flag to add command
-	cmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+	cmd.Flags().Bool("force", false, "Overwrite existing files without confirmation")
 
 	// Add append flag to add command
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
@@ -108,13 +108,13 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 
 	// Add workflow directory flag to add command
-	cmd.Flags().StringP("dir", "d", "", "Specify subdirectory under .github/workflows/ (e.g., 'shared' for .github/workflows/shared/)")
+	cmd.Flags().StringP("dir", "d", "", "Subdirectory under .github/workflows/ (e.g., 'shared' creates .github/workflows/shared/)")
 
 	// Add no-stop-after flag to add command
-	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the added workflow")
+	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 
 	// Add stop-after flag to add command
-	cmd.Flags().String("stop-after", "", "Override stop-after value in the added workflow (e.g., '+48h', '2025-12-31 23:59:59')")
+	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	return cmd
 }

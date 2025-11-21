@@ -911,3 +911,13 @@ func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
 		PermissionIssues:       PermissionRead,
 	})
 }
+
+// NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite creates permissions with contents: write, issues: write, pull-requests: write, discussions: write
+func NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionWrite,
+		PermissionIssues:       PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+		PermissionDiscussions:  PermissionWrite,
+	})
+}

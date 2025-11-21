@@ -45,9 +45,9 @@ core.setOutput("result", "roles_all");
 console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
-	// Use the embedded check_membership.cjs script
+	// Use the embedded check_membership.cjs script (bundled with dependencies)
 	// The GH_AW_REQUIRED_ROLES environment variable is set via the env field
-	return checkMembershipScript
+	return getCheckMembershipScript()
 }
 
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements

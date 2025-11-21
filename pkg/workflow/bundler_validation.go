@@ -36,12 +36,18 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var bundlerValidationLog = logger.New("workflow:bundler_validation")
 
 // validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
 // that weren't inlined during bundling. This prevents runtime errors from missing local modules.
 // Returns an error if any local requires are found, otherwise returns nil
 func validateNoLocalRequires(bundledContent string) error {
+	bundlerValidationLog.Printf("Validating bundled JavaScript: %d bytes, %d lines", len(bundledContent), strings.Count(bundledContent, "\n")+1)
+
 	// Regular expression to match local require statements
 	// Matches: require('./...') or require("../...")
 	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
@@ -61,9 +67,11 @@ func validateNoLocalRequires(bundledContent string) error {
 	}
 
 	if len(foundRequires) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d un-inlined local require statements", len(foundRequires))
 		return fmt.Errorf("bundled JavaScript contains %d local require(s) that were not inlined:\n  %s",
 			len(foundRequires), strings.Join(foundRequires, "\n  "))
 	}
 
+	bundlerValidationLog.Print("Validation successful: no local require statements found")
 	return nil
 }

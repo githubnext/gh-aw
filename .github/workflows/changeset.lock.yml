@@ -2351,6 +2351,8 @@ jobs:
                     return 1;
                   case "create_discussion":
                     return 1;
+                  case "close_discussion":
+                    return 1;
                   case "missing_tool":
                     return 20;
                   case "create_code_scanning_alert":
@@ -2888,6 +2890,34 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "close_discussion":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      if (item.reason !== undefined) {
+                        if (typeof item.reason !== "string") {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
+                          continue;
+                        }
+                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
+                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
+                          continue;
+                        }
+                        item.reason = item.reason.toUpperCase();
+                      }
+                      const discussionNumberValidation = validateOptionalPositiveInteger(
+                        item.discussion_number,
+                        "close_discussion 'discussion_number'",
+                        i + 1
+                      );
+                      if (!discussionNumberValidation.isValid) {
+                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -4654,9 +4684,16 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          # Diagnostic logging: Show environment information
+          echo "=== Diagnostic: Environment Information ==="
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "DEFAULT_BRANCH: ${DEFAULT_BRANCH}"
+          echo "Current HEAD: $(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+          echo "Current branch: $(git branch --show-current 2>/dev/null || echo 'detached HEAD')"
           # Diagnostic logging: Show recent commits before patch generation
-          echo "=== Diagnostic: Recent commits (last 5) ==="
-          git log --oneline -5 || echo "Failed to show git log"
+          echo ""
+          echo "=== Diagnostic: Recent commits (last 10) ==="
+          git log --oneline -10 || echo "Failed to show git log"
           # Check current git status
           echo ""
           echo "=== Diagnostic: Current git status ==="
@@ -4666,6 +4703,7 @@ jobs:
           if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
             echo ""
             echo "Checking for branch name in JSONL output..."
+            echo "JSONL file path: $GH_AW_SAFE_OUTPUTS"
             while IFS= read -r line; do
               if [ -n "$line" ]; then
                 # Extract branch from create-pull-request line using simple grep and sed
@@ -4691,13 +4729,21 @@ jobs:
                 fi
               fi
             done < "$GH_AW_SAFE_OUTPUTS"
+          else
+            echo ""
+            echo "GH_AW_SAFE_OUTPUTS file not found at: $GH_AW_SAFE_OUTPUTS"
           fi
-          # If no branch or branch doesn't exist, no patch
+          # If no branch found in JSONL, log it but don't give up yet
           if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
+            echo ""
+            echo "No branch name found in JSONL output"
+            echo "Will check for commits made to current HEAD instead"
           fi
-          # If we have a branch name, check if that branch exists and get its diff
+          # Strategy 1: If we have a branch name, check if that branch exists and get its diff
+          PATCH_GENERATED=false
           if [ -n "$BRANCH_NAME" ]; then
+            echo ""
+            echo "=== Strategy 1: Using named branch from JSONL ==="
             echo "Looking for branch: $BRANCH_NAME"
             # Check if the branch exists
             if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
@@ -4737,9 +4783,68 @@ jobs:
               # Generate patch from the determined base to the branch
               git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
               echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
+              PATCH_GENERATED=true
             else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
+              echo "Branch $BRANCH_NAME does not exist locally"
             fi
+          fi
+          # Strategy 2: Check if commits were made to current HEAD since checkout
+          if [ "$PATCH_GENERATED" = false ]; then
+            echo ""
+            echo "=== Strategy 2: Checking for commits on current HEAD ==="
+            # Get current HEAD SHA
+            CURRENT_HEAD="$(git rev-parse HEAD 2>/dev/null || echo '')"
+            echo "Current HEAD: $CURRENT_HEAD"
+            echo "Checkout SHA (GITHUB_SHA): $GITHUB_SHA"
+            if [ -z "$CURRENT_HEAD" ]; then
+              echo "ERROR: Could not determine current HEAD SHA"
+            elif [ -z "$GITHUB_SHA" ]; then
+              echo "ERROR: GITHUB_SHA environment variable is not set"
+            elif [ "$CURRENT_HEAD" = "$GITHUB_SHA" ]; then
+              echo "No commits have been made since checkout (HEAD == GITHUB_SHA)"
+              echo "No patch will be generated"
+            else
+              echo "HEAD has moved since checkout - checking if commits were added"
+              # Check if GITHUB_SHA is an ancestor of current HEAD
+              if git merge-base --is-ancestor "$GITHUB_SHA" HEAD 2>/dev/null; then
+                echo "GITHUB_SHA is an ancestor of HEAD - commits were added"
+                # Count commits between GITHUB_SHA and HEAD
+                COMMIT_COUNT="$(git rev-list --count "${GITHUB_SHA}..HEAD" 2>/dev/null || echo "0")"
+                echo ""
+                echo "=== Diagnostic: Commits added since checkout ==="
+                echo "Number of commits: $COMMIT_COUNT"
+                if [ "$COMMIT_COUNT" -gt 0 ]; then
+                  echo "Commit SHAs:"
+                  git log --oneline "${GITHUB_SHA}..HEAD" || echo "Failed to list commits"
+                  # Show diff stats
+                  echo ""
+                  echo "=== Diagnostic: Diff stats for patch generation ==="
+                  echo "Command: git diff --stat ${GITHUB_SHA}..HEAD"
+                  git diff --stat "${GITHUB_SHA}..HEAD" || echo "Failed to show diff stats"
+                  # Generate patch from GITHUB_SHA to HEAD
+                  echo ""
+                  echo "=== Diagnostic: Generating patch ==="
+                  echo "Command: git format-patch ${GITHUB_SHA}..HEAD --stdout > /tmp/gh-aw/aw.patch"
+                  git format-patch "${GITHUB_SHA}..HEAD" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from HEAD" > /tmp/gh-aw/aw.patch
+                  echo "Patch file created from commits on HEAD (base: $GITHUB_SHA)"
+                  PATCH_GENERATED=true
+                else
+                  echo "No commits found between GITHUB_SHA and HEAD"
+                fi
+              else
+                echo "GITHUB_SHA is not an ancestor of HEAD - repository state has diverged"
+                echo "This may indicate a rebase or other history rewriting operation"
+                echo "Will not generate patch due to ambiguous history"
+              fi
+            fi
+          fi
+          # Final status
+          echo ""
+          if [ "$PATCH_GENERATED" = true ]; then
+            echo "=== Patch generation completed successfully ==="
+          else
+            echo "=== No patch generated ==="
+            echo "Reason: No commits found via branch name or HEAD analysis"
           fi
           # Show patch info if it exists
           if [ -f /tmp/gh-aw/aw.patch ]; then
@@ -5403,12 +5508,40 @@ jobs:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
           script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
             async function main() {
               const { eventName } = context;
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              const requiredPermissions = parseRequiredPermissions();
               if (eventName === "workflow_dispatch") {
                 const hasWriteRole = requiredPermissions.includes("write");
                 if (hasWriteRole) {
@@ -5433,40 +5566,25 @@ jobs:
                 core.setOutput("error_message", "Configuration error: Required permissions not specified");
                 return;
               }
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
+                core.setOutput("user_permission", result.permission);
                 core.setOutput(
                   "error_message",
                   `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
                 );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
               }
             }
             await main();
@@ -5483,8 +5601,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
-      issues: read
-      pull-requests: read
+      discussions: write
+      issues: write
+      pull-requests: write
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}

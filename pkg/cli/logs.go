@@ -52,6 +52,7 @@ type WorkflowRun struct {
 	ErrorCount       int
 	WarningCount     int
 	MissingToolCount int
+	NoopCount        int
 	LogsPath         string
 }
 
@@ -65,6 +66,7 @@ type ProcessedRun struct {
 	AccessAnalysis   *DomainAnalysis
 	FirewallAnalysis *FirewallAnalysis
 	MissingTools     []MissingToolReport
+	Noops            []NoopReport
 	MCPFailures      []MCPFailureReport
 	JobDetails       []JobInfoWithDuration
 }
@@ -75,6 +77,14 @@ type MissingToolReport struct {
 	Reason       string `json:"reason"`
 	Alternatives string `json:"alternatives,omitempty"`
 	Timestamp    string `json:"timestamp"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// NoopReport represents a noop message reported by an agentic workflow
+type NoopReport struct {
+	Message      string `json:"message"`
+	Timestamp    string `json:"timestamp,omitempty"`
 	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
 	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
 }
@@ -124,6 +134,7 @@ type RunSummary struct {
 	AccessAnalysis   *DomainAnalysis       `json:"access_analysis"`   // Network access analysis
 	FirewallAnalysis *FirewallAnalysis     `json:"firewall_analysis"` // Firewall log analysis
 	MissingTools     []MissingToolReport   `json:"missing_tools"`     // Missing tool reports
+	Noops            []NoopReport          `json:"noops"`             // Noop messages
 	MCPFailures      []MCPFailureReport    `json:"mcp_failures"`      // MCP server failures
 	ArtifactsList    []string              `json:"artifacts_list"`    // List of downloaded artifact files
 	JobDetails       []JobInfoWithDuration `json:"job_details"`       // Job execution details
@@ -230,7 +241,9 @@ type DownloadResult struct {
 	AccessAnalysis   *DomainAnalysis
 	FirewallAnalysis *FirewallAnalysis
 	MissingTools     []MissingToolReport
+	Noops            []NoopReport
 	MCPFailures      []MCPFailureReport
+	JobDetails       []JobInfoWithDuration
 	Error            error
 	Skipped          bool
 	LogsPath         string
@@ -452,18 +465,18 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by agentic engine type (claude, codex, copilot)")
+	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by engine type (claude, codex, copilot)")
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
-	logsCmd.Flags().StringP("repo", "r", "", "Repository to download logs from (owner/repo format)")
+	logsCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
-	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
-	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
+	logsCmd.Flags().Bool("json", false, "Output results in JSON format")
+	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 
 	return logsCmd
 }
@@ -701,7 +714,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				AccessAnalysis:   result.AccessAnalysis,
 				FirewallAnalysis: result.FirewallAnalysis,
 				MissingTools:     result.MissingTools,
+				Noops:            result.Noops,
 				MCPFailures:      result.MCPFailures,
+				JobDetails:       result.JobDetails,
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
@@ -795,9 +810,10 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		processedRuns = processedRuns[:count]
 	}
 
-	// Update MissingToolCount in runs
+	// Update MissingToolCount and NoopCount in runs
 	for i := range processedRuns {
 		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
+		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
 
 	// Build continuation data if timeout was reached and there are processed runs
@@ -880,7 +896,9 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					AccessAnalysis:   summary.AccessAnalysis,
 					FirewallAnalysis: summary.FirewallAnalysis,
 					MissingTools:     summary.MissingTools,
+					Noops:            summary.Noops,
 					MCPFailures:      summary.MCPFailures,
+					JobDetails:       summary.JobDetails,
 					LogsPath:         runOutputDir,
 				}
 				return result
@@ -955,6 +973,15 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				}
 				result.MissingTools = missingTools
 
+				// Extract noops if available
+				noops, noopErr := extractNoopsFromRun(runOutputDir, run, verbose)
+				if noopErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract noops for run %d: %v", run.DatabaseID, noopErr)))
+					}
+				}
+				result.Noops = noops
+
 				// Extract MCP failures if available
 				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose)
 				if mcpErr != nil {
@@ -990,6 +1017,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					AccessAnalysis:   accessAnalysis,
 					FirewallAnalysis: firewallAnalysis,
 					MissingTools:     missingTools,
+					Noops:            noops,
 					MCPFailures:      mcpFailures,
 					ArtifactsList:    artifacts,
 					JobDetails:       jobDetails,
@@ -1250,7 +1278,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Noops", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
@@ -1260,6 +1288,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	var totalErrors int
 	var totalWarnings int
 	var totalMissingTools int
+	var totalNoops int
 
 	for _, pr := range processedRuns {
 		run := pr.Run
@@ -1318,6 +1347,29 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		}
 		totalMissingTools += run.MissingToolCount
 
+		// Format noops
+		var noopsStr string
+		if verbose && len(pr.Noops) > 0 {
+			// In verbose mode, show truncated message preview
+			messages := make([]string, len(pr.Noops))
+			for i, noop := range pr.Noops {
+				msg := noop.Message
+				if len(msg) > 30 {
+					msg = msg[:27] + "..."
+				}
+				messages[i] = msg
+			}
+			noopsStr = strings.Join(messages, ", ")
+			// Truncate if too long
+			if len(noopsStr) > 30 {
+				noopsStr = noopsStr[:27] + "..."
+			}
+		} else {
+			// In normal mode, just show the count
+			noopsStr = fmt.Sprintf("%d", run.NoopCount)
+		}
+		totalNoops += run.NoopCount
+
 		// Truncate workflow name if too long
 		workflowName := run.WorkflowName
 		if len(workflowName) > 20 {
@@ -1344,6 +1396,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			errorsStr,
 			warningsStr,
 			missingToolsStr,
+			noopsStr,
 			run.CreatedAt.Format("2006-01-02"),
 			relPath,
 		}
@@ -1362,6 +1415,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		fmt.Sprintf("%d", totalErrors),
 		fmt.Sprintf("%d", totalWarnings),
 		fmt.Sprintf("%d", totalMissingTools),
+		fmt.Sprintf("%d", totalNoops),
 		"",
 		"",
 	}

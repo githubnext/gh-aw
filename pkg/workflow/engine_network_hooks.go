@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var networkHooksLog = logger.New("workflow:engine_network_hooks")
 
 // NetworkHookGenerator generates network permission hooks for AI engines
 // Network permissions are configured at the workflow level using the top-level "network" field
@@ -12,14 +16,20 @@ type NetworkHookGenerator struct{}
 
 // GenerateNetworkHookScript generates a Python hook script for network permissions
 func (g *NetworkHookGenerator) GenerateNetworkHookScript(allowedDomains []string) string {
+	networkHooksLog.Printf("Generating network hook script with %d allowed domains", len(allowedDomains))
+
 	// Convert domain list to JSON for embedding in Python
 	// Ensure empty slice becomes [] not null in JSON
 	var domainsJSON string
 	if allowedDomains == nil {
 		domainsJSON = "[]"
+		networkHooksLog.Print("No allowed domains configured (deny-all policy)")
 	} else {
 		jsonBytes, _ := json.Marshal(allowedDomains)
 		domainsJSON = string(jsonBytes)
+		if networkHooksLog.Enabled() {
+			networkHooksLog.Printf("Allowed domains JSON: %s", domainsJSON)
+		}
 	}
 
 	// Embed domain list JSON directly as a Python literal (safe for []string from json.Marshal)
@@ -115,6 +125,7 @@ except Exception as e:
 
 // GenerateNetworkHookWorkflowStep generates a GitHub Actions workflow step that creates the network permissions hook
 func (g *NetworkHookGenerator) GenerateNetworkHookWorkflowStep(allowedDomains []string) GitHubActionStep {
+	networkHooksLog.Print("Generating network hook workflow step")
 	hookScript := g.GenerateNetworkHookScript(allowedDomains)
 
 	// No escaping needed for heredoc with 'EOF' - it's literal
@@ -141,11 +152,14 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 // Returns true if network permissions are configured and not in "defaults" mode
 func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
 	if network == nil {
+		networkHooksLog.Print("No network permissions configured, full access allowed")
 		return false // No network config, defaults to full access
 	}
 	if network.Mode == "defaults" {
+		networkHooksLog.Print("Network permissions in 'defaults' mode, enforcement enabled")
 		return true // "defaults" mode uses restricted allow-list (enforcement needed)
 	}
+	networkHooksLog.Print("Network permissions configured with restrictions, enforcement enabled")
 	return true // Object format means some restriction is configured
 }
 

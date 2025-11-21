@@ -11,13 +11,15 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
 tools:
   edit:
   github:
-    toolsets: [default, repos, issues]
+    toolsets: [default, repos, issues, discussions]
 safe-outputs:
-  assign-milestone:
+  close-discussion:
     max: 1
+    target: "*"
   threat-detection:
     engine: false
     steps:
@@ -336,13 +338,17 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Dev Workflow: Random Milestone Assignment
+# Dev Workflow: Close Random Discussion
 
 **Tasks:**
 
-## Milestone Assignment
+## Close Random Discussion
 
-1. List the last 3 issues from this repository
-2. Pick a random open issue (that doesn't already have a milestone)
-3. Use the `assign_milestone` safe output to assign the issue to milestone 1 (v0.Later: https://github.com/githubnext/gh-aw/milestone/1)
-4. If there are no open issues without milestones, fail with an error
+1. List open discussions from this repository
+2. Select a random discussion from the list
+3. Use the `close_discussion` safe output to close the discussion
+4. Add a comment explaining why it's being closed (e.g., "Closing as part of dev workflow test")
+5. Use "RESOLVED" as the resolution reason
+6. If there are no open discussions, report that no action was needed
+
+Output the discussion closure as JSONL format.

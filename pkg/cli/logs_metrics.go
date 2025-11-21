@@ -295,6 +295,112 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	return missingTools, nil
 }
 
+// extractNoopsFromRun extracts noop messages from a workflow run's artifacts
+func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopReport, error) {
+	logsMetricsLog.Printf("Extracting noops from run: %d", run.DatabaseID)
+	var noops []NoopReport
+
+	// Look for the safe output artifact file that contains structured JSON with items array
+	// This file is created by the collect_ndjson_output.cjs script during workflow execution
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+
+	// Support both file and directory forms of agent_output.json artifact (directory contains nested agent_output.json file)
+	// Also fall back to searching the tree if neither form exists at root.
+	var resolvedAgentOutputFile string
+	if stat, err := os.Stat(agentOutputPath); err == nil {
+		if stat.IsDir() {
+			// Directory form – look for nested file
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				resolvedAgentOutputFile = nested
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
+				}
+			} else if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+			}
+		} else {
+			// Regular file
+			resolvedAgentOutputFile = agentOutputPath
+		}
+	} else {
+		// Not present at root – search recursively (depth-first) for a file named agent_output.json
+		if found, ok := findAgentOutputFile(runDir); ok {
+			resolvedAgentOutputFile = found
+			if verbose && found != agentOutputPath {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+			}
+		}
+	}
+
+	if resolvedAgentOutputFile != "" {
+		// Read the safe output artifact file
+		content, readErr := os.ReadFile(resolvedAgentOutputFile)
+		if readErr != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", resolvedAgentOutputFile, readErr)))
+			}
+			return noops, nil // Continue processing without this file
+		}
+
+		// Parse the structured JSON output from the collect script
+		var safeOutput struct {
+			Items  []json.RawMessage `json:"items"`
+			Errors []string          `json:"errors,omitempty"`
+		}
+
+		if err := json.Unmarshal(content, &safeOutput); err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", resolvedAgentOutputFile, err)))
+			}
+			return noops, nil // Continue processing without this file
+		}
+
+		// Extract noop entries from the items array
+		for _, itemRaw := range safeOutput.Items {
+			var item struct {
+				Type      string `json:"type"`
+				Message   string `json:"message,omitempty"`
+				Timestamp string `json:"timestamp,omitempty"`
+			}
+
+			if err := json.Unmarshal(itemRaw, &item); err != nil {
+				if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
+				}
+				continue // Skip malformed items
+			}
+
+			// Check if this is a noop entry
+			if item.Type == "noop" {
+				noop := NoopReport{
+					Message:      item.Message,
+					Timestamp:    item.Timestamp,
+					WorkflowName: run.WorkflowName,
+					RunID:        run.DatabaseID,
+				}
+				noops = append(noops, noop)
+
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found noop entry: %s", item.Message)))
+				}
+			}
+		}
+
+		if verbose && len(noops) > 0 {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d noop messages in safe output artifact for run %d", len(noops), run.DatabaseID)))
+		}
+		logsMetricsLog.Printf("Found %d noop messages", len(noops))
+	} else {
+		logsMetricsLog.Print("No safe output artifact found")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+		}
+	}
+
+	return noops, nil
+}
+
 // extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
 func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
 	logsMetricsLog.Printf("Extracting MCP failures from run: %d", run.DatabaseID)

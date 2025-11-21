@@ -58,10 +58,27 @@ describe("check_membership.cjs", () => {
     const scriptPath = path.join(import.meta.dirname, "check_membership.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
+    // Load the utility module
+    const utilsPath = path.join(import.meta.dirname, "check_permissions_utils.cjs");
+    const utilsContent = fs.readFileSync(utilsPath, "utf8");
+
+    // Create a mock require function
+    const mockRequire = modulePath => {
+      if (modulePath === "./check_permissions_utils.cjs") {
+        // Execute the utility module and return its exports
+        const utilsFunction = new Function("core", "github", "context", "process", "module", "exports", utilsContent);
+        const moduleExports = {};
+        const mockModule = { exports: moduleExports };
+        utilsFunction(mockCore, mockGithub, mockContext, process, mockModule, moduleExports);
+        return mockModule.exports;
+      }
+      throw new Error(`Module not found: ${modulePath}`);
+    };
+
     // Remove the main() call at the end and execute
     const scriptWithoutMain = scriptContent.replace("await main();", "");
-    const scriptFunction = new Function("core", "github", "context", "process", scriptWithoutMain + "\nreturn main();");
-    await scriptFunction(mockCore, mockGithub, mockContext, process);
+    const scriptFunction = new Function("core", "github", "context", "process", "require", scriptWithoutMain + "\nreturn main();");
+    await scriptFunction(mockCore, mockGithub, mockContext, process, mockRequire);
   };
 
   describe("safe events", () => {

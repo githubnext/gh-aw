@@ -299,13 +299,14 @@ Examples:
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
+		progress, _ := cmd.Flags().GetBool("progress")
 
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
 
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, verboseFlag); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, progress, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -341,6 +342,10 @@ func init() {
 	rootCmd.AddGroup(&cobra.Group{
 		ID:    "analysis",
 		Title: "Analysis Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "utilities",
+		Title: "Utilities:",
 	})
 
 	// Add global verbose flag to root command
@@ -432,14 +437,14 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	initCmd := cli.NewInitCommand()
 
 	// Add flags to new command
-	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+	newCmd.Flags().Bool("force", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
-	compileCmd.Flags().String("dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
@@ -448,28 +453,29 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
-	compileCmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
+	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
-	compileCmd.Flags().Bool("json", false, "Output validation results as JSON")
+	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 
 	// Add flags to enable/disable commands
-	enableCmd.Flags().StringP("repo", "r", "", "Repository to enable workflows in (owner/repo format)")
-	disableCmd.Flags().StringP("repo", "r", "", "Repository to disable workflows in (owner/repo format)")
+	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
-	runCmd.Flags().StringP("repo", "r", "", "Repository to run the workflow in (owner/repo format)")
+	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
+	runCmd.Flags().Bool("progress", false, "Emit regular progress messages to keep agent CLI tools alive during long operations")
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
@@ -478,26 +484,37 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpCmd := cli.NewMCPCommand()
 	logsCmd := cli.NewLogsCommand()
 	auditCmd := cli.NewAuditCommand()
+	mcpServerCmd := cli.NewMCPServerCommand()
+	prCmd := cli.NewPRCommand()
 
 	// Assign commands to groups
 	// Setup Commands
 	initCmd.GroupID = "setup"
 	newCmd.GroupID = "setup"
 	addCmd.GroupID = "setup"
+	removeCmd.GroupID = "setup"
+	updateCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
+	mcpServerCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
 	enableCmd.GroupID = "execution"
 	disableCmd.GroupID = "execution"
+	trialCmd.GroupID = "execution"
 
 	// Analysis Commands
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
+
+	// Utilities
+	prCmd.GroupID = "utilities"
+
+	// version command is intentionally left without a group (common practice)
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
@@ -514,8 +531,8 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(mcpCmd)
-	rootCmd.AddCommand(cli.NewMCPServerCommand())
-	rootCmd.AddCommand(cli.NewPRCommand())
+	rootCmd.AddCommand(mcpServerCmd)
+	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 

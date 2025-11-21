@@ -2480,6 +2480,63 @@
             }
           ]
         },
+        "close-discussion": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for closing GitHub discussions with comment and resolution from agentic workflow output",
+              "properties": {
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Only close discussions that have all of these labels"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Only close discussions with this title prefix"
+                },
+                "required-category": {
+                  "type": "string",
+                  "description": "Only close discussions in this category"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for closing: 'triggering' (default, current discussion), or '*' (any discussion with discussion_number field)"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of discussions to close (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "required-category": "Ideas"
+                },
+                {
+                  "required-labels": ["resolved", "completed"],
+                  "max": 1
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable discussion closing with default configuration"
+            }
+          ]
+        },
         "add-comment": {
           "oneOf": [
             {

@@ -12,6 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 
+tracker-id: daily-doc-updater
 engine: claude
 
 network:

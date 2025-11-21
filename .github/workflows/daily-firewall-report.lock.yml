@@ -73,8 +73,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      comment_id: ${{ '' }}
-      comment_repo: ${{ '' }}
+      comment_id: ""
+      comment_repo: ""
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2401,6 +2401,8 @@ jobs:
                     return 1;
                   case "create_discussion":
                     return 1;
+                  case "close_discussion":
+                    return 1;
                   case "missing_tool":
                     return 20;
                   case "create_code_scanning_alert":
@@ -2938,6 +2940,34 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "close_discussion":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      if (item.reason !== undefined) {
+                        if (typeof item.reason !== "string") {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
+                          continue;
+                        }
+                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
+                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
+                          continue;
+                        }
+                        item.reason = item.reason.toUpperCase();
+                      }
+                      const discussionNumberValidation = validateOptionalPositiveInteger(
+                        item.discussion_number,
+                        "close_discussion 'discussion_number'",
+                        i + 1
+                      );
+                      if (!discussionNumberValidation.isValid) {
+                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -4751,6 +4781,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+          GH_AW_TRACKER_ID: "daily-firewall-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4837,6 +4868,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+          GH_AW_TRACKER_ID: "daily-firewall-report"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -5023,6 +5055,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "audits"
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+          GH_AW_TRACKER_ID: "daily-firewall-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5535,6 +5568,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+          GH_AW_TRACKER_ID: "daily-firewall-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5700,6 +5734,7 @@ jobs:
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
+          GH_AW_TRACKER_ID: "daily-firewall-report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

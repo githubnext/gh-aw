@@ -156,10 +156,10 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
-	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
+	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (default: 30)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
-	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
+	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for trial execution (pushes and cleans up secrets in repository)")
@@ -1112,7 +1112,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	}
 
 	// Get the most recent run ID for this workflow using shared retry logic
-	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, verbose)
+	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, false, verbose)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workflow run ID: %w", err)
 	}

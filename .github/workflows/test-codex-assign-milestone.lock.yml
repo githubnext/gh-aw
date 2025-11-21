@@ -55,8 +55,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      comment_id: ${{ '' }}
-      comment_repo: ${{ '' }}
+      comment_id: ""
+      comment_repo: ""
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -239,7 +239,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.57.0
+        run: npm install -g @openai/codex@0.60.1
       - name: Downloading container images
         run: |
           set -e
@@ -1063,7 +1063,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.57.0",
+              agent_version: "0.60.1",
               workflow_name: "Test Codex Assign Milestone",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1434,6 +1434,8 @@ jobs:
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
+                    return 1;
+                  case "close_discussion":
                     return 1;
                   case "missing_tool":
                     return 20;
@@ -1972,6 +1974,34 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "close_discussion":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      if (item.reason !== undefined) {
+                        if (typeof item.reason !== "string") {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
+                          continue;
+                        }
+                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
+                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
+                          continue;
+                        }
+                        item.reason = item.reason.toUpperCase();
+                      }
+                      const discussionNumberValidation = validateOptionalPositiveInteger(
+                        item.discussion_number,
+                        "close_discussion 'discussion_number'",
+                        i + 1
+                      );
+                      if (!discussionNumberValidation.isValid) {
+                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -3505,7 +3535,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.57.0
+        run: npm install -g @openai/codex@0.60.1
       - name: Run Codex
         run: |
           set -o pipefail

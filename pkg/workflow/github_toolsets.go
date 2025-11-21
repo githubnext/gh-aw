@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var toolsetsLog = logger.New("workflow:github_toolsets")
 
 // DefaultGitHubToolsets defines the toolsets that are enabled by default
 // when toolsets are not explicitly specified in the GitHub MCP configuration.
@@ -12,7 +16,10 @@ var DefaultGitHubToolsets = []string{"context", "repos", "issues", "pull_request
 // ParseGitHubToolsets parses the toolsets string and expands "default" and "all"
 // into their constituent toolsets. It handles comma-separated lists and deduplicates.
 func ParseGitHubToolsets(toolsetsStr string) []string {
+	toolsetsLog.Printf("Parsing GitHub toolsets: %q", toolsetsStr)
+
 	if toolsetsStr == "" {
+		toolsetsLog.Printf("Empty toolsets string, using defaults: %v", DefaultGitHubToolsets)
 		return DefaultGitHubToolsets
 	}
 
@@ -28,6 +35,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 
 		if toolset == "default" {
 			// Add default toolsets
+			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
 			for _, dt := range DefaultGitHubToolsets {
 				if !seenToolsets[dt] {
 					expanded = append(expanded, dt)
@@ -36,6 +44,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			}
 		} else if toolset == "all" {
 			// Add all toolsets from the toolset permissions map
+			toolsetsLog.Printf("Expanding 'all' to %d toolsets from permissions map", len(toolsetPermissionsMap))
 			for t := range toolsetPermissionsMap {
 				if !seenToolsets[t] {
 					expanded = append(expanded, t)
@@ -51,5 +60,6 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 		}
 	}
 
+	toolsetsLog.Printf("Parsed toolsets result: %d unique toolsets expanded from input", len(expanded))
 	return expanded
 }

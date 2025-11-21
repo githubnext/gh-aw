@@ -75,113 +75,45 @@ This automatically searches the registry (default: `https://api.mcp.github.com/v
 
 ### 1. Stdio MCP Servers
 
-Direct command execution with stdin/stdout communication for Python modules, Node.js scripts, and local executables:
+Execute commands with stdin/stdout communication for Python modules, Node.js scripts, and local executables:
 
 ```yaml wrap
 mcp-servers:
   serena:
     command: "uvx"
-    args:
-      - "--from"
-      - "git+https://github.com/oraios/serena"
-      - "serena"
-      - "start-mcp-server"
-      - "--context"
-      - "copilot"
-      - "--project"
-      - "${{ github.workspace }}"
+    args: ["--from", "git+https://github.com/oraios/serena", "serena"]
     allowed: ["*"]
 ```
 
 ### 2. Docker Container MCP Servers
 
-Containerized MCP servers for third-party tools, complex dependencies, and security isolation:
+Run containerized MCP servers with environment variables, volume mounts, and network restrictions:
 
 ```yaml wrap
 mcp-servers:
   ast-grep:
-    container: "mcp/ast-grep"
-    version: "latest"
+    container: "mcp/ast-grep:latest"
     allowed: ["*"]
-```
 
-The `container` field generates command `"docker"` with args `["run", "--rm", "-i", "mcp/ast-grep:latest"]`. Specify version separately or include it in the container field (e.g., `container: "mcp/ast-grep:latest"`).
-
-#### Container Arguments and Entrypoint Arguments
-
-Specify arguments before (`args`) or after (`entrypointArgs`) the container image following the pattern: `docker run [args] image:tag [entrypointArgs]`
-
-**Example with volume mounts and application arguments**:
-
-```yaml wrap
-mcp-servers:
-  custom-tool:
-    container: "mcp/custom-tool"
-    version: "v1.0"
-    args:
-      - "-v"
-      - "/host/data:/app/data"
-    entrypointArgs:
-      - "serve"
-      - "--port"
-      - "8080"
-      - "--verbose"
-    allowed: ["*"]
-```
-
-This generates:
-```
-docker run --rm -i -v /host/data:/app/data mcp/custom-tool:v1.0 serve --port 8080 --verbose
-```
-
-**Example with read-only mode** (like the Azure MCP Server):
-
-```yaml wrap
-mcp-servers:
   azure:
-    container: "mcr.microsoft.com/azure-sdk/azure-mcp"
-    version: "latest"
-    entrypointArgs:
-      - "server"
-      - "start"
-      - "--read-only"
+    container: "mcr.microsoft.com/azure-sdk/azure-mcp:latest"
+    entrypointArgs: ["server", "start", "--read-only"]
     env:
       AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-      AZURE_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
-      AZURE_CLIENT_SECRET: "${{ secrets.AZURE_CLIENT_SECRET }}"
     allowed: ["*"]
-```
 
-This generates:
-```
-docker run --rm -i -e AZURE_TENANT_ID -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET \
-  mcr.microsoft.com/azure-sdk/azure-mcp:latest server start --read-only
-```
-
-#### Custom Docker Configuration
-
-For advanced use cases, you can configure Docker containers with environment variables and network restrictions:
-
-```yaml wrap
-mcp-servers:
-  context7:
-    container: "mcp/context7"
+  custom-tool:
+    container: "mcp/custom-tool:v1.0"
+    args: ["-v", "/host/data:/app/data"]  # Volume mounts before image
+    entrypointArgs: ["serve", "--port", "8080"]  # App args after image
     env:
-      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
+      API_KEY: "${{ secrets.API_KEY }}"
     network:
-      allowed:
-        - mcp.context7.com
-    allowed:
-      - get-library-docs
-      - resolve-library-id
+      allowed: ["api.example.com"]  # Restricts egress to allowed domains
+    allowed: ["tool1", "tool2"]
 ```
 
-This generates a Docker container with environment variables and network egress controls:
-- **Command**: `"docker"`
-- **Args**: Includes environment variable flags (e.g., `-e CONTEXT7_API_KEY`) and network proxy configuration
-- **Network**: Squid proxy restricts egress to allowed domains only
-
-Configure environment variables (`env:`), Docker arguments (`args:`), application arguments (`entrypointArgs:`), network egress controls (`network.allowed:`), and accessible tools (`allowed:`). See [Container Arguments and Entrypoint Arguments](#container-arguments-and-entrypoint-arguments) and [Network Egress Permissions](#network-egress-permissions).
+The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`. Network restrictions use a Squid proxy and apply only to containerized stdio servers.
 
 ### 3. HTTP MCP Servers
 
@@ -236,109 +168,31 @@ Token precedence: `GH_AW_GITHUB_TOKEN` (highest priority) or `GITHUB_TOKEN` (fal
 
 ## Tool Allow-listing
 
-Control which MCP tools are available with `allowed:` lists:
+Control tool access with `allowed:` - use specific tool names for granular control or `["*"]` for all tools. Tool names generate as `mcp__<server>__<tool>` (or `mcp__<server>` for wildcards).
 
-**Specific tools**:
-```yaml wrap
-mcp-servers:
-  deepwiki:
-    url: "https://mcp.deepwiki.com/sse"
-    allowed:
-      - read_wiki_structure
-      - read_wiki_contents
-```
-Generates: `mcp__deepwiki__read_wiki_structure`, `mcp__deepwiki__read_wiki_contents`
-
-**Wildcard access**:
-```yaml wrap
-mcp-servers:
-  ast-grep:
-    container: "mcp/ast-grep"
-    allowed: ["*"]
-```
-Generates: `mcp__ast-grep` (all tools)
-
-### HTTP Headers
-
-Configure authentication in URL parameters (e.g., `?apiKey=${{ secrets.API_KEY }}`) or use dedicated header fields when needed.
+**HTTP Headers**: Configure authentication in URL parameters (e.g., `?apiKey=${{ secrets.API_KEY }}`).
 
 ## Network Egress Permissions
 
-Restrict outbound access for containerized stdio MCP servers with `network.allowed`:
-
-```yaml wrap
-mcp-servers:
-  context7:
-    container: "mcp/context7"
-    env:
-      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
-    network:
-      allowed:
-        - mcp.context7.com
-    allowed:
-      - get-library-docs
-```
-
-Enforcement uses a [Squid proxy](https://www.squid-cache.org/) configured with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules to block non-allowed domains. Only applies to containerized stdio servers (not HTTP or non-container stdio).
+Restrict outbound access for containerized stdio MCP servers using `network.allowed` (see [Docker Container example](#2-docker-container-mcp-servers)). Enforcement uses a [Squid proxy](https://www.squid-cache.org/) with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules. Only applies to containerized stdio servers.
 
 ## Available Shared MCP Configurations
 
-The gh-aw repository includes pre-configured shared MCP server workflows in `.github/workflows/shared/mcp/`:
+Pre-configured MCP servers in `.github/workflows/shared/mcp/` can be imported into workflows:
 
-### Jupyter Notebook Integration
-
-Execute code in Jupyter notebooks and visualize data:
-
-```yaml wrap
-imports:
-  - shared/mcp/jupyter.md
-```
-
-Provides tools for executing cells, managing notebooks, and retrieving outputs. Includes self-hosted JupyterLab service with Docker services support.
-
-### Drain3 Log Analysis
-
-Mine log patterns and extract structured templates from unstructured log files:
-
-```yaml wrap
-imports:
-  - shared/mcp/drain3.md
-```
-
-Provides 8 tools including `index_file`, `list_clusters`, `find_anomalies`, `compare_runs`, and `search_pattern` for log template mining and pattern analysis.
-
-### Other Available Servers
-
-Additional shared MCP configurations include: AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, and Tavily. Browse `.github/workflows/shared/mcp/` for complete list with documentation.
+| MCP Server | Import Path | Key Capabilities |
+|------------|-------------|------------------|
+| **Jupyter** | `shared/mcp/jupyter.md` | Execute code, manage notebooks, visualize data |
+| **Drain3** | `shared/mcp/drain3.md` | Log pattern mining with 8 tools including `index_file`, `list_clusters`, `find_anomalies` |
+| **Others** | `shared/mcp/*.md` | AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, Tavily |
 
 ## Debugging and Troubleshooting
 
-Use CLI commands to inspect and debug MCP configurations:
+Inspect MCP configurations with CLI commands: `gh aw mcp inspect my-workflow` (add `--server <name> --verbose` for details) or `gh aw mcp list-tools <server> my-workflow`.
 
-```bash wrap
-# Inspect MCP servers in workflow
-gh aw mcp inspect my-workflow
-gh aw mcp inspect my-workflow --server trello-server --verbose
+For advanced debugging, import `shared/mcp-debug.md` to access diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output.
 
-# List available tools
-gh aw mcp list-tools notion my-workflow
-
-# Launch MCP inspector
-gh aw mcp inspect my-workflow --inspector
-```
-
-For MCP server troubleshooting, import the mcp-debug shared workflow:
-
-```yaml wrap
-imports:
-  - shared/mcp-debug.md
-```
-
-This provides diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output for posting diagnostic findings to pull requests.
-
-**Common issues**:
-- **Connection failures**: Verify configuration syntax, environment variables, and network connectivity
-- **Tool not found**: Add tool to `allowed` list and verify spelling with `gh aw mcp inspect`
+**Common issues**: Connection failures (verify syntax, env vars, network) or tool not found (check `allowed` list with `gh aw mcp inspect`).
 
 ## Related Documentation
 
