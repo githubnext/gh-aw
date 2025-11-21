@@ -71,9 +71,33 @@ Actor: ${{ github.actor }}
 		t.Error("Prompt content should contain ${GH_AW_EXPR_...} references for JavaScript interpolation")
 	}
 
-	// Verify the original expressions are NOT in the prompt content (they've been replaced)
-	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
-		t.Error("Original GitHub expressions should be replaced with ${GH_AW_EXPR_...} references in prompt")
+	// Verify the original expressions appear in the comment header (Original Prompt section)
+	// but NOT in the actual prompt heredoc content
+	// Find the heredoc section by looking for the "cat > " line and the PROMPT_EOF delimiter
+	heredocStart := strings.Index(compiledStr, "cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'")
+	if heredocStart == -1 {
+		t.Error("Could not find prompt heredoc section")
+	} else {
+		// Find the end of the heredoc (PROMPT_EOF on its own line)
+		heredocEnd := strings.Index(compiledStr[heredocStart:], "\n          PROMPT_EOF\n")
+		if heredocEnd == -1 {
+			t.Error("Could not find end of prompt heredoc")
+		} else {
+			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
+			// Verify original expressions are NOT in the heredoc content
+			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
+				t.Error("Original GitHub expressions should be replaced with ${GH_AW_EXPR_...} references in prompt heredoc")
+			}
+		}
+	}
+
+	// Verify the original expressions DO appear in the comment header (this is expected)
+	commentSectionEnd := strings.Index(compiledStr, "\nname:")
+	if commentSectionEnd > 0 {
+		commentSection := compiledStr[:commentSectionEnd]
+		if !strings.Contains(commentSection, "Repository: ${{ github.repository }}") {
+			t.Error("Original GitHub expressions should appear in the Original Prompt comment section")
+		}
 	}
 
 	// Verify that the interpolation and template rendering step exists

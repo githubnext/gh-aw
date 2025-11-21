@@ -108,9 +108,21 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Verify that GitHub expressions in content have been replaced with environment variable references
-	// for security (preventing shell injection)
-	if strings.Contains(compiledStr, "issue #${{ github.event.issue.number }}") {
-		t.Error("GitHub expressions in content should be replaced with environment variable references for security")
+	// in the heredoc, but they can still appear in the comment header
+	heredocStart := strings.Index(compiledStr, "cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'")
+	if heredocStart == -1 {
+		t.Error("Could not find prompt heredoc section")
+	} else {
+		heredocEnd := strings.Index(compiledStr[heredocStart:], "\n          PROMPT_EOF\n")
+		if heredocEnd == -1 {
+			t.Error("Could not find end of prompt heredoc")
+		} else {
+			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
+			// Verify original expressions are NOT in the heredoc content
+			if strings.Contains(heredocContent, "issue #${{ github.event.issue.number }}") {
+				t.Error("GitHub expressions in heredoc content should be replaced with environment variable references for security")
+			}
+		}
 	}
 
 	// Verify that environment variables are defined for the expressions
