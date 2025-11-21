@@ -4,6 +4,158 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
+/**
+ * Map agent names to their GitHub bot login names
+ */
+const AGENT_LOGIN_NAMES = {
+  copilot: "copilot-swe-agent",
+  claude: "claude-swe-agent",
+  codex: "codex-swe-agent",
+};
+
+/**
+ * Find an agent in repository's suggested actors using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} agentName - Agent name (copilot, claude, codex)
+ * @returns {Promise<string|null>} Agent ID or null if not found
+ */
+async function findAgent(owner, repo, agentName) {
+  const query = `
+    query {
+      repository(owner: "${owner}", name: "${repo}") {
+        suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+          nodes {
+            ... on Bot {
+              id
+              login
+              __typename
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(query);
+    const actors = response.repository.suggestedActors.nodes;
+
+    const loginName = AGENT_LOGIN_NAMES[agentName];
+    if (!loginName) {
+      core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+      return null;
+    }
+
+    for (const actor of actors) {
+      if (actor.login === loginName) {
+        return actor.id;
+      }
+    }
+
+    core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+    if (agentName === "copilot") {
+      core.info(
+        "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
+      );
+    }
+    return null;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
+ * Get issue details (ID and current assignees) using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @returns {Promise<{issueId: string, currentAssignees: string[]}|null>}
+ */
+async function getIssueDetails(owner, repo, issueNumber) {
+  const query = `
+    query {
+      repository(owner: "${owner}", name: "${repo}") {
+        issue(number: ${issueNumber}) {
+          id
+          assignees(first: 100) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(query);
+    const issue = response.repository.issue;
+
+    if (!issue || !issue.id) {
+      core.error("Could not get issue data");
+      return null;
+    }
+
+    const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+
+    return {
+      issueId: issue.id,
+      currentAssignees: currentAssignees,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to get issue details: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
+ * Assign agent to issue using GraphQL replaceActorsForAssignable mutation
+ * @param {string} issueId - GitHub issue ID
+ * @param {string} agentId - Agent ID
+ * @param {string[]} currentAssignees - List of current assignee IDs
+ * @param {string} agentName - Agent name for error messages
+ * @returns {Promise<boolean>} True if successful
+ */
+async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+  // Build actor IDs array - include agent and preserve other assignees
+  const actorIds = [agentId];
+  for (const assigneeId of currentAssignees) {
+    if (assigneeId !== agentId) {
+      actorIds.push(assigneeId);
+    }
+  }
+
+  const mutation = `
+    mutation {
+      replaceActorsForAssignable(input: {
+        assignableId: "${issueId}",
+        actorIds: ${JSON.stringify(actorIds)}
+      }) {
+        __typename
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(mutation);
+
+    if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+      return true;
+    } else {
+      core.error("Unexpected response from GitHub API");
+      return false;
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+    return false;
+  }
+}
+
 async function main() {
   const result = loadAgentOutput();
   if (!result.success) {
@@ -69,6 +221,9 @@ async function main() {
     }
   }
 
+  // Cache agent IDs to avoid repeated lookups
+  const agentCache = {};
+
   // Process each agent assignment
   const results = [];
   for (const item of itemsToProcess) {
@@ -80,9 +235,33 @@ async function main() {
       continue;
     }
 
-    // Assign the agent to the issue
+    // Check if agent is supported
+    if (!AGENT_LOGIN_NAMES[agentName]) {
+      core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+      results.push({
+        issue_number: issueNumber,
+        agent: agentName,
+        success: false,
+        error: `Unsupported agent: ${agentName}`,
+      });
+      continue;
+    }
+
+    // Assign the agent to the issue using GraphQL
     try {
-      // First, verify the issue exists
+      // Find agent (use cache if available)
+      let agentId = agentCache[agentName];
+      if (!agentId) {
+        core.info(`Looking for ${agentName} coding agent...`);
+        agentId = await findAgent(targetOwner, targetRepo, agentName);
+        if (!agentId) {
+          throw new Error(`${agentName} coding agent is not available for this repository`);
+        }
+        agentCache[agentName] = agentId;
+        core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+      }
+
+      // First, verify the issue exists using REST API
       const issueResponse = await github.rest.issues.get({
         owner: targetOwner,
         repo: targetRepo,
@@ -91,51 +270,35 @@ async function main() {
 
       core.info(`Issue #${issueNumber} exists: "${issueResponse.data.title}"`);
 
-      // Use gh CLI to actually assign the agent to the issue
-      // gh CLI needs GH_TOKEN, fallback to GITHUB_TOKEN if GH_TOKEN is not set
-      const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-      if (!ghToken || ghToken.trim() === "") {
-        core.error(`Token check failed - GH_TOKEN: ${process.env.GH_TOKEN ? "set" : "not set"}, GITHUB_TOKEN: ${process.env.GITHUB_TOKEN ? "set" : "not set"}`);
-        throw new Error("GH_TOKEN or GITHUB_TOKEN is required to assign agents");
+      // Get issue details (ID and current assignees) via GraphQL
+      core.info("Getting issue details...");
+      const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+      if (!issueDetails) {
+        throw new Error("Failed to get issue details");
       }
 
-      core.info(`Attempting to assign agent "${agentName}" to issue #${issueNumber}`);
+      core.info(`Issue ID: ${issueDetails.issueId}`);
 
-      // Use GitHub REST API to assign the agent
-      // For Copilot, we need to use a special approach since direct assignment may not be supported
-      const assigneeToAdd = agentName === "copilot" ? "copilot" : agentName;
-      
-      try {
-        await github.rest.issues.addAssignees({
-          owner: targetOwner,
-          repo: targetRepo,
+      // Check if agent is already assigned
+      if (issueDetails.currentAssignees.includes(agentId)) {
+        core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+        results.push({
           issue_number: issueNumber,
-          assignees: [assigneeToAdd],
+          agent: agentName,
+          success: true,
         });
-      } catch (apiError) {
-        const apiErrorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-        core.warning(`GitHub API assignment failed: ${apiErrorMsg}`);
-        
-        // Fallback to gh CLI if API fails
-        core.info("Attempting fallback to gh CLI...");
-        const repoSlug = `${targetOwner}/${targetRepo}`;
-        await exec.exec("gh", ["issue", "edit", String(issueNumber), "--repo", repoSlug, "--add-assignee", `@${agentName}`], {
-          env: { ...process.env, GH_TOKEN: ghToken, GITHUB_TOKEN: ghToken },
-        });
+        continue;
       }
 
-      // Add a comment to the issue mentioning the agent
-      const mentionText = `@${agentName}`;
-      const commentBody = `${mentionText} has been assigned to this issue.`;
+      // Assign agent using GraphQL mutation
+      core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
-      await github.rest.issues.createComment({
-        owner: targetOwner,
-        repo: targetRepo,
-        issue_number: issueNumber,
-        body: commentBody,
-      });
+      if (!success) {
+        throw new Error(`Failed to assign ${agentName} via GraphQL`);
+      }
 
-      core.info(`Successfully assigned agent "${agentName}" to issue #${issueNumber}`);
+      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
       results.push({
         issue_number: issueNumber,
         agent: agentName,
@@ -189,4 +352,6 @@ async function main() {
   }
 }
 
-await main();
+(async () => {
+  await main();
+})();

@@ -70,8 +70,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      comment_id: ${{ '' }}
-      comment_repo: ${{ '' }}
+      comment_id: ""
+      comment_repo: ""
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1490,6 +1490,8 @@ jobs:
                     return 1;
                   case "create_discussion":
                     return 1;
+                  case "close_discussion":
+                    return 1;
                   case "missing_tool":
                     return 20;
                   case "create_code_scanning_alert":
@@ -2041,6 +2043,34 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "close_discussion":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      if (item.reason !== undefined) {
+                        if (typeof item.reason !== "string") {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
+                          continue;
+                        }
+                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
+                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
+                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
+                          continue;
+                        }
+                        item.reason = item.reason.toUpperCase();
+                      }
+                      const discussionNumberValidation = validateOptionalPositiveInteger(
+                        item.discussion_number,
+                        "close_discussion 'discussion_number'",
+                        i + 1
+                      );
+                      if (!discussionNumberValidation.isValid) {
+                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -3523,6 +3553,117 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            const AGENT_LOGIN_NAMES = {
+              copilot: "copilot-swe-agent",
+              claude: "claude-swe-agent",
+              codex: "codex-swe-agent",
+            };
+            async function findAgent(owner, repo, agentName) {
+              const query = `
+                query {
+                  repository(owner: "${owner}", name: "${repo}") {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes {
+                        ... on Bot {
+                          id
+                          login
+                          __typename
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query);
+                const actors = response.repository.suggestedActors.nodes;
+                const loginName = AGENT_LOGIN_NAMES[agentName];
+                if (!loginName) {
+                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  return null;
+                }
+                for (const actor of actors) {
+                  if (actor.login === loginName) {
+                    return actor.id;
+                  }
+                }
+                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+                if (agentName === "copilot") {
+                  core.info(
+                    "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
+                  );
+                }
+                return null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function getIssueDetails(owner, repo, issueNumber) {
+              const query = `
+                query {
+                  repository(owner: "${owner}", name: "${repo}") {
+                    issue(number: ${issueNumber}) {
+                      id
+                      assignees(first: 100) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query);
+                const issue = response.repository.issue;
+                if (!issue || !issue.id) {
+                  core.error("Could not get issue data");
+                  return null;
+                }
+                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+                return {
+                  issueId: issue.id,
+                  currentAssignees: currentAssignees,
+                };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get issue details: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+              const actorIds = [agentId];
+              for (const assigneeId of currentAssignees) {
+                if (assigneeId !== agentId) {
+                  actorIds.push(assigneeId);
+                }
+              }
+              const mutation = `
+                mutation {
+                  replaceActorsForAssignable(input: {
+                    assignableId: "${issueId}",
+                    actorIds: ${JSON.stringify(actorIds)}
+                  }) {
+                    __typename
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(mutation);
+                if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                  return true;
+                } else {
+                  core.error("Unexpected response from GitHub API");
+                  return false;
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+                return false;
+              }
+            }
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -3574,6 +3715,7 @@ jobs:
                   core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
                 }
               }
+              const agentCache = {};
               const results = [];
               for (const item of itemsToProcess) {
                 const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
@@ -3582,45 +3724,54 @@ jobs:
                   core.error(`Invalid issue_number: ${item.issue_number}`);
                   continue;
                 }
+                if (!AGENT_LOGIN_NAMES[agentName]) {
+                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Unsupported agent: ${agentName}`,
+                  });
+                  continue;
+                }
                 try {
+                  let agentId = agentCache[agentName];
+                  if (!agentId) {
+                    core.info(`Looking for ${agentName} coding agent...`);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName);
+                    if (!agentId) {
+                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                    }
+                    agentCache[agentName] = agentId;
+                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  }
                   const issueResponse = await github.rest.issues.get({
                     owner: targetOwner,
                     repo: targetRepo,
                     issue_number: issueNumber,
                   });
                   core.info(`Issue #${issueNumber} exists: "${issueResponse.data.title}"`);
-                  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-                  if (!ghToken || ghToken.trim() === "") {
-                    core.error(`Token check failed - GH_TOKEN: ${process.env.GH_TOKEN ? "set" : "not set"}, GITHUB_TOKEN: ${process.env.GITHUB_TOKEN ? "set" : "not set"}`);
-                    throw new Error("GH_TOKEN or GITHUB_TOKEN is required to assign agents");
+                  core.info("Getting issue details...");
+                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
                   }
-                  core.info(`Attempting to assign agent "${agentName}" to issue #${issueNumber}`);
-                  const assigneeToAdd = agentName === "copilot" ? "copilot" : agentName;
-                  try {
-                    await github.rest.issues.addAssignees({
-                      owner: targetOwner,
-                      repo: targetRepo,
+                  core.info(`Issue ID: ${issueDetails.issueId}`);
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
                       issue_number: issueNumber,
-                      assignees: [assigneeToAdd],
+                      agent: agentName,
+                      success: true,
                     });
-                  } catch (apiError) {
-                    const apiErrorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-                    core.warning(`GitHub API assignment failed: ${apiErrorMsg}`);
-                    core.info("Attempting fallback to gh CLI...");
-                    const repoSlug = `${targetOwner}/${targetRepo}`;
-                    await exec.exec("gh", ["issue", "edit", String(issueNumber), "--repo", repoSlug, "--add-assignee", `@${agentName}`], {
-                      env: { ...process.env, GH_TOKEN: ghToken, GITHUB_TOKEN: ghToken },
-                    });
+                    continue;
                   }
-                  const mentionText = `@${agentName}`;
-                  const commentBody = `${mentionText} has been assigned to this issue.`;
-                  await github.rest.issues.createComment({
-                    owner: targetOwner,
-                    repo: targetRepo,
-                    issue_number: issueNumber,
-                    body: commentBody,
-                  });
-                  core.info(`Successfully assigned agent "${agentName}" to issue #${issueNumber}`);
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  if (!success) {
+                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                  }
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
                   results.push({
                     issue_number: issueNumber,
                     agent: agentName,
@@ -3663,7 +3814,9 @@ jobs:
                 core.setFailed(`Failed to assign ${failureCount} agent(s)`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   conclusion:
     needs:
@@ -4335,12 +4488,40 @@ jobs:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
           script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
             async function main() {
               const { eventName } = context;
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              const requiredPermissions = parseRequiredPermissions();
               if (eventName === "workflow_dispatch") {
                 const hasWriteRole = requiredPermissions.includes("write");
                 if (hasWriteRole) {
@@ -4365,40 +4546,25 @@ jobs:
                 core.setOutput("error_message", "Configuration error: Required permissions not specified");
                 return;
               }
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
+                core.setOutput("user_permission", result.permission);
                 core.setOutput(
                   "error_message",
                   `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
                 );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
               }
             }
             await main();

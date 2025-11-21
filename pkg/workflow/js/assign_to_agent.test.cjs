@@ -68,7 +68,7 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_AGENT_DEFAULT;
     delete process.env.GH_AW_AGENT_MAX_COUNT;
     delete process.env.GH_AW_TARGET_REPO;
-    
+
     // Set up GitHub token for gh CLI
     process.env.GH_TOKEN = "test-token";
 
@@ -317,8 +317,6 @@ describe("assign_to_agent", () => {
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign 1 agent(s)");
   });
-
-
 
   it("should handle invalid issue numbers", async () => {
     setAgentOutput({
