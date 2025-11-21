@@ -71,14 +71,17 @@ steps:
         
         # Get all merged PRs between the two releases
         echo "Fetching pull requests merged between releases..."
+        PREV_PUBLISHED_AT=$(gh release view "$PREV_RELEASE_TAG" --json publishedAt --jq .publishedAt)
+        CURR_PUBLISHED_AT=$(gh release view "$RELEASE_TAG" --json publishedAt --jq .publishedAt)
         gh pr list \
           --state merged \
           --limit 1000 \
           --json number,title,author,labels,mergedAt,url,body \
-          --jq "[.[] | select(.mergedAt >= \"$(gh release view $PREV_RELEASE_TAG --json publishedAt --jq .publishedAt)\" and .mergedAt <= \"$(gh release view $RELEASE_TAG --json publishedAt --jq .publishedAt)\")]" \
+          --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
           > /tmp/gh-aw/release-data/pull_requests.json
         
-        echo "✓ Fetched $(jq length /tmp/gh-aw/release-data/pull_requests.json) pull requests"
+        PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)
+        echo "✓ Fetched $PR_COUNT pull requests"
       fi
       
       # Get the CHANGELOG.md content around this version
