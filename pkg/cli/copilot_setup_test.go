@@ -80,11 +80,8 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 								Uses: "actions/checkout@v5",
 							},
 							{
-								Name: "Set up Go",
-								Uses: "actions/setup-go@v5",
-								With: map[string]any{
-									"go-version-file": "go.mod",
-								},
+								Name: "Build",
+								Run:  "echo 'build'",
 							},
 						},
 					},
@@ -104,10 +101,10 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				}
 
 				// Find step indices
-				var goIdx, installIdx int = -1, -1
+				var checkoutIdx, installIdx int = -1, -1
 				for i, step := range job.Steps {
-					if step.Name == "Set up Go" {
-						goIdx = i
+					if step.Name == "Checkout code" {
+						checkoutIdx = i
 					}
 					if step.Name == "Install gh-aw extension" {
 						installIdx = i
@@ -117,11 +114,11 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				if installIdx == -1 {
 					t.Error("Expected extension install step to be injected")
 				}
-				if goIdx == -1 {
-					t.Error("Expected 'Set up Go' step to be present")
+				if checkoutIdx == -1 {
+					t.Error("Expected 'Checkout code' step to be present")
 				}
-				if goIdx != -1 && installIdx != -1 && installIdx <= goIdx {
-					t.Errorf("Extension install should come after Set up Go (install at %d, go at %d)", installIdx, goIdx)
+				if checkoutIdx != -1 && installIdx != -1 && installIdx <= checkoutIdx {
+					t.Errorf("Extension install should come after Checkout (install at %d, checkout at %d)", installIdx, checkoutIdx)
 				}
 			},
 		},
@@ -199,30 +196,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 		validateFunc  func(*testing.T, *Workflow)
 	}{
 		{
-			name: "injects after Set up Go",
-			workflow: &Workflow{
-				Jobs: map[string]WorkflowJob{
-					"copilot-setup-steps": {
-						Steps: []WorkflowStep{
-							{Name: "Checkout code"},
-							{Name: "Set up Go"},
-							{Name: "Build"},
-						},
-					},
-				},
-			},
-			wantErr:       false,
-			expectedSteps: 4,
-			validateFunc: func(t *testing.T, w *Workflow) {
-				steps := w.Jobs["copilot-setup-steps"].Steps
-				// Extension install should be at index 2 (after Set up Go)
-				if steps[2].Name != "Install gh-aw extension" {
-					t.Errorf("Expected step 2 to be 'Install gh-aw extension', got %q", steps[2].Name)
-				}
-			},
-		},
-		{
-			name: "injects after Checkout when no Set up Go",
+			name: "injects after Checkout",
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
@@ -389,6 +363,61 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 
 	if !hasExtensionInstall {
 		t.Error("Expected copilotSetupStepsYAML to contain extension install step")
+	}
+
+	// Verify checkout step has persist-credentials: false
+	var checkoutStep *WorkflowStep
+	for i := range job.Steps {
+		if strings.Contains(job.Steps[i].Uses, "checkout@") {
+			checkoutStep = &job.Steps[i]
+			break
+		}
+	}
+
+	if checkoutStep == nil {
+		t.Fatal("Expected checkout step to exist")
+	}
+
+	if checkoutStep.With == nil {
+		t.Fatal("Expected checkout step to have 'with' configuration")
+	}
+
+	persistCreds, ok := checkoutStep.With["persist-credentials"]
+	if !ok {
+		t.Error("Expected checkout step to have 'persist-credentials' configuration")
+	} else if persistCreds != false {
+		t.Errorf("Expected persist-credentials to be false, got %v", persistCreds)
+	}
+
+	// Verify it does NOT have Go setup or build steps (for universal use)
+	for _, step := range job.Steps {
+		if strings.Contains(step.Name, "Set up Go") {
+			t.Error("Template should not contain 'Set up Go' step for universal use")
+		}
+		if strings.Contains(step.Name, "Build gh-aw from source") {
+			t.Error("Template should not contain 'Build gh-aw from source' step for universal use")
+		}
+		if strings.Contains(step.Run, "make build") {
+			t.Error("Template should not contain 'make build' command for universal use")
+		}
+	}
+
+	// Verify verification step only uses 'gh aw version' (not './gh-aw version')
+	hasVerification := false
+	for _, step := range job.Steps {
+		if strings.Contains(step.Name, "Verify") {
+			hasVerification = true
+			if strings.Contains(step.Run, "./gh-aw") {
+				t.Error("Verification step should not try to run './gh-aw' (only works in gh-aw repo)")
+			}
+			if !strings.Contains(step.Run, "gh aw version") {
+				t.Error("Verification step should use 'gh aw version'")
+			}
+		}
+	}
+
+	if !hasVerification {
+		t.Error("Expected template to contain verification step")
 	}
 }
 

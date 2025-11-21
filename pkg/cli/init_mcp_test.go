@@ -253,11 +253,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
       - name: Build code
         run: make build
 `
@@ -284,17 +279,17 @@ jobs:
 		t.Errorf("Expected extension install command to be present")
 	}
 
-	// Verify it was injected after Set up Go step
-	goIndex := strings.Index(contentStr, "Set up Go")
+	// Verify it was injected after Checkout step
+	checkoutIndex := strings.Index(contentStr, "Checkout code")
 	extensionIndex := strings.Index(contentStr, "Install gh-aw extension")
 	buildIndex := strings.Index(contentStr, "Build code")
 
-	if goIndex == -1 || extensionIndex == -1 || buildIndex == -1 {
+	if checkoutIndex == -1 || extensionIndex == -1 || buildIndex == -1 {
 		t.Fatalf("Could not find expected steps in file")
 	}
 
-	if !(goIndex < extensionIndex && extensionIndex < buildIndex) {
-		t.Errorf("Extension install step not in correct position (should be after Go setup, before Build)")
+	if !(checkoutIndex < extensionIndex && extensionIndex < buildIndex) {
+		t.Errorf("Extension install step not in correct position (should be after Checkout, before Build)")
 	}
 }
 

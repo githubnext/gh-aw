@@ -34,27 +34,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
+          persist-credentials: false
 
       - name: Install gh-aw extension
         run: gh extension install githubnext/gh-aw
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Build gh-aw from source
-        run: |
-          echo "Building gh-aw from source for latest features..."
-          make build
-        continue-on-error: true
-
       - name: Verify gh-aw installation
-        run: |
-          gh aw version || ./gh-aw version
+        run: gh aw version
+        env:
+          GH_TOKEN: ${{ github.token }}
 `
 
 // WorkflowStep represents a GitHub Actions workflow step
@@ -169,22 +160,12 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 		return fmt.Errorf("copilot-setup-steps job not found in workflow")
 	}
 
-	// Find the position to insert the step (after "Set up Go" or after "Checkout code")
+	// Find the position to insert the step (after "Checkout code")
 	insertPosition := -1
 	for i, step := range job.Steps {
-		if strings.Contains(step.Name, "Set up Go") {
+		if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
 			insertPosition = i + 1
 			break
-		}
-	}
-
-	// If Set up Go not found, try after Checkout
-	if insertPosition == -1 {
-		for i, step := range job.Steps {
-			if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
-				insertPosition = i + 1
-				break
-			}
 		}
 	}
 
