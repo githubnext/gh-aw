@@ -271,12 +271,20 @@ type SafeOutputsConfig struct {
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
+	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`               // GitHub App credentials for token minting
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          bool                                   `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+}
+
+// GitHubAppConfig holds configuration for GitHub App-based token minting
+type GitHubAppConfig struct {
+	ID            string   `yaml:"id,omitempty"`             // GitHub App ID (e.g., "${{ vars.APP_ID }}")
+	Secret        string   `yaml:"secret,omitempty"`         // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	RepositoryIDs []string `yaml:"repository-ids,omitempty"` // Optional: specific repository IDs to scope the token
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

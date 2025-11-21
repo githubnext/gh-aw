@@ -3050,6 +3050,39 @@
             "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           ]
         },
+        "app": {
+          "type": "object",
+          "description": "GitHub App credentials for minting installation access tokens. When configured, a token will be generated using the app credentials and used for all safe output operations.",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).",
+              "examples": [
+                "${{ vars.APP_ID }}",
+                "${{ secrets.APP_ID }}"
+              ]
+            },
+            "secret": {
+              "type": "string",
+              "description": "GitHub App private key. Should reference a secret (e.g., ${{ secrets.APP_PRIVATE_KEY }}).",
+              "examples": [
+                "${{ secrets.APP_PRIVATE_KEY }}"
+              ]
+            },
+            "repository-ids": {
+              "type": "array",
+              "description": "Optional array of repository IDs to scope the token to specific repositories.",
+              "items": {
+                "type": "string"
+              },
+              "examples": [
+                ["12345678", "87654321"]
+              ]
+            }
+          },
+          "required": ["id", "secret"],
+          "additionalProperties": false
+        },
         "max-patch-size": {
           "type": "integer",
           "description": "Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1 MB). If patch exceeds this size, the job will fail.",
