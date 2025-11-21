@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -363,6 +365,170 @@ t.Errorf("Expected formatted size '256 B', got '%s'", file.SizeFormatted)
 if file.Description == "" {
 t.Error("Expected description to be present")
 }
+}
+}
+}
+
+// TestAuditReportFileListingIntegration demonstrates the complete file listing flow
+func TestAuditReportFileListingIntegration(t *testing.T) {
+// Create a realistic audit directory structure
+tmpDir := testutil.TempDir(t, "audit-integration-*")
+
+// Create all common artifact files
+artifacts := map[string]string{
+"aw_info.json":      `{"engine_id":"copilot","workflow_name":"test","model":"gpt-4"}`,
+"safe_output.jsonl": `{"type":"create_issue","data":{"title":"Test"}}`,
+"agent-stdio.log":   "Agent execution log\n" + strings.Repeat(".", 500),
+"aw.patch":          "diff --git a/test.txt b/test.txt\n+new line\n",
+"prompt.txt":        "Analyze this repository",
+"run_summary.json":  `{"cli_version":"1.0","run_id":12345}`,
+"log.md":            "# Agent Execution Log\n\n## Summary\nCompleted successfully.",
+"firewall.md":       "# Firewall Analysis\n\nNo blocked requests.",
+"custom.json":       `{"custom":"data"}`,
+"notes.txt":         "Some additional notes",
+}
+
+for filename, content := range artifacts {
+path := filepath.Join(tmpDir, filename)
+if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+t.Fatalf("Failed to create %s: %v", filename, err)
+}
+}
+
+// Create directories
+dirs := []string{"agent_output", "firewall-logs", "aw-prompts"}
+for _, dir := range dirs {
+dirPath := filepath.Join(tmpDir, dir)
+if err := os.MkdirAll(dirPath, 0755); err != nil {
+t.Fatalf("Failed to create directory %s: %v", dir, err)
+}
+// Add a file in each directory
+filePath := filepath.Join(dirPath, "file.txt")
+if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+t.Fatalf("Failed to create file in %s: %v", dir, err)
+}
+}
+
+// Extract downloaded files (simulates what audit command does)
+files := extractDownloadedFiles(tmpDir)
+
+// Verify we got all expected files and directories
+expectedCount := len(artifacts) + len(dirs)
+if len(files) != expectedCount {
+t.Errorf("Expected %d items, got %d", expectedCount, len(files))
+t.Logf("Files found: %v", files)
+}
+
+// Build a map for easy lookup
+fileMap := make(map[string]FileInfo)
+for _, f := range files {
+fileMap[f.Path] = f
+}
+
+// Test specific file descriptions
+testCases := []struct {
+path        string
+expectDesc  bool
+descPattern string
+}{
+{"aw_info.json", true, "Engine configuration"},
+{"safe_output.jsonl", true, "Safe outputs"},
+{"firewall.md", true, "Firewall log analysis"},
+{"run_summary.json", true, "Cached summary"},
+{"custom.json", true, "JSON data file"},
+{"notes.txt", true, "Text file"},
+{"agent_output", true, "Directory containing log files"},
+{"firewall-logs", true, "Directory containing log files"},
+{"aw-prompts", true, "Directory containing AI prompts"},
+}
+
+for _, tc := range testCases {
+t.Run(tc.path, func(t *testing.T) {
+info, ok := fileMap[tc.path]
+if !ok {
+t.Fatalf("File/directory %s not found in extracted files", tc.path)
+}
+
+if tc.expectDesc && info.Description == "" {
+t.Errorf("Expected description for %s, got empty string", tc.path)
+}
+
+if tc.expectDesc && !strings.Contains(info.Description, tc.descPattern) {
+t.Errorf("Expected description to contain '%s', got: %s", tc.descPattern, info.Description)
+}
+
+// Verify size is set
+if info.Size == 0 && !info.IsDirectory {
+t.Errorf("Expected non-zero size for file %s", tc.path)
+}
+
+// Verify formatted size is present
+if info.SizeFormatted == "" {
+t.Errorf("Expected formatted size for %s", tc.path)
+}
+})
+}
+
+// Create a complete audit data structure
+run := WorkflowRun{
+DatabaseID:   999888,
+WorkflowName: "Integration Test",
+Status:       "completed",
+Conclusion:   "success",
+CreatedAt:    time.Now(),
+Event:        "push",
+HeadBranch:   "main",
+URL:          "https://github.com/test/repo/actions/runs/999888",
+LogsPath:     tmpDir,
+}
+
+metrics := LogMetrics{}
+
+processedRun := ProcessedRun{
+Run: run,
+}
+
+// Build audit data with the extracted files
+auditData := buildAuditData(processedRun, metrics)
+
+// The buildAuditData should have extracted files automatically
+if len(auditData.DownloadedFiles) == 0 {
+t.Error("Expected downloaded files to be populated in audit data")
+}
+
+// Verify the data can be rendered to JSON
+jsonData, err := json.Marshal(auditData)
+if err != nil {
+t.Fatalf("Failed to marshal audit data to JSON: %v", err)
+}
+
+// Verify JSON contains expected fields
+var parsed map[string]any
+if err := json.Unmarshal(jsonData, &parsed); err != nil {
+t.Fatalf("Failed to unmarshal JSON: %v", err)
+}
+
+if _, ok := parsed["downloaded_files"]; !ok {
+t.Error("Expected 'downloaded_files' field in JSON output")
+}
+
+// Verify markdown report generation
+report := generateAuditReport(processedRun, metrics, files)
+
+// Check report contains expected sections and file listings
+expectedInReport := []string{
+"## Downloaded Files",
+"aw_info.json",
+"Engine configuration",
+"safe_output.jsonl",
+"Safe outputs",
+"agent_output",
+"Directory",
+}
+
+for _, expected := range expectedInReport {
+if !strings.Contains(report, expected) {
+t.Errorf("Expected markdown report to contain: %s", expected)
 }
 }
 }
