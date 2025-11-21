@@ -10,10 +10,13 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var prLog = logger.New("cli:pr_command")
 
 // PRInfo represents the details of a pull request
 type PRInfo struct {
@@ -99,19 +102,24 @@ func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 
 // checkRepositoryAccess checks if the current user has write access to the target repository
 func checkRepositoryAccess(owner, repo string) (bool, error) {
+	prLog.Printf("Checking repository access: %s/%s", owner, repo)
+
 	// Get current user
 	cmd := workflow.ExecGH("api", "/user", "--jq", ".login")
 	output, err := cmd.Output()
 	if err != nil {
+		prLog.Printf("Failed to get current user: %s", err)
 		return false, fmt.Errorf("failed to get current user: %w", err)
 	}
 	username := strings.TrimSpace(string(output))
+	prLog.Printf("Current user: %s", username)
 
 	// Check user's permission level for the repository
 	cmd = workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
 	output, err = cmd.Output()
 	if err != nil {
 		// If we get an error, it likely means we don't have access or the repo doesn't exist
+		prLog.Print("Repository access denied or repository not found")
 		return false, nil
 	}
 
@@ -126,6 +134,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	// Check if user has write, maintain, or admin access
 	permission := permissionInfo.Permission
 	hasWriteAccess := permission == "write" || permission == "maintain" || permission == "admin"
+	prLog.Printf("User permission level: %s, has write access: %v", permission, hasWriteAccess)
 
 	return hasWriteAccess, nil
 }
@@ -169,6 +178,8 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 
 // fetchPRInfo fetches detailed information about a pull request
 func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
+	prLog.Printf("Fetching PR info: %s/%s#%d", owner, repo, prNumber)
+
 	// Fetch PR details using gh API
 	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/pulls/%d", owner, repo, prNumber),
 		"--jq", `{
@@ -186,6 +197,7 @@ func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
+		prLog.Printf("Failed to fetch PR info: %s", err)
 		return nil, fmt.Errorf("failed to fetch PR info: %w", err)
 	}
 
@@ -194,6 +206,7 @@ func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 		return nil, fmt.Errorf("failed to parse PR info: %w", err)
 	}
 
+	prLog.Printf("Fetched PR #%d: state=%s, author=%s", prInfo.Number, prInfo.State, prInfo.AuthorLogin)
 	return &prInfo, nil
 }
 
@@ -544,6 +557,8 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 
 // transferPR is the main function that orchestrates the PR transfer
 func transferPR(prURL, targetRepo string, verbose bool) error {
+	prLog.Printf("Starting PR transfer: url=%s, targetRepo=%s", prURL, targetRepo)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting PR transfer..."))
 	}
@@ -551,8 +566,10 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	// Parse PR URL
 	sourceOwner, sourceRepoName, prNumber, err := parsePRURL(prURL)
 	if err != nil {
+		prLog.Printf("Failed to parse PR URL: %s", err)
 		return err
 	}
+	prLog.Printf("Parsed source: %s/%s#%d", sourceOwner, sourceRepoName, prNumber)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Source: %s/%s PR #%d", sourceOwner, sourceRepoName, prNumber)))
@@ -582,12 +599,15 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		}
 	}
 
+	prLog.Printf("Determined target repository: %s/%s", targetOwner, targetRepoName)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target: %s/%s", targetOwner, targetRepoName)))
 	}
 
 	// Check if source and target are the same
 	if sourceOwner == targetOwner && sourceRepoName == targetRepoName {
+		prLog.Print("Source and target repositories are the same - aborting")
 		return fmt.Errorf("source and target repositories cannot be the same")
 	}
 

@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
@@ -120,6 +123,8 @@ type FirewallLogSummary struct {
 
 // buildLogsData creates structured logs data from processed runs
 func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
+
 	// Build summary
 	var totalDuration time.Duration
 	var totalTokens int
@@ -556,6 +561,7 @@ type logErrorAggregator struct {
 // It iterates through processedRuns, extracts metrics, resolves engine info,
 // and aggregates errors using the provided aggregator strategy
 func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []ErrorSummary {
+	reportLog.Printf("Aggregating log errors from %d runs", len(processedRuns))
 	aggregatedMap := make(map[string]*ErrorSummary)
 
 	for _, pr := range processedRuns {
@@ -676,6 +682,7 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 
 // renderLogsJSON outputs the logs data as JSON
 func renderLogsJSON(data LogsData) error {
+	reportLog.Printf("Rendering logs data as JSON: %d runs", data.Summary.TotalRuns)
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
@@ -683,6 +690,9 @@ func renderLogsJSON(data LogsData) error {
 
 // renderLogsConsole outputs the logs data as formatted console output
 func renderLogsConsole(data LogsData) {
+	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
+		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
+
 	// Use unified console rendering for the entire logs data structure
 	fmt.Print(console.RenderStruct(data))
 
