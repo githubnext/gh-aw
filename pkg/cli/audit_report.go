@@ -20,6 +20,10 @@ var auditReportLog = logger.New("cli:audit_report")
 type AuditData struct {
 	Overview         OverviewData        `json:"overview"`
 	Metrics          MetricsData         `json:"metrics"`
+	KeyFindings      []Finding           `json:"key_findings,omitempty"`
+	Recommendations  []Recommendation    `json:"recommendations,omitempty"`
+	FailureAnalysis  *FailureAnalysis    `json:"failure_analysis,omitempty"`
+	PerformanceMetrics *PerformanceMetrics `json:"performance_metrics,omitempty"`
 	Jobs             []JobData           `json:"jobs,omitempty"`
 	DownloadedFiles  []FileInfo          `json:"downloaded_files"`
 	MissingTools     []MissingToolReport `json:"missing_tools,omitempty"`
@@ -29,6 +33,40 @@ type AuditData struct {
 	Errors           []ErrorInfo         `json:"errors,omitempty"`
 	Warnings         []ErrorInfo         `json:"warnings,omitempty"`
 	ToolUsage        []ToolUsageInfo     `json:"tool_usage,omitempty"`
+}
+
+// Finding represents a key insight discovered during audit
+type Finding struct {
+	Category    string `json:"category"`    // e.g., "error", "performance", "cost", "tooling"
+	Severity    string `json:"severity"`    // "critical", "high", "medium", "low", "info"
+	Title       string `json:"title"`       // Brief title
+	Description string `json:"description"` // Detailed description
+	Impact      string `json:"impact,omitempty"` // What impact this has
+}
+
+// Recommendation represents an actionable suggestion
+type Recommendation struct {
+	Priority    string `json:"priority"`    // "high", "medium", "low"
+	Action      string `json:"action"`      // What to do
+	Reason      string `json:"reason"`      // Why to do it
+	Example     string `json:"example,omitempty"` // Example of how to implement
+}
+
+// FailureAnalysis provides structured analysis for failed workflows
+type FailureAnalysis struct {
+	PrimaryFailure string   `json:"primary_failure"`   // Main reason for failure
+	FailedJobs     []string `json:"failed_jobs"`       // List of failed job names
+	ErrorSummary   string   `json:"error_summary"`     // Summary of errors
+	RootCause      string   `json:"root_cause,omitempty"` // Identified root cause if determinable
+}
+
+// PerformanceMetrics provides aggregated performance statistics
+type PerformanceMetrics struct {
+	TokensPerMinute   float64 `json:"tokens_per_minute,omitempty"`
+	CostEfficiency    string  `json:"cost_efficiency,omitempty"` // e.g., "good", "poor"
+	AvgToolDuration   string  `json:"avg_tool_duration,omitempty"`
+	MostUsedTool      string  `json:"most_used_tool,omitempty"`
+	NetworkRequests   int     `json:"network_requests,omitempty"`
 }
 
 // OverviewData contains basic information about the workflow run
@@ -199,23 +237,42 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		toolUsage = append(toolUsage, *info)
 	}
 
+	// Generate key findings
+	findings := generateFindings(processedRun, metricsData, errors, warnings)
+	
+	// Generate recommendations
+	recommendations := generateRecommendations(processedRun, metricsData, findings)
+	
+	// Generate failure analysis if workflow failed
+	var failureAnalysis *FailureAnalysis
+	if run.Conclusion == "failure" || run.Conclusion == "timed_out" || run.Conclusion == "cancelled" {
+		failureAnalysis = generateFailureAnalysis(processedRun, errors)
+	}
+	
+	// Generate performance metrics
+	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
+
 	if auditReportLog.Enabled() {
-		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types",
-			len(jobs), len(errors), len(warnings), len(toolUsage))
+		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types, %d findings, %d recommendations",
+			len(jobs), len(errors), len(warnings), len(toolUsage), len(findings), len(recommendations))
 	}
 
 	return AuditData{
-		Overview:         overview,
-		Metrics:          metricsData,
-		Jobs:             jobs,
-		DownloadedFiles:  downloadedFiles,
-		MissingTools:     processedRun.MissingTools,
-		Noops:            processedRun.Noops,
-		MCPFailures:      processedRun.MCPFailures,
-		FirewallAnalysis: processedRun.FirewallAnalysis,
-		Errors:           errors,
-		Warnings:         warnings,
-		ToolUsage:        toolUsage,
+		Overview:           overview,
+		Metrics:            metricsData,
+		KeyFindings:        findings,
+		Recommendations:    recommendations,
+		FailureAnalysis:    failureAnalysis,
+		PerformanceMetrics: performanceMetrics,
+		Jobs:               jobs,
+		DownloadedFiles:    downloadedFiles,
+		MissingTools:       processedRun.MissingTools,
+		Noops:              processedRun.Noops,
+		MCPFailures:        processedRun.MCPFailures,
+		FirewallAnalysis:   processedRun.FirewallAnalysis,
+		Errors:             errors,
+		Warnings:           warnings,
+		ToolUsage:          toolUsage,
 	}
 }
 
@@ -348,6 +405,34 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Println(console.FormatInfoMessage("## Overview"))
 	fmt.Println()
 	renderOverview(data.Overview)
+
+	// Key Findings Section - NEW
+	if len(data.KeyFindings) > 0 {
+		fmt.Println(console.FormatInfoMessage("## Key Findings"))
+		fmt.Println()
+		renderKeyFindings(data.KeyFindings)
+	}
+
+	// Recommendations Section - NEW
+	if len(data.Recommendations) > 0 {
+		fmt.Println(console.FormatInfoMessage("## Recommendations"))
+		fmt.Println()
+		renderRecommendations(data.Recommendations)
+	}
+
+	// Failure Analysis Section - NEW
+	if data.FailureAnalysis != nil {
+		fmt.Println(console.FormatInfoMessage("## Failure Analysis"))
+		fmt.Println()
+		renderFailureAnalysis(data.FailureAnalysis)
+	}
+
+	// Performance Metrics Section - NEW
+	if data.PerformanceMetrics != nil {
+		fmt.Println(console.FormatInfoMessage("## Performance Metrics"))
+		fmt.Println()
+		renderPerformanceMetrics(data.PerformanceMetrics)
+	}
 
 	// Metrics Section - use new rendering system
 	fmt.Println(console.FormatInfoMessage("## Metrics"))
@@ -581,4 +666,536 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// generateFindings analyzes the workflow run and generates key findings
+func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo, warnings []ErrorInfo) []Finding {
+	var findings []Finding
+	run := processedRun.Run
+
+	// Failure findings
+	if run.Conclusion == "failure" {
+		findings = append(findings, Finding{
+			Category:    "error",
+			Severity:    "critical",
+			Title:       "Workflow Failed",
+			Description: fmt.Sprintf("Workflow '%s' failed with %d error(s)", run.WorkflowName, metrics.ErrorCount),
+			Impact:      "Workflow did not complete successfully and may need intervention",
+		})
+	}
+
+	if run.Conclusion == "timed_out" {
+		findings = append(findings, Finding{
+			Category:    "performance",
+			Severity:    "high",
+			Title:       "Workflow Timeout",
+			Description: "Workflow exceeded time limit and was terminated",
+			Impact:      "Tasks may be incomplete, consider optimizing workflow or increasing timeout",
+		})
+	}
+
+	// Cost findings
+	if metrics.EstimatedCost > 1.0 {
+		findings = append(findings, Finding{
+			Category:    "cost",
+			Severity:    "high",
+			Title:       "High Cost Detected",
+			Description: fmt.Sprintf("Estimated cost of $%.2f exceeds typical threshold", metrics.EstimatedCost),
+			Impact:      "Review token usage and consider optimization opportunities",
+		})
+	} else if metrics.EstimatedCost > 0.5 {
+		findings = append(findings, Finding{
+			Category:    "cost",
+			Severity:    "medium",
+			Title:       "Moderate Cost",
+			Description: fmt.Sprintf("Estimated cost of $%.2f is moderate", metrics.EstimatedCost),
+			Impact:      "Monitor costs if this workflow runs frequently",
+		})
+	}
+
+	// Token usage findings
+	if metrics.TokenUsage > 50000 {
+		findings = append(findings, Finding{
+			Category:    "performance",
+			Severity:    "medium",
+			Title:       "High Token Usage",
+			Description: fmt.Sprintf("Used %s tokens", console.FormatNumber(metrics.TokenUsage)),
+			Impact:      "High token usage may indicate verbose outputs or inefficient prompts",
+		})
+	}
+
+	// Turn count findings
+	if metrics.Turns > 10 {
+		findings = append(findings, Finding{
+			Category:    "performance",
+			Severity:    "medium",
+			Title:       "Many Iterations",
+			Description: fmt.Sprintf("Workflow took %d turns to complete", metrics.Turns),
+			Impact:      "Many turns may indicate task complexity or unclear instructions",
+		})
+	}
+
+	// Error findings
+	if len(errors) > 5 {
+		findings = append(findings, Finding{
+			Category:    "error",
+			Severity:    "high",
+			Title:       "Multiple Errors",
+			Description: fmt.Sprintf("Encountered %d errors during execution", len(errors)),
+			Impact:      "Multiple errors may indicate systemic issues requiring attention",
+		})
+	}
+
+	// MCP failure findings
+	if len(processedRun.MCPFailures) > 0 {
+		serverNames := make([]string, len(processedRun.MCPFailures))
+		for i, failure := range processedRun.MCPFailures {
+			serverNames[i] = failure.ServerName
+		}
+		findings = append(findings, Finding{
+			Category:    "tooling",
+			Severity:    "high",
+			Title:       "MCP Server Failures",
+			Description: fmt.Sprintf("Failed MCP servers: %s", strings.Join(serverNames, ", ")),
+			Impact:      "Missing tools may limit workflow capabilities",
+		})
+	}
+
+	// Missing tool findings
+	if len(processedRun.MissingTools) > 0 {
+		toolNames := make([]string, 0, min(3, len(processedRun.MissingTools)))
+		for i := 0; i < len(processedRun.MissingTools) && i < 3; i++ {
+			toolNames = append(toolNames, processedRun.MissingTools[i].Tool)
+		}
+		desc := fmt.Sprintf("Missing tools: %s", strings.Join(toolNames, ", "))
+		if len(processedRun.MissingTools) > 3 {
+			desc += fmt.Sprintf(" (and %d more)", len(processedRun.MissingTools)-3)
+		}
+		findings = append(findings, Finding{
+			Category:    "tooling",
+			Severity:    "medium",
+			Title:       "Tools Not Available",
+			Description: desc,
+			Impact:      "Agent requested tools that were not configured or available",
+		})
+	}
+
+	// Firewall findings
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.DeniedRequests > 0 {
+		findings = append(findings, Finding{
+			Category:    "network",
+			Severity:    "medium",
+			Title:       "Blocked Network Requests",
+			Description: fmt.Sprintf("%d network requests were blocked by firewall", processedRun.FirewallAnalysis.DeniedRequests),
+			Impact:      "Blocked requests may indicate missing network permissions or unexpected behavior",
+		})
+	}
+
+	// Success findings
+	if run.Conclusion == "success" && len(errors) == 0 {
+		findings = append(findings, Finding{
+			Category:    "success",
+			Severity:    "info",
+			Title:       "Workflow Completed Successfully",
+			Description: fmt.Sprintf("Completed in %d turns with no errors", metrics.Turns),
+			Impact:      "No action needed",
+		})
+	}
+
+	return findings
+}
+
+// generateRecommendations creates actionable recommendations based on findings
+func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, findings []Finding) []Recommendation {
+	var recommendations []Recommendation
+	run := processedRun.Run
+
+	// Check for high-severity findings
+	hasCriticalFindings := false
+	hasHighCostFindings := false
+	hasManyTurns := false
+	for _, finding := range findings {
+		if finding.Severity == "critical" {
+			hasCriticalFindings = true
+		}
+		if finding.Category == "cost" && (finding.Severity == "high" || finding.Severity == "medium") {
+			hasHighCostFindings = true
+		}
+		if finding.Category == "performance" && strings.Contains(finding.Title, "Iterations") {
+			hasManyTurns = true
+		}
+	}
+
+	// Recommendations for failures
+	if run.Conclusion == "failure" || hasCriticalFindings {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "high",
+			Action:   "Review error logs to identify root cause of failure",
+			Reason:   "Understanding failure causes helps prevent recurrence",
+			Example:  "Check the Errors section below for specific error messages and file locations",
+		})
+	}
+
+	// Recommendations for cost optimization
+	if hasHighCostFindings {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "medium",
+			Action:   "Optimize prompt size and reduce verbose outputs",
+			Reason:   "High token usage increases costs and may slow execution",
+			Example:  "Use concise prompts, limit output verbosity, and consider caching repeated data",
+		})
+	}
+
+	// Recommendations for many turns
+	if hasManyTurns {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "medium",
+			Action:   "Clarify workflow instructions or break into smaller tasks",
+			Reason:   "Many iterations may indicate unclear objectives or overly complex tasks",
+			Example:  "Split complex workflows into discrete steps with clear success criteria",
+		})
+	}
+
+	// Recommendations for missing tools
+	if len(processedRun.MissingTools) > 0 {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "medium",
+			Action:   "Add missing tools to workflow configuration",
+			Reason:   "Missing tools limit agent capabilities and may cause failures",
+			Example:  fmt.Sprintf("Add tools configuration for: %s", processedRun.MissingTools[0].Tool),
+		})
+	}
+
+	// Recommendations for MCP failures
+	if len(processedRun.MCPFailures) > 0 {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "high",
+			Action:   "Fix MCP server configuration or dependencies",
+			Reason:   "MCP server failures prevent agent from accessing required tools",
+			Example:  "Check server logs and verify MCP server is properly configured and accessible",
+		})
+	}
+
+	// Recommendations for firewall blocks
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.DeniedRequests > 10 {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "medium",
+			Action:   "Review network access configuration",
+			Reason:   "Many blocked requests suggest missing network permissions",
+			Example:  "Add allowed domains to network configuration or review firewall rules",
+		})
+	}
+
+	// General best practices
+	if len(recommendations) == 0 && run.Conclusion == "success" {
+		recommendations = append(recommendations, Recommendation{
+			Priority: "low",
+			Action:   "Monitor workflow performance over time",
+			Reason:   "Tracking metrics helps identify trends and optimization opportunities",
+			Example:  "Run 'gh aw logs' periodically to review cost and performance trends",
+		})
+	}
+
+	return recommendations
+}
+
+// generateFailureAnalysis creates structured analysis for failed workflows
+func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *FailureAnalysis {
+	run := processedRun.Run
+	
+	// Determine primary failure reason
+	primaryFailure := run.Conclusion
+	if primaryFailure == "" {
+		primaryFailure = "unknown"
+	}
+
+	// Collect failed job names
+	var failedJobs []string
+	for _, job := range processedRun.JobDetails {
+		if job.Conclusion == "failure" || job.Conclusion == "timed_out" || job.Conclusion == "cancelled" {
+			failedJobs = append(failedJobs, job.Name)
+		}
+	}
+
+	// Generate error summary
+	errorSummary := "No specific errors identified"
+	if len(errors) > 0 {
+		if len(errors) == 1 {
+			errorSummary = errors[0].Message
+		} else {
+			errorSummary = fmt.Sprintf("%d errors: %s (and %d more)", len(errors), errors[0].Message, len(errors)-1)
+		}
+	}
+
+	// Attempt to identify root cause
+	rootCause := ""
+	if len(processedRun.MCPFailures) > 0 {
+		rootCause = fmt.Sprintf("MCP server failure: %s", processedRun.MCPFailures[0].ServerName)
+	} else if len(errors) > 0 {
+		// Look for common error patterns
+		firstError := errors[0].Message
+		if strings.Contains(strings.ToLower(firstError), "timeout") {
+			rootCause = "Operation timeout"
+		} else if strings.Contains(strings.ToLower(firstError), "permission") {
+			rootCause = "Permission denied"
+		} else if strings.Contains(strings.ToLower(firstError), "not found") {
+			rootCause = "Resource not found"
+		} else if strings.Contains(strings.ToLower(firstError), "authentication") {
+			rootCause = "Authentication failure"
+		}
+	}
+
+	return &FailureAnalysis{
+		PrimaryFailure: primaryFailure,
+		FailedJobs:     failedJobs,
+		ErrorSummary:   errorSummary,
+		RootCause:      rootCause,
+	}
+}
+
+// generatePerformanceMetrics calculates aggregated performance statistics
+func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo) *PerformanceMetrics {
+	run := processedRun.Run
+	pm := &PerformanceMetrics{}
+
+	// Calculate tokens per minute
+	if run.Duration > 0 && metrics.TokenUsage > 0 {
+		minutes := run.Duration.Minutes()
+		if minutes > 0 {
+			pm.TokensPerMinute = float64(metrics.TokenUsage) / minutes
+		}
+	}
+
+	// Determine cost efficiency
+	if metrics.EstimatedCost > 0 && run.Duration > 0 {
+		costPerMinute := metrics.EstimatedCost / run.Duration.Minutes()
+		if costPerMinute < 0.01 {
+			pm.CostEfficiency = "excellent"
+		} else if costPerMinute < 0.05 {
+			pm.CostEfficiency = "good"
+		} else if costPerMinute < 0.10 {
+			pm.CostEfficiency = "moderate"
+		} else {
+			pm.CostEfficiency = "poor"
+		}
+	}
+
+	// Find most used tool
+	if len(toolUsage) > 0 {
+		mostUsed := toolUsage[0]
+		for _, tool := range toolUsage {
+			if tool.CallCount > mostUsed.CallCount {
+				mostUsed = tool
+			}
+		}
+		pm.MostUsedTool = fmt.Sprintf("%s (%d calls)", mostUsed.Name, mostUsed.CallCount)
+	}
+
+	// Calculate average tool duration
+	if len(toolUsage) > 0 {
+		totalDuration := time.Duration(0)
+		count := 0
+		for _, tool := range toolUsage {
+			if tool.MaxDuration != "" {
+				// Try to parse duration string using time.ParseDuration
+				if d, err := time.ParseDuration(tool.MaxDuration); err == nil {
+					totalDuration += d
+					count++
+				}
+			}
+		}
+		if count > 0 {
+			avgDuration := totalDuration / time.Duration(count)
+			pm.AvgToolDuration = timeutil.FormatDuration(avgDuration)
+		}
+	}
+
+	// Network request count from firewall
+	if processedRun.FirewallAnalysis != nil {
+		pm.NetworkRequests = processedRun.FirewallAnalysis.TotalRequests
+	}
+
+	return pm
+}
+
+// renderKeyFindings renders key findings with colored severity indicators
+func renderKeyFindings(findings []Finding) {
+	// Group findings by severity for better presentation
+	critical := []Finding{}
+	high := []Finding{}
+	medium := []Finding{}
+	low := []Finding{}
+	info := []Finding{}
+
+	for _, finding := range findings {
+		switch finding.Severity {
+		case "critical":
+			critical = append(critical, finding)
+		case "high":
+			high = append(high, finding)
+		case "medium":
+			medium = append(medium, finding)
+		case "low":
+			low = append(low, finding)
+		default:
+			info = append(info, finding)
+		}
+	}
+
+	// Render critical findings first
+	for _, finding := range critical {
+		fmt.Printf("  🔴 %s [%s]\n", console.FormatErrorMessage(finding.Title), finding.Category)
+		fmt.Printf("     %s\n", finding.Description)
+		if finding.Impact != "" {
+			fmt.Printf("     Impact: %s\n", finding.Impact)
+		}
+		fmt.Println()
+	}
+
+	// Then high severity
+	for _, finding := range high {
+		fmt.Printf("  🟠 %s [%s]\n", console.FormatWarningMessage(finding.Title), finding.Category)
+		fmt.Printf("     %s\n", finding.Description)
+		if finding.Impact != "" {
+			fmt.Printf("     Impact: %s\n", finding.Impact)
+		}
+		fmt.Println()
+	}
+
+	// Medium severity
+	for _, finding := range medium {
+		fmt.Printf("  🟡 %s [%s]\n", finding.Title, finding.Category)
+		fmt.Printf("     %s\n", finding.Description)
+		if finding.Impact != "" {
+			fmt.Printf("     Impact: %s\n", finding.Impact)
+		}
+		fmt.Println()
+	}
+
+	// Low severity
+	for _, finding := range low {
+		fmt.Printf("  ℹ️  %s [%s]\n", finding.Title, finding.Category)
+		fmt.Printf("     %s\n", finding.Description)
+		if finding.Impact != "" {
+			fmt.Printf("     Impact: %s\n", finding.Impact)
+		}
+		fmt.Println()
+	}
+
+	// Info findings
+	for _, finding := range info {
+		fmt.Printf("  ✅ %s [%s]\n", console.FormatSuccessMessage(finding.Title), finding.Category)
+		fmt.Printf("     %s\n", finding.Description)
+		if finding.Impact != "" {
+			fmt.Printf("     Impact: %s\n", finding.Impact)
+		}
+		fmt.Println()
+	}
+}
+
+// renderRecommendations renders actionable recommendations
+func renderRecommendations(recommendations []Recommendation) {
+	// Group by priority
+	high := []Recommendation{}
+	medium := []Recommendation{}
+	low := []Recommendation{}
+
+	for _, rec := range recommendations {
+		switch rec.Priority {
+		case "high":
+			high = append(high, rec)
+		case "medium":
+			medium = append(medium, rec)
+		default:
+			low = append(low, rec)
+		}
+	}
+
+	// Render high priority first
+	for i, rec := range high {
+		fmt.Printf("  %d. [HIGH] %s\n", i+1, console.FormatWarningMessage(rec.Action))
+		fmt.Printf("     Reason: %s\n", rec.Reason)
+		if rec.Example != "" {
+			fmt.Printf("     Example: %s\n", rec.Example)
+		}
+		fmt.Println()
+	}
+
+	// Medium priority
+	startIdx := len(high) + 1
+	for i, rec := range medium {
+		fmt.Printf("  %d. [MEDIUM] %s\n", startIdx+i, rec.Action)
+		fmt.Printf("     Reason: %s\n", rec.Reason)
+		if rec.Example != "" {
+			fmt.Printf("     Example: %s\n", rec.Example)
+		}
+		fmt.Println()
+	}
+
+	// Low priority
+	startIdx += len(medium)
+	for i, rec := range low {
+		fmt.Printf("  %d. [LOW] %s\n", startIdx+i, rec.Action)
+		fmt.Printf("     Reason: %s\n", rec.Reason)
+		if rec.Example != "" {
+			fmt.Printf("     Example: %s\n", rec.Example)
+		}
+		fmt.Println()
+	}
+}
+
+// renderFailureAnalysis renders failure analysis information
+func renderFailureAnalysis(analysis *FailureAnalysis) {
+	fmt.Printf("  Primary Failure: %s\n", console.FormatErrorMessage(analysis.PrimaryFailure))
+	fmt.Println()
+
+	if len(analysis.FailedJobs) > 0 {
+		fmt.Printf("  Failed Jobs:\n")
+		for _, job := range analysis.FailedJobs {
+			fmt.Printf("    • %s\n", job)
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("  Error Summary: %s\n", analysis.ErrorSummary)
+	fmt.Println()
+
+	if analysis.RootCause != "" {
+		fmt.Printf("  Identified Root Cause: %s\n", console.FormatWarningMessage(analysis.RootCause))
+		fmt.Println()
+	}
+}
+
+// renderPerformanceMetrics renders performance metrics
+func renderPerformanceMetrics(metrics *PerformanceMetrics) {
+	if metrics.TokensPerMinute > 0 {
+		fmt.Printf("  Tokens per Minute: %.1f\n", metrics.TokensPerMinute)
+	}
+
+	if metrics.CostEfficiency != "" {
+		efficiencyDisplay := metrics.CostEfficiency
+		switch metrics.CostEfficiency {
+		case "excellent", "good":
+			efficiencyDisplay = console.FormatSuccessMessage(metrics.CostEfficiency)
+		case "moderate":
+			efficiencyDisplay = console.FormatWarningMessage(metrics.CostEfficiency)
+		case "poor":
+			efficiencyDisplay = console.FormatErrorMessage(metrics.CostEfficiency)
+		}
+		fmt.Printf("  Cost Efficiency: %s\n", efficiencyDisplay)
+	}
+
+	if metrics.AvgToolDuration != "" {
+		fmt.Printf("  Average Tool Duration: %s\n", metrics.AvgToolDuration)
+	}
+
+	if metrics.MostUsedTool != "" {
+		fmt.Printf("  Most Used Tool: %s\n", metrics.MostUsedTool)
+	}
+
+	if metrics.NetworkRequests > 0 {
+		fmt.Printf("  Network Requests: %d\n", metrics.NetworkRequests)
+	}
+
+	fmt.Println()
 }
