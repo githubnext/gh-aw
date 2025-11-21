@@ -52,6 +52,7 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
    ```
 
    Wait for the user to respond with a workflow name or ask you to list workflows.
+   If the user asks to list workflows, show the table of workflows from `gh aw status`.
 
 2. **Verify Workflow Exists**
 
@@ -147,10 +148,15 @@ When the user chooses to run and audit:
 3. **Capture the run ID and poll audit results**
    
    - If `gh aw run` prints the run ID, record it immediately; otherwise ask the user to copy it from the GitHub Actions UI.
-   - Start auditing right away:
-     ```bash
-     gh aw audit <run-id> --json
-     ```
+   - Start auditing right away using a basic polling loop:
+   ```bash
+   while ! gh aw audit <run-id> --json 2>&1 | grep -q '"status":\s*"\(completed\|failure\|cancelled\)"'; do
+      echo "⏳ Run still in progress. Waiting 45 seconds..."
+      sleep 45
+   done
+   gh aw audit <run-id> --json
+   done
+   ```
    - If the audit output reports `"status": "in_progress"` (or the command fails because the run is still executing), wait ~45 seconds and run the same command again.
    - Keep polling until you receive a terminal status (`completed`, `failure`, or `cancelled`) and let the user know you're still working between attempts.
    - Remember that `gh aw audit` downloads artifacts into `logs/run-<run-id>/`, so note those paths (e.g., `run_summary.json`, `agent-stdio.log`) for deeper inspection.
