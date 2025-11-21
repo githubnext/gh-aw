@@ -2,12 +2,15 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
+  schedule:
+    - cron: "0 */4 * * *"  # Every 4 hours
   workflow_dispatch:
     inputs:
       security_url:
         description: 'Security alert URL (e.g., https://github.com/owner/repo/security/code-scanning/123)'
         required: false
         default: ''
+  skip-if-match: 'is:pr is:open in:title "[security-fix]"'
 permissions:
   contents: read
   pull-requests: read
