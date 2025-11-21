@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
@@ -128,34 +127,17 @@ func TestAuditSuggestionAgentFriendliness(t *testing.T) {
 	}
 }
 
-// TestStartProgressTimer tests the startProgressTimer function
-func TestStartProgressTimer(t *testing.T) {
-	t.Run("timer disabled", func(t *testing.T) {
-		done := startProgressTimer(false)
-		close(done)
-		// Should not panic and return immediately
-	})
-
-	t.Run("timer enabled", func(t *testing.T) {
-		done := startProgressTimer(true)
-		// Let it run briefly
-		time.Sleep(100 * time.Millisecond)
-		close(done)
-		// Should not panic
-	})
-}
-
-// TestProgressFlagSignature tests that the progress flag is properly threaded through function calls
+// TestProgressFlagSignature tests that the progress flag has been removed
 func TestProgressFlagSignature(t *testing.T) {
-	// Test that functions accept the progress parameter
+	// Test that functions no longer accept the progress parameter
 	// This is a compile-time check more than a runtime check
 
-	// RunWorkflowOnGitHub should accept progress parameter
-	_ = RunWorkflowOnGitHub("test", false, "", "", false, false, false, false, false)
+	// RunWorkflowOnGitHub should NOT accept progress parameter anymore
+	_ = RunWorkflowOnGitHub("test", false, "", "", false, false, false, false)
 
-	// RunWorkflowsOnGitHub should accept progress parameter
-	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", false, false, false, false)
+	// RunWorkflowsOnGitHub should NOT accept progress parameter anymore
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", false, false, false)
 
-	// getLatestWorkflowRunWithRetry should accept progress parameter
-	_, _ = getLatestWorkflowRunWithRetry("test.lock.yml", "", false, false)
+	// getLatestWorkflowRunWithRetry should NOT accept progress parameter anymore
+	_, _ = getLatestWorkflowRunWithRetry("test.lock.yml", "", false)
 }

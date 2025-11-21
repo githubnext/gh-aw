@@ -1112,7 +1112,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	}
 
 	// Get the most recent run ID for this workflow using shared retry logic
-	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, false, verbose)
+	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, verbose)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workflow run ID: %w", err)
 	}
