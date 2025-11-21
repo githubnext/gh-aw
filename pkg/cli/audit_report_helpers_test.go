@@ -248,7 +248,9 @@ t.Errorf("Expected %d files, got %d", expectedCount, len(files))
 // Verify specific files have correct attributes
 fileMap := make(map[string]FileInfo)
 for _, file := range files {
-fileMap[file.Path] = file
+// Use basename for lookup since paths are now relative to workspace root
+basename := filepath.Base(file.Path)
+fileMap[basename] = file
 }
 
 // Check aw_info.json
@@ -422,7 +424,9 @@ t.Logf("Files found: %v", files)
 // Build a map for easy lookup
 fileMap := make(map[string]FileInfo)
 for _, f := range files {
-fileMap[f.Path] = f
+// Use basename for lookup since paths are now relative to workspace root
+basename := filepath.Base(f.Path)
+fileMap[basename] = f
 }
 
 // Test specific file descriptions

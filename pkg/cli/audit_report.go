@@ -233,12 +233,27 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		return files
 	}
 
+	// Get current working directory to calculate relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		auditReportLog.Printf("Failed to get current directory: %v", err)
+		cwd = ""
+	}
+
 	for _, entry := range entries {
 		name := entry.Name()
 		fullPath := filepath.Join(logsPath, name)
 
+		// Calculate relative path from workspace root (current working directory)
+		relativePath := fullPath
+		if cwd != "" {
+			if relPath, err := filepath.Rel(cwd, fullPath); err == nil {
+				relativePath = relPath
+			}
+		}
+
 		fileInfo := FileInfo{
-			Path:        name,
+			Path:        relativePath,
 			IsDirectory: entry.IsDir(),
 			Description: describeFile(name),
 		}
