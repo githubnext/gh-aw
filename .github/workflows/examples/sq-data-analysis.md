@@ -31,22 +31,22 @@ Analyze the structured data file in the repository using the sq data wrangler to
 4. Identify interesting patterns or insights
 5. Create a detailed analysis report as an issue
 
-**Available sq commands via Docker:**
+**Available sq commands:**
 ```bash
 # Inspect data structure
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq inspect file.csv
+sq inspect file.csv
 
 # Query data with jq-like syntax
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq '.table | .column' file.csv
+sq '.table | .column' file.csv
 
 # Get JSON output
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq --json '.table' file.csv
+sq --json '.table' file.csv
 
 # Count rows
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq '.table | count' file.csv
+sq '.table | count' file.csv
 
 # Filter and aggregate
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq '.table | where(.column > 100) | group_by(.category)' file.csv
+sq '.table | where(.column > 100) | group_by(.category)' file.csv
 ```
 
 **Analysis report should include:**

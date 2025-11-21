@@ -30,8 +30,7 @@ When CSV files are added or updated, automatically convert them to JSON format u
 **sq conversion command:**
 ```bash
 # Convert CSV to JSON
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-  ghcr.io/neilotoole/sq sq --json '.[]' file.csv > file.json
+sq --json '.[]' file.csv > file.json
 ```
 
 **Additional options:**

@@ -1,14 +1,15 @@
 ---
-runtimes:
-  sq:
-    version: "latest"
-    action-repo: "docker://ghcr.io/neilotoole/sq"
-
 steps:
+  - name: Install sq from GitHub releases
+    run: |
+      # Install sq binary from official install script
+      # This downloads the latest release from GitHub and installs it to /usr/local/bin
+      /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+      
   - name: Verify sq installation
     run: |
-      docker run --rm ghcr.io/neilotoole/sq:latest sq version
-      echo "sq is available via Docker container"
+      sq version
+      echo "sq is installed and ready to use"
 ---
 <!--
 ## sq Data Wrangler
@@ -27,7 +28,7 @@ This shared configuration provides setup for `sq`, a command-line tool that offe
 
 ### Installation
 
-The shared workflow configures sq via Docker container. The `ghcr.io/neilotoole/sq` image is preloaded with `sq` and related tools like `jq`.
+The shared workflow installs the sq binary directly from GitHub releases using the official install script. This downloads the latest version and installs it to `/usr/local/bin`.
 
 ### Usage in Workflows
 
@@ -41,14 +42,14 @@ imports:
 Then use sq commands in your workflow steps:
 
 ```bash
-# Run sq commands via Docker
-docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq inspect /data/database.db
+# Inspect a data file
+sq inspect database.db
 
-# Query a CSV file
-docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq '.actor | .first_name, .last_name' /data/actors.csv
+# Query a CSV file with jq-like syntax
+sq '.actor | .first_name, .last_name' actors.csv
 
 # Join data from multiple sources
-docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq '@csv_data | join @postgres_db.users'
+sq '@csv_data | join @postgres_db.users' data.csv
 ```
 
 ### Common Use Cases
@@ -85,19 +86,19 @@ Use sq to:
 3. Generate summary statistics
 4. Create a formatted report
 
-Available sq commands via Docker:
-- `docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq inspect /data/file.csv`
-- `docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq '.table | select(.column > 100)' /data/file.csv`
-- `docker run --rm -v $(pwd):/data ghcr.io/neilotoole/sq sq --json '.table' /data/file.csv`
+Available sq commands:
+- `sq inspect file.csv`
+- `sq '.table | select(.column > 100)' file.csv`
+- `sq --json '.table' file.csv`
 ```
 
 ### Tips
 
-- Mount the working directory as a volume: `-v $(pwd):/data`
-- Use `--rm` flag to automatically clean up containers
+- sq is installed directly and available in PATH
+- Use relative paths from the workspace root
 - Specify output format with flags like `--json`, `--csv`, `--markdown`
-- Access GitHub workspace with `-v ${{ github.workspace }}:/workspace`
-- For databases, pass connection strings via environment variables
+- For databases, use connection strings or add sources with `sq add`
+- All operations work directly on files in the workspace
 -->
 
 You have access to the `sq` data wrangling tool for working with structured data sources.
@@ -111,21 +112,27 @@ You have access to the `sq` data wrangling tool for working with structured data
 - Compare data with `sq diff`
 
 **Using sq in this workflow:**
-All sq commands should be run via Docker:
+The sq binary is installed and available in PATH. Use it directly:
 ```bash
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq [command]
+sq [command] [arguments]
 ```
 
 **Example commands:**
 ```bash
 # Inspect a data file
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq inspect file.csv
+sq inspect file.csv
 
 # Query data with jq-like syntax
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq '.table | .column' file.csv
+sq '.table | .column' file.csv
 
 # Output as JSON
-docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ghcr.io/neilotoole/sq sq --json '.table' file.csv
+sq --json '.table' file.csv
+
+# Filter and aggregate
+sq '.table | where(.value > 100) | count' file.csv
+
+# Convert to different format
+sq --markdown '.table' file.csv
 ```
 
 For more information, see: https://sq.io/docs/
