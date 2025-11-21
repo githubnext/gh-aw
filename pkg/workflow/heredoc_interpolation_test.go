@@ -90,7 +90,7 @@ Actor: ${{ github.actor }}
 			}
 		}
 	}
-	
+
 	// Verify the original expressions DO appear in the comment header (this is expected)
 	commentSectionEnd := strings.Index(compiledStr, "\nname:")
 	if commentSectionEnd > 0 {
