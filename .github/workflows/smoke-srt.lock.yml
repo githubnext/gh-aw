@@ -607,22 +607,19 @@ jobs:
                 "ts-ocsp.ws.symantec.com",
                 "example.com"
               ],
-              "deniedDomains": [],
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
               "allowLocalBinding": true,
-              "allowAllUnixSockets": true
+              "allowAllUnixSockets": false
             },
             "filesystem": {
-              "denyRead": [],
               "allowWrite": [
                 ".",
                 "/tmp",
                 "/home/runner/.copilot",
                 "/home/runner"
-              ],
-              "denyWrite": []
+              ]
             },
             "enableWeakerNestedSandbox": true
           }
@@ -692,7 +689,7 @@ jobs:
               });
 
               // The command to run
-              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
 
               // Prepend environment variables to the command
               const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;

@@ -146,8 +146,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var copilotArgs []string
 	sandboxEnabled := isFirewallEnabled(workflowData) || isSRTEnabled(workflowData)
 	if sandboxEnabled {
-		// Simplified args for sandbox mode (AWF or SRT)
-		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+		// Simplified args for sandbox mode (AWF or SRT) with log-dir
+		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 	} else {
 		// Original args for non-sandbox mode
 		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
