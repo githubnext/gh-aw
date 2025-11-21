@@ -1842,6 +1842,31 @@ safe-outputs:
   # (optional)
   github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+  # GitHub App credentials for minting installation access tokens. When configured,
+  # a token will be generated using the app credentials and used for all safe output
+  # operations.
+  # (optional)
+  app:
+    # GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).
+    app-id: "example-value"
+
+    # GitHub App private key. Should reference a secret (e.g., ${{
+    # secrets.APP_PRIVATE_KEY }}).
+    private-key: "example-value"
+
+    # Optional: The owner of the GitHub App installation. If empty, defaults to the
+    # current repository owner.
+    # (optional)
+    owner: "example-value"
+
+    # Optional: Comma or newline-separated list of repositories to grant access to. If
+    # owner is set and repositories is empty, access will be scoped to all
+    # repositories in the provided repository owner's installation. If owner and
+    # repositories are empty, access will be scoped to only the current repository.
+    # (optional)
+    repositories: []
+      # Array of strings
+
   # Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1
   # MB). If patch exceeds this size, the job will fail.
   # (optional)
