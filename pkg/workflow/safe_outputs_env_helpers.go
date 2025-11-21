@@ -34,7 +34,7 @@ func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData)
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	effectiveToken := getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken)
+	effectiveToken := c.getEffectiveGitHubTokenForSafeOutput(safeOutputsToken, data)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
@@ -45,6 +45,13 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
+
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		*steps = append(*steps, "          github-token: ${{ steps.app-token.outputs.token }}\n")
+		return
+	}
+
 	// Get effective token using double precedence: config > safe-outputs, then > top-level > default
 	effectiveToken := getEffectiveGitHubToken(configToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
@@ -57,7 +64,27 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
+
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		*steps = append(*steps, "          github-token: ${{ steps.app-token.outputs.token }}\n")
+		return
+	}
+
 	// Get effective token using double precedence: config > safe-outputs, then > top-level > Copilot default
 	effectiveToken := getEffectiveCopilotGitHubToken(configToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
+// getEffectiveGitHubTokenForSafeOutput returns the effective token to use for safe outputs
+// If app is configured, it uses the app token; otherwise falls back to the configured token or default
+func (c *Compiler) getEffectiveGitHubTokenForSafeOutput(customToken string, data *WorkflowData) string {
+	// If GitHub App is configured, use the app token
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		tokenLog.Print("Using GitHub App token for safe outputs")
+		return "${{ steps.app-token.outputs.token }}"
+	}
+
+	// Otherwise use standard token resolution
+	return getEffectiveGitHubToken(customToken, data.GitHubToken)
 }

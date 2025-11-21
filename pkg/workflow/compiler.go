@@ -271,6 +271,7 @@ type SafeOutputsConfig struct {
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
+	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`               // GitHub App credentials for token minting
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          bool                                   `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -1224,12 +1225,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
 
+	// Merge app configuration from included safe-outputs configurations
+	includedApp, err := c.mergeAppFromIncludedConfigs(workflowData.SafeOutputs, allSafeOutputsConfigs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge app from includes: %w", err)
+	}
+
 	// Ensure SafeOutputs exists and populate the Jobs field
 	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
 	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
+	}
+
+	// Populate the App field if it's not set in the top-level workflow but is in an included config
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.App == nil && includedApp != nil {
+		workflowData.SafeOutputs.App = includedApp
 	}
 
 	// Parse the "on" section for command triggers, reactions, and other events
