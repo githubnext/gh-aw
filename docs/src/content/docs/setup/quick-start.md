@@ -7,7 +7,7 @@ sidebar:
 
 > [!WARNING]
 > **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
-> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) requires careful attention to security considerations and human supervision.
+> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered automation that can make decisions) requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 ## ✅ Prerequisites
@@ -24,7 +24,7 @@ Before you begin, make sure you have:
   - GitHub Actions
   - Issues or Discussions (depending on your workflow needs)
 - [ ] **Operating System:** Linux, macOS, or Windows with WSL
-- [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (you'll create this in Step 3 below)
+- [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (a secure key for API access—you'll create this in Step 3 below)
 
 ### Step 1 — Install the extension
 
@@ -44,7 +44,7 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --pr
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). The [compilation](/gh-aw/reference/glossary/#compilation) process (converting markdown to GitHub Actions YAML) translates your human-friendly markdown into the YAML format that GitHub Actions can execute. Review and merge the PR into your repo.
 
 #### Why Compile?
 
@@ -58,7 +58,7 @@ The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and re
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent): GitHub Copilot CLI (default).
+Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions): GitHub Copilot CLI (default).
 
 **For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled:
 
@@ -133,7 +133,7 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 
 This workflow triggers every weekday at 9 AM via cron schedule, has [permissions](/gh-aw/reference/glossary/#permissions) to read repository content and create GitHub discussions, and runs AI instructions in natural language to generate status reports.
 
-The section between the `---` markers (called [frontmatter](/gh-aw/reference/glossary/#frontmatter)) contains the [YAML](/gh-aw/reference/glossary/#yaml) configuration that defines when the workflow runs, what permissions it has, and what tools it can use. The section below the frontmatter contains the natural language instructions that tell the AI agent what to do. The [`safe-outputs`](/gh-aw/reference/glossary/#safe-outputs) section specifies that this workflow can safely create GitHub discussions without needing write permissions during the AI execution phase.
+The section between the `---` markers (called [frontmatter](/gh-aw/reference/glossary/#frontmatter), the configuration section at the top of a workflow file) contains the [YAML](/gh-aw/reference/glossary/#yaml) configuration that defines when the workflow runs, what permissions it has, and what tools it can use. The section below the frontmatter contains the natural language instructions that tell the AI agent what to do. The [`safe-outputs`](/gh-aw/reference/glossary/#safe-outputs) section specifies that this workflow can safely create GitHub discussions without needing write permissions during the AI execution phase.
 
 ## Customize Your Workflow
 
