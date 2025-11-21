@@ -665,7 +665,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.60.1
+        run: npm install -g @openai/codex@0.61.0
       - name: Downloading container images
         run: |
           set -e
@@ -1553,7 +1553,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.60.1",
+              agent_version: "0.61.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -3796,7 +3796,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.60.1
+        run: npm install -g @openai/codex@0.61.0
       - name: Run Codex
         run: |
           set -o pipefail
