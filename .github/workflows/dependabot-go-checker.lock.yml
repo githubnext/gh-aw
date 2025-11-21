@@ -1028,7 +1028,7 @@ jobs:
           - Category A updates should be grouped into ONE consolidated issue with a table format
           - Category B updates should each get their own issue with a "Why Separate Issue" explanation
           - If no safe updates are found, exit without creating any issues
-          - Limit to a maximum of 10 issues per run (1 grouped + up to 9 individual)
+          - Limit to a maximum of 10 issues per run (up to 1 grouped issue for Category A + remaining individual issues for Category B)
           - For security-related updates, clearly indicate the vulnerability being fixed
           - Be conservative: when in doubt about breaking changes or behavior modifications, categorize as Category B (individual issue) or Category C (skip)
           - When categorizing, prioritize safety: only true single-version patch updates with bug fixes belong in Category A
