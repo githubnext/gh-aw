@@ -3057,17 +3057,12 @@
             "id": {
               "type": "string",
               "description": "GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).",
-              "examples": [
-                "${{ vars.APP_ID }}",
-                "${{ secrets.APP_ID }}"
-              ]
+              "examples": ["${{ vars.APP_ID }}", "${{ secrets.APP_ID }}"]
             },
             "secret": {
               "type": "string",
               "description": "GitHub App private key. Should reference a secret (e.g., ${{ secrets.APP_PRIVATE_KEY }}).",
-              "examples": [
-                "${{ secrets.APP_PRIVATE_KEY }}"
-              ]
+              "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
             },
             "repository-ids": {
               "type": "array",
@@ -3075,9 +3070,7 @@
               "items": {
                 "type": "string"
               },
-              "examples": [
-                ["12345678", "87654321"]
-              ]
+              "examples": [["12345678", "87654321"]]
             }
           },
           "required": ["id", "secret"],

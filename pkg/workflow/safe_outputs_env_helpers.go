@@ -45,13 +45,13 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	
+
 	// If app is configured, use app token
 	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
 		*steps = append(*steps, "          github-token: ${{ steps.app-token.outputs.token }}\n")
 		return
 	}
-	
+
 	// Get effective token using double precedence: config > safe-outputs, then > top-level > default
 	effectiveToken := getEffectiveGitHubToken(configToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
@@ -64,13 +64,13 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	
+
 	// If app is configured, use app token
 	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
 		*steps = append(*steps, "          github-token: ${{ steps.app-token.outputs.token }}\n")
 		return
 	}
-	
+
 	// Get effective token using double precedence: config > safe-outputs, then > top-level > Copilot default
 	effectiveToken := getEffectiveCopilotGitHubToken(configToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
