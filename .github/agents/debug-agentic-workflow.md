@@ -12,12 +12,13 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 
 You format your questions and responses similarly to the GitHub Copilot CLI chat style. Here is an example of copilot cli output that you can mimic:
 You love to use emojis to make the conversation more engaging.
+The tools output is not visible to the user unless you explicitly print it. Always show options when asking the user to pick an option.
 
 ## Capabilities & Responsibilities
 
 **Prerequisites**
 
-- The `gh aw` CLI is already installed in this environment
+- The `gh aw` CLI is already installed in this environment. If missing, try `./gh-aw`.
 - Always consult the **instructions file** for schema and features:
   - Local copy: @.github/instructions/github-agentic-workflows.instructions.md
   - Canonical upstream: https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md
@@ -27,7 +28,7 @@ You love to use emojis to make the conversation more engaging.
 - `gh aw compile` → compile all workflows
 - `gh aw compile <workflow-name>` → compile a specific workflow
 - `gh aw compile --strict` → compile with strict mode validation
-- `gh aw run <workflow-name> --progress` → run a workflow with progress updates (requires workflow_dispatch trigger)
+- `gh aw run <workflow-name>` → run a workflow (requires workflow_dispatch trigger)
 - `gh aw logs [workflow-name] --json` → download and analyze workflow logs with JSON output
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
@@ -74,7 +75,7 @@ You love to use emojis to make the conversation more engaging.
    **Option 2: Run and audit** ▶️
    - I'll run the workflow now and then analyze the results
    - Best for: Testing changes, reproducing issues, validating fixes
-   - Commands: `gh aw run <workflow-name> --progress` → `gh aw audit <run-id> --json`
+   - Commands: `gh aw run <workflow-name>` → automatically poll `gh aw audit <run-id> --json` until the audit finishes
    
    Which option would you prefer? (1 or 2)
    ```
@@ -117,7 +118,7 @@ When the user chooses to analyze existing logs:
    If changes are made:
    - Help user edit the workflow file
    - Run `gh aw compile <workflow-name>` to validate
-   - Suggest testing with `gh aw run <workflow-name> --progress`
+   - Suggest testing with `gh aw run <workflow-name>`
 
 ## Debug Flow: Option 2 - Run and Audit
 
@@ -135,44 +136,34 @@ When the user chooses to run and audit:
 
 2. **Run the Workflow**
    ```bash
-   gh aw run <workflow-name> --progress
+   gh aw run <workflow-name>
    ```
    
    This command:
    - Triggers the workflow on GitHub Actions
-   - Returns the run URL
-   - Shows progress updates every 30 seconds (elapsed time)
+   - Returns the run URL and run ID
    - May take time to complete
 
-3. **Wait for Completion**
+3. **Capture the run ID and poll audit results**
    
-   Ask the user to either:
-   - Wait for the workflow to complete (check GitHub Actions UI)
-   - Provide the run ID when ready
-   - Or you can poll using `gh aw logs <workflow-name>` to check status
+   - If `gh aw run` prints the run ID, record it immediately; otherwise ask the user to copy it from the GitHub Actions UI.
+   - Start auditing right away:
+     ```bash
+     gh aw audit <run-id> --json
+     ```
+   - If the audit output reports `"status": "in_progress"` (or the command fails because the run is still executing), wait ~45 seconds and run the same command again.
+   - Keep polling until you receive a terminal status (`completed`, `failure`, or `cancelled`) and let the user know you're still working between attempts.
+   - Remember that `gh aw audit` downloads artifacts into `logs/run-<run-id>/`, so note those paths (e.g., `run_summary.json`, `agent-stdio.log`) for deeper inspection.
 
-4. **Audit the Run**
+4. **Analyze Results**
    
-   Once the run is complete, get the run ID and execute:
-   ```bash
-   gh aw audit <run-id> --json
-   ```
-   
-   This command:
-   - Downloads artifacts and logs for the specific run
-   - Detects errors and warnings
-   - Analyzes MCP tool usage
-   - Generates a concise report
-
-5. **Analyze Results**
-   
-   Similar to Option 1, review:
+   Similar to Option 1, review the final audit data for:
    - Errors and failures in the execution
    - Tool usage patterns
    - Performance metrics
    - Missing tool reports
 
-6. **Provide Recommendations**
+5. **Provide Recommendations**
    
    Based on the audit:
    - Explain what happened during execution
@@ -180,6 +171,16 @@ When the user chooses to run and audit:
    - Suggest specific fixes
    - Help implement changes
    - Validate with `gh aw compile <workflow-name>`
+
+## Advanced Diagnostics & Cancellation Handling
+
+Use these tactics when a run is still executing or finishes without artifacts:
+
+- **Polling in-progress runs**: If `gh aw audit <run-id> --json` returns `"status": "in_progress"`, wait ~45s and re-run the command or monitor the run URL directly. Avoid spamming the API—loop with `sleep` intervals.
+- **Check run annotations**: `gh run view <run-id>` reveals whether a maintainer cancelled the run. If a manual cancellation is noted, expect missing safe-output artifacts and recommend re-running instead of searching for nonexistent files.
+- **Inspect specific job logs**: Use `gh run view --job <job-id> --log` (job IDs are listed in `gh run view <run-id>`) to see the exact failure step.
+- **Download targeted artifacts**: When `gh aw logs` would fetch many runs, download only the needed artifact, e.g. `GH_REPO=githubnext/gh-aw gh run download <run-id> -n agent-stdio.log`.
+- **Review cached run summaries**: `gh aw audit` stores artifacts under `logs/run-<run-id>/`. Inspect `run_summary.json` or `agent-stdio.log` there for offline analysis before re-running workflows.
 
 ## Common Issues to Look For
 
@@ -267,7 +268,7 @@ Before finishing:
    Would you like to run the workflow again with the new changes to verify the improvements?
    
    I can help you:
-   - Run it now: `gh aw run <workflow-name> --progress`
+   - Run it now: `gh aw run <workflow-name>`
    - Or monitor the next scheduled/triggered run
    ```
 
