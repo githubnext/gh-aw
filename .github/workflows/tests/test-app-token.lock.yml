@@ -3504,7 +3504,6 @@ jobs:
           permission-contents: read
           permission-issues: write
           permission-pull-requests: write
-          permission-discussions: write
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
