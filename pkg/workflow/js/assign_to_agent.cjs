@@ -91,8 +91,40 @@ async function main() {
 
       core.info(`Issue #${issueNumber} exists: "${issueResponse.data.title}"`);
 
+      // Use gh CLI to actually assign the agent to the issue
+      // gh CLI needs GH_TOKEN, fallback to GITHUB_TOKEN if GH_TOKEN is not set
+      const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+      if (!ghToken || ghToken.trim() === "") {
+        core.error(`Token check failed - GH_TOKEN: ${process.env.GH_TOKEN ? "set" : "not set"}, GITHUB_TOKEN: ${process.env.GITHUB_TOKEN ? "set" : "not set"}`);
+        throw new Error("GH_TOKEN or GITHUB_TOKEN is required to assign agents");
+      }
+
+      core.info(`Attempting to assign agent "${agentName}" to issue #${issueNumber}`);
+
+      // Use GitHub REST API to assign the agent
+      // For Copilot, we need to use a special approach since direct assignment may not be supported
+      const assigneeToAdd = agentName === "copilot" ? "copilot" : agentName;
+      
+      try {
+        await github.rest.issues.addAssignees({
+          owner: targetOwner,
+          repo: targetRepo,
+          issue_number: issueNumber,
+          assignees: [assigneeToAdd],
+        });
+      } catch (apiError) {
+        const apiErrorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+        core.warning(`GitHub API assignment failed: ${apiErrorMsg}`);
+        
+        // Fallback to gh CLI if API fails
+        core.info("Attempting fallback to gh CLI...");
+        const repoSlug = `${targetOwner}/${targetRepo}`;
+        await exec.exec("gh", ["issue", "edit", String(issueNumber), "--repo", repoSlug, "--add-assignee", `@${agentName}`], {
+          env: { ...process.env, GH_TOKEN: ghToken, GITHUB_TOKEN: ghToken },
+        });
+      }
+
       // Add a comment to the issue mentioning the agent
-      // Format: @agent-name or @copilot
       const mentionText = `@${agentName}`;
       const commentBody = `${mentionText} has been assigned to this issue.`;
 

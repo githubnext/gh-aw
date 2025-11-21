@@ -38,6 +38,19 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxCount))
 
+	// Pass the GitHub token as GH_TOKEN for gh CLI (falls back to GITHUB_TOKEN)
+	var tokenValue string
+	if data.SafeOutputs.AssignToAgent.GitHubToken != "" {
+		tokenValue = data.SafeOutputs.AssignToAgent.GitHubToken
+	} else if data.SafeOutputs.GitHubToken != "" {
+		tokenValue = data.SafeOutputs.GitHubToken
+	} else if data.GitHubToken != "" {
+		tokenValue = data.GitHubToken
+	} else {
+		tokenValue = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", tokenValue))
+
 	// Pass the target configuration
 
 	// Add standard environment variables (metadata + staged/target repo)

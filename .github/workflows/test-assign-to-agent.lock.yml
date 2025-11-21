@@ -3,21 +3,25 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Test workflow for assign_to_agent safe output feature
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   assign_milestone["assign_milestone"]
+#   assign_to_agent["assign_to_agent"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
+#   pre_activation --> activation
 #   activation --> agent
-#   agent --> assign_milestone
-#   detection --> assign_milestone
+#   agent --> assign_to_agent
+#   detection --> assign_to_agent
 #   agent --> conclusion
 #   activation --> conclusion
-#   assign_milestone --> conclusion
+#   assign_to_agent --> conclusion
 #   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
@@ -36,32 +40,43 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Test Copilot Assign Milestone"
+name: "Test Assign to Agent"
 "on":
-  workflow_dispatch: null
+  issues:
+    types:
+    - labeled
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to test with
+        required: true
+        type: string
 
 permissions:
-  actions: read
   contents: read
+  issues: write
+  pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Test Copilot Assign Milestone"
+run-name: "Test Assign to Agent"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ '' }}
+      comment_repo: ${{ '' }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "test-copilot-assign-milestone.lock.yml"
+          GH_AW_WORKFLOW_FILE: "test-assign-to-agent.lock.yml"
         with:
           script: |
             async function main() {
@@ -150,10 +165,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      issues: write
+      pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -240,18 +254,14 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.358
-      - name: Downloading container images
-        run: |
-          set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.21.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_milestone":{"max":2},"missing_tool":{},"noop":{"max":1}}
+          {"assign_to_agent":{"default_agent":"copilot","max":5},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Assign an issue to a milestone","inputSchema":{"additionalProperties":false,"properties":{"issue_number":{"description":"Issue number to assign milestone to","type":["number","string"]},"milestone_number":{"description":"Milestone number to assign","type":["number","string"]}},"required":["issue_number","milestone_number"],"type":"object"},"name":"assign_milestone"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Assign a GitHub Copilot agent to an issue or project item. The agent will be notified and can start working on the issue.","inputSchema":{"additionalProperties":false,"properties":{"agent":{"description":"Agent name or slug (defaults to 'copilot' if not provided)","type":"string"},"issue_number":{"description":"Issue number to assign agent to","type":["number","string"]}},"required":["issue_number"],"type":"object"},"name":"assign_to_agent"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -824,20 +834,13 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.21.0"
-                ],
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
+                  "X-MCP-Readonly": "true",
+                  "X-MCP-Toolsets": "default"
+                },
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -876,11 +879,36 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Test Copilot Assign Milestone
+          # Assign to Agent Test Workflow
           
-          This workflow tests the assign-milestone safe output type with Copilot engine.
+          This workflow tests the `assign_to_agent` safe output feature, which allows AI agents to assign GitHub Copilot agents to issues.
           
-          Please assign issue #1 to milestone #5 and issue #2 to milestone #5.
+          ## Task
+          
+          You are testing the assign_to_agent feature. Based on the trigger:
+          
+          **For workflow_dispatch:**
+          - Assign agent "copilot" to issue #${GH_AW_EXPR_7AE1A017}
+          
+          **For issue labeled events:**
+          - If the issue has label "needs-agent", assign agent "copilot" to issue #${GH_AW_EXPR_9C6DBB26}
+          - If the issue has label "needs-review", assign agent "code-reviewer" to issue #${GH_AW_EXPR_9C6DBB26}
+          
+          Use the `assign_to_agent` safe output with the following structure:
+          ```json
+          {
+            "type": "assign_to_agent",
+            "issue_number": <number>,
+            "agent": "<agent-name>"
+          }
+          ```
+          
+          **Important notes:**
+          - `issue_number` is REQUIRED (will fail validation if missing)
+          - `agent` is optional (defaults to "copilot" if not provided)
+          - Only provide valid issue numbers from this repository
+          
+          After assigning, create a comment summarizing what you did.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -987,6 +1015,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_7AE1A017: ${{ github.event.inputs.issue_number }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
         with:
           script: |
             const fs = require("fs");
@@ -1078,7 +1108,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.358",
-              workflow_name: "Test Copilot Assign Milestone",
+              workflow_name: "Test Assign to Agent",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1459,8 +1489,6 @@ jobs:
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
-                    return 1;
-                  case "close_discussion":
                     return 1;
                   case "missing_tool":
                     return 20;
@@ -2013,34 +2041,6 @@ jobs:
                       }
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
-                      break;
-                    case "close_discussion":
-                      if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: close_discussion requires a 'body' string field`);
-                        continue;
-                      }
-                      item.body = sanitizeContent(item.body, maxBodyLength);
-                      if (item.reason !== undefined) {
-                        if (typeof item.reason !== "string") {
-                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be a string`);
-                          continue;
-                        }
-                        const allowedReasons = ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"];
-                        if (!allowedReasons.includes(item.reason.toUpperCase())) {
-                          errors.push(`Line ${i + 1}: close_discussion 'reason' must be one of: ${allowedReasons.join(", ")}, got ${item.reason}`);
-                          continue;
-                        }
-                        item.reason = item.reason.toUpperCase();
-                      }
-                      const discussionNumberValidation = validateOptionalPositiveInteger(
-                        item.discussion_number,
-                        "close_discussion 'discussion_number'",
-                        i + 1
-                      );
-                      if (!discussionNumberValidation.isValid) {
-                        if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
-                        continue;
-                      }
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
@@ -3434,12 +3434,12 @@ jobs:
               main();
             }
 
-  assign_milestone:
+  assign_to_agent:
     needs:
       - agent
       - detection
     if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_milestone'))) &&
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))) &&
       (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
@@ -3447,7 +3447,7 @@ jobs:
       issues: write
     timeout-minutes: 10
     outputs:
-      assigned_milestones: ${{ steps.assign_milestone.outputs.assigned_milestones }}
+      assigned_agents: ${{ steps.assign_to_agent.outputs.assigned_agents }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -3460,15 +3460,17 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Assign Milestone
-        id: assign_milestone
+      - name: Assign to Agent
+        id: assign_to_agent
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MILESTONE_MAX_COUNT: 2
-          GH_AW_WORKFLOW_NAME: "Test Copilot Assign Milestone"
+          GH_AW_AGENT_DEFAULT: "copilot"
+          GH_AW_AGENT_MAX_COUNT: 5
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_WORKFLOW_NAME: "Test Assign to Agent"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -3526,109 +3528,110 @@ jobs:
               if (!result.success) {
                 return;
               }
-              const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
-              if (milestoneItems.length === 0) {
-                core.info("No assign_milestone items found in agent output");
+              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
+              if (assignItems.length === 0) {
+                core.info("No assign_to_agent items found in agent output");
                 return;
               }
-              core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
+              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
-                  title: "Assign Milestone",
-                  description: "The following milestone assignments would be made if staged mode was disabled:",
-                  items: milestoneItems,
+                  title: "Assign to Agent",
+                  description: "The following agent assignments would be made if staged mode was disabled:",
+                  items: assignItems,
                   renderItem: item => {
                     let content = `**Issue:** #${item.issue_number}\n`;
-                    content += `**Milestone Number:** ${item.milestone_number}\n\n`;
+                    content += `**Agent:** ${item.agent || "copilot"}\n`;
+                    content += "\n";
                     return content;
                   },
                 });
                 return;
               }
-              const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
-              const allowedMilestones = allowedMilestonesEnv
-                ? allowedMilestonesEnv
-                    .split(",")
-                    .map(m => m.trim())
-                    .filter(m => m)
-                : undefined;
-              if (allowedMilestones) {
-                core.info(`Allowed milestones: ${JSON.stringify(allowedMilestones)}`);
-              } else {
-                core.info("No milestone restrictions - any milestones are allowed");
-              }
-              const maxCountEnv = process.env.GH_AW_MILESTONE_MAX_COUNT;
+              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
+              core.info(`Default agent: ${defaultAgent}`);
+              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
               const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
               if (isNaN(maxCount) || maxCount < 1) {
                 core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
                 return;
               }
               core.info(`Max count: ${maxCount}`);
-              const itemsToProcess = milestoneItems.slice(0, maxCount);
-              if (milestoneItems.length > maxCount) {
-                core.warning(`Found ${milestoneItems.length} milestone assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
+              const itemsToProcess = assignItems.slice(0, maxCount);
+              if (assignItems.length > maxCount) {
+                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
               }
-              let allMilestones = [];
-              if (allowedMilestones) {
-                try {
-                  const milestonesResponse = await github.rest.issues.listMilestones({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    state: "all",
-                    per_page: 100,
-                  });
-                  allMilestones = milestonesResponse.data;
-                  core.info(`Fetched ${allMilestones.length} milestones from repository`);
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to fetch milestones: ${errorMessage}`);
-                  core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
-                  return;
+              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
+              let targetOwner = context.repo.owner;
+              let targetRepo = context.repo.repo;
+              if (targetRepoEnv) {
+                const parts = targetRepoEnv.split("/");
+                if (parts.length === 2) {
+                  targetOwner = parts[0];
+                  targetRepo = parts[1];
+                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+                } else {
+                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
                 }
               }
               const results = [];
               for (const item of itemsToProcess) {
                 const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-                const milestoneNumber = typeof item.milestone_number === "number" ? item.milestone_number : parseInt(String(item.milestone_number), 10);
+                const agentName = item.agent || defaultAgent;
                 if (isNaN(issueNumber) || issueNumber <= 0) {
                   core.error(`Invalid issue_number: ${item.issue_number}`);
                   continue;
                 }
-                if (isNaN(milestoneNumber) || milestoneNumber <= 0) {
-                  core.error(`Invalid milestone_number: ${item.milestone_number}`);
-                  continue;
-                }
-                if (allowedMilestones && allowedMilestones.length > 0) {
-                  const milestone = allMilestones.find(m => m.number === milestoneNumber);
-                  if (!milestone) {
-                    core.warning(`Milestone #${milestoneNumber} not found in repository. Skipping.`);
-                    continue;
-                  }
-                  const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
-                  if (!isAllowed) {
-                    core.warning(`Milestone "${milestone.title}" (#${milestoneNumber}) is not in the allowed list. Skipping.`);
-                    continue;
-                  }
-                }
                 try {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
+                  const issueResponse = await github.rest.issues.get({
+                    owner: targetOwner,
+                    repo: targetRepo,
                     issue_number: issueNumber,
-                    milestone: milestoneNumber,
                   });
-                  core.info(`Successfully assigned milestone #${milestoneNumber} to issue #${issueNumber}`);
+                  core.info(`Issue #${issueNumber} exists: "${issueResponse.data.title}"`);
+                  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+                  if (!ghToken || ghToken.trim() === "") {
+                    core.error(`Token check failed - GH_TOKEN: ${process.env.GH_TOKEN ? "set" : "not set"}, GITHUB_TOKEN: ${process.env.GITHUB_TOKEN ? "set" : "not set"}`);
+                    throw new Error("GH_TOKEN or GITHUB_TOKEN is required to assign agents");
+                  }
+                  core.info(`Attempting to assign agent "${agentName}" to issue #${issueNumber}`);
+                  const assigneeToAdd = agentName === "copilot" ? "copilot" : agentName;
+                  try {
+                    await github.rest.issues.addAssignees({
+                      owner: targetOwner,
+                      repo: targetRepo,
+                      issue_number: issueNumber,
+                      assignees: [assigneeToAdd],
+                    });
+                  } catch (apiError) {
+                    const apiErrorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+                    core.warning(`GitHub API assignment failed: ${apiErrorMsg}`);
+                    core.info("Attempting fallback to gh CLI...");
+                    const repoSlug = `${targetOwner}/${targetRepo}`;
+                    await exec.exec("gh", ["issue", "edit", String(issueNumber), "--repo", repoSlug, "--add-assignee", `@${agentName}`], {
+                      env: { ...process.env, GH_TOKEN: ghToken, GITHUB_TOKEN: ghToken },
+                    });
+                  }
+                  const mentionText = `@${agentName}`;
+                  const commentBody = `${mentionText} has been assigned to this issue.`;
+                  await github.rest.issues.createComment({
+                    owner: targetOwner,
+                    repo: targetRepo,
+                    issue_number: issueNumber,
+                    body: commentBody,
+                  });
+                  core.info(`Successfully assigned agent "${agentName}" to issue #${issueNumber}`);
                   results.push({
                     issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
+                    agent: agentName,
                     success: true,
                   });
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
+                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
                   results.push({
                     issue_number: issueNumber,
-                    milestone_number: milestoneNumber,
+                    agent: agentName,
                     success: false,
                     error: errorMessage,
                   });
@@ -3636,28 +3639,28 @@ jobs:
               }
               const successCount = results.filter(r => r.success).length;
               const failureCount = results.filter(r => !r.success).length;
-              let summaryContent = "## Milestone Assignment\n\n";
+              let summaryContent = "## Agent Assignment\n\n";
               if (successCount > 0) {
-                summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
+                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
                 for (const result of results.filter(r => r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}\n`;
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
                 }
                 summaryContent += "\n";
               }
               if (failureCount > 0) {
-                summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
+                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
                 for (const result of results.filter(r => !r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}: ${result.error}\n`;
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
                 }
               }
               await core.summary.addRaw(summaryContent).write();
-              const assignedMilestones = results
+              const assignedAgents = results
                 .filter(r => r.success)
-                .map(r => `${r.issue_number}:${r.milestone_number}`)
+                .map(r => `${r.issue_number}:${r.agent}`)
                 .join("\n");
-              core.setOutput("assigned_milestones", assignedMilestones);
+              core.setOutput("assigned_agents", assignedAgents);
               if (failureCount > 0) {
-                core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
+                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
               }
             }
             await main();
@@ -3666,7 +3669,7 @@ jobs:
     needs:
       - agent
       - activation
-      - assign_milestone
+      - assign_to_agent
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -3706,9 +3709,9 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Test Copilot Assign Milestone"
+          GH_AW_WORKFLOW_NAME: "Test Assign to Agent"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -3792,10 +3795,10 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Test Copilot Assign Milestone"
+          GH_AW_WORKFLOW_NAME: "Test Assign to Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -3950,8 +3953,6 @@ jobs:
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -3982,8 +3983,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Test Copilot Assign Milestone"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_NAME: "Test Assign to Agent"
+          WORKFLOW_DESCRIPTION: "Test workflow for assign_to_agent safe output feature"
         with:
           script: |
             const fs = require('fs');
@@ -4218,9 +4219,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Test Copilot Assign Milestone"
+          GH_AW_WORKFLOW_NAME: "Test Assign to Agent"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -4321,4 +4322,84 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
 

@@ -38,10 +38,15 @@ const mockGithub = {
   },
 };
 
+const mockExec = {
+  exec: vi.fn().mockResolvedValue(0),
+};
+
 // Set up global mocks before importing the module
 global.core = mockCore;
 global.context = mockContext;
 global.github = mockGithub;
+global.exec = mockExec;
 
 describe("assign_to_agent", () => {
   let assignToAgentScript;
@@ -63,6 +68,12 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_AGENT_DEFAULT;
     delete process.env.GH_AW_AGENT_MAX_COUNT;
     delete process.env.GH_AW_TARGET_REPO;
+    
+    // Set up GitHub token for gh CLI
+    process.env.GH_TOKEN = "test-token";
+
+    // Reset exec mock to successful state
+    mockExec.exec.mockResolvedValue(0);
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
