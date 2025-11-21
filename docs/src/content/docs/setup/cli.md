@@ -228,11 +228,15 @@ gh aw run WorkflowName                      # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
+gh aw run workflow --progress               # Show progress updates for long-running workflows
 ```
+
+After triggering a workflow, the command displays the workflow URL and suggests using `gh aw audit` to analyze the run.
 
 **Options:**
 - `--repeat N`: Execute the workflow N times
 - `--use-local-secrets`: Temporarily push AI engine secrets from environment variables, then clean up
+- `--progress`: Enable timer-based progress messages (emits elapsed time every 30 seconds to stderr)
 
 :::note[Codespaces]
 From GitHub Codespaces, grant `actions: write` and `workflows: write` permissions. See [Managing repository access](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces).
@@ -274,7 +278,7 @@ gh aw logs workflow-name --repo owner/repo # Download logs from specific reposit
 | `--json` | Output structured metrics | `--json` |
 | `--repo owner/repo` | Download logs from specific repository | `--repo owner/repo` |
 
-Downloads workflow execution logs, analyzes tool usage and network patterns, and caches results for faster subsequent runs (~10-100x speedup).
+Downloads workflow execution logs, analyzes tool usage and network patterns, and caches results for faster subsequent runs (~10-100x speedup). The overview table includes columns for errors, warnings, missing tools, and noop messages.
 
 #### `audit`
 
@@ -286,7 +290,7 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-Provides detailed analysis including overview, execution metrics, tool usage patterns, MCP server failures, firewall analysis, and artifact information. Accepts run IDs or URLs from any repository and GitHub instance.
+Provides detailed analysis including overview, execution metrics, tool usage patterns, MCP server failures, firewall analysis, noop messages, and artifact information. Accepts run IDs or URLs from any repository and GitHub instance. JSON output includes parsed noop messages similar to missing-tool reports.
 
 **GitHub Copilot Agent Detection:** Automatically detects GitHub Copilot agent runs and uses specialized log parsing to extract agent-specific metrics including turns, tool calls, errors, and token usage. Detection is based on workflow path (`copilot-swe-agent`) and agent-specific log patterns.
 

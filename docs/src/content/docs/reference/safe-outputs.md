@@ -34,6 +34,7 @@ This declares that the workflow should create at most one new issue.
 | **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
+| **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
 | **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
@@ -285,6 +286,34 @@ safe-outputs:
     max: 3                    # Optional: max discussions (default: 1)
     target-repo: "owner/repo" # Optional: cross-repository
 ```
+
+### Close Discussion (`close-discussion:`)
+
+Closes GitHub discussions with an optional comment and resolution reason. Supports filtering by category, labels, and title prefix to control which discussions can be closed.
+
+```yaml wrap
+safe-outputs:
+  close-discussion:
+    target: "triggering"         # Optional: "triggering" (default), "*", or number
+    required-category: "Ideas"   # Optional: only close discussions in category
+    required-labels: [resolved]  # Optional: only close with specific labels
+    required-title-prefix: "[ai]" # Optional: only close matching prefix
+    max: 1                       # Optional: max closures (default: 1)
+    target-repo: "owner/repo"    # Optional: cross-repository
+```
+
+**Target Resolution:**
+- `"triggering"` (default): Requires discussion event trigger, resolves from context
+- `"*"`: Allows closing any discussion, agent provides `discussion_number`
+- Number: Closes specific discussion by number
+
+**Resolution Reasons:**
+- `RESOLVED` - Discussion has been answered or resolved
+- `DUPLICATE` - Discussion is a duplicate
+- `OUTDATED` - Discussion is no longer relevant
+- `ANSWERED` - Question has been answered
+
+All filters (`required-category`, `required-labels`, `required-title-prefix`) are optional safeguards applied during validation.
 
 ### Agent Task Creation (`create-agent-task:`)
 
