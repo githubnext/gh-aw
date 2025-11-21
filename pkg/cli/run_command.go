@@ -28,14 +28,16 @@ func startProgressTimer(enabled bool) chan struct{} {
 		return done
 	}
 
+	startTime := time.Now()
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Fprintf(os.Stderr, "Progress: Running...\n")
+				elapsed := time.Since(startTime)
+				fmt.Fprintf(os.Stderr, "Progress: %ds\n", int(elapsed.Seconds()))
 			case <-done:
 				return
 			}
