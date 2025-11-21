@@ -20,16 +20,38 @@ import (
 
 var runLog = logger.New("cli:run_command")
 
-// emitProgress emits a progress message to stderr if the progress flag is enabled
-func emitProgress(enabled bool, message string) {
-	if enabled {
-		fmt.Fprintf(os.Stderr, "Progress: %s\n", message)
+// startProgressTimer starts a timer that emits periodic progress messages to stderr
+// Returns a channel that should be closed to stop the timer
+func startProgressTimer(enabled bool) chan struct{} {
+	done := make(chan struct{})
+	if !enabled {
+		return done
 	}
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				fmt.Fprintf(os.Stderr, "Progress: Running...\n")
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	return done
 }
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
 func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, progress bool, verbose bool) error {
 	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, wait=%v, progress=%v", workflowIdOrName, enable, engineOverride, repoOverride, waitForCompletion, progress)
+
+	// Start progress timer if enabled
+	progressDone := startProgressTimer(progress)
+	defer close(progressDone)
 
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
@@ -38,8 +60,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	if verbose {
 		fmt.Printf("Running workflow on GitHub Actions: %s\n", workflowIdOrName)
 	}
-
-	emitProgress(progress, "Validating workflow and checking prerequisites")
 
 	// Check if gh CLI is available
 	if !isGHCLIAvailable() {
@@ -145,8 +165,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Recompile workflow if engine override is provided (only for local workflows)
 	if engineOverride != "" && repoOverride == "" {
-		emitProgress(progress, "Recompiling workflow with engine override")
-
 		if verbose {
 			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
 		}
@@ -186,8 +204,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	// Handle secret pushing if requested
 	var secretTracker *TrialSecretTracker
 	if pushSecrets {
-		emitProgress(progress, "Setting up secrets for workflow execution")
-
 		// Determine target repository
 		var targetRepo string
 		if repoOverride != "" {
@@ -282,8 +298,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	// Record the start time for auto-merge PR filtering
 	workflowStartTime := time.Now()
 
-	emitProgress(progress, "Triggering workflow on GitHub Actions")
-
 	// Execute gh workflow run command and capture output
 	cmd := exec.Command("gh", args...)
 
@@ -332,7 +346,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
-	emitProgress(progress, "Retrieving workflow run information")
 	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, progress, verbose)
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
@@ -368,8 +381,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 			if targetRepo != "" {
 				// Wait for workflow completion
-				emitProgress(progress, "Waiting for workflow completion")
-
 				if autoMergePRs {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
 				} else {
@@ -543,8 +554,6 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, progress bo
 			if delay > maxDelay {
 				delay = maxDelay
 			}
-
-			emitProgress(progress, fmt.Sprintf("Waiting for workflow run to appear (attempt %d/%d)", attempt+1, maxRetries))
 
 			if verbose {
 				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
