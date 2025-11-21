@@ -331,7 +331,7 @@ Disables workflows to prevent execution and cancels any currently running workfl
 Remove workflows from the repository.
 
 ```bash wrap
-gh aw remove WorkflowName
+gh aw remove my-workflow
 ```
 
 Removes both `.md` and `.lock.yml` files and updates repository configuration.
