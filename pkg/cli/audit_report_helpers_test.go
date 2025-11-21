@@ -239,8 +239,8 @@ t.Fatalf("Failed to create file in subdirectory: %v", err)
 // Extract downloaded files
 files := extractDownloadedFiles(tmpDir)
 
-// Verify we got all files
-expectedCount := len(testFiles) + 1 // +1 for the directory
+// Verify we got all files (directories are now excluded)
+expectedCount := len(testFiles)
 if len(files) != expectedCount {
 t.Errorf("Expected %d files, got %d", expectedCount, len(files))
 }
@@ -258,14 +258,8 @@ if info, ok := fileMap["aw_info.json"]; ok {
 if info.Description != "Engine configuration and workflow metadata" {
 t.Errorf("Expected specific description for aw_info.json, got: %s", info.Description)
 }
-if info.IsDirectory {
-t.Error("aw_info.json should not be marked as directory")
-}
 if info.Size == 0 {
 t.Error("aw_info.json should have non-zero size")
-}
-if info.SizeFormatted == "" {
-t.Error("aw_info.json should have formatted size")
 }
 } else {
 t.Error("Expected to find aw_info.json in files list")
@@ -287,21 +281,6 @@ t.Errorf("Expected generic JSON description for custom.json, got: %s", info.Desc
 }
 } else {
 t.Error("Expected to find custom.json in files list")
-}
-
-// Check agent_output directory
-if info, ok := fileMap["agent_output"]; ok {
-if !info.IsDirectory {
-t.Error("agent_output should be marked as directory")
-}
-if info.Description != "Directory containing log files" {
-t.Errorf("Expected specific description for agent_output, got: %s", info.Description)
-}
-if info.Size == 0 {
-t.Error("Directory should have calculated size")
-}
-} else {
-t.Error("Expected to find agent_output directory in files list")
 }
 }
 
@@ -332,17 +311,8 @@ Run: run,
 downloadedFiles := []FileInfo{
 {
 Path:          "aw_info.json",
-Size:          256,
-SizeFormatted: "256 B",
-Description:   "Engine configuration and workflow metadata",
-IsDirectory:   false,
-},
-{
-Path:          "agent_output",
-Size:          4096,
-SizeFormatted: "4.0 KB",
-Description:   "Directory containing log files",
-IsDirectory:   true,
+Size:        256,
+Description: "Engine configuration and workflow metadata",
 },
 }
 
@@ -351,8 +321,8 @@ auditData := buildAuditData(processedRun, metrics)
 auditData.DownloadedFiles = downloadedFiles
 
 // Verify downloaded files are in audit data
-if len(auditData.DownloadedFiles) != 2 {
-t.Errorf("Expected 2 downloaded files in audit data, got %d", len(auditData.DownloadedFiles))
+if len(auditData.DownloadedFiles) != 1 {
+t.Errorf("Expected 1 downloaded file in audit data, got %d", len(auditData.DownloadedFiles))
 }
 
 // Verify file details are preserved
@@ -360,9 +330,6 @@ for _, file := range auditData.DownloadedFiles {
 if file.Path == "aw_info.json" {
 if file.Size != 256 {
 t.Errorf("Expected size 256, got %d", file.Size)
-}
-if file.SizeFormatted != "256 B" {
-t.Errorf("Expected formatted size '256 B', got '%s'", file.SizeFormatted)
 }
 if file.Description == "" {
 t.Error("Expected description to be present")
@@ -414,8 +381,8 @@ t.Fatalf("Failed to create file in %s: %v", dir, err)
 // Extract downloaded files (simulates what audit command does)
 files := extractDownloadedFiles(tmpDir)
 
-// Verify we got all expected files and directories
-expectedCount := len(artifacts) + len(dirs)
+// Verify we got all expected files (directories are now excluded)
+expectedCount := len(artifacts)
 if len(files) != expectedCount {
 t.Errorf("Expected %d items, got %d", expectedCount, len(files))
 t.Logf("Files found: %v", files)
@@ -441,16 +408,13 @@ descPattern string
 {"run_summary.json", true, "Cached summary"},
 {"custom.json", true, "JSON data file"},
 {"notes.txt", true, "Text file"},
-{"agent_output", true, "Directory containing log files"},
-{"firewall-logs", true, "Directory containing log files"},
-{"aw-prompts", true, "Directory containing AI prompts"},
 }
 
 for _, tc := range testCases {
 t.Run(tc.path, func(t *testing.T) {
 info, ok := fileMap[tc.path]
 if !ok {
-t.Fatalf("File/directory %s not found in extracted files", tc.path)
+t.Fatalf("File %s not found in extracted files", tc.path)
 }
 
 if tc.expectDesc && info.Description == "" {
@@ -462,13 +426,8 @@ t.Errorf("Expected description to contain '%s', got: %s", tc.descPattern, info.D
 }
 
 // Verify size is set
-if info.Size == 0 && !info.IsDirectory {
+if info.Size == 0 {
 t.Errorf("Expected non-zero size for file %s", tc.path)
-}
-
-// Verify formatted size is present
-if info.SizeFormatted == "" {
-t.Errorf("Expected formatted size for %s", tc.path)
 }
 })
 }
@@ -526,8 +485,6 @@ expectedInReport := []string{
 "Engine configuration",
 "safe_output.jsonl",
 "Safe outputs",
-"agent_output",
-"Directory",
 }
 
 for _, expected := range expectedInReport {

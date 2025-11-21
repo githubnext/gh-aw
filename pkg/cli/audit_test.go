@@ -349,18 +349,14 @@ func TestGenerateAuditReport(t *testing.T) {
 	// Create test downloaded files
 	downloadedFiles := []FileInfo{
 		{
-			Path:          "aw_info.json",
-			Size:          256,
-			SizeFormatted: "256 B",
-			Description:   "Engine configuration and workflow metadata",
-			IsDirectory:   false,
+			Path:        "aw_info.json",
+			Size:        256,
+			Description: "Engine configuration and workflow metadata",
 		},
 		{
-			Path:          "safe_output.jsonl",
-			Size:          512,
-			SizeFormatted: "512 B",
-			Description:   "Safe outputs from workflow execution",
-			IsDirectory:   false,
+			Path:        "safe_output.jsonl",
+			Size:        512,
+			Description: "Safe outputs from workflow execution",
 		},
 	}
 
@@ -590,32 +586,24 @@ func TestGenerateAuditReportArtifacts(t *testing.T) {
 	// Create test downloaded files matching the artifacts
 	downloadedFiles := []FileInfo{
 		{
-			Path:          "aw_info.json",
-			Size:          4,
-			SizeFormatted: "4 B",
-			Description:   "Engine configuration and workflow metadata",
-			IsDirectory:   false,
+			Path:        "aw_info.json",
+			Size:        4,
+			Description: "Engine configuration and workflow metadata",
 		},
 		{
-			Path:          "safe_output.jsonl",
-			Size:          4,
-			SizeFormatted: "4 B",
-			Description:   "Safe outputs from workflow execution",
-			IsDirectory:   false,
+			Path:        "safe_output.jsonl",
+			Size:        4,
+			Description: "Safe outputs from workflow execution",
 		},
 		{
-			Path:          "aw.patch",
-			Size:          4,
-			SizeFormatted: "4 B",
-			Description:   "Git patch of changes made during execution",
-			IsDirectory:   false,
+			Path:        "aw.patch",
+			Size:        4,
+			Description: "Git patch of changes made during execution",
 		},
 		{
-			Path:          "agent_output.json",
-			Size:          4,
-			SizeFormatted: "4 B",
-			Description:   "Validated safe outputs",
-			IsDirectory:   false,
+			Path:        "agent_output.json",
+			Size:        4,
+			Description: "Validated safe outputs",
 		},
 	}
 
@@ -834,11 +822,9 @@ func TestRenderJSON(t *testing.T) {
 		},
 		DownloadedFiles: []FileInfo{
 			{
-				Path:          "aw_info.json",
-				Size:          1024,
-				SizeFormatted: "1.0 KB",
-				Description:   "Engine configuration and workflow metadata",
-				IsDirectory:   false,
+				Path:        "aw_info.json",
+				Size:        1024,
+				Description: "Engine configuration and workflow metadata",
 			},
 		},
 		MissingTools: []MissingToolReport{

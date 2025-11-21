@@ -630,16 +630,8 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if len(downloadedFiles) > 0 {
 		// Display all downloaded files with size and description
 		for _, file := range downloadedFiles {
-			if file.IsDirectory {
-				// Directory
-				report.WriteString(fmt.Sprintf("- **%s/**", file.Path))
-				if file.SizeFormatted != "" {
-					report.WriteString(fmt.Sprintf(" (%s)", file.SizeFormatted))
-				}
-			} else {
-				// Regular file
-				report.WriteString(fmt.Sprintf("- **%s** (%s)", file.Path, file.SizeFormatted))
-			}
+			formattedSize := console.FormatFileSize(file.Size)
+			report.WriteString(fmt.Sprintf("- **%s** (%s)", file.Path, formattedSize))
 			// Add description if available
 			if file.Description != "" {
 				report.WriteString(fmt.Sprintf(" - %s", file.Description))

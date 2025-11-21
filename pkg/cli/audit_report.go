@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
@@ -66,11 +65,9 @@ type JobData struct {
 
 // FileInfo contains information about downloaded artifact files
 type FileInfo struct {
-	Path          string `json:"path"`
-	Size          int64  `json:"size"`
-	SizeFormatted string `json:"size_formatted"`
-	Description   string `json:"description"`
-	IsDirectory   bool   `json:"is_directory"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	Description string `json:"description"`
 }
 
 // ErrorInfo contains detailed error information
@@ -241,6 +238,11 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 	}
 
 	for _, entry := range entries {
+		// Skip directories
+		if entry.IsDir() {
+			continue
+		}
+
 		name := entry.Name()
 		fullPath := filepath.Join(logsPath, name)
 
@@ -254,22 +256,11 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 
 		fileInfo := FileInfo{
 			Path:        relativePath,
-			IsDirectory: entry.IsDir(),
 			Description: describeFile(name),
 		}
 
-		if !entry.IsDir() {
-			if info, err := os.Stat(fullPath); err == nil {
-				fileInfo.Size = info.Size()
-				fileInfo.SizeFormatted = console.FormatFileSize(info.Size())
-			}
-		} else {
-			// For directories, sum the sizes of files inside
-			totalSize := fileutil.CalculateDirectorySize(fullPath)
-			fileInfo.Size = totalSize
-			if totalSize > 0 {
-				fileInfo.SizeFormatted = console.FormatFileSize(totalSize)
-			}
+		if info, err := os.Stat(fullPath); err == nil {
+			fileInfo.Size = info.Size()
 		}
 
 		files = append(files, fileInfo)
@@ -375,14 +366,8 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Println(console.FormatInfoMessage("## Downloaded Files"))
 		fmt.Println()
 		for _, file := range data.DownloadedFiles {
-			if file.IsDirectory {
-				fmt.Printf("  • %s/", file.Path)
-				if file.SizeFormatted != "" {
-					fmt.Printf(" (%s)", file.SizeFormatted)
-				}
-			} else {
-				fmt.Printf("  • %s (%s)", file.Path, file.SizeFormatted)
-			}
+			formattedSize := console.FormatFileSize(file.Size)
+			fmt.Printf("  • %s (%s)", file.Path, formattedSize)
 			if file.Description != "" {
 				fmt.Printf(" - %s", file.Description)
 			}
