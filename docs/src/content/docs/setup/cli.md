@@ -7,6 +7,24 @@ sidebar:
 
 The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language markdown files into GitHub Actions.
 
+## 🚀 Most Common Commands
+
+95% of users only need these 5 commands:
+
+:::tip[New to gh-aw?]
+Start here! These commands cover the essential workflow lifecycle from setup to monitoring.
+:::
+
+| Command | When to Use | Details |
+|---------|-------------|---------|
+| **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
+| **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
+| **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
+| **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
+| **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
+
+**Complete command reference below** ↓
+
 ## Quick Start
 
 Get started in seconds:
@@ -224,11 +242,10 @@ Results are saved to `trials/` directory.
 Execute workflows immediately in GitHub Actions.
 
 ```bash wrap
-gh aw run WorkflowName                      # Run workflow
+gh aw run workflow-name                     # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
-gh aw run workflow --progress               # Show progress updates for long-running workflows
 ```
 
 After triggering a workflow, the command displays the workflow URL and suggests using `gh aw audit` to analyze the run.
@@ -236,7 +253,6 @@ After triggering a workflow, the command displays the workflow URL and suggests 
 **Options:**
 - `--repeat N`: Execute the workflow N times
 - `--use-local-secrets`: Temporarily push AI engine secrets from environment variables, then clean up
-- `--progress`: Enable timer-based progress messages (emits elapsed time every 30 seconds to stderr)
 
 :::note[Codespaces]
 From GitHub Codespaces, grant `actions: write` and `workflows: write` permissions. See [Managing repository access](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces).
@@ -333,7 +349,7 @@ Disables workflows to prevent execution and cancels any currently running workfl
 Remove workflows from the repository.
 
 ```bash wrap
-gh aw remove WorkflowName
+gh aw remove my-workflow
 ```
 
 Removes both `.md` and `.lock.yml` files and updates repository configuration.

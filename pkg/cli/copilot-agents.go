@@ -123,3 +123,8 @@ func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error
 func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("setup-agentic-workflows.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
 }
+
+// ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.md contains the debug workflow agent
+func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("debug-agentic-workflow.md", debugAgenticWorkflowAgentTemplate, verbose, skipInstructions)
+}

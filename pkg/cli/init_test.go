@@ -86,6 +86,12 @@ func TestInitRepository(t *testing.T) {
 				t.Errorf("Expected agentic workflow agent file to exist")
 			}
 
+			// Verify debug agentic workflow agent was created
+			debugAgenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "debug-agentic-workflow.md")
+			if _, err := os.Stat(debugAgenticWorkflowAgentPath); os.IsNotExist(err) {
+				t.Errorf("Expected debug agentic workflow agent file to exist")
+			}
+
 			// Verify .gitattributes contains the correct entry
 			content, err := os.ReadFile(gitAttributesPath)
 			if err != nil {
@@ -146,6 +152,11 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
 	if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
 		t.Errorf("Expected agentic workflow agent file to exist after second call")
+	}
+
+	debugAgenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "debug-agentic-workflow.md")
+	if _, err := os.Stat(debugAgenticWorkflowAgentPath); os.IsNotExist(err) {
+		t.Errorf("Expected debug agentic workflow agent file to exist after second call")
 	}
 }
 
