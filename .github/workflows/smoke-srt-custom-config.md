@@ -10,7 +10,8 @@ network:
   allowed:
     - defaults
     - github
-    - "*.npmjs.org"
+    - "*.githubcopilot.com"
+    - "example.com"
 sandbox:
   type: sandbox-runtime
   config:

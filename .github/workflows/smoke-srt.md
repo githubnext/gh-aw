@@ -14,6 +14,8 @@ network:
   allowed:
     - defaults
     - github
+    - "*.githubcopilot.com"
+    - "example.com"
 sandbox:
   type: sandbox-runtime
   config:
