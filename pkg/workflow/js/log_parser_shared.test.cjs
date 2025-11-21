@@ -388,4 +388,338 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toBe("\n## 📊 Information\n\n");
     });
   });
+
+  describe("formatMcpParameters", () => {
+    it("should format MCP parameters", async () => {
+      const { formatMcpParameters } = await import("./log_parser_shared.cjs");
+
+      const input = {
+        query: "test query",
+        limit: "10",
+        status: "open",
+      };
+
+      const result = formatMcpParameters(input);
+
+      expect(result).toContain("query: test query");
+      expect(result).toContain("limit: 10");
+      expect(result).toContain("status: open");
+    });
+
+    it("should truncate long parameter values", async () => {
+      const { formatMcpParameters } = await import("./log_parser_shared.cjs");
+
+      const input = {
+        longValue: "a".repeat(100),
+      };
+
+      const result = formatMcpParameters(input);
+
+      expect(result).toContain("...");
+      expect(result.length).toBeLessThan(60);
+    });
+
+    it("should limit to 4 parameters", async () => {
+      const { formatMcpParameters } = await import("./log_parser_shared.cjs");
+
+      const input = {
+        param1: "value1",
+        param2: "value2",
+        param3: "value3",
+        param4: "value4",
+        param5: "value5",
+        param6: "value6",
+      };
+
+      const result = formatMcpParameters(input);
+
+      expect(result).toContain("param1");
+      expect(result).toContain("param2");
+      expect(result).toContain("param3");
+      expect(result).toContain("param4");
+      expect(result).not.toContain("param5");
+      expect(result).not.toContain("param6");
+      expect(result).toContain("...");
+    });
+
+    it("should handle empty input", async () => {
+      const { formatMcpParameters } = await import("./log_parser_shared.cjs");
+
+      const result = formatMcpParameters({});
+
+      expect(result).toBe("");
+    });
+  });
+
+  describe("formatInitializationSummary", () => {
+    it("should format basic initialization info", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        model: "test-model",
+        session_id: "session-123",
+        cwd: "/home/runner/work/repo/repo",
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Model:** test-model");
+      expect(result.markdown).toContain("**Session ID:** session-123");
+      expect(result.markdown).toContain("**Working Directory:** .");
+    });
+
+    it("should format tools by category", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["Bash", "Read", "Edit", "mcp__github__search_issues", "mcp__playwright__navigate", "CustomTool"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Available Tools:**");
+      expect(result.markdown).toContain("**Core:**");
+      expect(result.markdown).toContain("Bash");
+      expect(result.markdown).toContain("**File Operations:**");
+      expect(result.markdown).toContain("Read");
+      expect(result.markdown).toContain("Edit");
+      expect(result.markdown).toContain("**Git/GitHub:**");
+      expect(result.markdown).toContain("github::search_issues");
+      expect(result.markdown).toContain("**MCP:**");
+      expect(result.markdown).toContain("playwright::navigate");
+      expect(result.markdown).toContain("**Other:**");
+      expect(result.markdown).toContain("CustomTool");
+    });
+
+    it("should format MCP servers status", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        mcp_servers: [
+          { name: "github", status: "connected" },
+          { name: "playwright", status: "failed" },
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**MCP Servers:**");
+      expect(result.markdown).toContain("✅ github (connected)");
+      expect(result.markdown).toContain("❌ playwright (failed)");
+      expect(result.mcpFailures).toEqual(["playwright"]);
+    });
+
+    it("should call mcpFailureCallback for failed servers", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        mcp_servers: [
+          {
+            name: "test-server",
+            status: "failed",
+            error: "Connection timeout",
+            stderr: "Error output",
+          },
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry, {
+        mcpFailureCallback: server => {
+          return `  - Error: ${server.error}\n  - Stderr: ${server.stderr}\n`;
+        },
+      });
+
+      expect(result.markdown).toContain("Error: Connection timeout");
+      expect(result.markdown).toContain("Stderr: Error output");
+    });
+
+    it("should call modelInfoCallback for custom model info", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        model: "premium-model",
+        model_info: {
+          name: "GPT-5",
+          billing: { is_premium: true },
+        },
+      };
+
+      const result = formatInitializationSummary(initEntry, {
+        modelInfoCallback: entry => {
+          if (entry.model_info?.billing?.is_premium) {
+            return "**Premium:** Yes\n\n";
+          }
+          return "";
+        },
+      });
+
+      expect(result.markdown).toContain("**Premium:** Yes");
+    });
+
+    it("should include slash commands when option is enabled", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        slash_commands: ["/help", "/reset", "/debug"],
+      };
+
+      const result = formatInitializationSummary(initEntry, {
+        includeSlashCommands: true,
+      });
+
+      expect(result.markdown).toContain("**Slash Commands:** 3 available");
+      expect(result.markdown).toContain("/help, /reset, /debug");
+    });
+
+    it("should not include slash commands when option is disabled", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        slash_commands: ["/help", "/reset", "/debug"],
+      };
+
+      const result = formatInitializationSummary(initEntry, {
+        includeSlashCommands: false,
+      });
+
+      expect(result.markdown).not.toContain("Slash Commands");
+    });
+  });
+
+  describe("formatToolUse", () => {
+    it("should format Bash tool use", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Bash",
+        input: { command: "echo hello" },
+      };
+      const toolResult = {
+        is_error: false,
+        content: "hello",
+      };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toContain("✅");
+      expect(result).toContain("echo hello");
+    });
+
+    it("should format Read tool use", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Read",
+        input: { file_path: "/home/runner/work/repo/repo/src/file.js" },
+      };
+      const toolResult = { is_error: false };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toContain("✅");
+      expect(result).toContain("Read");
+      expect(result).toContain("src/file.js");
+    });
+
+    it("should format Write/Edit tool use", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Edit",
+        input: { file_path: "/home/runner/work/repo/repo/src/file.js" },
+      };
+      const toolResult = { is_error: false };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toContain("✅");
+      expect(result).toContain("Write");
+      expect(result).toContain("src/file.js");
+    });
+
+    it("should format MCP tool use", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "mcp__github__search_issues",
+        input: { query: "bug", limit: 10 },
+      };
+      const toolResult = { is_error: false };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toContain("✅");
+      expect(result).toContain("github::search_issues");
+      expect(result).toContain("query: bug");
+    });
+
+    it("should show error icon for failed tools", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Bash",
+        input: { command: "false" },
+      };
+      const toolResult = {
+        is_error: true,
+        content: "Command failed",
+      };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toContain("❌");
+    });
+
+    it("should include details when content is present", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Bash",
+        input: { command: "echo test" },
+      };
+      const toolResult = {
+        is_error: false,
+        content: "test output",
+      };
+
+      const result = formatToolUse(toolUse, toolResult, { includeDetailedParameters: false });
+
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("test output");
+    });
+
+    it("should include detailed parameters when option is enabled", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "Bash",
+        input: { command: "echo test", description: "Test command" },
+      };
+      const toolResult = {
+        is_error: false,
+        content: "test output",
+      };
+
+      const result = formatToolUse(toolUse, toolResult, { includeDetailedParameters: true });
+
+      expect(result).toContain("**Parameters:**");
+      expect(result).toContain("**Response:**");
+      expect(result).toContain('"command": "echo test"');
+    });
+
+    it("should skip TodoWrite tool", async () => {
+      const { formatToolUse } = await import("./log_parser_shared.cjs");
+
+      const toolUse = {
+        name: "TodoWrite",
+        input: { content: "test" },
+      };
+      const toolResult = { is_error: false };
+
+      const result = formatToolUse(toolUse, toolResult);
+
+      expect(result).toBe("");
+    });
+  });
 });

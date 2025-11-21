@@ -10,6 +10,9 @@ const {
   formatMcpName,
   generateConversationMarkdown,
   generateInformationSection,
+  formatMcpParameters,
+  formatInitializationSummary,
+  formatToolUse,
 } = require("./log_parser_shared.cjs");
 
 function main() {
@@ -116,8 +119,48 @@ function parseCopilotLog(logContent) {
 
     // Generate conversation markdown using shared function
     const conversationResult = generateConversationMarkdown(logEntries, {
-      formatToolCallback: formatToolUseWithDetails,
-      formatInitCallback: formatInitializationSummary,
+      formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+      formatInitCallback: initEntry =>
+        formatInitializationSummary(initEntry, {
+          includeSlashCommands: false,
+          modelInfoCallback: entry => {
+            // Display premium model information if available (Copilot-specific)
+            if (!entry.model_info) return "";
+
+            const modelInfo = entry.model_info;
+            let markdown = "";
+
+            // Display model name and vendor
+            if (modelInfo.name) {
+              markdown += `**Model Name:** ${modelInfo.name}`;
+              if (modelInfo.vendor) {
+                markdown += ` (${modelInfo.vendor})`;
+              }
+              markdown += "\n\n";
+            }
+
+            // Display billing/premium information
+            if (modelInfo.billing) {
+              const billing = modelInfo.billing;
+              if (billing.is_premium === true) {
+                markdown += `**Premium Model:** Yes`;
+                if (billing.multiplier && billing.multiplier !== 1) {
+                  markdown += ` (${billing.multiplier}x cost multiplier)`;
+                }
+                markdown += "\n";
+
+                if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                  markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                }
+                markdown += "\n";
+              } else if (billing.is_premium === false) {
+                markdown += `**Premium Model:** No\n\n`;
+              }
+            }
+
+            return markdown;
+          },
+        }),
     });
 
     let markdown = conversationResult.markdown;
@@ -686,279 +729,6 @@ function parseDebugLogFormat(logContent) {
   }
 
   return entries;
-}
-
-/**
- * Formats initialization information from system init entry
- * @param {any} initEntry - The system init entry containing tools, mcp_servers, etc.
- * @returns {string} Formatted markdown string
- */
-function formatInitializationSummary(initEntry) {
-  let markdown = "";
-
-  // Display model and session info
-  if (initEntry.model) {
-    markdown += `**Model:** ${initEntry.model}\n\n`;
-  }
-
-  // Display premium model information if available
-  if (initEntry.model_info) {
-    const modelInfo = initEntry.model_info;
-
-    // Display model name and vendor
-    if (modelInfo.name) {
-      markdown += `**Model Name:** ${modelInfo.name}`;
-      if (modelInfo.vendor) {
-        markdown += ` (${modelInfo.vendor})`;
-      }
-      markdown += "\n\n";
-    }
-
-    // Display billing/premium information
-    if (modelInfo.billing) {
-      const billing = modelInfo.billing;
-      if (billing.is_premium === true) {
-        markdown += `**Premium Model:** Yes`;
-        if (billing.multiplier && billing.multiplier !== 1) {
-          markdown += ` (${billing.multiplier}x cost multiplier)`;
-        }
-        markdown += "\n";
-
-        if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-          markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-        }
-        markdown += "\n";
-      } else if (billing.is_premium === false) {
-        markdown += `**Premium Model:** No\n\n`;
-      }
-    }
-  }
-
-  if (initEntry.session_id) {
-    markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
-  }
-
-  if (initEntry.cwd) {
-    // Show a cleaner path by removing common prefixes
-    const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
-    markdown += `**Working Directory:** ${cleanCwd}\n\n`;
-  }
-
-  // Display MCP servers status
-  if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
-    markdown += "**MCP Servers:**\n";
-    for (const server of initEntry.mcp_servers) {
-      const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
-      markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
-    }
-    markdown += "\n";
-  }
-
-  // Display tools by category
-  if (initEntry.tools && Array.isArray(initEntry.tools)) {
-    markdown += "**Available Tools:**\n";
-
-    // Categorize tools
-    /** @type {{ [key: string]: string[] }} */
-    const categories = {
-      Core: [],
-      "File Operations": [],
-      "Git/GitHub": [],
-      MCP: [],
-      Other: [],
-    };
-
-    for (const tool of initEntry.tools) {
-      if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
-        categories["Core"].push(tool);
-      } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
-        categories["File Operations"].push(tool);
-      } else if (tool.startsWith("mcp__github__")) {
-        categories["Git/GitHub"].push(formatMcpName(tool));
-      } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-        categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
-      } else {
-        categories["Other"].push(tool);
-      }
-    }
-
-    // Display categories with tools
-    for (const [category, tools] of Object.entries(categories)) {
-      if (tools.length > 0) {
-        markdown += `- **${category}:** ${tools.length} tools\n`;
-        // Show all tools for complete visibility
-        markdown += `  - ${tools.join(", ")}\n`;
-      }
-    }
-    markdown += "\n";
-  }
-
-  return markdown;
-}
-
-/**
- * Formats a tool use entry with its result using HTML details tags
- * @param {any} toolUse - The tool use object containing name, input, etc.
- * @param {any} toolResult - The corresponding tool result object
- * @returns {string} Formatted markdown string with HTML details
- */
-function formatToolUseWithDetails(toolUse, toolResult) {
-  const toolName = toolUse.name;
-  const input = toolUse.input || {};
-
-  // Skip TodoWrite
-  if (toolName === "TodoWrite") {
-    return "";
-  }
-
-  // Helper function to determine status icon
-  function getStatusIcon() {
-    if (toolResult) {
-      return toolResult.is_error === true ? "❌" : "✅";
-    }
-    return "❓"; // Unknown by default
-  }
-
-  const statusIcon = getStatusIcon();
-  let summary = "";
-  let details = "";
-
-  // Get tool output from result
-  if (toolResult && toolResult.content) {
-    if (typeof toolResult.content === "string") {
-      details = toolResult.content;
-    } else if (Array.isArray(toolResult.content)) {
-      details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
-    }
-  }
-
-  // Calculate token estimate from input + output
-  const inputText = JSON.stringify(input);
-  const outputText = details;
-  const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
-
-  // Format metadata (duration and tokens)
-  let metadata = "";
-  if (toolResult && toolResult.duration_ms) {
-    metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
-  }
-  if (totalTokens > 0) {
-    metadata += ` <code>~${totalTokens}t</code>`;
-  }
-
-  switch (toolName) {
-    case "Bash":
-      const command = input.command || "";
-      const description = input.description || "";
-
-      // Format the command to be single line
-      const formattedCommand = formatBashCommand(command);
-
-      if (description) {
-        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
-      } else {
-        summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
-      }
-      break;
-
-    case "Read":
-      const filePath = input.file_path || input.path || "";
-      const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
-      break;
-
-    case "Write":
-    case "Edit":
-    case "MultiEdit":
-      const writeFilePath = input.file_path || input.path || "";
-      const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
-      break;
-
-    case "Grep":
-    case "Glob":
-      const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
-      break;
-
-    case "LS":
-      const lsPath = input.path || "";
-      const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
-      break;
-
-    default:
-      // Handle MCP calls and other tools
-      if (toolName.startsWith("mcp__")) {
-        const mcpName = formatMcpName(toolName);
-        const params = formatMcpParameters(input);
-        summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
-      } else {
-        // Generic tool formatting
-        const keys = Object.keys(input);
-        if (keys.length > 0) {
-          const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
-          const value = String(input[mainParam] || "");
-
-          if (value) {
-            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
-          } else {
-            summary = `${statusIcon} ${toolName}${metadata}`;
-          }
-        } else {
-          summary = `${statusIcon} ${toolName}${metadata}`;
-        }
-      }
-  }
-
-  // Format with HTML details tag if we have output
-  if (details && details.trim()) {
-    // Build the details content with tool input parameters and response
-    let detailsContent = "";
-
-    // Add parameters section if we have input
-    const inputKeys = Object.keys(input);
-    if (inputKeys.length > 0) {
-      detailsContent += "**Parameters:**\n\n";
-      detailsContent += "``````json\n";
-      detailsContent += JSON.stringify(input, null, 2);
-      detailsContent += "\n``````\n\n";
-    }
-
-    // Add response section
-    detailsContent += "**Response:**\n\n";
-    detailsContent += "``````\n";
-    detailsContent += details;
-    detailsContent += "\n``````";
-
-    return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
-  } else {
-    // No details, just show summary
-    return `${summary}\n\n`;
-  }
-}
-
-/**
- * Formats MCP parameters into a human-readable string
- * @param {Record<string, any>} input - The input object containing parameters
- * @returns {string} Formatted parameters string
- */
-function formatMcpParameters(input) {
-  const keys = Object.keys(input);
-  if (keys.length === 0) return "";
-
-  const paramStrs = [];
-  for (const key of keys.slice(0, 4)) {
-    // Show up to 4 parameters
-    const value = String(input[key] || "");
-    paramStrs.push(`${key}: ${truncateString(value, 40)}`);
-  }
-
-  if (keys.length > 4) {
-    paramStrs.push("...");
-  }
-
-  return paramStrs.join(", ");
 }
 
 // Export for testing
