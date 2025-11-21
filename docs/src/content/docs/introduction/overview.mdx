@@ -7,7 +7,7 @@ sidebar:
 
 ## Natural Language to GitHub Actions
 
-Imagine describing your automation needs in plain language instead of wrestling with complex YAML syntax and API calls. GitHub Agentic Workflows makes this possible by transforming natural language markdown files into [GitHub Actions](https://github.com/features/actions) that are executed by AI agents.
+Imagine describing your automation needs in plain language instead of wrestling with complex YAML syntax and API calls. GitHub Agentic Workflows makes this possible by transforming natural language markdown files into [GitHub Actions](https://github.com/features/actions) that are executed by AI agents (the AI that executes your workflow instructions).
 
 Instead of writing intricate scripts to handle issue triage, code reviews, or release management, you simply describe what you want to happen. The AI agent understands your repository context, interprets the situation, and takes appropriate actions—all from a few lines of markdown.
 
@@ -27,7 +27,7 @@ safe-outputs:
 Analyze the current issue and ask for additional details if the issue is unclear.
 ```
 
-The `gh aw` cli compiles this into a [GitHub Actions Workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
+The `gh aw` cli compiles this into a [GitHub Actions Workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository. [Compilation](/gh-aw/reference/glossary/#compilation) (converting markdown to GitHub Actions YAML) ensures your workflow is secure and validated before it runs.
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 

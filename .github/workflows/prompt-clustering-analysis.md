@@ -31,6 +31,7 @@ imports:
   - shared/reporting.md
   - shared/mcp/gh-aw.md
   - shared/copilot-pr-data-fetch.md
+  - shared/trending-charts-simple.md
 
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
@@ -45,9 +46,9 @@ tools:
   bash: ["*"]
 
 steps:
-  - name: Install Python dependencies
+  - name: Install additional ML libraries
     run: |
-      pip3 install --user scikit-learn pandas numpy matplotlib seaborn nltk
+      pip3 install --user scikit-learn nltk
 
   - name: Download full PR data with comments and reviews
     env:
