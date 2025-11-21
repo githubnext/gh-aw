@@ -397,7 +397,7 @@ safe-outputs:
 - **`owner`** (optional): Owner of the GitHub App installation. If empty, defaults to the current repository owner
 - **`repositories`** (optional): List of repositories to grant access to. See Repository Scoping below
 
-**Note:** The GitHub API URL is automatically inferred from the GitHub Actions environment variables (`github.api_url`) and does not need to be configured in frontmatter.
+**Note:** The GitHub API URL is automatically inferred from the GitHub Actions environment variable (`github.api_url`) and does not need to be configured in frontmatter.
 
 **Benefits:**
 - **Enhanced Security**: Tokens are minted on-demand and automatically revoked after use
