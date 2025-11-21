@@ -30,6 +30,7 @@ const mockContext = {
 };
 
 const mockGithub = {
+  graphql: vi.fn(),
   rest: {
     issues: {
       get: vi.fn(),
@@ -48,6 +49,9 @@ global.context = mockContext;
 global.github = mockGithub;
 global.exec = mockExec;
 
+// Helper to flush pending promises
+const flushPromises = () => new Promise(resolve => setImmediate(resolve));
+
 describe("assign_to_agent", () => {
   let assignToAgentScript;
   let tempFilePath;
@@ -61,8 +65,17 @@ describe("assign_to_agent", () => {
   };
 
   beforeEach(() => {
-    // Reset mocks before each test
-    vi.clearAllMocks();
+    // Recreate mocks with fresh vi.fn() to ensure vitest tracking works
+    mockCore.debug = vi.fn();
+    mockCore.info = vi.fn();
+    mockCore.warning = vi.fn();
+    mockCore.error = vi.fn();
+    mockCore.setFailed = vi.fn();
+    mockCore.setOutput = vi.fn();
+    mockCore.summary.addRaw = vi.fn().mockReturnValue({ write: vi.fn().mockResolvedValue() });
+    mockGithub.graphql = vi.fn();
+    mockExec.exec = vi.fn().mockResolvedValue(0);
+
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_DEFAULT;
@@ -72,8 +85,45 @@ describe("assign_to_agent", () => {
     // Set up GitHub token for gh CLI
     process.env.GH_TOKEN = "test-token";
 
-    // Reset exec mock to successful state
-    mockExec.exec.mockResolvedValue(0);
+    // Reassign to global to ensure eval sees updated mocks
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.exec = mockExec;
+
+    // Set up default GraphQL mock implementation
+    mockGithub.graphql.mockImplementation(query => {
+      if (query.includes("suggestedActors")) {
+        return Promise.resolve({
+          repository: {
+            suggestedActors: {
+              nodes: [
+                { login: "copilot-swe-agent", __typename: "Bot", id: "bot-copilot" },
+                { login: "claude-swe-agent", __typename: "Bot", id: "bot-claude" },
+                { login: "codex-swe-agent", __typename: "Bot", id: "bot-codex" },
+              ],
+            },
+          },
+        });
+      }
+      if (query.includes("issue(number:")) {
+        return Promise.resolve({
+          repository: {
+            issue: {
+              id: "issue-id-test",
+              assignees: { nodes: [] },
+            },
+          },
+        });
+      }
+      if (query.includes("replaceActorsForAssignable")) {
+        return Promise.resolve({
+          replaceActorsForAssignable: {
+            __typename: "Issue",
+          },
+        });
+      }
+      return Promise.reject(new Error("Unexpected GraphQL query"));
+    });
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "assign_to_agent.cjs");
@@ -94,6 +144,7 @@ describe("assign_to_agent", () => {
     });
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No assign_to_agent items found"));
   });
@@ -102,6 +153,7 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
@@ -117,31 +169,11 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: {
-        title: "Test Issue",
-        number: 42,
-      },
-    });
-
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
-
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
-    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 42,
-    });
-
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 42,
-      body: "@copilot has been assigned to this issue.",
-    });
-
-    expect(mockCore.info).toHaveBeenCalledWith('Successfully assigned agent "copilot" to issue #42');
+    expect(mockGithub.graphql).toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
     expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "42:copilot");
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
   });
@@ -152,32 +184,17 @@ describe("assign_to_agent", () => {
         {
           type: "assign_to_agent",
           issue_number: 42,
-          agent: "my-custom-agent",
+          agent: "claude",
         },
       ],
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: {
-        title: "Test Issue",
-        number: 42,
-      },
-    });
-
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
-
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 42,
-      body: "@my-custom-agent has been assigned to this issue.",
-    });
-
-    expect(mockCore.info).toHaveBeenCalledWith('Successfully assigned agent "my-custom-agent" to issue #42');
-    expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "42:my-custom-agent");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "42:claude");
   });
 
   it("should handle staged mode correctly", async () => {
@@ -227,19 +244,48 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: { title: "Test Issue" },
+    let graphqlCallCount = 0;
+    mockGithub.graphql.mockImplementation(query => {
+      graphqlCallCount++;
+      if (query.includes("suggestedActors")) {
+        return Promise.resolve({
+          repository: {
+            suggestedActors: {
+              nodes: [{ login: "copilot-swe-agent", __typename: "Bot", id: "bot-id" }],
+            },
+          },
+        });
+      }
+      if (query.includes("issue(number:")) {
+        return Promise.resolve({
+          repository: {
+            issue: { id: `issue-id-${graphqlCallCount}`, assignees: { nodes: [] } },
+          },
+        });
+      }
+      if (query.includes("replaceActorsForAssignable")) {
+        return Promise.resolve({
+          replaceActorsForAssignable: {
+            __typename: "Issue",
+          },
+        });
+      }
+      return Promise.reject(new Error("Unexpected GraphQL query"));
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Found 3 agent assignments, but max is 2"));
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(2);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
+    const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "assigned_agents");
+    expect(outputCall).toBeDefined();
+    expect(outputCall[1]).toContain("1:copilot");
+    expect(outputCall[1]).toContain("2:copilot");
   });
 
   it("should use default agent from environment", async () => {
-    process.env.GH_AW_AGENT_DEFAULT = "my-default-agent";
+    process.env.GH_AW_AGENT_DEFAULT = "codex";
     setAgentOutput({
       items: [
         {
@@ -250,20 +296,12 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: { title: "Test Issue" },
-    });
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
-
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
-    expect(mockCore.info).toHaveBeenCalledWith("Default agent: my-default-agent");
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      issue_number: 42,
-      body: "@my-default-agent has been assigned to this issue.",
-    });
+    expect(mockCore.info).toHaveBeenCalledWith("Default agent: codex");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "42:codex");
   });
 
   it("should handle target repository configuration", async () => {
@@ -278,25 +316,43 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: { title: "Test Issue" },
+    // Override default mock to verify correct repo is used
+    mockGithub.graphql.mockImplementation(query => {
+      if (query.includes("suggestedActors")) {
+        expect(query).toContain("other-owner");
+        expect(query).toContain("other-repo");
+        return Promise.resolve({
+          repository: {
+            suggestedActors: {
+              nodes: [{ login: "copilot-swe-agent", __typename: "Bot", id: "bot-id" }],
+            },
+          },
+        });
+      }
+      if (query.includes("issue(number:")) {
+        expect(query).toContain("other-owner");
+        expect(query).toContain("other-repo");
+        return Promise.resolve({
+          repository: {
+            issue: { id: "issue-id-456", assignees: { nodes: [] } },
+          },
+        });
+      }
+      if (query.includes("replaceActorsForAssignable")) {
+        return Promise.resolve({
+          replaceActorsForAssignable: {
+            __typename: "Issue",
+          },
+        });
+      }
+      return Promise.reject(new Error("Unexpected GraphQL query"));
     });
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
     expect(mockCore.info).toHaveBeenCalledWith("Using target repository: other-owner/other-repo");
-    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
-      owner: "other-owner",
-      repo: "other-repo",
-      issue_number: 42,
-    });
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
-      owner: "other-owner",
-      repo: "other-repo",
-      issue_number: 42,
-      body: "@copilot has been assigned to this issue.",
-    });
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned"));
   });
 
   it("should handle API errors gracefully", async () => {
@@ -310,11 +366,12 @@ describe("assign_to_agent", () => {
       errors: [],
     });
 
-    mockGithub.rest.issues.get.mockRejectedValue(new Error("Issue not found"));
+    mockGithub.graphql.mockRejectedValue(new Error("GraphQL API error"));
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to"));
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign 1 agent(s)");
   });
 
@@ -330,6 +387,7 @@ describe("assign_to_agent", () => {
     });
 
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
     expect(mockCore.error).toHaveBeenCalledWith("Invalid issue_number: invalid");
   });
@@ -340,12 +398,12 @@ describe("assign_to_agent", () => {
         {
           type: "assign_to_agent",
           issue_number: 1,
-          agent: "agent-1",
+          agent: "copilot",
         },
         {
           type: "assign_to_agent",
           issue_number: 2,
-          agent: "agent-2",
+          agent: "claude",
         },
       ],
       errors: [],
@@ -353,14 +411,9 @@ describe("assign_to_agent", () => {
 
     process.env.GH_AW_AGENT_MAX_COUNT = "2"; // Allow processing multiple items
 
-    mockGithub.rest.issues.get.mockResolvedValue({
-      data: { title: "Test Issue" },
-    });
-    mockGithub.rest.issues.createComment.mockResolvedValue({});
-
     await eval(`(async () => { ${assignToAgentScript} })()`);
+    await flushPromises();
 
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(2);
-    expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "1:agent-1\n2:agent-2");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_agents", "1:copilot\n2:claude");
   });
 });

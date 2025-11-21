@@ -261,15 +261,6 @@ async function main() {
         core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
       }
 
-      // First, verify the issue exists using REST API
-      const issueResponse = await github.rest.issues.get({
-        owner: targetOwner,
-        repo: targetRepo,
-        issue_number: issueNumber,
-      });
-
-      core.info(`Issue #${issueNumber} exists: "${issueResponse.data.title}"`);
-
       // Get issue details (ID and current assignees) via GraphQL
       core.info("Getting issue details...");
       const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
