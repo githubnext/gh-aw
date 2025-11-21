@@ -20,9 +20,40 @@ import (
 
 var runLog = logger.New("cli:run_command")
 
+// startProgressTimer starts a timer that emits periodic progress messages to stderr
+// Returns a channel that should be closed to stop the timer
+func startProgressTimer(enabled bool) chan struct{} {
+	done := make(chan struct{})
+	if !enabled {
+		return done
+	}
+
+	startTime := time.Now()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				elapsed := time.Since(startTime)
+				fmt.Fprintf(os.Stderr, "Progress: %ds\n", int(elapsed.Seconds()))
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	return done
+}
+
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, verbose bool) error {
-	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, wait=%v", workflowIdOrName, enable, engineOverride, repoOverride, waitForCompletion)
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, progress bool, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, wait=%v, progress=%v", workflowIdOrName, enable, engineOverride, repoOverride, waitForCompletion, progress)
+
+	// Start progress timer if enabled
+	progressDone := startProgressTimer(progress)
+	defer close(progressDone)
 
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
@@ -317,7 +348,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
-	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
+	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, progress, verbose)
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
 		runLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
@@ -386,7 +417,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, progress bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -433,7 +464,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, waitForCompletion, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, waitForCompletion, progress, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
@@ -500,7 +531,7 @@ type WorkflowRunInfo struct {
 
 // getLatestWorkflowRunWithRetry gets information about the most recent run of the specified workflow
 // with retry logic to handle timing issues when a workflow has just been triggered
-func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose bool) (*WorkflowRunInfo, error) {
+func getLatestWorkflowRunWithRetry(lockFileName string, repo string, progress bool, verbose bool) (*WorkflowRunInfo, error) {
 	const maxRetries = 6
 	const initialDelay = 2 * time.Second
 	const maxDelay = 10 * time.Second
