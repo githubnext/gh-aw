@@ -33,7 +33,7 @@ tools:
   cache-memory:
 imports:
   - shared/reporting.md
-  - shared/trends.md
+  - shared/trending-charts-simple.md
 ---
 
 # Daily Firewall Logs Collector and Reporter
