@@ -32,11 +32,6 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-
       - name: Install gh-aw extension
         run: gh extension install githubnext/gh-aw
         env:
@@ -160,19 +155,8 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 		return fmt.Errorf("copilot-setup-steps job not found in workflow")
 	}
 
-	// Find the position to insert the step (after "Checkout code")
-	insertPosition := -1
-	for i, step := range job.Steps {
-		if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
-			insertPosition = i + 1
-			break
-		}
-	}
-
-	// If still not found, append at the end
-	if insertPosition == -1 {
-		insertPosition = len(job.Steps)
-	}
+	// Insert the extension install step at the beginning
+	insertPosition := 0
 
 	// Insert the step at the determined position
 	newSteps := make([]WorkflowStep, 0, len(job.Steps)+1)

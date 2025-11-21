@@ -76,8 +76,8 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 						RunsOn: "ubuntu-latest",
 						Steps: []WorkflowStep{
 							{
-								Name: "Checkout code",
-								Uses: "actions/checkout@v5",
+								Name: "Some existing step",
+								Run:  "echo 'existing'",
 							},
 							{
 								Name: "Build",
@@ -100,25 +100,13 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 					t.Fatalf("Expected job 'copilot-setup-steps' not found")
 				}
 
-				// Find step indices
-				var checkoutIdx, installIdx int = -1, -1
-				for i, step := range job.Steps {
-					if step.Name == "Checkout code" {
-						checkoutIdx = i
-					}
-					if step.Name == "Install gh-aw extension" {
-						installIdx = i
-					}
+				// Extension install should be injected at the beginning
+				if len(job.Steps) < 3 {
+					t.Fatalf("Expected at least 3 steps after injection, got %d", len(job.Steps))
 				}
 
-				if installIdx == -1 {
-					t.Error("Expected extension install step to be injected")
-				}
-				if checkoutIdx == -1 {
-					t.Error("Expected 'Checkout code' step to be present")
-				}
-				if checkoutIdx != -1 && installIdx != -1 && installIdx <= checkoutIdx {
-					t.Errorf("Extension install should come after Checkout (install at %d, checkout at %d)", installIdx, checkoutIdx)
+				if job.Steps[0].Name != "Install gh-aw extension" {
+					t.Errorf("Expected first step to be 'Install gh-aw extension', got %q", job.Steps[0].Name)
 				}
 			},
 		},
@@ -196,12 +184,12 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 		validateFunc  func(*testing.T, *Workflow)
 	}{
 		{
-			name: "injects after Checkout",
+			name: "injects at beginning of existing steps",
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
 						Steps: []WorkflowStep{
-							{Name: "Checkout code", Uses: "actions/checkout@v5"},
+							{Name: "Some step"},
 							{Name: "Build"},
 						},
 					},
@@ -211,31 +199,31 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 			expectedSteps: 3,
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
-				// Extension install should be at index 1 (after Checkout)
-				if steps[1].Name != "Install gh-aw extension" {
-					t.Errorf("Expected step 1 to be 'Install gh-aw extension', got %q", steps[1].Name)
+				// Extension install should be at index 0 (beginning)
+				if steps[0].Name != "Install gh-aw extension" {
+					t.Errorf("Expected step 0 to be 'Install gh-aw extension', got %q", steps[0].Name)
 				}
 			},
 		},
 		{
-			name: "appends when no matching steps found",
+			name: "injects when no existing steps",
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
-						Steps: []WorkflowStep{
-							{Name: "Some step"},
-						},
+						Steps: []WorkflowStep{},
 					},
 				},
 			},
 			wantErr:       false,
-			expectedSteps: 2,
+			expectedSteps: 1,
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
-				// Extension install should be at the end
-				lastStep := steps[len(steps)-1]
-				if lastStep.Name != "Install gh-aw extension" {
-					t.Errorf("Expected last step to be 'Install gh-aw extension', got %q", lastStep.Name)
+				// Extension install should be the only step
+				if len(steps) != 1 {
+					t.Errorf("Expected 1 step, got %d", len(steps))
+				}
+				if steps[0].Name != "Install gh-aw extension" {
+					t.Errorf("Expected step to be 'Install gh-aw extension', got %q", steps[0].Name)
 				}
 			},
 		},
@@ -365,32 +353,11 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		t.Error("Expected copilotSetupStepsYAML to contain extension install step")
 	}
 
-	// Verify checkout step has persist-credentials: false
-	var checkoutStep *WorkflowStep
-	for i := range job.Steps {
-		if strings.Contains(job.Steps[i].Uses, "checkout@") {
-			checkoutStep = &job.Steps[i]
-			break
-		}
-	}
-
-	if checkoutStep == nil {
-		t.Fatal("Expected checkout step to exist")
-	}
-
-	if checkoutStep.With == nil {
-		t.Fatal("Expected checkout step to have 'with' configuration")
-	}
-
-	persistCreds, ok := checkoutStep.With["persist-credentials"]
-	if !ok {
-		t.Error("Expected checkout step to have 'persist-credentials' configuration")
-	} else if persistCreds != false {
-		t.Errorf("Expected persist-credentials to be false, got %v", persistCreds)
-	}
-
-	// Verify it does NOT have Go setup or build steps (for universal use)
+	// Verify it does NOT have checkout, Go setup or build steps (for universal use)
 	for _, step := range job.Steps {
+		if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
+			t.Error("Template should not contain 'Checkout' step - not mandatory for extension install")
+		}
 		if strings.Contains(step.Name, "Set up Go") {
 			t.Error("Template should not contain 'Set up Go' step for universal use")
 		}
