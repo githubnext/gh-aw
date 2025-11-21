@@ -12,11 +12,10 @@ import (
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	AppID         string   `yaml:"app-id,omitempty"`      // GitHub App ID (e.g., "${{ vars.APP_ID }}")
-	PrivateKey    string   `yaml:"private-key,omitempty"` // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	Owner         string   `yaml:"owner,omitempty"`       // Optional: owner of the GitHub App installation (defaults to current repository owner)
-	Repositories  []string `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
-	GitHubAPIURL  string   `yaml:"github-api-url,omitempty"` // Optional: GitHub REST API URL (defaults to workflow's API URL)
+	AppID        string   `yaml:"app-id,omitempty"`       // GitHub App ID (e.g., "${{ vars.APP_ID }}")
+	PrivateKey   string   `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	Owner        string   `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
+	Repositories []string `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
 }
 
 // ========================================
@@ -58,13 +57,6 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 				}
 			}
 			appConfig.Repositories = repoStrings
-		}
-	}
-
-	// Parse github-api-url (optional)
-	if apiURL, exists := appMap["github-api-url"]; exists {
-		if apiURLStr, ok := apiURL.(string); ok {
-			appConfig.GitHubAPIURL = apiURLStr
 		}
 	}
 
@@ -139,10 +131,8 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
 	}
 
-	// Add github-api-url if specified
-	if app.GitHubAPIURL != "" {
-		steps = append(steps, fmt.Sprintf("          github-api-url: %s\n", app.GitHubAPIURL))
-	}
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
 
 	// Add permission-* fields automatically computed from job permissions
 	if permissions != nil {

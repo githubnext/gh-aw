@@ -3076,11 +3076,6 @@
                 "type": "string"
               },
               "examples": [["repo1", "repo2"], ["my-repo"]]
-            },
-            "github-api-url": {
-              "type": "string",
-              "description": "Optional: The URL of the GitHub REST API. Defaults to the URL of the GitHub Rest API where the workflow is run from.",
-              "examples": ["https://api.github.com", "${{ github.api_url }}"]
             }
           },
           "required": ["app-id", "private-key"],

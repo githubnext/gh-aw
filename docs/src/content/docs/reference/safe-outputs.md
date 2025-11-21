@@ -387,7 +387,6 @@ safe-outputs:
     repositories:                               # Optional: scope to repositories
       - "repo1"
       - "repo2"
-    github-api-url: ${{ github.api_url }}       # Optional: API URL
   create-issue:
   create-pull-request:
 ```
@@ -397,7 +396,8 @@ safe-outputs:
 - **`private-key`** (required): GitHub App private key - should reference a secret (e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
 - **`owner`** (optional): Owner of the GitHub App installation. If empty, defaults to the current repository owner
 - **`repositories`** (optional): List of repositories to grant access to. See Repository Scoping below
-- **`github-api-url`** (optional): URL of the GitHub REST API. Defaults to the workflow's API URL
+
+**Note:** The GitHub API URL is automatically inferred from the GitHub Actions environment variables (`github.api_url`) and does not need to be configured in frontmatter.
 
 **Benefits:**
 - **Enhanced Security**: Tokens are minted on-demand and automatically revoked after use
