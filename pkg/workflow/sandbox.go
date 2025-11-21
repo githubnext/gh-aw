@@ -26,26 +26,26 @@ type SandboxConfig struct {
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
 // This matches the TypeScript SandboxRuntimeConfig interface
 type SandboxRuntimeConfig struct {
-	Network                    *SRTNetworkConfig            `json:"network,omitempty"`
-	Filesystem                 *SRTFilesystemConfig         `json:"filesystem,omitempty"`
-	IgnoreViolations           map[string][]string          `json:"ignoreViolations,omitempty"`
-	EnableWeakerNestedSandbox  bool                         `json:"enableWeakerNestedSandbox"`
+	Network                    *SRTNetworkConfig            `yaml:"network,omitempty" json:"network,omitempty"`
+	Filesystem                 *SRTFilesystemConfig         `yaml:"filesystem,omitempty" json:"filesystem,omitempty"`
+	IgnoreViolations           map[string][]string          `yaml:"ignoreViolations,omitempty" json:"ignoreViolations,omitempty"`
+	EnableWeakerNestedSandbox  bool                         `yaml:"enableWeakerNestedSandbox" json:"enableWeakerNestedSandbox"`
 }
 
 // SRTNetworkConfig represents network configuration for SRT
 type SRTNetworkConfig struct {
-	AllowedDomains      []string `json:"allowedDomains,omitempty"`
-	DeniedDomains       []string `json:"deniedDomains,omitempty"`
-	AllowUnixSockets    []string `json:"allowUnixSockets,omitempty"`
-	AllowLocalBinding   bool     `json:"allowLocalBinding"`
-	AllowAllUnixSockets bool     `json:"allowAllUnixSockets"`
+	AllowedDomains      []string `yaml:"allowedDomains,omitempty" json:"allowedDomains,omitempty"`
+	DeniedDomains       []string `yaml:"deniedDomains,omitempty" json:"deniedDomains,omitempty"`
+	AllowUnixSockets    []string `yaml:"allowUnixSockets,omitempty" json:"allowUnixSockets,omitempty"`
+	AllowLocalBinding   bool     `yaml:"allowLocalBinding" json:"allowLocalBinding"`
+	AllowAllUnixSockets bool     `yaml:"allowAllUnixSockets" json:"allowAllUnixSockets"`
 }
 
 // SRTFilesystemConfig represents filesystem configuration for SRT
 type SRTFilesystemConfig struct {
-	DenyRead   []string `json:"denyRead,omitempty"`
-	AllowWrite []string `json:"allowWrite,omitempty"`
-	DenyWrite  []string `json:"denyWrite,omitempty"`
+	DenyRead   []string `yaml:"denyRead,omitempty" json:"denyRead,omitempty"`
+	AllowWrite []string `yaml:"allowWrite,omitempty" json:"allowWrite,omitempty"`
+	DenyWrite  []string `yaml:"denyWrite,omitempty" json:"denyWrite,omitempty"`
 }
 
 // isSRTEnabled checks if Sandbox Runtime is enabled for the workflow
