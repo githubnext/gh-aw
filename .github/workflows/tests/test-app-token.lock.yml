@@ -3499,6 +3499,7 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
           repositories: repo1
           github-api-url: ${{ github.api_url }}
           permission-contents: read
@@ -3806,6 +3807,7 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
           repositories: repo1
           github-api-url: ${{ github.api_url }}
           permission-contents: read

@@ -121,15 +121,21 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
-	// Add owner if specified
-	if app.Owner != "" {
-		steps = append(steps, fmt.Sprintf("          owner: %s\n", app.Owner))
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
 	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
 
-	// Add repositories if specified
+	// Add repositories - default to current repository name if not specified
 	if len(app.Repositories) > 0 {
 		reposStr := strings.Join(app.Repositories, ",")
 		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	} else {
+		// Extract repo name from github.repository (which is "owner/repo")
+		// Using GitHub Actions expression: split(github.repository, '/')[1]
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
 	}
 
 	// Always add github-api-url from environment variable
