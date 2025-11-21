@@ -1,16 +1,12 @@
 package cli
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestApplyJqFilter(t *testing.T) {
-	// Skip if jq is not available
-	if _, err := exec.LookPath("jq"); err != nil {
-		t.Skip("Skipping test: jq not found in PATH")
-	}
+	// No longer requires external jq executable - using gojq library
 
 	tests := []struct {
 		name      string
@@ -136,20 +132,13 @@ func TestApplyJqFilter(t *testing.T) {
 	}
 }
 
-func TestApplyJqFilter_JqNotAvailable(t *testing.T) {
-	// This test verifies the error message when jq is not available
-	// We can't easily mock exec.LookPath, so we'll just verify the function structure
-
-	// If jq is available, skip this test
-	if _, err := exec.LookPath("jq"); err == nil {
-		t.Skip("Skipping test: jq is available, cannot test 'not found' scenario")
-	}
-
-	_, err := ApplyJqFilter(`[]`, ".")
+// TestApplyJqFilter_EmptyFilter tests empty filter validation
+func TestApplyJqFilter_EmptyFilter(t *testing.T) {
+	_, err := ApplyJqFilter(`[]`, "")
 	if err == nil {
-		t.Error("Expected error when jq is not available")
+		t.Error("Expected error with empty filter")
 	}
-	if err != nil && err.Error() != "jq not found in PATH" {
-		t.Errorf("Expected 'jq not found in PATH' error, got: %v", err)
+	if err != nil && !strings.Contains(err.Error(), "jq filter cannot be empty") {
+		t.Errorf("Expected 'jq filter cannot be empty' error, got: %v", err)
 	}
 }

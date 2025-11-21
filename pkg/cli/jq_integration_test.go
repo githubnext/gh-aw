@@ -17,10 +17,7 @@ import (
 
 // TestMCPServer_StatusToolWithJq tests the status tool with jq filter parameter
 func TestMCPServer_StatusToolWithJq(t *testing.T) {
-	// Skip if jq is not available
-	if _, err := exec.LookPath("jq"); err != nil {
-		t.Skip("Skipping test: jq not found in PATH")
-	}
+	// No longer requires external jq executable - using gojq library
 
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"
