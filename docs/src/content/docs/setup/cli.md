@@ -21,7 +21,7 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 | **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
 | **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
 | **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
-| **`gh aw logs (workflow)`** | View execution logs and analyze runs | [→ Documentation](#logs) |
+| **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
 
 **Complete command reference below** ↓
 
