@@ -5181,9 +5181,9 @@ jobs:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           github-api-url: ${{ github.api_url }}
+          permission-contents: read
           permission-issues: write
           permission-pull-requests: write
-          permission-contents: read
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}

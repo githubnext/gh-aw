@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -135,10 +136,20 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
 
 	// Add permission-* fields automatically computed from job permissions
+	// Sort keys to ensure deterministic compilation order
 	if permissions != nil {
 		permissionFields := convertPermissionsToAppTokenFields(permissions)
-		for key, value := range permissionFields {
-			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, value))
+		
+		// Extract and sort keys for deterministic ordering
+		keys := make([]string, 0, len(permissionFields))
+		for key := range permissionFields {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		
+		// Add permissions in sorted order
+		for _, key := range keys {
+			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
 		}
 	}
 
