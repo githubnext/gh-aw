@@ -88,6 +88,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     delete process.env.GH_AW_REACTION;
     delete process.env.GH_AW_COMMAND;
     delete process.env.GH_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_WORKFLOW_FILE;
+    delete process.env.GH_AW_WORKFLOW_SOURCE;
+    delete process.env.GH_AW_WORKFLOW_SOURCE_URL;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -661,6 +664,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     it("should include workflow source and run ID in comment when available", async () => {
       process.env.GH_AW_REACTION = "eyes";
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
       process.env.GH_AW_WORKFLOW_SOURCE = "testowner/testrepo/.github/workflows/test.md@main";
       process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/testowner/testrepo/tree/main/.github/workflows/test.md";
 
@@ -678,12 +682,12 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify comment includes "Agentic Workflow", workflow name links to source, and run ID links to run
+      // Verify comment includes "Agentic Workflow", workflow name links to workflow page, source link, and run ID
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
           body: expect.stringMatching(
-            /Agentic Workflow \[Test Workflow\]\(.*test\.md\) \(\[run #67890\]\(.*actions\/runs\/67890\)\) triggered by this issue\./
+            /Agentic Workflow \[Test Workflow\]\(.*actions\/workflows\/test\.lock\.yml\) \(\[source\]\(.*test\.md\), \[run #67890\]\(.*actions\/runs\/67890\)\) triggered by this issue\./
           ),
         })
       );

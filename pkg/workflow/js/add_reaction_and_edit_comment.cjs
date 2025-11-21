@@ -288,17 +288,24 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @param {number} runId - Run ID
+ * @param {string} workflowFile - Lock filename (e.g., "test.lock.yml")
  * @param {string} workflowSource - Source of the workflow (owner/repo/path@ref)
  * @param {string} workflowSourceURL - URL to the workflow source file
  * @returns {string} Formatted workflow link text
  */
-function buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL) {
-  // If we have a source URL, use it for the workflow name link, otherwise use the run URL
-  const workflowUrl = workflowSourceURL || runUrl;
+function buildWorkflowLinkText(workflowName, runUrl, runId, workflowFile, workflowSource, workflowSourceURL) {
+  // Extract repository info from runUrl to build workflow URL
+  // runUrl format: https://github.com/owner/repo/actions/runs/12345
+  const workflowUrl = workflowFile ? runUrl.replace(/\/runs\/\d+$/, `/workflows/${workflowFile}`) : runUrl;
+
   let linkText = `Agentic Workflow [${workflowName}](${workflowUrl})`;
 
-  // Add run ID link in parentheses if available
+  // Add source link and run ID in parentheses
   const additionalLinks = [];
+
+  if (workflowSourceURL) {
+    additionalLinks.push(`[source](${workflowSourceURL})`);
+  }
 
   if (runId) {
     additionalLinks.push(`[run #${runId}](${runUrl})`);
@@ -321,6 +328,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   try {
     // Get workflow name from environment variable
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowFile = process.env.GH_AW_WORKFLOW_FILE || "";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
@@ -329,7 +337,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+      const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowFile, workflowSource, workflowSourceURL);
       const workflowLinkText = `${workflowLinkPart} triggered by this discussion.`;
 
       // Create a new comment on the discussion using GraphQL
@@ -372,7 +380,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     } else if (eventName === "discussion_comment") {
       // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+      const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowFile, workflowSource, workflowSourceURL);
       const workflowLinkText = `${workflowLinkPart} triggered by this discussion comment.`;
 
       // Create a new comment on the discussion using GraphQL
@@ -436,7 +444,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
         eventTypeDescription = "event";
     }
 
-    const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowSource, workflowSourceURL);
+    const workflowLinkPart = buildWorkflowLinkText(workflowName, runUrl, runId, workflowFile, workflowSource, workflowSourceURL);
     const workflowLinkText = `${workflowLinkPart} triggered by this ${eventTypeDescription}.`;
 
     const createResponse = await github.request("POST " + endpoint, {
