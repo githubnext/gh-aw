@@ -18,55 +18,55 @@ var auditReportLog = logger.New("cli:audit_report")
 
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
-	Overview         OverviewData        `json:"overview"`
-	Metrics          MetricsData         `json:"metrics"`
-	KeyFindings      []Finding           `json:"key_findings,omitempty"`
-	Recommendations  []Recommendation    `json:"recommendations,omitempty"`
-	FailureAnalysis  *FailureAnalysis    `json:"failure_analysis,omitempty"`
+	Overview           OverviewData        `json:"overview"`
+	Metrics            MetricsData         `json:"metrics"`
+	KeyFindings        []Finding           `json:"key_findings,omitempty"`
+	Recommendations    []Recommendation    `json:"recommendations,omitempty"`
+	FailureAnalysis    *FailureAnalysis    `json:"failure_analysis,omitempty"`
 	PerformanceMetrics *PerformanceMetrics `json:"performance_metrics,omitempty"`
-	Jobs             []JobData           `json:"jobs,omitempty"`
-	DownloadedFiles  []FileInfo          `json:"downloaded_files"`
-	MissingTools     []MissingToolReport `json:"missing_tools,omitempty"`
-	Noops            []NoopReport        `json:"noops,omitempty"`
-	MCPFailures      []MCPFailureReport  `json:"mcp_failures,omitempty"`
-	FirewallAnalysis *FirewallAnalysis   `json:"firewall_analysis,omitempty"`
-	Errors           []ErrorInfo         `json:"errors,omitempty"`
-	Warnings         []ErrorInfo         `json:"warnings,omitempty"`
-	ToolUsage        []ToolUsageInfo     `json:"tool_usage,omitempty"`
+	Jobs               []JobData           `json:"jobs,omitempty"`
+	DownloadedFiles    []FileInfo          `json:"downloaded_files"`
+	MissingTools       []MissingToolReport `json:"missing_tools,omitempty"`
+	Noops              []NoopReport        `json:"noops,omitempty"`
+	MCPFailures        []MCPFailureReport  `json:"mcp_failures,omitempty"`
+	FirewallAnalysis   *FirewallAnalysis   `json:"firewall_analysis,omitempty"`
+	Errors             []ErrorInfo         `json:"errors,omitempty"`
+	Warnings           []ErrorInfo         `json:"warnings,omitempty"`
+	ToolUsage          []ToolUsageInfo     `json:"tool_usage,omitempty"`
 }
 
 // Finding represents a key insight discovered during audit
 type Finding struct {
-	Category    string `json:"category"`    // e.g., "error", "performance", "cost", "tooling"
-	Severity    string `json:"severity"`    // "critical", "high", "medium", "low", "info"
-	Title       string `json:"title"`       // Brief title
-	Description string `json:"description"` // Detailed description
+	Category    string `json:"category"`         // e.g., "error", "performance", "cost", "tooling"
+	Severity    string `json:"severity"`         // "critical", "high", "medium", "low", "info"
+	Title       string `json:"title"`            // Brief title
+	Description string `json:"description"`      // Detailed description
 	Impact      string `json:"impact,omitempty"` // What impact this has
 }
 
 // Recommendation represents an actionable suggestion
 type Recommendation struct {
-	Priority    string `json:"priority"`    // "high", "medium", "low"
-	Action      string `json:"action"`      // What to do
-	Reason      string `json:"reason"`      // Why to do it
-	Example     string `json:"example,omitempty"` // Example of how to implement
+	Priority string `json:"priority"`          // "high", "medium", "low"
+	Action   string `json:"action"`            // What to do
+	Reason   string `json:"reason"`            // Why to do it
+	Example  string `json:"example,omitempty"` // Example of how to implement
 }
 
 // FailureAnalysis provides structured analysis for failed workflows
 type FailureAnalysis struct {
-	PrimaryFailure string   `json:"primary_failure"`   // Main reason for failure
-	FailedJobs     []string `json:"failed_jobs"`       // List of failed job names
-	ErrorSummary   string   `json:"error_summary"`     // Summary of errors
+	PrimaryFailure string   `json:"primary_failure"`      // Main reason for failure
+	FailedJobs     []string `json:"failed_jobs"`          // List of failed job names
+	ErrorSummary   string   `json:"error_summary"`        // Summary of errors
 	RootCause      string   `json:"root_cause,omitempty"` // Identified root cause if determinable
 }
 
 // PerformanceMetrics provides aggregated performance statistics
 type PerformanceMetrics struct {
-	TokensPerMinute   float64 `json:"tokens_per_minute,omitempty"`
-	CostEfficiency    string  `json:"cost_efficiency,omitempty"` // e.g., "good", "poor"
-	AvgToolDuration   string  `json:"avg_tool_duration,omitempty"`
-	MostUsedTool      string  `json:"most_used_tool,omitempty"`
-	NetworkRequests   int     `json:"network_requests,omitempty"`
+	TokensPerMinute float64 `json:"tokens_per_minute,omitempty"`
+	CostEfficiency  string  `json:"cost_efficiency,omitempty"` // e.g., "good", "poor"
+	AvgToolDuration string  `json:"avg_tool_duration,omitempty"`
+	MostUsedTool    string  `json:"most_used_tool,omitempty"`
+	NetworkRequests int     `json:"network_requests,omitempty"`
 }
 
 // OverviewData contains basic information about the workflow run
@@ -239,16 +239,16 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 
 	// Generate key findings
 	findings := generateFindings(processedRun, metricsData, errors, warnings)
-	
+
 	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
-	
+
 	// Generate failure analysis if workflow failed
 	var failureAnalysis *FailureAnalysis
 	if run.Conclusion == "failure" || run.Conclusion == "timed_out" || run.Conclusion == "cancelled" {
 		failureAnalysis = generateFailureAnalysis(processedRun, errors)
 	}
-	
+
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
 
@@ -902,7 +902,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 // generateFailureAnalysis creates structured analysis for failed workflows
 func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *FailureAnalysis {
 	run := processedRun.Run
-	
+
 	// Determine primary failure reason
 	primaryFailure := run.Conclusion
 	if primaryFailure == "" {
@@ -983,9 +983,9 @@ func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, 
 	// Find most used tool
 	if len(toolUsage) > 0 {
 		mostUsed := toolUsage[0]
-		for _, tool := range toolUsage {
-			if tool.CallCount > mostUsed.CallCount {
-				mostUsed = tool
+		for i := 1; i < len(toolUsage); i++ {
+			if toolUsage[i].CallCount > mostUsed.CallCount {
+				mostUsed = toolUsage[i]
 			}
 		}
 		pm.MostUsedTool = fmt.Sprintf("%s (%d calls)", mostUsed.Name, mostUsed.CallCount)

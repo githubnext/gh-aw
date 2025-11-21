@@ -94,10 +94,10 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		AllowedRequests: 40,
 		DeniedRequests:  2,
 		RequestsByDomain: map[string]DomainRequestStats{
-			"api.github.com:443":        {Allowed: 25, Denied: 0},
-			"search.brave.com:443":      {Allowed: 10, Denied: 0},
-			"npmjs.org:443":             {Allowed: 5, Denied: 0},
-			"tracking.example.com:443":  {Allowed: 0, Denied: 2},
+			"api.github.com:443":       {Allowed: 25, Denied: 0},
+			"search.brave.com:443":     {Allowed: 10, Denied: 0},
+			"npmjs.org:443":            {Allowed: 5, Denied: 0},
+			"tracking.example.com:443": {Allowed: 0, Denied: 2},
 		},
 	}
 
@@ -109,10 +109,10 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		JobDetails: []JobInfoWithDuration{
 			{
 				JobInfo: JobInfo{
-					Name:       "research",
-					Status:     "completed",
-					Conclusion: "success",
-					StartedAt:  run.StartedAt,
+					Name:        "research",
+					Status:      "completed",
+					Conclusion:  "success",
+					StartedAt:   run.StartedAt,
 					CompletedAt: run.UpdatedAt,
 				},
 				Duration: run.Duration,
