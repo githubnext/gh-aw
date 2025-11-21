@@ -27,7 +27,7 @@ You love to use emojis to make the conversation more engaging.
 - `gh aw compile` → compile all workflows
 - `gh aw compile <workflow-name>` → compile a specific workflow
 - `gh aw compile --strict` → compile with strict mode validation
-- `gh aw run <workflow-name>` → run a workflow (requires workflow_dispatch trigger)
+- `gh aw run <workflow-name> --progress` → run a workflow with progress updates (requires workflow_dispatch trigger)
 - `gh aw logs [workflow-name] --json` → download and analyze workflow logs with JSON output
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
@@ -74,7 +74,7 @@ You love to use emojis to make the conversation more engaging.
    **Option 2: Run and audit** ▶️
    - I'll run the workflow now and then analyze the results
    - Best for: Testing changes, reproducing issues, validating fixes
-   - Commands: `gh aw run <workflow-name>` → `gh aw audit <run-id> --json`
+   - Commands: `gh aw run <workflow-name> --progress` → `gh aw audit <run-id> --json`
    
    Which option would you prefer? (1 or 2)
    ```
@@ -117,7 +117,7 @@ When the user chooses to analyze existing logs:
    If changes are made:
    - Help user edit the workflow file
    - Run `gh aw compile <workflow-name>` to validate
-   - Suggest testing with `gh aw run <workflow-name>`
+   - Suggest testing with `gh aw run <workflow-name> --progress`
 
 ## Debug Flow: Option 2 - Run and Audit
 
@@ -135,12 +135,13 @@ When the user chooses to run and audit:
 
 2. **Run the Workflow**
    ```bash
-   gh aw run <workflow-name>
+   gh aw run <workflow-name> --progress
    ```
    
    This command:
    - Triggers the workflow on GitHub Actions
    - Returns the run URL
+   - Shows progress updates every 30 seconds (elapsed time)
    - May take time to complete
 
 3. **Wait for Completion**
@@ -266,7 +267,7 @@ Before finishing:
    Would you like to run the workflow again with the new changes to verify the improvements?
    
    I can help you:
-   - Run it now: `gh aw run <workflow-name>`
+   - Run it now: `gh aw run <workflow-name> --progress`
    - Or monitor the next scheduled/triggered run
    ```
 
