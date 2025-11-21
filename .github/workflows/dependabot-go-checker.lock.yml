@@ -259,7 +259,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":5},"missing_tool":{},"noop":{"max":1}}
+          {"create_issue":{"max":10},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Create a new GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Issue body/description","type":"string"},"labels":{"description":"Issue labels","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number to create this issue as a sub-issue of","type":"number"},"title":{"description":"Issue title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -900,7 +900,7 @@ jobs:
           # Dependabot Dependency Checker
           
           ## Objective
-          Check for available Go module and NPM dependency updates using Dependabot, evaluate their safety, and create issues for safe updates.
+          Check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
           
           ## Current Context
           - **Repository**: ${GH_AW_EXPR_D892F163}
@@ -931,20 +931,31 @@ jobs:
              - Look for breaking changes in release notes
              - Consider security fixes and improvements
           
-          ### Phase 2: Evaluate Update Safety
-          For each dependency update, evaluate:
+          ### Phase 2: Categorize Updates (Three-Tier Strategy)
+          For each dependency update, categorize it into one of three categories:
           
-          **Safe Updates** (create issues for these):
-          - Patch version updates (e.g., 1.2.3 -> 1.2.4)
-          - Minor version updates with no breaking changes indicated in changelog
-          - Security updates that fix vulnerabilities
-          - Updates where the changelog explicitly states backward compatibility
+          **Category A: Safe Patches** (group into ONE consolidated issue):
+          - Patch version updates ONLY (e.g., v1.2.3 → v1.2.4)
+          - Single-version increments (not multi-version jumps like v1.2.3 → v1.2.5)
+          - Bug fixes and stability improvements only (no new features)
+          - No breaking changes or behavior modifications
+          - Security patches that only fix vulnerabilities without API changes
+          - Explicitly backward compatible per changelog
           
-          **Unsafe/Uncertain Updates** (skip these):
-          - Major version updates (e.g., 1.x -> 2.x)
-          - Updates with breaking changes mentioned in changelog
-          - Updates where changelog indicates API changes
-          - Updates with insufficient documentation
+          **Category B: Potentially Problematic** (create INDIVIDUAL issues):
+          - Minor version updates (e.g., v1.2.x → v1.3.x)
+          - Multi-version jumps in patch versions (e.g., v1.2.3 → v1.2.7)
+          - Updates with new features or API additions
+          - Updates with behavior changes mentioned in changelog
+          - Updates that require configuration or code changes
+          - Security updates that include API changes
+          - Any update where safety is uncertain
+          
+          **Category C: Skip** (do NOT create issues):
+          - Major version updates (e.g., v1.x.x → v2.x.x)
+          - Updates with breaking changes explicitly mentioned
+          - Updates requiring significant refactoring
+          - Updates with insufficient documentation to assess safety
           
           ### Phase 2.5: Repository Detection
           Before creating issues, determine the actual source repository for each Go module:
@@ -967,17 +978,40 @@ jobs:
           - Look for the "Repository" or "Source" link on the package page
           - Use the discovered repository for links
           
-          ### Phase 3: Create Task Issues
-          For each safe update identified, create an issue with:
+          ### Phase 3: Create Issues Based on Categorization
           
-          **Title**: Short description of the update (e.g., "Update github.com/spf13/cobra from v1.9.1 to v1.9.2")
+          **For Category A (Safe Patches)**: Create ONE consolidated issue grouping all safe patch updates together.
+          
+          **For Category B (Potentially Problematic)**: Create INDIVIDUAL issues for each update.
+          
+          **For Category C**: Do not create any issues.
+          
+          #### Consolidated Issue Format (Category A)
+          
+          **Title**: "Update safe patch dependencies (N updates)"
+          
+          **Body** should include:
+          - **Summary**: Brief overview of grouped safe patch updates
+          - **Updates Table**: Table listing all safe patch updates with columns:
+            - Package name
+            - Current version
+            - Proposed version
+            - Key changes
+          - **Safety Assessment**: Why all these updates are considered safe patches
+          - **Recommended Action**: Single command block to apply all updates at once
+          - **Testing Notes**: General testing guidance
+          
+          #### Individual Issue Format (Category B)
+          
+          **Title**: Short description of the specific update (e.g., "Update github.com/spf13/cobra from v1.9.1 to v1.10.0")
           
           **Body** should include:
           - **Summary**: Brief description of what needs to be updated
           - **Current Version**: The version currently in go.mod
           - **Proposed Version**: The version to update to
-          - **Update Type**: Patch/Minor/Major
-          - **Safety Assessment**: Why this update is considered safe
+          - **Update Type**: Minor/Multi-version patch jump
+          - **Why Separate Issue**: Clear explanation of why this update needs individual review (e.g., "Minor version update with new features", "Multi-version jump requires careful testing", "Behavior changes mentioned in changelog")
+          - **Safety Assessment**: Detailed assessment of risks and considerations
           - **Changes**: Summary of changes from changelog or release notes
           - **Links**: 
             - Link to the Dependabot alert (if applicable)
@@ -985,16 +1019,19 @@ jobs:
             - Link to release notes or changelog (if available)
             - For GitHub packages: link to release page
             - For golang.org/x packages: link to commit history instead
-          - **Recommended Action**: Command to update (e.g., `go get -u github.com/package@v1.2.4`)
-          - **Testing Notes**: Any specific areas to test after applying the update
+          - **Recommended Action**: Command to update (e.g., `go get -u github.com/package@v1.10.0`)
+          - **Testing Notes**: Specific areas to test after applying the update
           
           ## Important Notes
           - Do NOT apply updates directly - only create issues describing what should be updated
-          - Only create issues for updates you deem safe based on the evaluation criteria
+          - Use three-tier categorization: Group Category A (safe patches), individual issues for Category B (potentially problematic), skip Category C (major versions)
+          - Category A updates should be grouped into ONE consolidated issue with a table format
+          - Category B updates should each get their own issue with a "Why Separate Issue" explanation
           - If no safe updates are found, exit without creating any issues
-          - Limit to a maximum of 5 issues per run to avoid overwhelming the repository
+          - Limit to a maximum of 10 issues per run (1 grouped + up to 9 individual)
           - For security-related updates, clearly indicate the vulnerability being fixed
-          - Be conservative: when in doubt about breaking changes, skip the update
+          - Be conservative: when in doubt about breaking changes or behavior modifications, categorize as Category B (individual issue) or Category C (skip)
+          - When categorizing, prioritize safety: only true single-version patch updates with bug fixes belong in Category A
           
           **CRITICAL - Repository Detection**:
           - **Never assume all Go packages are on GitHub**
@@ -1005,47 +1042,153 @@ jobs:
           
           ## Example Issue Formats
           
-          ### Example 1: GitHub Package Update
+          ### Example 1: Consolidated Issue for Safe Patches (Category A)
           
           ```markdown
           ## Summary
-          Update `github.com/spf13/cobra` dependency from v1.9.1 to v1.9.2
+          This issue groups together multiple safe patch updates that can be applied together. All updates are single-version patch increments with bug fixes only and no breaking changes.
           
-          ## Current State
-          - **Package**: github.com/spf13/cobra
-          - **Current Version**: v1.9.1
-          - **Proposed Version**: v1.9.2
-          - **Update Type**: Patch
+          ## Updates
+          
+          | Package | Current | Proposed | Update Type | Key Changes |
+          |---------|---------|----------|-------------|-------------|
+          | github.com/bits-and-blooms/bitset | v1.24.3 | v1.24.4 | Patch | Bug fixes in bit operations |
+          | github.com/imdario/mergo | v1.0.1 | v1.0.2 | Patch | Memory optimization, nil pointer fix |
           
           ## Safety Assessment
-          ✅ **Safe to update**
-          - Patch version update (1.9.1 -> 1.9.2)
-          - No breaking changes mentioned in release notes
-          - Bug fixes and minor improvements only
-          
-          ## Changes
-          - Fixed issue with command completion
-          - Improved error messages
-          - Documentation updates
+          ✅ **All updates are safe patches**
+          - All are single-version patch increments (e.g., v1.24.3 → v1.24.4, v1.0.1 → v1.0.2)
+          - Only bug fixes and stability improvements, no new features
+          - No breaking changes or behavior modifications
+          - Explicitly backward compatible per release notes
           
           ## Links
-          - [Release Notes](https://github.com/spf13/cobra/releases/tag/v1.9.2)
-          - [Package Repository](https://github.com/spf13/cobra)
-          - [Go Package](https://pkg.go.dev/github.com/spf13/cobra@v1.9.2)
+          - [bitset v1.24.4 Release](https://github.com/bits-and-blooms/bitset/releases/tag/v1.24.4)
+          - [mergo v1.0.2 Release](https://github.com/imdario/mergo/releases/tag/v1.0.2)
           
           ## Recommended Action
+          Apply all updates together:
+          
           ```bash
-          go get -u github.com/spf13/cobra@v1.9.2
+          go get -u github.com/bits-and-blooms/bitset@v1.24.4
+          go get -u github.com/imdario/mergo@v1.0.2
           go mod tidy
           ```
           
           ## Testing Notes
           - Run all tests: `make test`
-          - Verify CLI commands still work correctly
+          - Verify no regression in functionality
           - Check for any deprecation warnings
           ```
           
-          ### Example 2: golang.org/x Package Update
+          ### Example 2: Individual Issue for Minor Update (Category B)
+          
+          ```markdown
+          ## Summary
+          Update `github.com/spf13/cast` dependency from v1.7.0 to v1.8.0
+          
+          ## Current State
+          - **Package**: github.com/spf13/cast
+          - **Current Version**: v1.7.0
+          - **Proposed Version**: v1.8.0
+          - **Update Type**: Minor
+          
+          ## Why Separate Issue
+          ⚠️ **Minor version update with new features**
+          - This is a minor version update (v1.7.0 → v1.8.0)
+          - Adds new type conversion functions
+          - May have behavior changes requiring verification
+          - Needs individual review and testing
+          
+          ## Safety Assessment
+          ⚠️ **Requires careful review**
+          - Minor version update indicates new features
+          - Review changelog for behavior changes
+          - Test conversion functions thoroughly
+          - Verify no breaking changes in existing code
+          
+          ## Changes
+          - Added new ToFloat32E function
+          - Improved time parsing
+          - Enhanced error messages
+          - Performance optimizations
+          
+          ## Links
+          - [Release Notes](https://github.com/spf13/cast/releases/tag/v1.8.0)
+          - [Package Repository](https://github.com/spf13/cast)
+          - [Go Package](https://pkg.go.dev/github.com/spf13/cast@v1.8.0)
+          
+          ## Recommended Action
+          ```bash
+          go get -u github.com/spf13/cast@v1.8.0
+          go mod tidy
+          ```
+          
+          ## Testing Notes
+          - Run all tests: `make test`
+          - Test type conversion functions
+          - Verify time parsing works correctly
+          - Check for any behavior changes in existing code
+          ```
+          
+          ### Example 3: Individual Issue for Multi-Version Jump (Category B)
+          
+          ```markdown
+          ## Summary
+          Update `github.com/cli/go-gh` dependency from v2.10.0 to v2.12.0
+          
+          ## Current State
+          - **Package**: github.com/cli/go-gh
+          - **Current Version**: v2.10.0
+          - **Proposed Version**: v2.12.0
+          - **Update Type**: Multi-version patch jump
+          
+          ## Why Separate Issue
+          ⚠️ **Multi-version jump requires careful testing**
+          - This jumps multiple minor versions (v2.10.0 → v2.12.0)
+          - Skips v2.11.0 which may have intermediate changes
+          - Multiple feature additions across versions
+          - Needs thorough testing to catch any issues
+          
+          ## Safety Assessment
+          ⚠️ **Requires careful review**
+          - Multi-version jump increases risk
+          - Multiple changes accumulated across versions
+          - Review all intermediate release notes
+          - Test GitHub CLI integration thoroughly
+          
+          ## Changes
+          **v2.11.0 Changes:**
+          - Added support for new GitHub API features
+          - Improved error handling
+          - Bug fixes
+          
+          **v2.12.0 Changes:**
+          - Enhanced authentication flow
+          - Performance improvements
+          - Additional API endpoints
+          
+          ## Links
+          - [v2.11.0 Release](https://github.com/cli/go-gh/releases/tag/v2.11.0)
+          - [v2.12.0 Release](https://github.com/cli/go-gh/releases/tag/v2.12.0)
+          - [Package Repository](https://github.com/cli/go-gh)
+          - [Go Package](https://pkg.go.dev/github.com/cli/go-gh/v2@v2.12.0)
+          
+          ## Recommended Action
+          ```bash
+          go get -u github.com/cli/go-gh/v2@v2.12.0
+          go mod tidy
+          ```
+          
+          ## Testing Notes
+          - Run all tests: `make test`
+          - Test GitHub CLI commands
+          - Verify authentication still works
+          - Check API integration points
+          - Test error handling
+          ```
+          
+          ### Example 4: golang.org/x Package Update (Category B)
           
           ```markdown
           ## Summary
@@ -1057,11 +1200,19 @@ jobs:
           - **Proposed Version**: v0.16.0
           - **Update Type**: Minor
           
+          ## Why Separate Issue
+          ⚠️ **Minor version update for system-level package**
+          - Minor version update (0.15.0 → 0.16.0)
+          - System-level changes may have subtle effects
+          - Affects low-level system calls
+          - Needs platform-specific testing
+          
           ## Safety Assessment
-          ✅ **Safe to update**
-          - Minor version update (0.15.0 -> 0.16.0)
-          - No breaking changes in commit history
-          - Standard system call updates and bug fixes
+          ⚠️ **Requires careful review**
+          - System-level package with platform-specific code
+          - Changes may affect OS-specific behavior
+          - Needs testing on multiple platforms
+          - Review commit history carefully
           
           ## Changes
           - Added support for new Linux syscalls
@@ -1086,9 +1237,10 @@ jobs:
           - Run all tests: `make test`
           - Test system-specific functionality
           - Verify cross-platform compatibility
+          - Test on Linux, macOS, and Windows if possible
           ```
           
-          ### Example 3: Playwright NPM Package Update
+          ### Example 5: Playwright NPM Package Update (Category B)
           
           ```markdown
           ## Summary
@@ -1100,12 +1252,19 @@ jobs:
           - **Proposed Version**: 1.57.0
           - **Update Type**: Minor
           
+          ## Why Separate Issue
+          ⚠️ **Minor version update with new features**
+          - Minor version update (1.56.1 → 1.57.0)
+          - Adds new Playwright features
+          - May affect browser automation behavior
+          - Needs testing with existing workflows
+          
           ## Safety Assessment
-          ✅ **Safe to update**
-          - Minor version update (1.56.1 -> 1.57.0)
-          - No breaking changes mentioned in release notes
-          - Includes bug fixes and new features
-          - Backward compatible
+          ⚠️ **Requires careful review**
+          - Minor version update with new features
+          - Browser automation changes need testing
+          - Review release notes for breaking changes
+          - Test with existing Playwright workflows
           
           ## Changes
           - Added support for new Playwright features
@@ -1133,6 +1292,7 @@ jobs:
           - Verify Playwright MCP configuration generation
           - Test browser automation workflows with playwright tool
           - Check that version is correctly used in compiled workflows
+          - Test on multiple browsers if possible
           ```
           
           PROMPT_EOF
