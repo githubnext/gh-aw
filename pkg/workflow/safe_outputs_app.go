@@ -145,14 +145,14 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	// Sort keys to ensure deterministic compilation order
 	if permissions != nil {
 		permissionFields := convertPermissionsToAppTokenFields(permissions)
-		
+
 		// Extract and sort keys for deterministic ordering
 		keys := make([]string, 0, len(permissionFields))
 		for key := range permissionFields {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		
+
 		// Add permissions in sorted order
 		for _, key := range keys {
 			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
@@ -173,7 +173,7 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	// Map GitHub Actions permissions to GitHub App permissions
 	// Only include permissions that exist in the actions/create-github-app-token action
 	// See: https://github.com/actions/create-github-app-token#permissions
-	
+
 	// Repository permissions that map directly
 	if level, ok := permissions.Get(PermissionActions); ok {
 		fields["permission-actions"] = string(level)
