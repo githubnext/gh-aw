@@ -30,18 +30,21 @@ safe-outputs:
 
 tools:
   cache-memory: true
+  agentic-workflows:
   github:
     toolsets: [default]
   bash:
     - "jq *"
     - "find /tmp -type f"
+    - "find logs -type f"
     - "cat /tmp/*"
+    - "cat logs/*"
     - "mkdir -p *"
     - "ls -la *"
     - "date *"
 
 imports:
-  - shared/copilot-session-data-fetch.md
+  - shared/mcp/gh-aw.md
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md
@@ -53,6 +56,25 @@ timeout-minutes: 20
 # Copilot Agent Session Analysis
 
 You are an AI analytics agent specializing in analyzing Copilot agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
+
+## Data Collection
+
+**Use the agentic-workflows `logs` tool** to download Copilot agent session data:
+
+```bash
+# Download logs for workflow runs from copilot/* branches
+# The logs tool will automatically filter for copilot/* branches and download all relevant data
+logs --branch copilot/ --count 50 --output ./logs
+```
+
+This will create a `./logs/` directory containing:
+- Session metadata in subdirectories named by run ID
+- `aw_info.json` files with engine configuration and workflow metadata
+- `agent_output/` directories with agent logs
+- `agent-stdio.log` files with agent output
+- `workflow-logs/` directories with GitHub Actions logs
+
+The downloaded data will be organized by run ID and contain all the information needed for analysis.
 
 ## 📊 Trend Charts Requirement
 
@@ -172,59 +194,40 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 
 ## Task Overview
 
-### Phase 0: Setup and Prerequisites
+### Phase 0: Data Acquisition
 
-**Pre-fetched Data Available**: This workflow includes a shared component that automatically fetches Copilot agent session data. The data is available at:
-- `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
-- `/tmp/gh-aw/session-data/logs/` - Individual session log directories
+**Use the agentic-workflows `logs` tool** to download Copilot session data:
 
-**Data Source**: Session data is fetched from GitHub Actions workflow runs on `copilot/*` branches (the standard pattern for Copilot agent tasks).
-
-**Verify Setup**:
-1. Confirm session data was downloaded successfully
-2. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
-3. Load historical analysis data if available
-
-**Cache Memory Structure**:
-```
-/tmp/gh-aw/cache-memory/
-├── session-analysis/
-│   ├── history.json           # Historical analysis results
-│   ├── strategies.json        # Discovered analytical strategies
-│   └── patterns.json          # Known behavioral patterns
-```
-
-### Phase 1: Data Acquisition
-
-The session data has already been fetched by the shared component. You should:
-
-1. **Verify Downloaded Data**:
+1. **Download session logs** from copilot/* branches:
    ```bash
-   # Check sessions list
-   jq '.' /tmp/gh-aw/session-data/sessions-list.json
-   
-   # Count sessions
-   jq 'length' /tmp/gh-aw/session-data/sessions-list.json
-   
-   # List log directories
-   ls -la /tmp/gh-aw/session-data/logs/
+   # Download logs for workflow runs from copilot/* branches
+   logs --branch copilot/ --count 50 --output ./logs
    ```
 
-2. **Extract Session Metadata**:
-   - Workflow run IDs
-   - Creation timestamps
-   - Branch names
-   - Status and conclusion
-   - URLs to workflow runs
+2. **Verify Downloaded Data**:
+   ```bash
+   # List downloaded run directories
+   ls -la ./logs/
+   
+   # Check a specific run's data
+   ls -la ./logs/<run-id>/
+   cat ./logs/<run-id>/aw_info.json
+   ```
 
-3. **Sample Strategy**:
-   - Use all available sessions (up to 50)
-   - If more than 50 sessions exist, they were already limited in the fetch step
-   - Record which sessions are being analyzed
+3. **Initialize Cache Memory**:
+   - Check for historical analysis data in `/tmp/gh-aw/cache-memory/`
+   - Create cache structure if it doesn't exist:
+   ```
+   /tmp/gh-aw/cache-memory/
+   ├── session-analysis/
+   │   ├── history.json           # Historical analysis results
+   │   ├── strategies.json        # Discovered analytical strategies
+   │   └── patterns.json          # Known behavioral patterns
+   ```
 
-### Phase 2: Session Analysis
+### Phase 1: Session Analysis
 
-For each downloaded session log in `/tmp/gh-aw/session-data/logs/`:
+For each downloaded session in `./logs/<run-id>/`:
 
 #### 2.1 Load Historical Context
 
@@ -743,4 +746,4 @@ A successful analysis includes:
 
 ---
 
-Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
+Begin your analysis by downloading session data using the agentic-workflows `logs` tool, loading historical context from cache memory, and proceeding through the analysis phases systematically.

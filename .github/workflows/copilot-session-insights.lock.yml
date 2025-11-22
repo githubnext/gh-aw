@@ -22,7 +22,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/copilot-session-data-fetch.md
+#     - shared/mcp/gh-aw.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/trends.md
@@ -55,103 +55,6 @@
 #
 # Original Prompt:
 # ```markdown
-# <!--
-# ## Copilot Session Data Fetch
-#
-# This shared component fetches workflow run data for GitHub Copilot agent sessions from the last 30 days, with intelligent caching to avoid redundant API calls.
-#
-# ### What It Does
-#
-# 1. Creates output directories at `/tmp/gh-aw/session-data/` and `/tmp/gh-aw/cache-memory/`
-# 2. Checks for cached session data from today's date in cache-memory
-# 3. If cache exists (from earlier workflow runs today):
-#    - Uses cached data instead of making API calls
-#    - Restores session list and logs from cache
-#    - Copies data from cache to working directory
-# 4. If cache doesn't exist:
-#    - Calculates the date 30 days ago (cross-platform compatible)
-#    - Fetches all workflow runs from branches starting with `copilot/` using GitHub API
-#    - Downloads logs for up to 50 most recent sessions
-#    - Extracts log zip files into organized directories
-#    - Saves data to cache with date-based filename (e.g., `copilot-sessions-2024-11-22.json`)
-#    - Copies data to working directory for use
-# 5. Generates a schema of the data structure
-#
-# ### Caching Strategy
-#
-# - **Cache Key**: `copilot-session-data` for workflow-level sharing
-# - **Cache Files**: Stored with today's date in the filename (e.g., `copilot-sessions-2024-11-22.json`)
-# - **Cache Location**: `/tmp/gh-aw/cache-memory/`
-# - **Cache Benefits**: 
-#   - Multiple workflows running on the same day share the same session data
-#   - Reduces GitHub API rate limit usage
-#   - Faster workflow execution after first fetch of the day
-#   - Logs are cached to avoid re-downloading
-#
-# ### Output Files
-#
-# - **`/tmp/gh-aw/session-data/sessions-list.json`**: Full workflow run data including id, name, branch, status, conclusion, timestamps, URLs, etc.
-# - **`/tmp/gh-aw/session-data/sessions-schema.json`**: JSON schema showing the structure of the session data
-# - **`/tmp/gh-aw/session-data/logs/`**: Directory containing extracted log files organized by run ID
-# - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD.json`**: Cached session data with date
-# - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD-schema.json`**: Cached schema with date
-# - **`/tmp/gh-aw/cache-memory/session-logs-YYYY-MM-DD/`**: Cached log files with date
-#
-# ### Usage
-#
-# Import this component in your workflow:
-#
-# ```yaml
-# imports:
-#   - shared/copilot-session-data-fetch.md
-#   - shared/jqschema.md  # Required for schema generation
-# ```
-#
-# Then access the pre-fetched data in your workflow prompt:
-#
-# ```bash
-# # Count total sessions
-# jq 'length' /tmp/gh-aw/session-data/sessions-list.json
-#
-# # Get session IDs
-# jq '[.[].id]' /tmp/gh-aw/session-data/sessions-list.json
-#
-# # Filter by status
-# jq '[.[] | select(.status == "completed")]' /tmp/gh-aw/session-data/sessions-list.json
-#
-# # Access logs for a specific run
-# ls /tmp/gh-aw/session-data/logs/<run_id>/
-# ```
-#
-# ### Requirements
-#
-# - Requires `jqschema.md` to be imported for schema generation
-# - Uses GitHub API `repos/{owner}/{repo}/actions/runs` endpoint
-# - Cross-platform date calculation (works on both GNU and BSD date commands)
-# - Cache-memory tool is automatically configured for data persistence
-#
-# ### Why Branch-Based Search?
-#
-# GitHub Copilot creates branches with the `copilot/` prefix for agent tasks, making branch-based workflow run search reliable for identifying Copilot sessions without requiring specialized CLI extensions.
-#
-# ### Cache Behavior
-#
-# The cache is date-based, meaning:
-# - All workflows running on the same day share cached data
-# - Cache refreshes automatically the next day
-# - First workflow of the day fetches fresh data and populates the cache
-# - Subsequent workflows use the cached data for faster execution
-# - Logs are cached to avoid repeated downloads
-#
-# ### Advantages Over gh agent-task Extension
-#
-# - **Universal Compatibility**: Works on all GitHub environments (not just Enterprise)
-# - **Standard Authentication**: Uses regular `GITHUB_TOKEN`, no special PAT required
-# - **No Installation**: No CLI extension installation needed
-# - **Simpler Maintenance**: Fewer failure modes and dependencies
-# - **Better Portability**: Can be used in any GitHub Actions workflow
-# -->
-#
 # ## jqschema - JSON Schema Discovery
 #
 # A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -739,6 +642,25 @@
 #
 # You are an AI analytics agent specializing in analyzing Copilot agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
 #
+# ## Data Collection
+#
+# **Use the agentic-workflows `logs` tool** to download Copilot agent session data:
+#
+# ```bash
+# # Download logs for workflow runs from copilot/* branches
+# # The logs tool will automatically filter for copilot/* branches and download all relevant data
+# logs --branch copilot/ --count 50 --output ./logs
+# ```
+#
+# This will create a `./logs/` directory containing:
+# - Session metadata in subdirectories named by run ID
+# - `aw_info.json` files with engine configuration and workflow metadata
+# - `agent_output/` directories with agent logs
+# - `agent-stdio.log` files with agent output
+# - `workflow-logs/` directories with GitHub Actions logs
+#
+# The downloaded data will be organized by run ID and contain all the information needed for analysis.
+#
 # ## 📊 Trend Charts Requirement
 #
 # **IMPORTANT**: Generate exactly 2 trend charts that showcase Copilot agent session patterns over time.
@@ -857,59 +779,40 @@
 #
 # ## Task Overview
 #
-# ### Phase 0: Setup and Prerequisites
+# ### Phase 0: Data Acquisition
 #
-# **Pre-fetched Data Available**: This workflow includes a shared component that automatically fetches Copilot agent session data. The data is available at:
-# - `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
-# - `/tmp/gh-aw/session-data/logs/` - Individual session log directories
+# **Use the agentic-workflows `logs` tool** to download Copilot session data:
 #
-# **Data Source**: Session data is fetched from GitHub Actions workflow runs on `copilot/*` branches (the standard pattern for Copilot agent tasks).
-#
-# **Verify Setup**:
-# 1. Confirm session data was downloaded successfully
-# 2. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
-# 3. Load historical analysis data if available
-#
-# **Cache Memory Structure**:
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── session-analysis/
-# │   ├── history.json           # Historical analysis results
-# │   ├── strategies.json        # Discovered analytical strategies
-# │   └── patterns.json          # Known behavioral patterns
-# ```
-#
-# ### Phase 1: Data Acquisition
-#
-# The session data has already been fetched by the shared component. You should:
-#
-# 1. **Verify Downloaded Data**:
+# 1. **Download session logs** from copilot/* branches:
 #    ```bash
-#    # Check sessions list
-#    jq '.' /tmp/gh-aw/session-data/sessions-list.json
-#
-#    # Count sessions
-#    jq 'length' /tmp/gh-aw/session-data/sessions-list.json
-#
-#    # List log directories
-#    ls -la /tmp/gh-aw/session-data/logs/
+#    # Download logs for workflow runs from copilot/* branches
+#    logs --branch copilot/ --count 50 --output ./logs
 #    ```
 #
-# 2. **Extract Session Metadata**:
-#    - Workflow run IDs
-#    - Creation timestamps
-#    - Branch names
-#    - Status and conclusion
-#    - URLs to workflow runs
+# 2. **Verify Downloaded Data**:
+#    ```bash
+#    # List downloaded run directories
+#    ls -la ./logs/
 #
-# 3. **Sample Strategy**:
-#    - Use all available sessions (up to 50)
-#    - If more than 50 sessions exist, they were already limited in the fetch step
-#    - Record which sessions are being analyzed
+#    # Check a specific run's data
+#    ls -la ./logs/<run-id>/
+#    cat ./logs/<run-id>/aw_info.json
+#    ```
 #
-# ### Phase 2: Session Analysis
+# 3. **Initialize Cache Memory**:
+#    - Check for historical analysis data in `/tmp/gh-aw/cache-memory/`
+#    - Create cache structure if it doesn't exist:
+#    ```
+#    /tmp/gh-aw/cache-memory/
+#    ├── session-analysis/
+#    │   ├── history.json           # Historical analysis results
+#    │   ├── strategies.json        # Discovered analytical strategies
+#    │   └── patterns.json          # Known behavioral patterns
+#    ```
 #
-# For each downloaded session log in `/tmp/gh-aw/session-data/logs/`:
+# ### Phase 1: Session Analysis
+#
+# For each downloaded session in `./logs/<run-id>/`:
 #
 # #### 2.1 Load Historical Context
 #
@@ -1428,7 +1331,7 @@
 #
 # ---
 #
-# Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
+# Begin your analysis by downloading session data using the agentic-workflows `logs` tool, loading historical context from cache memory, and proceeding through the analysis phases systematically.
 # ```
 #
 # Pinned GitHub Actions:
@@ -1440,6 +1343,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
+#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
@@ -1583,11 +1488,19 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
+      - name: Install binary as 'gh-aw'
+        run: make build
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Fetch Copilot session data
-        run: "# Create output directories\nmkdir -p /tmp/gh-aw/session-data\nmkdir -p /tmp/gh-aw/session-data/logs\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached session data from ${TODAY}\"\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" /tmp/gh-aw/session-data/sessions-list.json\n  \n  # Restore cached logs if available\n  if [ -d \"$CACHE_DIR/session-logs-${TODAY}\" ]; then\n    cp -r \"$CACHE_DIR/session-logs-${TODAY}\"/* /tmp/gh-aw/session-data/logs/ 2>/dev/null || true\n    echo \"✓ Restored cached session logs\"\n  fi\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" /tmp/gh-aw/session-data/sessions-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total sessions in cache: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nelse\n  echo \"⬇ Downloading fresh session data...\"\n  \n  # Calculate date 30 days ago (cross-platform compatible)\n  DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n  # Search for workflow runs from copilot/* branches in the last 30 days\n  echo \"Fetching Copilot workflow runs from the last 30 days...\"\n  gh api \"repos/${{ github.repository }}/actions/runs\" \\\n    --paginate \\\n    --jq \".workflow_runs[] | select(.head_branch | startswith(\\\"copilot/\\\")) | select(.created_at >= \\\"${DATE_30_DAYS_AGO}\\\") | {id: .id, name: .name, head_branch: .head_branch, status: .status, conclusion: .conclusion, created_at: .created_at, updated_at: .updated_at, run_number: .run_number, event: .event, html_url: .html_url}\" \\\n    | jq -s '.' \\\n    > /tmp/gh-aw/session-data/sessions-list.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > /tmp/gh-aw/session-data/sessions-schema.json\n\n  # Download logs for each session (limit to first 50 for performance)\n  echo \"Downloading session logs...\"\n  TOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\n  echo \"Total sessions found: $TOTAL_SESSIONS\"\n  \n  if [ \"$TOTAL_SESSIONS\" -gt 0 ]; then\n    jq -r '.[].id' /tmp/gh-aw/session-data/sessions-list.json | head -50 | while read -r run_id; do\n      if [ -n \"$run_id\" ]; then\n        echo \"Downloading logs for run: $run_id\"\n        \n        # Download logs as zip file\n        if gh api \"repos/${{ github.repository }}/actions/runs/${run_id}/logs\" > \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" 2>/dev/null; then\n          # Extract the zip file\n          unzip -q -o \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" -d \"/tmp/gh-aw/session-data/logs/${run_id}/\" 2>/dev/null || true\n          # Remove the zip file to save space\n          rm -f \"/tmp/gh-aw/session-data/logs/${run_id}.zip\"\n        else\n          echo \"Failed to download logs for run: $run_id\"\n        fi\n      fi\n    done\n    \n    LOG_COUNT=$(find /tmp/gh-aw/session-data/logs/ -maxdepth 1 -type d | wc -l)\n    echo \"Session logs downloaded to /tmp/gh-aw/session-data/logs/\"\n    echo \"Total log directories: $((LOG_COUNT - 1))\"\n  fi\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/session-data/sessions-list.json \"$CACHE_DIR/copilot-sessions-${TODAY}.json\"\n  cp /tmp/gh-aw/session-data/sessions-schema.json \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  \n  # Cache the logs directory\n  if [ -d /tmp/gh-aw/session-data/logs ]; then\n    mkdir -p \"$CACHE_DIR/session-logs-${TODAY}\"\n    cp -r /tmp/gh-aw/session-data/logs/* \"$CACHE_DIR/session-logs-${TODAY}/\" 2>/dev/null || true\n    echo \"✓ Session logs cached\"\n  fi\n\n  echo \"✓ Session data saved to cache: copilot-sessions-${TODAY}.json\"\n  echo \"Total sessions found: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nfi\n\n# Always ensure data is available at expected locations\necho \"Session data available at: /tmp/gh-aw/session-data/sessions-list.json\"\necho \"Schema available at: /tmp/gh-aw/session-data/sessions-schema.json\"\necho \"Logs available at: /tmp/gh-aw/session-data/logs/\""
+        name: Start MCP server
+        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - name: Setup Python environment
@@ -1821,6 +1734,13 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.21.0
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2397,11 +2317,23 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "env": {
+                  "GITHUB_TOKEN": "$GITHUB_TOKEN"
+                }
+              },
+              "gh-aw": {
+                "type": "http",
+                "url": "http://localhost:8765"
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -3040,6 +2972,25 @@ jobs:
           
           You are an AI analytics agent specializing in analyzing Copilot agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
           
+          ## Data Collection
+          
+          **Use the agentic-workflows `logs` tool** to download Copilot agent session data:
+          
+          ```bash
+          # Download logs for workflow runs from copilot/* branches
+          # The logs tool will automatically filter for copilot/* branches and download all relevant data
+          logs --branch copilot/ --count 50 --output ./logs
+          ```
+          
+          This will create a `./logs/` directory containing:
+          - Session metadata in subdirectories named by run ID
+          - `aw_info.json` files with engine configuration and workflow metadata
+          - `agent_output/` directories with agent logs
+          - `agent-stdio.log` files with agent output
+          - `workflow-logs/` directories with GitHub Actions logs
+          
+          The downloaded data will be organized by run ID and contain all the information needed for analysis.
+          
           ## 📊 Trend Charts Requirement
           
           **IMPORTANT**: Generate exactly 2 trend charts that showcase Copilot agent session patterns over time.
@@ -3158,59 +3109,40 @@ jobs:
           
           ## Task Overview
           
-          ### Phase 0: Setup and Prerequisites
+          ### Phase 0: Data Acquisition
           
-          **Pre-fetched Data Available**: This workflow includes a shared component that automatically fetches Copilot agent session data. The data is available at:
-          - `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
-          - `/tmp/gh-aw/session-data/logs/` - Individual session log directories
+          **Use the agentic-workflows `logs` tool** to download Copilot session data:
           
-          **Data Source**: Session data is fetched from GitHub Actions workflow runs on `copilot/*` branches (the standard pattern for Copilot agent tasks).
-          
-          **Verify Setup**:
-          1. Confirm session data was downloaded successfully
-          2. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
-          3. Load historical analysis data if available
-          
-          **Cache Memory Structure**:
-          ```
-          /tmp/gh-aw/cache-memory/
-          ├── session-analysis/
-          │   ├── history.json           # Historical analysis results
-          │   ├── strategies.json        # Discovered analytical strategies
-          │   └── patterns.json          # Known behavioral patterns
-          ```
-          
-          ### Phase 1: Data Acquisition
-          
-          The session data has already been fetched by the shared component. You should:
-          
-          1. **Verify Downloaded Data**:
+          1. **Download session logs** from copilot/* branches:
              ```bash
-             # Check sessions list
-             jq '.' /tmp/gh-aw/session-data/sessions-list.json
-             
-             # Count sessions
-             jq 'length' /tmp/gh-aw/session-data/sessions-list.json
-             
-             # List log directories
-             ls -la /tmp/gh-aw/session-data/logs/
+             # Download logs for workflow runs from copilot/* branches
+             logs --branch copilot/ --count 50 --output ./logs
              ```
           
-          2. **Extract Session Metadata**:
-             - Workflow run IDs
-             - Creation timestamps
-             - Branch names
-             - Status and conclusion
-             - URLs to workflow runs
+          2. **Verify Downloaded Data**:
+             ```bash
+             # List downloaded run directories
+             ls -la ./logs/
+             
+             # Check a specific run's data
+             ls -la ./logs/<run-id>/
+             cat ./logs/<run-id>/aw_info.json
+             ```
           
-          3. **Sample Strategy**:
-             - Use all available sessions (up to 50)
-             - If more than 50 sessions exist, they were already limited in the fetch step
-             - Record which sessions are being analyzed
+          3. **Initialize Cache Memory**:
+             - Check for historical analysis data in `/tmp/gh-aw/cache-memory/`
+             - Create cache structure if it doesn't exist:
+             ```
+             /tmp/gh-aw/cache-memory/
+             ├── session-analysis/
+             │   ├── history.json           # Historical analysis results
+             │   ├── strategies.json        # Discovered analytical strategies
+             │   └── patterns.json          # Known behavioral patterns
+             ```
           
-          ### Phase 2: Session Analysis
+          ### Phase 1: Session Analysis
           
-          For each downloaded session log in `/tmp/gh-aw/session-data/logs/`:
+          For each downloaded session in `./logs/<run-id>/`:
           
           #### 2.1 Load Historical Context
           
@@ -3493,6 +3425,8 @@ jobs:
              - Success rate: [%]
              - Example: [Brief example]
           
+          [Include 3-5 key success patterns]
+          
           PROMPT_EOF
       - name: Append prompt (part 3)
         env:
@@ -3500,8 +3434,6 @@ jobs:
         run: |
           # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          [Include 3-5 key success patterns]
-          
           ## Failure Signals ⚠️
           
           Common indicators of inefficiency or failure:
@@ -3736,7 +3668,7 @@ jobs:
           
           ---
           
-          Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
+          Begin your analysis by downloading session data using the agentic-workflows `logs` tool, loading historical context from cache memory, and proceeding through the analysis phases systematically.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
