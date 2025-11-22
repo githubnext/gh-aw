@@ -2837,6 +2837,46 @@
             }
           ]
         },
+        "add-reviewer": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any reviewers"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for adding reviewers to pull requests from agentic workflow output",
+              "properties": {
+                "reviewers": {
+                  "type": "array",
+                  "description": "Optional list of allowed reviewers. If omitted, any reviewers are allowed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of reviewers to add (default: 3)",
+                  "minimum": 1
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for reviewers: 'triggering' (default), '*' (any PR), or explicit PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository reviewer addition. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "assign-milestone": {
           "oneOf": [
             {

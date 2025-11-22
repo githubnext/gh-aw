@@ -135,8 +135,3 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 	return nil
 }
-
-// getAddReviewerScript returns the embedded JavaScript for add_reviewer
-func getAddReviewerScript() string {
-	return embedJavaScript("add_reviewer.cjs")
-}
