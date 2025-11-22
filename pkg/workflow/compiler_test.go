@@ -2183,7 +2183,7 @@ This is a test workflow with empty network permissions (deny all).
 			t.Error("Should contain network hook setup for network: {}")
 		}
 		// Should have empty ALLOWED_DOMAINS array for deny-all
-		if !strings.Contains(string(lockContent), "ALLOWED_DOMAINS = []") {
+		if !strings.Contains(string(lockContent), "json.loads('''[]''')") {
 			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
 		}
 	})
