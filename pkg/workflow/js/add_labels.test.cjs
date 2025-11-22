@@ -1037,7 +1037,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no item_number specified in labels item');
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no item_number specified in label addition item');
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -1074,7 +1074,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid item_number specified: -5");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid item_number/pull_request_number specified: -5");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
   });

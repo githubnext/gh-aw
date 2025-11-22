@@ -958,6 +958,125 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function parseAllowedItems(envValue) {
+              const trimmed = envValue?.trim();
+              if (!trimmed) {
+                return undefined;
+              }
+              return trimmed
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item);
+            }
+            function parseMaxCount(envValue, defaultValue = 3) {
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            function resolveTarget(params) {
+              const { targetConfig, item, context, itemType, supportsPR = false } = params;
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const target = targetConfig || "triggering";
+              if (target === "triggering") {
+                if (supportsPR) {
+                  if (!isIssueContext && !isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                } else {
+                  if (!isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                }
+              }
+              let itemNumber;
+              let contextType;
+              if (target === "*") {
+                const numberField = supportsPR ? item.item_number || item.pull_request_number : item.pull_request_number;
+                if (numberField) {
+                  itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    return {
+                      success: false,
+                      error: `Invalid ${supportsPR ? "item_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
+                      shouldFail: true,
+                    };
+                  }
+                  contextType = supportsPR && item.item_number ? "issue" : "pull request";
+                } else {
+                  return {
+                    success: false,
+                    error: `Target is "*" but no ${supportsPR ? "item_number" : "pull_request_number"} specified in ${itemType} item`,
+                    shouldFail: true,
+                  };
+                }
+              } else if (target !== "triggering") {
+                itemNumber = parseInt(target, 10);
+                if (isNaN(itemNumber) || itemNumber <= 0) {
+                  return {
+                    success: false,
+                    error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
+                    shouldFail: true,
+                  };
+                }
+                contextType = supportsPR ? "issue" : "pull request";
+              } else {
+                if (isIssueContext) {
+                  if (context.payload.issue) {
+                    itemNumber = context.payload.issue.number;
+                    contextType = "issue";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Issue context detected but no issue found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                } else if (isPRContext) {
+                  if (context.payload.pull_request) {
+                    itemNumber = context.payload.pull_request.number;
+                    contextType = "pull request";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Pull request context detected but no pull request found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                }
+              }
+              if (!itemNumber) {
+                return {
+                  success: false,
+                  error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+                  shouldFail: true,
+                };
+              }
+              return {
+                success: true,
+                number: itemNumber,
+                contextType: contextType || (supportsPR ? "issue" : "pull request"),
+              };
+            }
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -989,80 +1108,38 @@ jobs:
                 });
                 return;
               }
-              const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
-              const allowedLabels = allowedLabelsEnv
-                ? allowedLabelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : undefined;
+              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED);
               if (allowedLabels) {
                 core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
               } else {
                 core.info("No label restrictions - any labels are allowed");
               }
-              const maxCountEnv = process.env.GH_AW_LABELS_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+              const maxCountResult = parseMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, 3);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
                 return;
               }
+              const maxCount = maxCountResult.value;
               core.info(`Max count: ${maxCount}`);
               const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
               core.info(`Labels target configuration: ${labelsTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (labelsTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
-                return;
-              }
-              let itemNumber;
-              let contextType;
-              if (labelsTarget === "*") {
-                if (labelsItem.item_number) {
-                  itemNumber = typeof labelsItem.item_number === "number" ? labelsItem.item_number : parseInt(String(labelsItem.item_number), 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.setFailed(`Invalid item_number specified: ${labelsItem.item_number}`);
-                    return;
-                  }
-                  contextType = "issue";
+              const targetResult = resolveTarget({
+                targetConfig: labelsTarget,
+                item: labelsItem,
+                context,
+                itemType: "label addition",
+                supportsPR: true,
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
                 } else {
-                  core.setFailed('Target is "*" but no item_number specified in labels item');
-                  return;
+                  core.info(targetResult.error);
                 }
-              } else if (labelsTarget && labelsTarget !== "triggering") {
-                itemNumber = parseInt(labelsTarget, 10);
-                if (isNaN(itemNumber) || itemNumber <= 0) {
-                  core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
-                  return;
-                }
-                contextType = "issue";
-              } else {
-                if (isIssueContext) {
-                  if (context.payload.issue) {
-                    itemNumber = context.payload.issue.number;
-                    contextType = "issue";
-                  } else {
-                    core.setFailed("Issue context detected but no issue found in payload");
-                    return;
-                  }
-                } else if (isPRContext) {
-                  if (context.payload.pull_request) {
-                    itemNumber = context.payload.pull_request.number;
-                    contextType = "pull request";
-                  } else {
-                    core.setFailed("Pull request context detected but no pull request found in payload");
-                    return;
-                  }
-                }
-              }
-              if (!itemNumber) {
-                core.setFailed("Could not determine issue or pull request number");
                 return;
               }
+              const itemNumber = targetResult.number;
+              const contextType = targetResult.contextType;
               const requestedLabels = labelsItem.labels || [];
               core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
               for (const label of requestedLabels) {
