@@ -22,6 +22,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/copilot-session-data-fetch.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/trends.md
@@ -54,6 +55,103 @@
 #
 # Original Prompt:
 # ```markdown
+# <!--
+# ## Copilot Session Data Fetch
+#
+# This shared component fetches workflow run data for GitHub Copilot agent sessions from the last 30 days, with intelligent caching to avoid redundant API calls.
+#
+# ### What It Does
+#
+# 1. Creates output directories at `/tmp/gh-aw/session-data/` and `/tmp/gh-aw/cache-memory/`
+# 2. Checks for cached session data from today's date in cache-memory
+# 3. If cache exists (from earlier workflow runs today):
+#    - Uses cached data instead of making API calls
+#    - Restores session list and logs from cache
+#    - Copies data from cache to working directory
+# 4. If cache doesn't exist:
+#    - Calculates the date 30 days ago (cross-platform compatible)
+#    - Fetches all workflow runs from branches starting with `copilot/` using GitHub API
+#    - Downloads logs for up to 50 most recent sessions
+#    - Extracts log zip files into organized directories
+#    - Saves data to cache with date-based filename (e.g., `copilot-sessions-2024-11-22.json`)
+#    - Copies data to working directory for use
+# 5. Generates a schema of the data structure
+#
+# ### Caching Strategy
+#
+# - **Cache Key**: `copilot-session-data` for workflow-level sharing
+# - **Cache Files**: Stored with today's date in the filename (e.g., `copilot-sessions-2024-11-22.json`)
+# - **Cache Location**: `/tmp/gh-aw/cache-memory/`
+# - **Cache Benefits**: 
+#   - Multiple workflows running on the same day share the same session data
+#   - Reduces GitHub API rate limit usage
+#   - Faster workflow execution after first fetch of the day
+#   - Logs are cached to avoid re-downloading
+#
+# ### Output Files
+#
+# - **`/tmp/gh-aw/session-data/sessions-list.json`**: Full workflow run data including id, name, branch, status, conclusion, timestamps, URLs, etc.
+# - **`/tmp/gh-aw/session-data/sessions-schema.json`**: JSON schema showing the structure of the session data
+# - **`/tmp/gh-aw/session-data/logs/`**: Directory containing extracted log files organized by run ID
+# - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD.json`**: Cached session data with date
+# - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD-schema.json`**: Cached schema with date
+# - **`/tmp/gh-aw/cache-memory/session-logs-YYYY-MM-DD/`**: Cached log files with date
+#
+# ### Usage
+#
+# Import this component in your workflow:
+#
+# ```yaml
+# imports:
+#   - shared/copilot-session-data-fetch.md
+#   - shared/jqschema.md  # Required for schema generation
+# ```
+#
+# Then access the pre-fetched data in your workflow prompt:
+#
+# ```bash
+# # Count total sessions
+# jq 'length' /tmp/gh-aw/session-data/sessions-list.json
+#
+# # Get session IDs
+# jq '[.[].id]' /tmp/gh-aw/session-data/sessions-list.json
+#
+# # Filter by status
+# jq '[.[] | select(.status == "completed")]' /tmp/gh-aw/session-data/sessions-list.json
+#
+# # Access logs for a specific run
+# ls /tmp/gh-aw/session-data/logs/<run_id>/
+# ```
+#
+# ### Requirements
+#
+# - Requires `jqschema.md` to be imported for schema generation
+# - Uses GitHub API `repos/{owner}/{repo}/actions/runs` endpoint
+# - Cross-platform date calculation (works on both GNU and BSD date commands)
+# - Cache-memory tool is automatically configured for data persistence
+#
+# ### Why Branch-Based Search?
+#
+# GitHub Copilot creates branches with the `copilot/` prefix for agent tasks, making branch-based workflow run search reliable for identifying Copilot sessions without requiring specialized CLI extensions.
+#
+# ### Cache Behavior
+#
+# The cache is date-based, meaning:
+# - All workflows running on the same day share cached data
+# - Cache refreshes automatically the next day
+# - First workflow of the day fetches fresh data and populates the cache
+# - Subsequent workflows use the cached data for faster execution
+# - Logs are cached to avoid repeated downloads
+#
+# ### Advantages Over gh agent-task Extension
+#
+# - **Universal Compatibility**: Works on all GitHub environments (not just Enterprise)
+# - **Standard Authentication**: Uses regular `GITHUB_TOKEN`, no special PAT required
+# - **No Installation**: No CLI extension installation needed
+# - **Simpler Maintenance**: Fewer failure modes and dependencies
+# - **Better Portability**: Can be used in any GitHub Actions workflow
+# -->
+#
 # ## jqschema - JSON Schema Discovery
 #
 # A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -761,41 +859,16 @@
 #
 # ### Phase 0: Setup and Prerequisites
 #
-# **Pre-fetched Data Available**: This workflow includes a preparation step that attempts to fetch Copilot agent session data. The data should be available at:
-# - `/tmp/gh-aw/agent-sessions/sessions-list.json` - List of sessions with metadata
-# - `/tmp/gh-aw/agent-sessions/logs/` - Individual session log files
+# **Pre-fetched Data Available**: This workflow includes a shared component that automatically fetches Copilot agent session data. The data is available at:
+# - `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
+# - `/tmp/gh-aw/session-data/logs/` - Individual session log directories
 #
-# **IMPORTANT - Check Session Availability**:
+# **Data Source**: Session data is fetched from GitHub Actions workflow runs on `copilot/*` branches (the standard pattern for Copilot agent tasks).
 #
-# First, verify if session data was successfully downloaded:
-#
-# ```bash
-# # Check if sessions are available
-# if [ -f "/tmp/gh-aw/agent-sessions/sessions-list.json" ]; then
-#   SESSION_COUNT="$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)"
-#   echo "Found $SESSION_COUNT sessions"
-# else
-#   echo "No session data available"
-#   SESSION_COUNT=0
-# fi
-# ```
-#
-# **If SESSION_COUNT is 0 or sessions-list.json is empty**:
-# - The `gh agent-task` extension may not be installed
-# - Authentication may be missing or insufficient
-# - GitHub Enterprise Copilot may not be enabled
-# - **ACTION**: Skip to "Fallback: Configuration Help Discussion" section below
-# - Do NOT proceed with normal analysis phases
-#
-# **If SESSION_COUNT > 0**:
-# - Continue with normal analysis
-# - Proceed to Phase 1
-#
-# **Verify Setup** (only if sessions are available):
-# 1. Confirm `GH_TOKEN` is available (pre-configured)
-# 2. Check that session data was downloaded successfully
-# 3. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
-# 4. Load historical analysis data if available
+# **Verify Setup**:
+# 1. Confirm session data was downloaded successfully
+# 2. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
+# 3. Load historical analysis data if available
 #
 # **Cache Memory Structure**:
 # ```
@@ -808,26 +881,26 @@
 #
 # ### Phase 1: Data Acquisition
 #
-# The session data has already been fetched in the preparation step. You should:
+# The session data has already been fetched by the shared component. You should:
 #
 # 1. **Verify Downloaded Data**:
 #    ```bash
 #    # Check sessions list
-#    jq '.' /tmp/gh-aw/agent-sessions/sessions-list.json
+#    jq '.' /tmp/gh-aw/session-data/sessions-list.json
 #
 #    # Count sessions
-#    jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json
+#    jq 'length' /tmp/gh-aw/session-data/sessions-list.json
 #
-#    # List log files
-#    ls -la /tmp/gh-aw/agent-sessions/logs/
+#    # List log directories
+#    ls -la /tmp/gh-aw/session-data/logs/
 #    ```
 #
 # 2. **Extract Session Metadata**:
-#    - Session IDs
+#    - Workflow run IDs
 #    - Creation timestamps
-#    - Task titles and descriptions
-#    - Current state (open, completed, failed)
-#    - Pull request numbers (if available)
+#    - Branch names
+#    - Status and conclusion
+#    - URLs to workflow runs
 #
 # 3. **Sample Strategy**:
 #    - Use all available sessions (up to 50)
@@ -836,7 +909,7 @@
 #
 # ### Phase 2: Session Analysis
 #
-# For each downloaded session log in `/tmp/gh-aw/agent-sessions/logs/`:
+# For each downloaded session log in `/tmp/gh-aw/session-data/logs/`:
 #
 # #### 2.1 Load Historical Context
 #
@@ -1355,177 +1428,7 @@
 #
 # ---
 #
-# ## Fallback: Configuration Help Discussion
-#
-# **Use this template when session data is unavailable** (SESSION_COUNT is 0 or sessions-list.json is missing/empty).
-#
-# Create a discussion with setup instructions instead of analysis.
-#
-# **Discussion Title**:
-# ```
-# Copilot Agent Session Analysis - Configuration Required
-# ```
-#
-# **Discussion Content**:
-#
-# ```markdown
-# # ⚙️ Copilot Agent Session Analysis - Configuration Required
-#
-# ## Issue
-#
-# The Copilot Agent Session Analysis workflow attempted to run but could not access session data.
-#
-# **Run Details**:
-# - **Run ID**: ${{ github.run_id }}
-# - **Workflow**: ${{ github.workflow }}
-# - **Date**: [CURRENT_DATE]
-# - **Repository**: ${{ github.repository }}
-#
-# ## Root Cause
-#
-# Session data could not be fetched due to one or more of the following reasons:
-#
-# 1. ❌ **gh agent-task extension not installed** on the runner
-# 2. ❌ **Authentication token missing or insufficient** permissions
-# 3. ❌ **GitHub Enterprise Copilot not enabled** for this organization/repository
-# 4. ❌ **No agent task sessions available** in the time period
-#
-# ## Required Setup
-#
-# To enable this workflow, the following requirements must be met:
-#
-# ### 1. GitHub Enterprise Copilot Subscription
-#
-# This workflow requires **GitHub Enterprise with Copilot** enabled. The `gh agent-task` CLI extension is only available to Enterprise customers with Copilot access.
-#
-# **Check your access**:
-# - Verify GitHub Enterprise subscription
-# - Confirm Copilot is enabled for your organization
-# - Ensure you have access to Copilot agent tasks
-#
-# ### 2. Install gh agent-task Extension
-#
-# The workflow runner needs the `gh agent-task` extension installed:
-#
-# ```bash
-# gh extension install github/agent-task
-# ```
-#
-# **For GitHub Actions runners**:
-# - This extension should be pre-installed in the runner environment
-# - If using self-hosted runners, install manually
-# - Consider adding to runner setup scripts
-#
-# ### 3. Configure Authentication Token
-#
-# The workflow needs a Personal Access Token (PAT) with appropriate permissions:
-#
-# **Create a secret named `GH_AW_COPILOT_TOKEN`**:
-# 1. Generate a Personal Access Token with these scopes:
-#    - `repo` - Full control of private repositories
-#    - `read:org` - Read organization data
-#    - `workflow` - Update GitHub Actions workflows
-# 2. Add the token as a repository secret:
-#    - Go to Settings → Secrets and variables → Actions
-#    - Create new secret: `GH_AW_COPILOT_TOKEN`
-#    - Paste the token value
-#
-# **Important**: The default `GITHUB_TOKEN` does **NOT** have sufficient permissions for agent task API access. A Personal Access Token is required.
-#
-# ### 4. Verify Access
-#
-# Test your configuration:
-#
-# ```bash
-# # Set your token
-# export GH_TOKEN=ghp_your_token_here
-#
-# # List agent tasks
-# gh agent-task list --limit 5
-#
-# # View a specific task
-# gh agent-task view <task-id>
-# ```
-#
-# If these commands work, the workflow should succeed on the next run.
-#
-# ## Troubleshooting
-#
-# ### Extension Not Found
-#
-# ```
-# Error: unknown command "agent-task" for "gh"
-# ```
-#
-# **Solution**: Install the extension:
-# ```bash
-# gh extension install github/agent-task
-# ```
-#
-# ### Authentication Failed
-#
-# ```
-# Error: 403 Forbidden
-# ```
-#
-# **Solution**: 
-# - Verify `GH_AW_COPILOT_TOKEN` secret is configured
-# - Ensure the token has required scopes
-# - Check if GitHub Enterprise Copilot is enabled
-#
-# ### No Sessions Available
-#
-# ```
-# Total sessions found: 0
-# ```
-#
-# **Solution**:
-# - This may be expected if no agent tasks have been created
-# - Create some agent tasks and re-run the workflow
-# - Verify agent tasks are being created in the correct repository/organization
-#
-# ## Next Steps
-#
-# Once configuration is complete:
-#
-# 1. **Verify requirements**:
-#    - [ ] GitHub Enterprise Copilot subscription active
-#    - [ ] `gh agent-task` extension installed on runner
-#    - [ ] `GH_AW_COPILOT_TOKEN` secret configured with valid PAT
-#    - [ ] Token has required permissions
-#
-# 2. **Test manually**:
-#    - [ ] Run `gh agent-task list` to verify access
-#    - [ ] Confirm sessions are returned
-#
-# 3. **Re-run workflow**:
-#    - [ ] Manually trigger workflow via workflow_dispatch
-#    - [ ] Verify successful session download
-#    - [ ] Check for analysis discussion creation
-#
-# ## Additional Resources
-#
-# - **GitHub Agent Tasks Documentation**: [Enterprise Copilot Documentation]
-# - **gh CLI Extensions**: https://docs.github.com/en/github-cli/github-cli/using-github-cli-extensions
-# - **Personal Access Tokens**: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-#
-# ## Contact
-#
-# For questions or assistance with configuration:
-# - Check with your GitHub Enterprise administrator
-# - Review organization Copilot settings
-# - Contact GitHub Support for Enterprise customers
-#
-# ---
-#
-# _This configuration guide was generated automatically because session data was unavailable._  
-# _Workflow run: ${{ github.run_id }}_  
-# _Date: [CURRENT_DATE]_
-# ```
-#
-# ---
-#
-# Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically. **If session data is unavailable, create the Configuration Help Discussion instead.**
+# Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
 # ```
 #
 # Pinned GitHub Actions:
@@ -1680,6 +1583,11 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch Copilot session data
+        run: "# Create output directories\nmkdir -p /tmp/gh-aw/session-data\nmkdir -p /tmp/gh-aw/session-data/logs\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached session data from ${TODAY}\"\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" /tmp/gh-aw/session-data/sessions-list.json\n  \n  # Restore cached logs if available\n  if [ -d \"$CACHE_DIR/session-logs-${TODAY}\" ]; then\n    cp -r \"$CACHE_DIR/session-logs-${TODAY}\"/* /tmp/gh-aw/session-data/logs/ 2>/dev/null || true\n    echo \"✓ Restored cached session logs\"\n  fi\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" /tmp/gh-aw/session-data/sessions-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total sessions in cache: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nelse\n  echo \"⬇ Downloading fresh session data...\"\n  \n  # Calculate date 30 days ago (cross-platform compatible)\n  DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n  # Search for workflow runs from copilot/* branches in the last 30 days\n  echo \"Fetching Copilot workflow runs from the last 30 days...\"\n  gh api \"repos/${{ github.repository }}/actions/runs\" \\\n    --paginate \\\n    --jq \".workflow_runs[] | select(.head_branch | startswith(\\\"copilot/\\\")) | select(.created_at >= \\\"${DATE_30_DAYS_AGO}\\\") | {id: .id, name: .name, head_branch: .head_branch, status: .status, conclusion: .conclusion, created_at: .created_at, updated_at: .updated_at, run_number: .run_number, event: .event, html_url: .html_url}\" \\\n    | jq -s '.' \\\n    > /tmp/gh-aw/session-data/sessions-list.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > /tmp/gh-aw/session-data/sessions-schema.json\n\n  # Download logs for each session (limit to first 50 for performance)\n  echo \"Downloading session logs...\"\n  TOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\n  echo \"Total sessions found: $TOTAL_SESSIONS\"\n  \n  if [ \"$TOTAL_SESSIONS\" -gt 0 ]; then\n    jq -r '.[].id' /tmp/gh-aw/session-data/sessions-list.json | head -50 | while read -r run_id; do\n      if [ -n \"$run_id\" ]; then\n        echo \"Downloading logs for run: $run_id\"\n        \n        # Download logs as zip file\n        if gh api \"repos/${{ github.repository }}/actions/runs/${run_id}/logs\" > \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" 2>/dev/null; then\n          # Extract the zip file\n          unzip -q -o \"/tmp/gh-aw/session-data/logs/${run_id}.zip\" -d \"/tmp/gh-aw/session-data/logs/${run_id}/\" 2>/dev/null || true\n          # Remove the zip file to save space\n          rm -f \"/tmp/gh-aw/session-data/logs/${run_id}.zip\"\n        else\n          echo \"Failed to download logs for run: $run_id\"\n        fi\n      fi\n    done\n    \n    LOG_COUNT=$(find /tmp/gh-aw/session-data/logs/ -maxdepth 1 -type d | wc -l)\n    echo \"Session logs downloaded to /tmp/gh-aw/session-data/logs/\"\n    echo \"Total log directories: $((LOG_COUNT - 1))\"\n  fi\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/session-data/sessions-list.json \"$CACHE_DIR/copilot-sessions-${TODAY}.json\"\n  cp /tmp/gh-aw/session-data/sessions-schema.json \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  \n  # Cache the logs directory\n  if [ -d /tmp/gh-aw/session-data/logs ]; then\n    mkdir -p \"$CACHE_DIR/session-logs-${TODAY}\"\n    cp -r /tmp/gh-aw/session-data/logs/* \"$CACHE_DIR/session-logs-${TODAY}/\" 2>/dev/null || true\n    echo \"✓ Session logs cached\"\n  fi\n\n  echo \"✓ Session data saved to cache: copilot-sessions-${TODAY}.json\"\n  echo \"Total sessions found: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nfi\n\n# Always ensure data is available at expected locations\necho \"Session data available at: /tmp/gh-aw/session-data/sessions-list.json\"\necho \"Schema available at: /tmp/gh-aw/session-data/sessions-schema.json\"\necho \"Logs available at: /tmp/gh-aw/session-data/logs/\""
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - name: Setup Python environment
@@ -1704,22 +1612,6 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
-      - continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
-        id: install-extension
-        name: Install gh agent-task extension
-        run: "echo \"::group::Install gh agent-task Extension\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is already installed\nif gh extension list | grep -q \"github/agent-task\"; then\n  echo \"✓ gh agent-task extension is already installed\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"::endgroup::\"\n  exit 0\nfi\n\n# Attempt to install the extension\necho \"Installing gh agent-task extension...\"\nif gh extension install github/agent-task; then\n  echo \"✓ gh agent-task extension installed successfully\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"::warning::Failed to install gh agent-task extension\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"::warning::The extension may not be available for this account\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"::endgroup::\"\n"
-      - continue-on-error: true
-        env:
-          EXTENSION_INSTALLED: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}
-          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
-        id: download-sessions
-        name: List and download Copilot agent sessions
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  # Security: Use environment variable instead of template expression in bash script\n  echo \"::warning::Extension installation status from previous step: $EXTENSION_INSTALLED\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ -n \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
-      - if: steps.download-sessions.outcome == 'failure'
-        name: Create fallback session data
-        run: "# Create empty session data to prevent downstream errors\nmkdir -p /tmp/gh-aw/agent-sessions/logs\necho '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json\necho \"Created empty session data files for graceful degradation\"\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -2552,6 +2444,8 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          
+          
           ## jqschema - JSON Schema Discovery
           
           A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -3066,7 +2960,6 @@ jobs:
           import os
           
           data_file = '/tmp/gh-aw/python/data/data.csv'
-          if not os.path.exists(data_file):
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
@@ -3074,6 +2967,7 @@ jobs:
         run: |
           # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          if not os.path.exists(data_file):
               raise FileNotFoundError(f"Data file not found: {data_file}")
           ```
           
@@ -3266,41 +3160,16 @@ jobs:
           
           ### Phase 0: Setup and Prerequisites
           
-          **Pre-fetched Data Available**: This workflow includes a preparation step that attempts to fetch Copilot agent session data. The data should be available at:
-          - `/tmp/gh-aw/agent-sessions/sessions-list.json` - List of sessions with metadata
-          - `/tmp/gh-aw/agent-sessions/logs/` - Individual session log files
+          **Pre-fetched Data Available**: This workflow includes a shared component that automatically fetches Copilot agent session data. The data is available at:
+          - `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
+          - `/tmp/gh-aw/session-data/logs/` - Individual session log directories
           
-          **IMPORTANT - Check Session Availability**:
+          **Data Source**: Session data is fetched from GitHub Actions workflow runs on `copilot/*` branches (the standard pattern for Copilot agent tasks).
           
-          First, verify if session data was successfully downloaded:
-          
-          ```bash
-          # Check if sessions are available
-          if [ -f "/tmp/gh-aw/agent-sessions/sessions-list.json" ]; then
-            SESSION_COUNT="$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)"
-            echo "Found $SESSION_COUNT sessions"
-          else
-            echo "No session data available"
-            SESSION_COUNT=0
-          fi
-          ```
-          
-          **If SESSION_COUNT is 0 or sessions-list.json is empty**:
-          - The `gh agent-task` extension may not be installed
-          - Authentication may be missing or insufficient
-          - GitHub Enterprise Copilot may not be enabled
-          - **ACTION**: Skip to "Fallback: Configuration Help Discussion" section below
-          - Do NOT proceed with normal analysis phases
-          
-          **If SESSION_COUNT > 0**:
-          - Continue with normal analysis
-          - Proceed to Phase 1
-          
-          **Verify Setup** (only if sessions are available):
-          1. Confirm `GH_TOKEN` is available (pre-configured)
-          2. Check that session data was downloaded successfully
-          3. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
-          4. Load historical analysis data if available
+          **Verify Setup**:
+          1. Confirm session data was downloaded successfully
+          2. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
+          3. Load historical analysis data if available
           
           **Cache Memory Structure**:
           ```
@@ -3313,26 +3182,26 @@ jobs:
           
           ### Phase 1: Data Acquisition
           
-          The session data has already been fetched in the preparation step. You should:
+          The session data has already been fetched by the shared component. You should:
           
           1. **Verify Downloaded Data**:
              ```bash
              # Check sessions list
-             jq '.' /tmp/gh-aw/agent-sessions/sessions-list.json
+             jq '.' /tmp/gh-aw/session-data/sessions-list.json
              
              # Count sessions
-             jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json
+             jq 'length' /tmp/gh-aw/session-data/sessions-list.json
              
-             # List log files
-             ls -la /tmp/gh-aw/agent-sessions/logs/
+             # List log directories
+             ls -la /tmp/gh-aw/session-data/logs/
              ```
           
           2. **Extract Session Metadata**:
-             - Session IDs
+             - Workflow run IDs
              - Creation timestamps
-             - Task titles and descriptions
-             - Current state (open, completed, failed)
-             - Pull request numbers (if available)
+             - Branch names
+             - Status and conclusion
+             - URLs to workflow runs
           
           3. **Sample Strategy**:
              - Use all available sessions (up to 50)
@@ -3341,7 +3210,7 @@ jobs:
           
           ### Phase 2: Session Analysis
           
-          For each downloaded session log in `/tmp/gh-aw/agent-sessions/logs/`:
+          For each downloaded session log in `/tmp/gh-aw/session-data/logs/`:
           
           #### 2.1 Load Historical Context
           
@@ -3598,13 +3467,6 @@ jobs:
           - **Sessions Analyzed**: [NUMBER]
           - **Analysis Period**: [DATE RANGE]
           - **Completion Rate**: [PERCENTAGE]%
-          PROMPT_EOF
-      - name: Append prompt (part 3)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           - **Average Duration**: [TIME]
           - **Experimental Strategy**: [STRATEGY NAME] (if applicable)
           
@@ -3631,6 +3493,13 @@ jobs:
              - Success rate: [%]
              - Example: [Brief example]
           
+          PROMPT_EOF
+      - name: Append prompt (part 3)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           [Include 3-5 key success patterns]
           
           ## Failure Signals ⚠️
@@ -3867,177 +3736,7 @@ jobs:
           
           ---
           
-          ## Fallback: Configuration Help Discussion
-          
-          **Use this template when session data is unavailable** (SESSION_COUNT is 0 or sessions-list.json is missing/empty).
-          
-          Create a discussion with setup instructions instead of analysis.
-          
-          **Discussion Title**:
-          ```
-          Copilot Agent Session Analysis - Configuration Required
-          ```
-          
-          **Discussion Content**:
-          
-          ```markdown
-          # ⚙️ Copilot Agent Session Analysis - Configuration Required
-          
-          ## Issue
-          
-          The Copilot Agent Session Analysis workflow attempted to run but could not access session data.
-          
-          **Run Details**:
-          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
-          - **Workflow**: ${GH_AW_EXPR_F76B6721}
-          - **Date**: [CURRENT_DATE]
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          
-          ## Root Cause
-          
-          Session data could not be fetched due to one or more of the following reasons:
-          
-          1. ❌ **gh agent-task extension not installed** on the runner
-          2. ❌ **Authentication token missing or insufficient** permissions
-          3. ❌ **GitHub Enterprise Copilot not enabled** for this organization/repository
-          4. ❌ **No agent task sessions available** in the time period
-          
-          ## Required Setup
-          
-          To enable this workflow, the following requirements must be met:
-          
-          ### 1. GitHub Enterprise Copilot Subscription
-          
-          This workflow requires **GitHub Enterprise with Copilot** enabled. The `gh agent-task` CLI extension is only available to Enterprise customers with Copilot access.
-          
-          **Check your access**:
-          - Verify GitHub Enterprise subscription
-          - Confirm Copilot is enabled for your organization
-          - Ensure you have access to Copilot agent tasks
-          
-          ### 2. Install gh agent-task Extension
-          
-          The workflow runner needs the `gh agent-task` extension installed:
-          
-          ```bash
-          gh extension install github/agent-task
-          ```
-          
-          **For GitHub Actions runners**:
-          - This extension should be pre-installed in the runner environment
-          - If using self-hosted runners, install manually
-          - Consider adding to runner setup scripts
-          
-          ### 3. Configure Authentication Token
-          
-          The workflow needs a Personal Access Token (PAT) with appropriate permissions:
-          
-          **Create a secret named `GH_AW_COPILOT_TOKEN`**:
-          1. Generate a Personal Access Token with these scopes:
-             - `repo` - Full control of private repositories
-             - `read:org` - Read organization data
-             - `workflow` - Update GitHub Actions workflows
-          2. Add the token as a repository secret:
-             - Go to Settings → Secrets and variables → Actions
-             - Create new secret: `GH_AW_COPILOT_TOKEN`
-             - Paste the token value
-          
-          **Important**: The default `GITHUB_TOKEN` does **NOT** have sufficient permissions for agent task API access. A Personal Access Token is required.
-          
-          ### 4. Verify Access
-          
-          Test your configuration:
-          
-          ```bash
-          # Set your token
-          export GH_TOKEN=ghp_your_token_here
-          
-          # List agent tasks
-          gh agent-task list --limit 5
-          
-          # View a specific task
-          gh agent-task view <task-id>
-          ```
-          
-          If these commands work, the workflow should succeed on the next run.
-          
-          ## Troubleshooting
-          
-          ### Extension Not Found
-          
-          ```
-          Error: unknown command "agent-task" for "gh"
-          ```
-          
-          **Solution**: Install the extension:
-          ```bash
-          gh extension install github/agent-task
-          ```
-          
-          ### Authentication Failed
-          
-          ```
-          Error: 403 Forbidden
-          ```
-          
-          **Solution**: 
-          - Verify `GH_AW_COPILOT_TOKEN` secret is configured
-          - Ensure the token has required scopes
-          - Check if GitHub Enterprise Copilot is enabled
-          
-          ### No Sessions Available
-          
-          ```
-          Total sessions found: 0
-          ```
-          
-          **Solution**:
-          - This may be expected if no agent tasks have been created
-          - Create some agent tasks and re-run the workflow
-          - Verify agent tasks are being created in the correct repository/organization
-          
-          ## Next Steps
-          
-          Once configuration is complete:
-          
-          1. **Verify requirements**:
-             - [ ] GitHub Enterprise Copilot subscription active
-             - [ ] `gh agent-task` extension installed on runner
-             - [ ] `GH_AW_COPILOT_TOKEN` secret configured with valid PAT
-             - [ ] Token has required permissions
-          
-          2. **Test manually**:
-             - [ ] Run `gh agent-task list` to verify access
-             - [ ] Confirm sessions are returned
-          
-          3. **Re-run workflow**:
-             - [ ] Manually trigger workflow via workflow_dispatch
-             - [ ] Verify successful session download
-             - [ ] Check for analysis discussion creation
-          
-          ## Additional Resources
-          
-          - **GitHub Agent Tasks Documentation**: [Enterprise Copilot Documentation]
-          - **gh CLI Extensions**: https://docs.github.com/en/github-cli/github-cli/using-github-cli-extensions
-          - **Personal Access Tokens**: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-          
-          ## Contact
-          
-          For questions or assistance with configuration:
-          - Check with your GitHub Enterprise administrator
-          - Review organization Copilot settings
-          - Contact GitHub Support for Enterprise customers
-          
-          ---
-          
-          _This configuration guide was generated automatically because session data was unavailable._  
-          _Workflow run: ${GH_AW_EXPR_B50B6E9C}_  
-          _Date: [CURRENT_DATE]_
-          ```
-          
-          ---
-          
-          Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically. **If session data is unavailable, create the Configuration Help Discussion instead.**
+          Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -4512,10 +4211,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_COPILOT_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          SECRET_GH_AW_COPILOT_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
