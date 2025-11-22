@@ -5,6 +5,7 @@ async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
   const maxBodyLength = 65000;
+  const MAX_GITHUB_USERNAME_LENGTH = 39; // Maximum length for GitHub usernames
   function getMaxAllowedForType(itemType, config) {
     const itemConfig = config?.[itemType];
     if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -471,8 +472,8 @@ async function main() {
             if (reviewerPRNumberValidation.error) errors.push(reviewerPRNumberValidation.error);
             continue;
           }
-          // Sanitize reviewer usernames (limit to 39 chars, max GitHub username length)
-          item.reviewers = item.reviewers.map(reviewer => sanitizeContent(reviewer, 39));
+          // Sanitize reviewer usernames (limit to MAX_GITHUB_USERNAME_LENGTH)
+          item.reviewers = item.reviewers.map(reviewer => sanitizeContent(reviewer, MAX_GITHUB_USERNAME_LENGTH));
           break;
         case "update_issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;

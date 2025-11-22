@@ -181,7 +181,7 @@ No reviewers were added (no valid reviewers found in agent output).
           pull_number: prNumber,
           reviewers: ["copilot-pull-request-reviewer[bot]"],
         });
-        core.info("Successfully added copilot as reviewer to PR #${prNumber}");
+        core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
       } catch (copilotError) {
         core.warning(`Failed to add copilot as reviewer: ${copilotError instanceof Error ? copilotError.message : String(copilotError)}`);
         // Don't fail the whole step if copilot reviewer fails
