@@ -11,7 +11,10 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var enableLog = logger.New("cli:enable")
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
 func EnableWorkflowsByNames(workflowNames []string, repoOverride string) error {
@@ -46,8 +49,11 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		action = "disable"
 	}
 
+	enableLog.Printf("Toggle workflows: action=%s, count=%d, repo=%s", action, len(workflowNames), repoOverride)
+
 	// If no specific workflow names provided, enable/disable all workflows
 	if len(workflowNames) == 0 {
+		enableLog.Print("No specific workflows provided, processing all workflows")
 		fmt.Fprintf(os.Stderr, "No specific workflows provided. %sing all workflows...\n", strings.ToUpper(action[:1])+action[1:])
 		// Get all workflow names and process them
 		mdFiles, err := getMarkdownWorkflowFiles()
@@ -270,6 +276,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 // DisableAllWorkflowsExcept disables all workflows except the specified ones
 // Typically used to disable all workflows except the one being trialled
 func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbose bool) error {
+	enableLog.Printf("Disabling all workflows except: count=%d, repo=%s", len(exceptWorkflows), repoSlug)
 	workflowsDir := ".github/workflows"
 
 	// Check if workflows directory exists
@@ -285,6 +292,7 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 	yamlFiles, _ := filepath.Glob(filepath.Join(workflowsDir, "*.yaml"))
 	allYAMLFiles := append(ymlFiles, yamlFiles...)
 
+	enableLog.Printf("Found %d YAML workflow files", len(allYAMLFiles))
 	if len(allYAMLFiles) == 0 {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No YAML workflow files found"))

@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var expressionNodesLog = logger.New("workflow:expression_nodes")
 
 // ConditionNode represents a node in a condition expression tree
 type ConditionNode interface {
@@ -96,6 +100,8 @@ func (d *DisjunctionNode) RenderMultiline() string {
 	if len(d.Terms) == 1 {
 		return d.Terms[0].Render()
 	}
+
+	expressionNodesLog.Printf("Rendering multiline disjunction with %d terms", len(d.Terms))
 
 	var lines []string
 	for i, term := range d.Terms {

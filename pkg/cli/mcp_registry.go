@@ -10,7 +10,10 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var mcpRegistryLog = logger.New("cli:mcp_registry")
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
 type MCPRegistryServerForProcessing struct {
@@ -38,6 +41,8 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 		registryURL = constants.DefaultMCPRegistryURL
 	}
 
+	mcpRegistryLog.Printf("Creating MCP registry client: url=%s", registryURL)
+
 	return &MCPRegistryClient{
 		registryURL: registryURL,
 		httpClient: &http.Client{
@@ -62,6 +67,8 @@ func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Req
 
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
+	mcpRegistryLog.Printf("Searching MCP servers: query=%q", query)
+
 	// Always use servers endpoint for listing all servers
 	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
 
@@ -112,6 +119,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	}
 
 	// Convert servers to flattened format and filter by status
+	mcpRegistryLog.Printf("Processing %d servers from registry", len(response.Servers))
 	servers := make([]MCPRegistryServerForProcessing, 0, len(response.Servers))
 	for _, server := range response.Servers {
 		// Only include active servers
@@ -225,6 +233,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			}
 		}
 
+		mcpRegistryLog.Printf("Filtered to %d servers matching query", len(filteredServers))
 		return filteredServers, nil
 	}
 
@@ -240,6 +249,8 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 // GetServer gets a specific server by name from the registry
 func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForProcessing, error) {
+	mcpRegistryLog.Printf("Getting MCP server: name=%s", serverName)
+
 	// Use the servers endpoint and filter locally, just like SearchServers
 	serversURL := fmt.Sprintf("%s/servers", c.registryURL)
 
@@ -382,10 +393,12 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				processedServer.Transport = "stdio" // default fallback
 			}
 
+			mcpRegistryLog.Printf("Found MCP server: name=%s, transport=%s", serverName, processedServer.Transport)
 			return &processedServer, nil
 		}
 	}
 
+	mcpRegistryLog.Printf("MCP server not found: name=%s", serverName)
 	return nil, fmt.Errorf("MCP server '%s' not found in registry", serverName)
 }
 

@@ -9,11 +9,15 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+var removeLog = logger.New("cli:remove_command")
+
 // RemoveWorkflows removes workflows matching a pattern
 func RemoveWorkflows(pattern string, keepOrphans bool) error {
+	removeLog.Printf("Removing workflows: pattern=%q, keepOrphans=%v", pattern, keepOrphans)
 	workflowsDir := getWorkflowsDir()
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
@@ -27,6 +31,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		return fmt.Errorf("failed to find workflow files: %w", err)
 	}
 
+	removeLog.Printf("Found %d workflow files", len(mdFiles))
 	if len(mdFiles) == 0 {
 		fmt.Println("No workflow files found to remove.")
 		return nil
@@ -65,9 +70,12 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	}
 
 	if len(filesToRemove) == 0 {
+		removeLog.Printf("No workflows matched pattern: %q", pattern)
 		fmt.Printf("No workflows found matching pattern: %s\n", pattern)
 		return nil
 	}
+
+	removeLog.Printf("Found %d workflows to remove", len(filesToRemove))
 
 	// Preview orphaned includes that would be removed (if orphan removal is enabled)
 	var orphanedIncludes []string
@@ -154,10 +162,12 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 // cleanupOrphanedIncludes removes include files that are no longer used by any workflow
 func cleanupOrphanedIncludes(verbose bool) error {
+	removeLog.Print("Cleaning up orphaned include files")
 	// Get all remaining markdown files
 	mdFiles, err := getMarkdownWorkflowFiles()
 	if err != nil {
 		// No markdown files means we can clean up all includes
+		removeLog.Print("No markdown files found, cleaning up all includes")
 		if verbose {
 			fmt.Printf("No markdown files found, cleaning up all includes\n")
 		}
