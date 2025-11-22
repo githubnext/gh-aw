@@ -648,11 +648,7 @@ async function main() {
           item.body = sanitizeContent(item.body, maxBodyLength);
 
           // Validate optional issue_number field
-          const issueNumberValidation = validateOptionalPositiveInteger(
-            item.issue_number,
-            "close_issue 'issue_number'",
-            i + 1
-          );
+          const issueNumberValidation = validateOptionalPositiveInteger(item.issue_number, "close_issue 'issue_number'", i + 1);
           if (!issueNumberValidation.isValid) {
             if (issueNumberValidation.error) errors.push(issueNumberValidation.error);
             continue;

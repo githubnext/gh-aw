@@ -131,7 +131,7 @@ func (c *Compiler) buildCreateOutputClosePullRequestJob(data *WorkflowData, main
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getClosePullRequestScript(),
-		Permissions:    NewPermissionsContentsReadPullRequestsWrite(),
+		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
 		Token:          data.SafeOutputs.ClosePullRequests.GitHubToken,
