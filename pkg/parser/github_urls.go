@@ -127,7 +127,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 		case "issues":
 			// Pattern: /owner/repo/issues/123
 			if len(pathParts) >= 4 {
-				issueNumber, err := strconv.ParseInt(pathParts[3], 10, 64)
+				issueNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("invalid issue number: %s", pathParts[3])
 				}
