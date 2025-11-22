@@ -258,7 +258,9 @@ async function main() {
   if (closedPRs.length > 0) {
     let summaryContent = "\n\n## Closed Pull Requests\n";
     for (const { pr, comment } of closedPRs) {
-      summaryContent += `- Pull Request #${pr.number}: [${pr.title}](${pr.html_url}) ([comment](${comment.html_url}))\n`;
+      // Escape special markdown characters in title
+      const escapedTitle = pr.title.replace(/[[\]()]/g, "\\$&");
+      summaryContent += `- Pull Request #${pr.number}: [${escapedTitle}](${pr.html_url}) ([comment](${comment.html_url}))\n`;
     }
     await core.summary.addRaw(summaryContent).write();
   }

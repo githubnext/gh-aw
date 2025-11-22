@@ -2623,7 +2623,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Only close pull requests that have all of these labels"
+                  "description": "Only close pull requests that have any of these labels"
                 },
                 "required-title-prefix": {
                   "type": "string",
