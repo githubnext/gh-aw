@@ -181,4 +181,104 @@ This workflow has skip-if-match but no role restrictions.
 			t.Error("Expected activated output to include skip_check_ok condition")
 		}
 	})
+
+	t.Run("skip_if_match_object_format_with_max", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch:
+  skip-if-match:
+    query: "is:pr is:open"
+    max: 3
+engine: claude
+---
+
+# Skip If Match Object Format
+
+This workflow uses object format with max parameter.
+`
+		workflowFile := filepath.Join(tmpDir, "skip-object-format-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify skip-if-match check is present
+		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
+			t.Error("Expected skip-if-match check to be present")
+		}
+
+		// Verify the skip query environment variable is set correctly
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:pr is:open"`) {
+			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
+		}
+
+		// Verify the max matches parameter is set
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_MAX_MATCHES: "3"`) {
+			t.Error("Expected GH_AW_SKIP_MAX_MATCHES environment variable with value 3")
+		}
+
+		// Verify skip_check_ok condition is used
+		if !strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok") {
+			t.Error("Expected activated output to include skip_check_ok condition")
+		}
+	})
+
+	t.Run("skip_if_match_object_format_without_max", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch:
+  skip-if-match:
+    query: "is:issue is:open label:urgent"
+engine: claude
+---
+
+# Skip If Match Object Format Without Max
+
+This workflow uses object format but omits max (defaults to 1).
+`
+		workflowFile := filepath.Join(tmpDir, "skip-object-no-max-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify skip-if-match check is present
+		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
+			t.Error("Expected skip-if-match check to be present")
+		}
+
+		// Verify the skip query environment variable is set correctly
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:issue is:open label:urgent"`) {
+			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
+		}
+
+		// Verify the max matches parameter defaults to 1
+		if !strings.Contains(lockContentStr, `GH_AW_SKIP_MAX_MATCHES: "1"`) {
+			t.Error("Expected GH_AW_SKIP_MAX_MATCHES environment variable with default value 1")
+		}
+	})
 }

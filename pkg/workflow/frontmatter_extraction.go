@@ -120,7 +120,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, and reaction fields in the on section
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, and reaction fields in the on section
 // These fields are processed separately and should be commented for documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
@@ -129,6 +129,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	inPullRequest := false
 	inIssues := false
 	inForksArray := false
+	inSkipIfMatch := false
 
 	for _, line := range lines {
 		// Check if we're entering a pull_request or issues section
@@ -162,6 +163,28 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 			inForksArray = true
 		}
 
+		// Check if we're entering skip-if-match object
+		if !inPullRequest && !inIssues && !inSkipIfMatch {
+			// Check both uncommented and commented forms
+			if (strings.HasPrefix(trimmedLine, "skip-if-match:") && trimmedLine == "skip-if-match:") ||
+				(strings.HasPrefix(trimmedLine, "# skip-if-match:") && strings.Contains(trimmedLine, "pre-activation job")) {
+				inSkipIfMatch = true
+			}
+		}
+
+		// Check if we're leaving skip-if-match object (encountering another top-level field)
+		// Skip this check if we just entered skip-if-match on this line
+		if inSkipIfMatch && strings.TrimSpace(line) != "" && 
+			!strings.HasPrefix(trimmedLine, "skip-if-match:") && 
+			!strings.HasPrefix(trimmedLine, "# skip-if-match:") {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			// If this is a field at same level as skip-if-match (2 spaces) and not a comment, we're out of skip-if-match
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
+				inSkipIfMatch = false
+			}
+		}
+
 		// Check if we're leaving the forks array by encountering another top-level field at the same level
 		if inForksArray && inPullRequest && strings.TrimSpace(line) != "" {
 			// Get the indentation of the current line
@@ -188,6 +211,10 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 			} else if strings.HasPrefix(trimmedLine, "skip-if-match:") {
 				shouldComment = true
 				commentReason = " # Skip-if-match processed as search check in pre-activation job"
+			} else if inSkipIfMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "max:")) {
+				// Comment out nested fields in skip-if-match object
+				shouldComment = true
+				commentReason = ""
 			} else if strings.HasPrefix(trimmedLine, "reaction:") {
 				shouldComment = true
 				commentReason = " # Reaction processed as activation job step"

@@ -79,6 +79,7 @@ describe("check_skip_if_match.cjs", () => {
     originalEnv = {
       GH_AW_SKIP_QUERY: process.env.GH_AW_SKIP_QUERY,
       GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
+      GH_AW_SKIP_MAX_MATCHES: process.env.GH_AW_SKIP_MAX_MATCHES,
     };
 
     // Read the script content
@@ -97,6 +98,11 @@ describe("check_skip_if_match.cjs", () => {
       process.env.GH_AW_WORKFLOW_NAME = originalEnv.GH_AW_WORKFLOW_NAME;
     } else {
       delete process.env.GH_AW_WORKFLOW_NAME;
+    }
+    if (originalEnv.GH_AW_SKIP_MAX_MATCHES !== undefined) {
+      process.env.GH_AW_SKIP_MAX_MATCHES = originalEnv.GH_AW_SKIP_MAX_MATCHES;
+    } else {
+      delete process.env.GH_AW_SKIP_MAX_MATCHES;
     }
   });
 
@@ -140,7 +146,7 @@ describe("check_skip_if_match.cjs", () => {
         q: "is:issue is:open label:nonexistent repo:testowner/testrepo",
         per_page: 1,
       });
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No matches found"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("below threshold"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -219,6 +225,105 @@ describe("check_skip_if_match.cjs", () => {
         q: "is:issue label:enhancement repo:testowner/testrepo",
         per_page: 1,
       });
+    });
+  });
+
+  describe("max matches parameter", () => {
+    it("should default to 1 if GH_AW_SKIP_MAX_MATCHES is not set", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:issue is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      delete process.env.GH_AW_SKIP_MAX_MATCHES;
+
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [{ id: 1 }],
+        },
+      });
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 1"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
+    });
+
+    it("should skip when matches reach threshold", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:pr is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_SKIP_MAX_MATCHES = "3";
+
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 3,
+          items: [{ id: 1 }],
+        },
+      });
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("3 items found"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 3"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
+    });
+
+    it("should skip when matches exceed threshold", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:pr is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_SKIP_MAX_MATCHES = "2";
+
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 5,
+          items: [{ id: 1 }],
+        },
+      });
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("5 items found"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 2"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false");
+    });
+
+    it("should allow execution when matches are below threshold", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:issue is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_SKIP_MAX_MATCHES = "5";
+
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 2,
+          items: [{ id: 1 }],
+        },
+      });
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("below threshold of 5"));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should fail with invalid max matches value", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:issue is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_SKIP_MAX_MATCHES = "invalid";
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be a positive integer"));
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
+    });
+
+    it("should fail with zero or negative max matches", async () => {
+      process.env.GH_AW_SKIP_QUERY = "is:issue is:open";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_SKIP_MAX_MATCHES = "0";
+
+      await eval(`(async () => { ${checkSkipIfMatchScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be a positive integer"));
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
 });

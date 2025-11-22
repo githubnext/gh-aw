@@ -917,8 +917,30 @@
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
             "skip-if-match": {
-              "type": "string",
-              "description": "GitHub search query string to check before running workflow. If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "GitHub search query string to check before running workflow (implies max=1). If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+                },
+                {
+                  "type": "object",
+                  "required": ["query"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "GitHub search query string to check before running workflow. Query is automatically scoped to the current repository."
+                    },
+                    "max": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Maximum number of items that must be matched for the workflow to be skipped. Defaults to 1 if not specified."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Skip-if-match configuration object with query and maximum match count"
+                }
+              ],
+              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
             },
             "manual-approval": {
               "type": "string",

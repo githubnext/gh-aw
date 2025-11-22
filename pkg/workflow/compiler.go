@@ -220,6 +220,7 @@ type WorkflowData struct {
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
 	SkipIfMatch         string               // GitHub search query to check before running workflow
+	SkipIfMatchMax      int                  // Maximum number of matches for skip-if-match (0 means default of 1)
 	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)

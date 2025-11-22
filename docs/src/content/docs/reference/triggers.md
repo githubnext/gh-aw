@@ -232,6 +232,7 @@ The field accepts a string environment name that must match a configured environ
 
 Conditionally skip workflow execution when a GitHub search query has matches. Useful for preventing duplicate scheduled runs or waiting for prerequisites.
 
+**Basic Usage (String Format):**
 ```yaml wrap
 on:
   schedule:
@@ -239,10 +240,21 @@ on:
   skip-if-match: 'is:issue is:open in:title "[daily-report]"'
 ```
 
+**Advanced Usage (Object Format with Threshold):**
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  skip-if-match:
+    query: "is:pr is:open label:urgent"
+    max: 3  # Skip if 3 or more PRs match
+```
+
 **How it works:**
 1. A pre-activation check runs the search query against the current repository
-2. If matches are found, the workflow is skipped (activation job returns false)
+2. If the number of matches reaches or exceeds the threshold, the workflow is skipped
 3. The query is automatically scoped to the current repository
+4. String format implies `max: 1` (skip if any matches found)
 
 **Common Use Cases:**
 
@@ -261,12 +273,14 @@ on:
   skip-if-match: "is:pr is:open label:deployment"
 ```
 
-Skip if processing queue is full:
+Skip if processing queue is full (3+ items):
 ```yaml wrap
 on:
   schedule:
     - cron: "0 */6 * * *"
-  skip-if-match: "is:issue is:open label:needs-processing"
+  skip-if-match:
+    query: "is:issue is:open label:needs-processing"
+    max: 3
 ```
 
 The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).

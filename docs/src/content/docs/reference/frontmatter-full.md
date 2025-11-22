@@ -548,11 +548,22 @@ on:
   # (optional)
   stop-after: "example-value"
 
-  # GitHub search query string to check before running workflow. If the search
-  # returns any results, the workflow will be skipped. Query is automatically scoped
-  # to the current repository. Example: 'is:issue is:open label:bug'
+  # GitHub search query to check before running workflow. Supports both string and
+  # object formats. String format implies max=1 (skip if any matches found). Object
+  # format allows specifying a threshold with 'max' field. Query is automatically
+  # scoped to the current repository.
   # (optional)
-  skip-if-match: "example-value"
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: String format (implies max=1)
+  skip-if-match: "is:issue is:open label:bug"
+
+  # Option 2: Object format with query and optional max threshold
+  skip-if-match:
+    # GitHub search query string (required)
+    query: "is:pr is:open"
+    # Maximum number of matches before skipping (optional, defaults to 1)
+    max: 3
 
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.

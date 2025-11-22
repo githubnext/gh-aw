@@ -506,6 +506,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		// Add max matches parameter (defaults to 1 if not set)
+		maxMatches := data.SkipIfMatchMax
+		if maxMatches == 0 {
+			maxMatches = 1
+		}
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", maxMatches))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
