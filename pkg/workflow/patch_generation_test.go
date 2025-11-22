@@ -52,35 +52,34 @@ This workflow tests how patches are generated automatically.
 
 	lockStr := string(lockContent)
 
-	// Check that git patch generation step is included in main job
-	if !strings.Contains(lockStr, "Generate git patch") {
-		t.Error("Expected 'Generate git patch' step in workflow")
+	// NOTE: Patch generation has been moved to the safe-outputs MCP server
+	// The patch is now generated when create_pull_request or push_to_pull_request_branch
+	// tools are called within the MCP server, not as a separate workflow step.
+
+	// Check that the dedicated "Generate git patch" step is NOT in the main job anymore
+	if strings.Contains(lockStr, "Generate git patch") {
+		t.Error("Did not expect 'Generate git patch' step in main job (now handled by MCP server)")
 	}
 
-	// Check that it uses git am to apply patches (newer approach)
+	// Check that patch application still happens in the create_pull_request job
 	if !strings.Contains(lockStr, "git am /tmp/gh-aw/aw.patch") {
-		t.Error("Expected 'git am /tmp/gh-aw/aw.patch' command in git patch step")
+		t.Error("Expected 'git am /tmp/gh-aw/aw.patch' command in create_pull_request job")
 	}
 
-	// Check that it pushes to origin branch
+	// Check that it pushes to origin branch in the create_pull_request job
 	if !strings.Contains(lockStr, "git push origin") {
-		t.Error("Expected 'git push origin' command in git patch step")
-	}
-
-	// Check that it generates patch from format-patch
-	if !strings.Contains(lockStr, "git format-patch") {
-		t.Error("Expected 'git format-patch' command in git patch step")
+		t.Error("Expected 'git push origin' command in create_pull_request job")
 	}
 
 	// Check that the create_pull_request job expects the patch file
 	if !strings.Contains(lockStr, "No patch file found") {
-		t.Error("Expected pull request job to check for patch file existence")
+		t.Error("Expected create_pull_request job to check for patch file existence")
 	}
 
-	// Verify the workflow has both main job and pull request job
+	// Verify the workflow has both main job and create_pull_request job
 	if !strings.Contains(lockStr, "create_pull_request:") {
 		t.Error("Expected create_pull_request job to be generated")
 	}
 
-	t.Logf("Successfully verified patch generation workflow")
+	t.Logf("Successfully verified patch generation workflow (patch now generated in MCP server)")
 }
