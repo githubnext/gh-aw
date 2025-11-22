@@ -41,7 +41,8 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Add ASCII logo
 	yaml.WriteString("#\n")
-	logoLines := strings.Split(strings.TrimSpace(asciiLogo), "\n")
+	// TrimRight removes only trailing newlines, preserving per-line leading spaces
+	logoLines := strings.Split(strings.TrimRight(asciiLogo, "\n"), "\n")
 	for _, line := range logoLines {
 		yaml.WriteString(fmt.Sprintf("# %s\n", line))
 	}
