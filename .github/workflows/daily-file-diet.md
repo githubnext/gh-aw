@@ -18,6 +18,7 @@ engine: codex
 imports:
   - shared/mcp/serena.md
   - shared/reporting.md
+  - shared/safe-output-app.md
 
 safe-outputs:
   create-issue:
