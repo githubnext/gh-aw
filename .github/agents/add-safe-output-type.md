@@ -1,5 +1,5 @@
 ---
-name: copilot-add-safe-output-type
+name: add-safe-output-type
 description: Adding a New Safe Output Type to GitHub Agentic Workflows
 ---
 
