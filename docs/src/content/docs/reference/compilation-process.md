@@ -5,11 +5,11 @@ sidebar:
   order: 999
 ---
 
-This guide documents the internal compilation process that transforms markdown workflow files into executable GitHub Actions YAML. Understanding this process helps when debugging workflows, optimizing performance, or contributing to the compiler.
+This guide documents the internal compilation process that transforms markdown workflow files into executable GitHub Actions YAML. Understanding this process helps when debugging workflows, optimizing performance, or contributing to the project.
 
 ## Overview
 
-The compiler (`pkg/workflow/compiler.go`) transforms a markdown file with YAML frontmatter into a complete GitHub Actions workflow with multiple orchestrated jobs. This process involves:
+The `gh aw compile` command transforms a markdown file with YAML frontmatter into a complete GitHub Actions workflow with multiple orchestrated jobs. This process involves:
 
 1. **Parsing** - Extract frontmatter and markdown content
 2. **Validation** - Verify configuration against JSON schemas
@@ -21,36 +21,31 @@ The compiler (`pkg/workflow/compiler.go`) transforms a markdown file with YAML f
 
 ### Phase 1: Parsing and Validation
 
-The compiler reads the markdown file and:
+The compilation process reads the markdown file and:
 
-- Extracts YAML frontmatter using `parser.ExtractFrontmatterFromContent()`
-- Parses workflow configuration into `WorkflowData` structure
-- Validates against `main_workflow_schema.json`
+- Extracts YAML frontmatter
+- Parses workflow configuration
+- Validates against the workflow schema
 - Resolves imports from `imports:` field
 - Validates expression safety (only allowed GitHub Actions expressions)
 
 ### Phase 2: Job Construction
 
-The compiler builds multiple specialized jobs through `buildJobs()`:
+The compilation process builds multiple specialized jobs:
 
-```go
-// From pkg/workflow/compiler_jobs.go
-func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
-    // Build pre-activation if needed
-    // Build activation job
-    // Build main agent job
-    // Build safe output jobs
-    // Build safe-jobs
-    // Build custom jobs
-}
-```
+- Pre-activation job (if needed)
+- Activation job
+- Main agent job
+- Safe output jobs
+- Safe-jobs
+- Custom jobs
 
 ### Phase 3: Dependency Resolution
 
-The `JobManager` validates and orders jobs:
+The compilation process validates and orders jobs:
 
 - Checks all job dependencies exist
-- Detects circular dependencies using DFS
+- Detects circular dependencies
 - Computes topological execution order
 - Generates Mermaid dependency graph
 
@@ -58,14 +53,14 @@ The `JobManager` validates and orders jobs:
 
 All GitHub Actions are pinned to commit SHAs for security:
 
-1. Check `ActionCache` for cached resolution
-2. Try dynamic resolution via `ActionResolver` (GitHub API)
-3. Fall back to embedded `action_pins.json`
+1. Check action cache for cached resolution
+2. Try dynamic resolution via GitHub API
+3. Fall back to embedded action pins data
 4. Add version comment (e.g., `actions/checkout@sha # v4`)
 
 ### Phase 5: YAML Generation
 
-The compiler assembles the final workflow:
+The compilation process assembles the final workflow:
 
 - Renders workflow header with metadata comments
 - Includes job dependency Mermaid graph
@@ -75,7 +70,7 @@ The compiler assembles the final workflow:
 
 ## Job Types
 
-The compiler creates different job types depending on workflow configuration. Each job serves a specific purpose in the workflow execution pipeline.
+The compilation process creates different job types depending on workflow configuration. Each job serves a specific purpose in the workflow execution pipeline.
 
 ### Pre-Activation Job
 
@@ -433,7 +428,7 @@ uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
 
 ### Action Pins Data File
 
-The compiler uses embedded action pins from `pkg/workflow/data/action_pins.json`:
+Action pins are embedded in the compilation tool and stored in a structured format:
 
 ```json
 {
@@ -456,9 +451,9 @@ The compiler uses embedded action pins from `pkg/workflow/data/action_pins.json`
 
 ```mermaid
 graph TD
-  A[Action Reference] --> B{ActionCache exists?}
+  A[Action Reference] --> B{Cache exists?}
   B -->|Yes| C[Return cached SHA]
-  B -->|No| D{ActionResolver available?}
+  B -->|No| D{GitHub API available?}
   D -->|Yes| E[Query GitHub API]
   E --> F{Resolution successful?}
   F -->|Yes| G[Cache and return SHA]
@@ -470,17 +465,12 @@ graph TD
 
 ### Dynamic Resolution
 
-The compiler uses `ActionResolver` to fetch latest SHAs from GitHub API:
+The compilation process fetches latest SHAs from GitHub API:
 
-```go
-// From pkg/workflow/action_resolver.go
-func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
-    // Query GitHub API for tag/branch
-    // Extract commit SHA
-    // Cache result in ActionCache
-    // Return SHA
-}
-```
+1. Query GitHub API for tag/branch
+2. Extract commit SHA
+3. Cache result
+4. Return SHA
 
 ### Caching
 
@@ -611,11 +601,11 @@ timestamp client_ip:port domain dest_ip:port proto method status decision url us
 
 ## MCP Server Integration
 
-Model Context Protocol (MCP) servers provide tools to AI agents. The compiler integrates MCP servers into the workflow execution graph.
+Model Context Protocol (MCP) servers provide tools to AI agents. The compilation process integrates MCP servers into the workflow execution graph.
 
 ### MCP Configuration File
 
-The compiler generates `mcp-config.json` based on `tools:` configuration:
+The `gh aw compile` command generates `mcp-config.json` based on `tools:` configuration:
 
 ```json
 {
@@ -670,7 +660,7 @@ mcp-servers:
 ```
 
 **Deployment**:
-1. Compiler generates Dockerfile
+1. Dockerfile is generated automatically
 2. Dockerfile installs dependencies
 3. Dockerfile runs command with args
 4. Container started in agent job
@@ -696,7 +686,7 @@ mcp-servers:
 
 ### Tool Discovery
 
-The compiler filters MCP tools based on `allowed:` configuration:
+The compilation process filters MCP tools based on `allowed:` configuration:
 
 ```yaml
 mcp-servers:
@@ -722,7 +712,7 @@ mcp-servers:
       API_KEY: ${{ secrets.API_KEY }}
 ```
 
-Compiler generates:
+The compilation process generates:
 1. Environment variables in agent job
 2. Dockerfile with ENV directives
 3. MCP config with `${VAR}` references
@@ -738,7 +728,7 @@ mcp-servers:
       X-API-Key: ${{ secrets.API_KEY }}
 ```
 
-Compiler generates:
+The compilation process generates:
 1. Environment variable for secret
 2. MCP config with `${API_KEY}` reference
 3. Engine replaces variable when making requests
@@ -975,7 +965,7 @@ gh aw compile --output /path/to/output
 
 ### Verbose Logging
 
-Enable debug logging to see internal compiler operations:
+Enable debug logging to see internal compilation operations:
 
 ```bash
 DEBUG=workflow:* gh aw compile my-workflow --verbose
@@ -1065,37 +1055,26 @@ graph LR
 
 ### Custom Engine Integration
 
-Add custom AI engines by implementing the `AgenticEngine` interface:
+Custom AI engines can be integrated by creating a new engine that:
 
-```go
-type CustomEngine struct{}
+1. Returns GitHub Actions steps for execution
+2. Provides necessary environment variables
+3. Configures tool access and permissions
 
-func (e *CustomEngine) GetExecutionSteps(data *WorkflowData) ([]string, error) {
-    // Return GitHub Actions steps
-}
-
-func (e *CustomEngine) GetJobEnv(data *WorkflowData) (map[string]string, error) {
-    // Return environment variables
-}
-```
-
-Register in `EngineRegistry`:
-```go
-registry.Register("custom", &CustomEngine{})
-```
+The custom engine should be registered with the framework to make it available for workflow configuration.
 
 ### Schema Extension
 
 Add new frontmatter fields by:
 
-1. Update `pkg/parser/schemas/main_workflow_schema.json`
-2. Rebuild binary (`make build`)
-3. Add handling in `ParseWorkflowFile()`
-4. Update documentation
+1. Updating the workflow schema definition
+2. Rebuilding the tool (`make build`)
+3. Adding handling in the workflow parser
+4. Updating documentation
 
 ### Workflow Manifest Resolution
 
-The compiler tracks imported files and includes them in the lock file header:
+The compilation process tracks imported files and includes them in the lock file header:
 
 ```yaml
 # Resolved workflow manifest:
