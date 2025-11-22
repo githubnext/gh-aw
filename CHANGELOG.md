@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.30.3 - 2025-11-22
+
+### Bug Fixes
+
+#### Add shared safe-output-app workflow for repository-level GitHub App authentication
+
+
 ## v0.30.2 - 2025-11-21
 
 ### Bug Fixes
