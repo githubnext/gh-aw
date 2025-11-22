@@ -394,9 +394,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, data)
 
-	// Add git patch generation step only if safe-outputs create-pull-request feature is used
+	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
+	// The patch is now generated when create_pull_request or push_to_pull_request_branch
+	// tools are called, providing immediate error feedback if no changes are present.
+	// We still upload the patch artifact for processing jobs to download.
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		c.generateGitPatchStep(yaml)
+		c.generateGitPatchUploadStep(yaml)
 	}
 
 	// Add post-steps (if any) after AI execution

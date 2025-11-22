@@ -476,8 +476,173 @@ function getBaseBranch() {
 }
 
 /**
+ * Generates a git patch file for the current changes
+ * @param {string} branchName - The branch name to generate patch for
+ * @returns {Object} Object with patch info or error
+ */
+function generateGitPatch(branchName) {
+  const patchPath = "/tmp/gh-aw/aw.patch";
+  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+  const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
+  const githubSha = process.env.GITHUB_SHA;
+
+  debug(`Generating git patch for branch: ${branchName}`);
+  debug(`Working directory: ${cwd}`);
+  debug(`Default branch: ${defaultBranch}`);
+  debug(`GITHUB_SHA: ${githubSha}`);
+
+  // Ensure /tmp/gh-aw directory exists
+  const patchDir = path.dirname(patchPath);
+  if (!fs.existsSync(patchDir)) {
+    fs.mkdirSync(patchDir, { recursive: true });
+  }
+
+  let patchGenerated = false;
+  let errorMessage = null;
+
+  try {
+    // Strategy 1: If we have a branch name, check if that branch exists and get its diff
+    if (branchName) {
+      debug(`Strategy 1: Using named branch: ${branchName}`);
+
+      // Check if the branch exists locally
+      try {
+        execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
+        debug(`Branch ${branchName} exists locally`);
+
+        // Determine base ref for patch generation
+        let baseRef;
+        try {
+          // Check if origin/branchName exists
+          execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
+          baseRef = `origin/${branchName}`;
+          debug(`Using origin/${branchName} as base for patch generation`);
+        } catch {
+          // Use merge-base with default branch
+          debug(`origin/${branchName} does not exist, using merge-base with default branch`);
+          execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
+          baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
+          debug(`Using merge-base as base: ${baseRef}`);
+        }
+
+        // Count commits to be included
+        const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
+        debug(`Number of commits in patch: ${commitCount}`);
+
+        if (commitCount > 0) {
+          // Generate patch from the determined base to the branch
+          const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
+            cwd,
+            encoding: "utf8",
+          });
+
+          if (patchContent && patchContent.trim()) {
+            fs.writeFileSync(patchPath, patchContent, "utf8");
+            debug(`Patch file created from branch: ${branchName} (base: ${baseRef})`);
+            patchGenerated = true;
+          } else {
+            debug(`No patch content generated (empty diff)`);
+          }
+        } else {
+          debug(`No commits found between ${baseRef} and ${branchName}`);
+        }
+      } catch (branchError) {
+        debug(`Branch ${branchName} does not exist locally: ${branchError instanceof Error ? branchError.message : String(branchError)}`);
+      }
+    }
+
+    // Strategy 2: Check if commits were made to current HEAD since checkout
+    if (!patchGenerated) {
+      debug(`Strategy 2: Checking for commits on current HEAD`);
+
+      const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+      debug(`Current HEAD: ${currentHead}`);
+      debug(`Checkout SHA (GITHUB_SHA): ${githubSha}`);
+
+      if (!githubSha) {
+        errorMessage = "GITHUB_SHA environment variable is not set";
+        debug(`ERROR: ${errorMessage}`);
+      } else if (currentHead === githubSha) {
+        debug("No commits have been made since checkout (HEAD == GITHUB_SHA)");
+      } else {
+        // Check if GITHUB_SHA is an ancestor of current HEAD
+        try {
+          execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
+          debug("GITHUB_SHA is an ancestor of HEAD - commits were added");
+
+          // Count commits between GITHUB_SHA and HEAD
+          const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
+          debug(`Number of commits added since checkout: ${commitCount}`);
+
+          if (commitCount > 0) {
+            // Generate patch from GITHUB_SHA to HEAD
+            const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
+              cwd,
+              encoding: "utf8",
+            });
+
+            if (patchContent && patchContent.trim()) {
+              fs.writeFileSync(patchPath, patchContent, "utf8");
+              debug(`Patch file created from commits on HEAD (base: ${githubSha})`);
+              patchGenerated = true;
+            } else {
+              debug(`No patch content generated (empty diff)`);
+            }
+          } else {
+            debug(`No commits found between GITHUB_SHA and HEAD`);
+          }
+        } catch {
+          debug("GITHUB_SHA is not an ancestor of HEAD - repository state has diverged");
+        }
+      }
+    }
+  } catch (error) {
+    errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
+    debug(`ERROR: ${errorMessage}`);
+  }
+
+  // Check if patch was generated and has content
+  if (patchGenerated && fs.existsSync(patchPath)) {
+    const patchContent = fs.readFileSync(patchPath, "utf8");
+    const patchSize = Buffer.byteLength(patchContent, "utf8");
+    const patchLines = patchContent.split("\n").length;
+
+    if (!patchContent.trim()) {
+      // Empty patch
+      debug("Patch file is empty - no changes to commit");
+      return {
+        success: false,
+        error: "No changes to commit - patch is empty",
+        patchPath: patchPath,
+        patchSize: 0,
+        patchLines: 0,
+      };
+    }
+
+    debug(`Patch file created: ${patchPath}`);
+    debug(`Patch size: ${patchSize} bytes`);
+    debug(`Patch lines: ${patchLines}`);
+
+    return {
+      success: true,
+      patchPath: patchPath,
+      patchSize: patchSize,
+      patchLines: patchLines,
+    };
+  }
+
+  // No patch generated
+  return {
+    success: false,
+    error: errorMessage || "No changes to commit - no commits found",
+    patchPath: patchPath,
+  };
+}
+
+/**
  * Handler for create_pull_request tool
  * Resolves the current branch if branch is not provided or is the base branch
+ * Generates git patch for the changes
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
@@ -497,12 +662,32 @@ const createPullRequestHandler = args => {
     entry.branch = detectedBranch;
   }
 
+  // Generate git patch
+  debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
+  const patchResult = generateGitPatch(entry.branch);
+
+  if (!patchResult.success) {
+    // Patch generation failed or patch is empty
+    const errorMsg = patchResult.error || "Failed to generate patch";
+    debug(`Patch generation failed: ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
   appendSafeOutput(entry);
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify({ result: "success" }),
+        text: JSON.stringify({
+          result: "success",
+          patch: {
+            path: patchResult.patchPath,
+            size: patchResult.patchSize,
+            lines: patchResult.patchLines,
+          },
+        }),
       },
     ],
   };
@@ -511,6 +696,7 @@ const createPullRequestHandler = args => {
 /**
  * Handler for push_to_pull_request_branch tool
  * Resolves the current branch if branch is not provided or is the base branch
+ * Generates git patch for the changes
  */
 const pushToPullRequestBranchHandler = args => {
   const entry = { ...args, type: "push_to_pull_request_branch" };
@@ -530,12 +716,32 @@ const pushToPullRequestBranchHandler = args => {
     entry.branch = detectedBranch;
   }
 
+  // Generate git patch
+  debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+  const patchResult = generateGitPatch(entry.branch);
+
+  if (!patchResult.success) {
+    // Patch generation failed or patch is empty
+    const errorMsg = patchResult.error || "Failed to generate patch";
+    debug(`Patch generation failed: ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
   appendSafeOutput(entry);
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify({ result: "success" }),
+        text: JSON.stringify({
+          result: "success",
+          patch: {
+            path: patchResult.patchPath,
+            size: patchResult.patchSize,
+            lines: patchResult.patchLines,
+          },
+        }),
       },
     ],
   };
