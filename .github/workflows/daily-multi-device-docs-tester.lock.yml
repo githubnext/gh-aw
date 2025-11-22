@@ -406,8 +406,8 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          # JSON array safely embedded as Python list literal
-          ALLOWED_DOMAINS = ["npmjs.org","npmjs.com","www.npmjs.com","www.npmjs.org","registry.npmjs.com","registry.npmjs.org","skimdb.npmjs.com","npm.pkg.github.com","api.npms.io","nodejs.org","yarnpkg.com","registry.yarnpkg.com","repo.yarnpkg.com","deb.nodesource.com","get.pnpm.io","bun.sh","deno.land","registry.bower.io"]
+          # JSON string is safely parsed using json.loads() to eliminate quoting vulnerabilities
+          ALLOWED_DOMAINS = json.loads('''["npmjs.org","npmjs.com","www.npmjs.com","www.npmjs.org","registry.npmjs.com","registry.npmjs.org","skimdb.npmjs.com","npm.pkg.github.com","api.npms.io","nodejs.org","yarnpkg.com","registry.yarnpkg.com","repo.yarnpkg.com","deb.nodesource.com","get.pnpm.io","bun.sh","deno.land","registry.bower.io"]''')
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""

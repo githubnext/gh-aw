@@ -33,14 +33,10 @@ jobs:
 
     steps:
       - name: Install gh-aw extension
-        run: gh extension install githubnext/gh-aw
-        env:
-          GH_TOKEN: ${{ github.token }}
-
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
       - name: Verify gh-aw installation
-        run: gh aw version
-        env:
-          GH_TOKEN: ${{ github.token }}
+        run: ./gh-aw version
 `
 
 // WorkflowStep represents a GitHub Actions workflow step
@@ -92,8 +88,8 @@ func ensureCopilotSetupSteps(verbose bool) error {
 
 		// Check if the extension install step is already present (quick check)
 		contentStr := string(content)
-		if strings.Contains(contentStr, "gh extension install githubnext/gh-aw") ||
-			strings.Contains(contentStr, "Install gh-aw extension") {
+		if strings.Contains(contentStr, "install-gh-aw.sh") ||
+			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL")) {
 			copilotSetupLog.Print("Extension install step already exists, skipping update")
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Skipping %s (already has gh-aw extension install step)\n", setupStepsPath)
@@ -143,10 +139,7 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 	// Define the extension install step to inject
 	extensionStep := WorkflowStep{
 		Name: "Install gh-aw extension",
-		Run:  "gh extension install githubnext/gh-aw",
-		Env: map[string]any{
-			"GH_TOKEN": "${{ github.token }}",
-		},
+		Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 	}
 
 	// Find the copilot-setup-steps job
