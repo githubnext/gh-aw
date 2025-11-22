@@ -13,6 +13,7 @@ const {
   formatMcpParameters,
   formatInitializationSummary,
   formatToolUse,
+  parseLogEntries,
 } = require("./log_parser_shared.cjs");
 
 function main() {
@@ -72,48 +73,12 @@ function parseCopilotLog(logContent) {
       if (debugLogEntries && debugLogEntries.length > 0) {
         logEntries = debugLogEntries;
       } else {
-        // Try JSONL format
-        logEntries = [];
-        const lines = logContent.split("\n");
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine === "") {
-            continue; // Skip empty lines
-          }
-
-          // Handle lines that start with [ (JSON array format)
-          if (trimmedLine.startsWith("[{")) {
-            try {
-              const arrayEntries = JSON.parse(trimmedLine);
-              if (Array.isArray(arrayEntries)) {
-                logEntries.push(...arrayEntries);
-                continue;
-              }
-            } catch (arrayParseError) {
-              // Skip invalid array lines
-              continue;
-            }
-          }
-
-          // Skip debug log lines that don't start with {
-          if (!trimmedLine.startsWith("{")) {
-            continue;
-          }
-
-          // Try to parse each line as JSON
-          try {
-            const jsonEntry = JSON.parse(trimmedLine);
-            logEntries.push(jsonEntry);
-          } catch (jsonLineError) {
-            // Skip invalid JSON lines
-            continue;
-          }
-        }
+        // Try JSONL format using shared function
+        logEntries = parseLogEntries(logContent);
       }
     }
 
-    if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    if (!logEntries) {
       return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
     }
 

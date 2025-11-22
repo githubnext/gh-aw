@@ -586,6 +586,143 @@ describe("log_parser_shared.cjs", () => {
     });
   });
 
+  describe("parseLogEntries", () => {
+    it("should parse JSON array format", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = JSON.stringify([
+        { type: "system", subtype: "init" },
+        { type: "assistant", message: { content: [{ type: "text", text: "Hello" }] } },
+      ]);
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+    });
+
+    it("should parse JSONL format (newline-separated JSON objects)", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = [
+        '{"type": "system", "subtype": "init"}',
+        '{"type": "assistant", "message": {"content": []}}',
+        '{"type": "result", "num_turns": 1}',
+      ].join("\n");
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+      expect(result[2].type).toBe("result");
+    });
+
+    it("should handle mixed format with debug logs", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = [
+        "2024-01-01T12:00:00.000Z [DEBUG] Starting...",
+        '{"type": "system", "subtype": "init"}',
+        "2024-01-01T12:00:01.000Z [INFO] Processing...",
+        '{"type": "assistant", "message": {"content": []}}',
+      ].join("\n");
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+    });
+
+    it("should parse JSON array embedded in a line", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = '[{"type": "system", "subtype": "init"}, {"type": "assistant", "message": {"content": []}}]';
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+    });
+
+    it("should handle lines starting with array notation", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = [
+        "Some debug output",
+        '[{"type": "system", "subtype": "init"}]',
+        '[{"type": "assistant", "message": {"content": []}}]',
+      ].join("\n");
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+    });
+
+    it("should skip empty lines", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = ['{"type": "system", "subtype": "init"}', "", "   ", '{"type": "assistant", "message": {"content": []}}'].join(
+        "\n"
+      );
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it("should skip invalid JSON lines", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = [
+        '{"type": "system", "subtype": "init"}',
+        '{"invalid json here',
+        '{"type": "assistant", "message": {"content": []}}',
+      ].join("\n");
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe("system");
+      expect(result[1].type).toBe("assistant");
+    });
+
+    it("should return null for unrecognized formats", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = "Just plain text with no JSON";
+
+      const result = parseLogEntries(logContent);
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null for empty content", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const result = parseLogEntries("");
+
+      expect(result).toBeNull();
+    });
+
+    it("should handle content that is not a JSON array", async () => {
+      const { parseLogEntries } = await import("./log_parser_shared.cjs");
+
+      const logContent = '{"type": "single-object"}';
+
+      const result = parseLogEntries(logContent);
+
+      // Should fall back to JSONL parsing
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe("single-object");
+    });
+  });
+
   describe("formatToolUse", () => {
     it("should format Bash tool use", async () => {
       const { formatToolUse } = await import("./log_parser_shared.cjs");
