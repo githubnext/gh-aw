@@ -174,8 +174,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 
 		// Check if we're leaving skip-if-match object (encountering another top-level field)
 		// Skip this check if we just entered skip-if-match on this line
-		if inSkipIfMatch && strings.TrimSpace(line) != "" && 
-			!strings.HasPrefix(trimmedLine, "skip-if-match:") && 
+		if inSkipIfMatch && strings.TrimSpace(line) != "" &&
+			!strings.HasPrefix(trimmedLine, "skip-if-match:") &&
 			!strings.HasPrefix(trimmedLine, "# skip-if-match:") {
 			// Get the indentation of the current line
 			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))

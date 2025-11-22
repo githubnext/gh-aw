@@ -166,12 +166,12 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (query s
 				if !hasQuery {
 					return "", 0, fmt.Errorf("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
 				}
-				
+
 				queryStr, ok := queryVal.(string)
 				if !ok {
 					return "", 0, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
 				}
-				
+
 				// Extract max value (optional, defaults to 1)
 				maxVal := 1
 				if maxRaw, hasMax := skip["max"]; hasMax {
@@ -187,12 +187,12 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (query s
 					default:
 						return "", 0, fmt.Errorf("skip-if-match 'max' field must be an integer, got %T. Example: max: 3", maxRaw)
 					}
-					
+
 					if maxVal < 1 {
 						return "", 0, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
 					}
 				}
-				
+
 				return queryStr, maxVal, nil
 			default:
 				return "", 0, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
