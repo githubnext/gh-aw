@@ -567,6 +567,72 @@ function formatToolUse(toolUse, toolResult, options = {}) {
   }
 }
 
+/**
+ * Parses log content as JSON array or JSONL format
+ * Handles multiple formats: JSON array, JSONL, and mixed format with debug logs
+ * @param {string} logContent - The raw log content as a string
+ * @returns {Array|null} Array of parsed log entries, or null if parsing fails
+ */
+function parseLogEntries(logContent) {
+  let logEntries;
+
+  // First, try to parse as JSON array (old format)
+  try {
+    logEntries = JSON.parse(logContent);
+    if (!Array.isArray(logEntries)) {
+      throw new Error("Not a JSON array");
+    }
+    return logEntries;
+  } catch (jsonArrayError) {
+    // If that fails, try to parse as JSONL format (mixed format with debug logs)
+    logEntries = [];
+    const lines = logContent.split("\n");
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine === "") {
+        continue; // Skip empty lines
+      }
+
+      // Handle lines that start with [ (JSON array format)
+      if (trimmedLine.startsWith("[{")) {
+        try {
+          const arrayEntries = JSON.parse(trimmedLine);
+          if (Array.isArray(arrayEntries)) {
+            logEntries.push(...arrayEntries);
+            continue;
+          }
+        } catch (arrayParseError) {
+          // Skip invalid array lines
+          continue;
+        }
+      }
+
+      // Skip debug log lines that don't start with {
+      // (these are typically timestamped debug messages)
+      if (!trimmedLine.startsWith("{")) {
+        continue;
+      }
+
+      // Try to parse each line as JSON
+      try {
+        const jsonEntry = JSON.parse(trimmedLine);
+        logEntries.push(jsonEntry);
+      } catch (jsonLineError) {
+        // Skip invalid JSON lines (could be partial debug output)
+        continue;
+      }
+    }
+  }
+
+  // Return null if we couldn't parse anything
+  if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    return null;
+  }
+
+  return logEntries;
+}
+
 // Export functions
 module.exports = {
   formatDuration,
@@ -579,4 +645,5 @@ module.exports = {
   formatMcpParameters,
   formatInitializationSummary,
   formatToolUse,
+  parseLogEntries,
 };

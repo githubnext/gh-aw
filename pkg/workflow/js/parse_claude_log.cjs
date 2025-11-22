@@ -13,6 +13,7 @@ const {
   formatMcpParameters,
   formatInitializationSummary,
   formatToolUse,
+  parseLogEntries,
 } = require("./log_parser_shared.cjs");
 
 function main() {
@@ -30,57 +31,10 @@ function main() {
  */
 function parseClaudeLog(logContent) {
   try {
-    let logEntries;
+    // Use shared parseLogEntries function
+    const logEntries = parseLogEntries(logContent);
 
-    // First, try to parse as JSON array (old format)
-    try {
-      logEntries = JSON.parse(logContent);
-      if (!Array.isArray(logEntries)) {
-        throw new Error("Not a JSON array");
-      }
-    } catch (jsonArrayError) {
-      // If that fails, try to parse as mixed format (debug logs + JSONL)
-      logEntries = [];
-      const lines = logContent.split("\n");
-
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine === "") {
-          continue; // Skip empty lines
-        }
-
-        // Handle lines that start with [ (JSON array format)
-        if (trimmedLine.startsWith("[{")) {
-          try {
-            const arrayEntries = JSON.parse(trimmedLine);
-            if (Array.isArray(arrayEntries)) {
-              logEntries.push(...arrayEntries);
-              continue;
-            }
-          } catch (arrayParseError) {
-            // Skip invalid array lines
-            continue;
-          }
-        }
-
-        // Skip debug log lines that don't start with {
-        // (these are typically timestamped debug messages)
-        if (!trimmedLine.startsWith("{")) {
-          continue;
-        }
-
-        // Try to parse each line as JSON
-        try {
-          const jsonEntry = JSON.parse(trimmedLine);
-          logEntries.push(jsonEntry);
-        } catch (jsonLineError) {
-          // Skip invalid JSON lines (could be partial debug output)
-          continue;
-        }
-      }
-    }
-
-    if (!Array.isArray(logEntries) || logEntries.length === 0) {
+    if (!logEntries) {
       return {
         markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
         mcpFailures: [],

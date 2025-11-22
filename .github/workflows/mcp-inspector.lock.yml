@@ -4056,6 +4056,49 @@ jobs:
                 return `${summary}\n\n`;
               }
             }
+            function parseLogEntries(logContent) {
+              let logEntries;
+              try {
+                logEntries = JSON.parse(logContent);
+                if (!Array.isArray(logEntries)) {
+                  throw new Error("Not a JSON array");
+                }
+                return logEntries;
+              } catch (jsonArrayError) {
+                logEntries = [];
+                const lines = logContent.split("\n");
+                for (const line of lines) {
+                  const trimmedLine = line.trim();
+                  if (trimmedLine === "") {
+                    continue; 
+                  }
+                  if (trimmedLine.startsWith("[{")) {
+                    try {
+                      const arrayEntries = JSON.parse(trimmedLine);
+                      if (Array.isArray(arrayEntries)) {
+                        logEntries.push(...arrayEntries);
+                        continue;
+                      }
+                    } catch (arrayParseError) {
+                      continue;
+                    }
+                  }
+                  if (!trimmedLine.startsWith("{")) {
+                    continue;
+                  }
+                  try {
+                    const jsonEntry = JSON.parse(trimmedLine);
+                    logEntries.push(jsonEntry);
+                  } catch (jsonLineError) {
+                    continue;
+                  }
+                }
+              }
+              if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                return null;
+              }
+              return logEntries;
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -4093,37 +4136,10 @@ jobs:
                   if (debugLogEntries && debugLogEntries.length > 0) {
                     logEntries = debugLogEntries;
                   } else {
-                    logEntries = [];
-                    const lines = logContent.split("\n");
-                    for (const line of lines) {
-                      const trimmedLine = line.trim();
-                      if (trimmedLine === "") {
-                        continue; 
-                      }
-                      if (trimmedLine.startsWith("[{")) {
-                        try {
-                          const arrayEntries = JSON.parse(trimmedLine);
-                          if (Array.isArray(arrayEntries)) {
-                            logEntries.push(...arrayEntries);
-                            continue;
-                          }
-                        } catch (arrayParseError) {
-                          continue;
-                        }
-                      }
-                      if (!trimmedLine.startsWith("{")) {
-                        continue;
-                      }
-                      try {
-                        const jsonEntry = JSON.parse(trimmedLine);
-                        logEntries.push(jsonEntry);
-                      } catch (jsonLineError) {
-                        continue;
-                      }
-                    }
+                    logEntries = parseLogEntries(logContent);
                   }
                 }
-                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                if (!logEntries) {
                   return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {
