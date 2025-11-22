@@ -150,7 +150,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
 				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100}},
 				AddLabels:                       &AddLabelsConfig{Max: 3},
-			AddReviewer:                     &AddReviewerConfig{Max: 3},
+				AddReviewer:                     &AddReviewerConfig{Max: 3},
 				UpdateIssues:                    &UpdateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				PushToPullRequestBranch:         &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
 				UploadAssets:                    &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},

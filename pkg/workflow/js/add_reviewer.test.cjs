@@ -52,17 +52,17 @@ describe("add_reviewer", () => {
     // Create a temporary directory for test files
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "add-reviewer-test-"));
     outputFile = path.join(tempDir, "agent-output.json");
-    
+
     // Reset all mocks before each test
     vi.clearAllMocks();
     vi.resetModules(); // Reset module cache to allow fresh imports
-    
+
     // Clear environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_REVIEWERS_ALLOWED;
     delete process.env.GH_AW_REVIEWERS_MAX_COUNT;
     delete process.env.GH_AW_REVIEWERS_TARGET;
-    
+
     // Reset context to default
     global.context = {
       eventName: "pull_request",
@@ -87,23 +87,21 @@ describe("add_reviewer", () => {
 
   it("should handle missing GH_AW_AGENT_OUTPUT", async () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
 
   it("should handle missing add_reviewer item", async () => {
     const agentOutput = {
-      items: [
-        { type: "create_issue", title: "Test", body: "Body" }
-      ]
+      items: [{ type: "create_issue", title: "Test", body: "Body" }],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockCore.warning).toHaveBeenCalledWith("No add-reviewer item found in agent output");
   });
 
@@ -112,17 +110,17 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["octocat", "github"]
-        }
-      ]
+          reviewers: ["octocat", "github"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
     process.env.GH_AW_REVIEWERS_TARGET = "triggering";
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -138,16 +136,16 @@ describe("add_reviewer", () => {
         {
           type: "add_reviewer",
           reviewers: ["octocat", "github"],
-          pull_request_number: 123
-        }
-      ]
+          pull_request_number: 123,
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -158,17 +156,17 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["octocat", "github", "unauthorized"]
-        }
-      ]
+          reviewers: ["octocat", "github", "unauthorized"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_ALLOWED = "octocat,github";
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -182,16 +180,16 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["user1", "user2", "user3", "user4", "user5"]
-        }
-      ]
+          reviewers: ["user1", "user2", "user3", "user4", "user5"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "2";
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -205,9 +203,9 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["octocat"]
-        }
-      ]
+          reviewers: ["octocat"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
@@ -220,12 +218,10 @@ describe("add_reviewer", () => {
         },
       },
     };
-    
+
     await import("./add_reviewer.cjs");
-    
-    expect(mockCore.info).toHaveBeenCalledWith(
-      expect.stringContaining('Target is "triggering" but not running in pull request context')
-    );
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Target is "triggering" but not running in pull request context'));
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
@@ -235,16 +231,16 @@ describe("add_reviewer", () => {
         {
           type: "add_reviewer",
           reviewers: ["octocat"],
-          pull_request_number: 456
-        }
-      ]
+          pull_request_number: 456,
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_TARGET = "*";
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -258,16 +254,16 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["octocat"]
-        }
-      ]
+          reviewers: ["octocat"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(new Error("API Error"));
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
   });
@@ -277,15 +273,15 @@ describe("add_reviewer", () => {
       items: [
         {
           type: "add_reviewer",
-          reviewers: ["octocat", "github", "octocat", "github"]
-        }
-      ]
+          reviewers: ["octocat", "github", "octocat", "github"],
+        },
+      ],
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
-    
+
     await import("./add_reviewer.cjs");
-    
+
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",

@@ -1493,7 +1493,7 @@ jobs:
               }
             }
               const maxBodyLength = 65000;
-              const MAX_GITHUB_USERNAME_LENGTH = 39; 
+              const MAX_GITHUB_USERNAME_LENGTH = 39;
               function getMaxAllowedForType(itemType, config) {
                 const itemConfig = config?.[itemType];
                 if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {

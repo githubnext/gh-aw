@@ -1458,6 +1458,43 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for closing GitHub issues with comment from agentic
+  # workflow output
+  close-issue:
+    # Only close issues that have all of these labels
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Only close issues with this title prefix
+    # (optional)
+    required-title-prefix: "example-value"
+
+    # Target for closing: 'triggering' (default, current issue), or '*' (any issue
+    # with issue_number field)
+    # (optional)
+    target: "example-value"
+
+    # Maximum number of issues to close (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository operations. Takes
+    # precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable issue closing with default configuration
+  close-issue: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for automatically creating GitHub issue or pull request
   # comments from AI workflow output. The main job does not need write permissions.
   add-comment:
@@ -1626,6 +1663,39 @@ safe-outputs:
     target: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository label addition.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null configuration allows any reviewers
+  add-reviewer: null
+
+  # Option 2: Configuration for adding reviewers to pull requests from agentic
+  # workflow output
+  add-reviewer:
+    # Optional list of allowed reviewers. If omitted, any reviewers are allowed.
+    # (optional)
+    reviewers: []
+      # Array of strings
+
+    # Optional maximum number of reviewers to add (default: 3)
+    # (optional)
+    max: 1
+
+    # Target for reviewers: 'triggering' (default), '*' (any PR), or explicit PR
+    # number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository reviewer addition.
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"

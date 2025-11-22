@@ -84,9 +84,10 @@ async function main() {
   let prNumber;
   if (reviewersTarget === "*") {
     if (reviewerItem.pull_request_number) {
-      prNumber = typeof reviewerItem.pull_request_number === "number" 
-        ? reviewerItem.pull_request_number 
-        : parseInt(String(reviewerItem.pull_request_number), 10);
+      prNumber =
+        typeof reviewerItem.pull_request_number === "number"
+          ? reviewerItem.pull_request_number
+          : parseInt(String(reviewerItem.pull_request_number), 10);
       if (isNaN(prNumber) || prNumber <= 0) {
         core.setFailed(`Invalid pull_request_number specified: ${reviewerItem.pull_request_number}`);
         return;
@@ -162,9 +163,7 @@ No reviewers were added (no valid reviewers found in agent output).
   try {
     // Special handling for "copilot" reviewer - separate it from other reviewers in a single pass
     const hasCopilot = uniqueReviewers.includes("copilot");
-    const otherReviewers = hasCopilot 
-      ? uniqueReviewers.filter(r => r !== "copilot")
-      : uniqueReviewers;
+    const otherReviewers = hasCopilot ? uniqueReviewers.filter(r => r !== "copilot") : uniqueReviewers;
 
     // Add non-copilot reviewers first
     if (otherReviewers.length > 0) {

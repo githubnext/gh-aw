@@ -4,10 +4,7 @@
     "description": "Create a new GitHub issue",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -37,9 +34,7 @@
     "description": "Create a new GitHub Copilot agent task",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
@@ -54,10 +49,7 @@
     "description": "Create a new GitHub discussion",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -80,9 +72,7 @@
     "description": "Close a GitHub discussion with a comment and optional resolution reason",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
@@ -90,19 +80,11 @@
         },
         "reason": {
           "type": "string",
-          "enum": [
-            "RESOLVED",
-            "DUPLICATE",
-            "OUTDATED",
-            "ANSWERED"
-          ],
+          "enum": ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"],
           "description": "Optional resolution reason"
         },
         "discussion_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional discussion number (uses triggering discussion if not provided)"
         }
       },
@@ -114,19 +96,14 @@
     "description": "Close a GitHub issue with a comment",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body"
-      ],
+      "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
           "description": "Comment body to add when closing the issue"
         },
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional issue number (uses triggering issue if not provided)"
         }
       },
@@ -138,10 +115,7 @@
     "description": "Add a comment to a GitHub issue, pull request, or discussion",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "body",
-        "item_number"
-      ],
+      "required": ["body", "item_number"],
       "properties": {
         "body": {
           "type": "string",
@@ -160,10 +134,7 @@
     "description": "Create a new GitHub pull request",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "title",
-        "body"
-      ],
+      "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
@@ -193,21 +164,14 @@
     "description": "Create a review comment on a GitHub pull request",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "path",
-        "line",
-        "body"
-      ],
+      "required": ["path", "line", "body"],
       "properties": {
         "path": {
           "type": "string",
           "description": "File path for the review comment"
         },
         "line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Line number for the comment"
         },
         "body": {
@@ -215,18 +179,12 @@
           "description": "Comment body content"
         },
         "start_line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional start line for multi-line comments"
         },
         "side": {
           "type": "string",
-          "enum": [
-            "LEFT",
-            "RIGHT"
-          ],
+          "enum": ["LEFT", "RIGHT"],
           "description": "Optional side of the diff: LEFT or RIGHT"
         }
       },
@@ -238,32 +196,19 @@
     "description": "Create a code scanning alert. severity MUST be one of 'error', 'warning', 'info', 'note'.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "file",
-        "line",
-        "severity",
-        "message"
-      ],
+      "required": ["file", "line", "severity", "message"],
       "properties": {
         "file": {
           "type": "string",
           "description": "File path where the issue was found"
         },
         "line": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Line number where the issue was found"
         },
         "severity": {
           "type": "string",
-          "enum": [
-            "error",
-            "warning",
-            "info",
-            "note"
-          ],
+          "enum": ["error", "warning", "info", "note"],
           "description": " Security severity levels follow the industry-standard Common Vulnerability Scoring System (CVSS) that is also used for advisories in the GitHub Advisory Database and must be one of \"error\", \"warning\", \"info\", \"note\"."
         },
         "message": {
@@ -271,10 +216,7 @@
           "description": "Alert message describing the issue"
         },
         "column": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional column number"
         },
         "ruleIdSuffix": {
@@ -290,9 +232,7 @@
     "description": "Add labels to a GitHub issue or pull request",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "labels"
-      ],
+      "required": ["labels"],
       "properties": {
         "labels": {
           "type": "array",
@@ -314,9 +254,7 @@
     "description": "Add reviewers to a GitHub pull request",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "reviewers"
-      ],
+      "required": ["reviewers"],
       "properties": {
         "reviewers": {
           "type": "array",
@@ -326,10 +264,7 @@
           "description": "GitHub usernames to add as reviewers"
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Pull request number (optional - uses triggering PR if not provided)"
         }
       },
@@ -341,23 +276,14 @@
     "description": "Assign an issue to a milestone",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issue_number",
-        "milestone_number"
-      ],
+      "required": ["issue_number", "milestone_number"],
       "properties": {
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Issue number to assign milestone to"
         },
         "milestone_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Milestone number to assign"
         }
       },
@@ -372,10 +298,7 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": [
-            "open",
-            "closed"
-          ],
+          "enum": ["open", "closed"],
           "description": "Optional new issue status"
         },
         "title": {
@@ -387,10 +310,7 @@
           "description": "Optional new issue body"
         },
         "issue_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional issue number for target '*'"
         }
       },
@@ -402,9 +322,7 @@
     "description": "Push changes to a pull request branch",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "message"
-      ],
+      "required": ["message"],
       "properties": {
         "branch": {
           "type": "string",
@@ -415,10 +333,7 @@
           "description": "Commit message"
         },
         "pull_request_number": {
-          "type": [
-            "number",
-            "string"
-          ],
+          "type": ["number", "string"],
           "description": "Optional pull request number for target '*'"
         }
       },
@@ -430,9 +345,7 @@
     "description": "Publish a file as a URL-addressable asset to an orphaned git branch",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "path"
-      ],
+      "required": ["path"],
       "properties": {
         "path": {
           "type": "string",
@@ -447,11 +360,7 @@
     "description": "Update a GitHub release description. IMPORTANT: You must provide the 'tag' parameter with the release tag name (e.g., 'v1.0.0'). The tag cannot be inferred from event context in all scenarios.",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "tag",
-        "operation",
-        "body"
-      ],
+      "required": ["tag", "operation", "body"],
       "properties": {
         "tag": {
           "type": "string",
@@ -459,11 +368,7 @@
         },
         "operation": {
           "type": "string",
-          "enum": [
-            "replace",
-            "append",
-            "prepend"
-          ],
+          "enum": ["replace", "append", "prepend"],
           "description": "Update operation: 'replace' (full replacement), 'append' (add at end with separator), or 'prepend' (add at start with separator)"
         },
         "body": {
@@ -479,10 +384,7 @@
     "description": "Report a missing tool or functionality needed to complete tasks",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "tool",
-        "reason"
-      ],
+      "required": ["tool", "reason"],
       "properties": {
         "tool": {
           "type": "string",
@@ -505,9 +407,7 @@
     "description": "Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "message"
-      ],
+      "required": ["message"],
       "properties": {
         "message": {
           "type": "string",
