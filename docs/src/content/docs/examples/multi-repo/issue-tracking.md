@@ -477,7 +477,7 @@ safe-outputs:
 
 ## Related Documentation
 
-- [Multi-Repo Operations Guide](/gh-aw/guides/multi-repo-ops/) - Complete multi-repo overview
+- [MultiRepoOps Design Pattern](/gh-aw/guides/multirepoops/) - Complete multi-repo overview
 - [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) - Code sync patterns
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Issue creation configuration
 - [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - API access configuration

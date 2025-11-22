@@ -225,9 +225,9 @@ For organization-wide workflows:
 
 ## Complete Guide
 
-For comprehensive documentation on multi-repository operations, see:
+For comprehensive documentation on the MultiRepoOps design pattern, see:
 
-[Multi-Repository Operations Guide](/gh-aw/guides/multi-repo-ops/)
+[MultiRepoOps Design Pattern](/gh-aw/guides/multirepoops/)
 
 ## Related Documentation
 

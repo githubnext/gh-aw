@@ -99,7 +99,6 @@ export default defineConfig({
 					items: [
 						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
-						{ label: 'Multi-Repo Operations', link: '/guides/multi-repo-ops/' },
 						{ label: 'Security Best Practices', link: '/guides/security/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
@@ -117,6 +116,7 @@ export default defineConfig({
 						{ label: 'ProjectOps', link: '/examples/issue-pr-events/projectops/' },
 						{ label: 'Campaigns', link: '/guides/campaigns/' },
 						{ label: 'ResearchPlanAssign', link: '/guides/researchplanassign/' },
+						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 					],
 				},
 				{
@@ -126,7 +126,6 @@ export default defineConfig({
 						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
 						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
 						{ label: 'Quality & Testing', link: '/examples/issue-pr-events/quality-testing/' },
-						{ label: 'Multi-Repo Operations', link: '/examples/multi-repo/' },
 					],
 				},
 				{
