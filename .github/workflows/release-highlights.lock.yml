@@ -207,7 +207,8 @@
 # ```
 #
 # **Important Notes:**
-# - The `TAG` will be automatically inferred from the release event if you don't specify it
+# - **The `TAG` field is REQUIRED** - You must specify the release tag (e.g., "v0.30.2") using the ${RELEASE_TAG} environment variable
+# - The tag cannot be automatically inferred when the workflow is triggered manually (workflow_dispatch)
 # - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
 # - Include all your markdown formatting in the BODY section
 # - The system will automatically add an AI attribution footer
@@ -227,6 +228,7 @@
 #
 # ```
 # TYPE: update_release
+# TAG: v0.30.2
 # OPERATION: prepend
 # BODY: ## 🌟 Release Highlights
 #
@@ -509,7 +511,7 @@ jobs:
           {"missing_tool":{},"noop":{"max":1},"update_release":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Update a GitHub release description","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Release body content to set, append, or prepend","type":"string"},"operation":{"description":"Update operation: 'replace' (full replacement), 'append' (add at end with separator), or 'prepend' (add at start with separator)","enum":["replace","append","prepend"],"type":"string"},"tag":{"description":"Release tag name","type":"string"}},"required":["tag","operation","body"],"type":"object"},"name":"update_release"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Update a GitHub release description. IMPORTANT: You must provide the 'tag' parameter with the release tag name (e.g., 'v1.0.0'). The tag cannot be inferred from event context in all scenarios.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Release body content to set, append, or prepend","type":"string"},"operation":{"description":"Update operation: 'replace' (full replacement), 'append' (add at end with separator), or 'prepend' (add at start with separator)","enum":["replace","append","prepend"],"type":"string"},"tag":{"description":"Release tag name (REQUIRED - e.g., 'v1.0.0'). This must be provided explicitly.","type":"string"}},"required":["tag","operation","body"],"type":"object"},"name":"update_release"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1296,7 +1298,8 @@ jobs:
           ```
           
           **Important Notes:**
-          - The `TAG` will be automatically inferred from the release event if you don't specify it
+          - **The `TAG` field is REQUIRED** - You must specify the release tag (e.g., "v0.30.2") using the ${RELEASE_TAG} environment variable
+          - The tag cannot be automatically inferred when the workflow is triggered manually (workflow_dispatch)
           - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
           - Include all your markdown formatting in the BODY section
           - The system will automatically add an AI attribution footer
@@ -1316,6 +1319,7 @@ jobs:
           
           ```
           TYPE: update_release
+          TAG: v0.30.2
           OPERATION: prepend
           BODY: ## 🌟 Release Highlights
           
