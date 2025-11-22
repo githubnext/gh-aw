@@ -48,7 +48,7 @@ Configure GitHub Copilot Agent to use gh-aw MCP server:
 gh aw init --mcp
 ```
 
-This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub CLI, and gh-aw extension before agent sessions start, making workflow management tools available to the agent.
+This creates `.github/workflows/copilot-setup-steps.yml` that installs the gh-aw extension before agent sessions start, making workflow management tools available to the agent.
 
 ## Configuring with Copilot CLI
 
