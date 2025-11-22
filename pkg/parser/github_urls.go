@@ -286,6 +286,14 @@ func ParsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 		return "", "", 0, fmt.Errorf("URL must be a GitHub URL")
 	}
 
+	// Validate that Number fits in int range (important for 32-bit systems)
+	// Note: PR numbers are parsed with ParseInt(..., 10, 32) so they should always fit
+	const maxInt = int(^uint(0) >> 1)
+	const minInt = -maxInt - 1
+	if components.Number > int64(maxInt) || components.Number < int64(minInt) {
+		return "", "", 0, fmt.Errorf("PR number %d is out of range for int type", components.Number)
+	}
+
 	return components.Owner, components.Repo, int(components.Number), nil
 }
 
