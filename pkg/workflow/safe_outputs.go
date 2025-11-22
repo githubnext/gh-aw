@@ -33,6 +33,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreateAgentTasks != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.CloseDiscussions != nil ||
+		safeOutputs.CloseIssues != nil ||
 		safeOutputs.AddComments != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
@@ -284,6 +285,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap)
 			if closeDiscussionsConfig != nil {
 				config.CloseDiscussions = closeDiscussionsConfig
+			}
+
+			// Handle close-issue
+			closeIssuesConfig := c.parseCloseIssuesConfig(outputMap)
+			if closeIssuesConfig != nil {
+				config.CloseIssues = closeIssuesConfig
 			}
 
 			// Handle add-comment
@@ -930,6 +937,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["close_discussion"] = closeDiscussionConfig
 		}
+		if data.SafeOutputs.CloseIssues != nil {
+			closeIssueConfig := map[string]any{}
+			if data.SafeOutputs.CloseIssues.Max > 0 {
+				closeIssueConfig["max"] = data.SafeOutputs.CloseIssues.Max
+			}
+			if len(data.SafeOutputs.CloseIssues.RequiredLabels) > 0 {
+				closeIssueConfig["required_labels"] = data.SafeOutputs.CloseIssues.RequiredLabels
+			}
+			if data.SafeOutputs.CloseIssues.RequiredTitlePrefix != "" {
+				closeIssueConfig["required_title_prefix"] = data.SafeOutputs.CloseIssues.RequiredTitlePrefix
+			}
+			safeOutputsConfig["close_issue"] = closeIssueConfig
+		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
 			// Note: max is always 1 for pull requests, not configurable
@@ -1100,6 +1120,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.CloseDiscussions != nil {
 		enabledTools["close_discussion"] = true
+	}
+	if data.SafeOutputs.CloseIssues != nil {
+		enabledTools["close_issue"] = true
 	}
 	if data.SafeOutputs.AddComments != nil {
 		enabledTools["add_comment"] = true
