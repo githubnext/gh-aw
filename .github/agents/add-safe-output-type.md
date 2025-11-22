@@ -217,7 +217,123 @@ Add a new tool definition to the array:
 }
 ```
 
-### Step 4: Update Collection JavaScript
+**How tools.json is used**:
+- The `safe_outputs_tools.json` file is embedded in the Go binary via `//go:embed` directive
+- At runtime, the MCP server loads this JSON file and filters it based on enabled safe outputs
+- The filtered tools are exposed to AI agents through the MCP protocol
+- **Important**: After modifying this file, you **must** rebuild the binary with `make build` for changes to take effect
+
+### Step 4: Update MCP Server JavaScript (If Custom Handler Needed)
+
+**File**: `pkg/workflow/js/safe_outputs_mcp_server.cjs`
+
+Most safe output types use the default handler which automatically writes JSONL output. However, if your safe output type requires custom handling (like `create_pull_request`, `push_to_pull_request_branch`, or `upload_asset`), you need to:
+
+1. **Create a custom handler function** (around line 300-500):
+
+```javascript
+/**
+ * Handler for your_new_type safe output
+ * @param {Object} args - Arguments passed to the tool
+ * @returns {Object} MCP tool response
+ */
+const yourNewTypeHandler = args => {
+  // Perform any custom validation
+  if (!args.required_field || typeof args.required_field !== "string") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            error: "required_field is required and must be a string",
+          }),
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Perform custom operations (e.g., file system operations, git commands)
+  try {
+    // Your custom logic here
+    const result = performCustomOperation(args);
+    
+    // Write the JSONL entry
+    const entry = {
+      type: "your_new_type",
+      required_field: args.required_field,
+      optional_field: args.optional_field,
+      // Add any additional fields from custom processing
+      result_data: result,
+    };
+    
+    appendSafeOutput(entry);
+    
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            success: true,
+            message: "Your new type processed successfully",
+            result: result,
+          }),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        },
+      ],
+      isError: true,
+    };
+  }
+};
+```
+
+2. **Attach the handler to the tool** (around line 570-580):
+
+```javascript
+// Attach handlers to tools that need them
+ALL_TOOLS.forEach(tool => {
+  if (tool.name === "create_pull_request") {
+    tool.handler = createPullRequestHandler;
+  } else if (tool.name === "push_to_pull_request_branch") {
+    tool.handler = pushToPullRequestBranchHandler;
+  } else if (tool.name === "upload_asset") {
+    tool.handler = uploadAssetHandler;
+  } else if (tool.name === "your_new_type") {
+    tool.handler = yourNewTypeHandler;  // Add your handler here
+  }
+});
+```
+
+**When to use a custom handler**:
+- Need to perform file system operations (read/write files)
+- Need to execute shell commands (git operations, file manipulation)
+- Need to validate or transform data beyond JSON schema validation
+- Need to return complex response data to the AI agent
+- Need to perform operations before writing JSONL output
+
+**When NOT to use a custom handler**:
+- Simple JSONL output with no side effects (use default handler)
+- Basic field validation (handled by JSON schema and collection logic)
+- Standard GitHub API operations (handled by separate JavaScript files in Step 5)
+
+**Default handler behavior**:
+If no custom handler is specified, the MCP server uses `defaultHandler` which:
+1. Normalizes the type field (converts dashes to underscores)
+2. Checks for large content fields (>16000 tokens) and writes them to separate files
+3. Writes the JSONL entry to the output file
+4. Returns a success response to the AI agent
+
+### Step 5: Update Collection JavaScript
 
 **File**: `pkg/workflow/js/collect_ndjson_output.ts`
 
@@ -253,7 +369,81 @@ case "your-new-type":
 - Use `validateIssueOrPRNumber()` for GitHub issue/PR number fields
 - Continue the loop on validation errors to process remaining items
 
-### Step 5: Create JavaScript Implementation
+### Step 6: Update Go Filter Function
+
+**File**: `pkg/workflow/safe_outputs.go`
+
+Update the `generateFilteredToolsJSON` function to include your new safe output type in the filtering logic. This function determines which tools from `safe_outputs_tools.json` are exposed to AI agents based on the workflow configuration.
+
+Add your new safe output type to the `enabledTools` map (around line 1120):
+
+```go
+// generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
+// Returns a JSON string containing only the tools that are enabled in the workflow
+func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
+	if data.SafeOutputs == nil {
+		return "[]", nil
+	}
+
+	safeOutputsLog.Print("Generating filtered tools JSON for workflow")
+
+	// Load the full tools JSON
+	allToolsJSON := GetSafeOutputsToolsJSON()
+
+	// Parse the JSON to get all tools
+	var allTools []map[string]any
+	if err := json.Unmarshal([]byte(allToolsJSON), &allTools); err != nil {
+		return "", fmt.Errorf("failed to parse safe outputs tools JSON: %w", err)
+	}
+
+	// Create a set of enabled tool names
+	enabledTools := make(map[string]bool)
+
+	// Check which safe outputs are enabled and add their corresponding tool names
+	if data.SafeOutputs.CreateIssues != nil {
+		enabledTools["create_issue"] = true
+	}
+	// ... existing checks ...
+	if data.SafeOutputs.YourNewType != nil {
+		enabledTools["your_new_type"] = true  // Add your new type here
+	}
+
+	// Filter tools to only include enabled ones
+	var filteredTools []map[string]any
+	for _, tool := range allTools {
+		toolName, ok := tool["name"].(string)
+		if !ok {
+			continue
+		}
+		if enabledTools[toolName] {
+			filteredTools = append(filteredTools, tool)
+		}
+	}
+
+	// Serialize filtered tools to JSON
+	filteredJSON, err := json.Marshal(filteredTools)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
+	}
+
+	return string(filteredJSON), nil
+}
+```
+
+**Why this is needed**:
+- The MCP server only exposes tools that are enabled in the workflow configuration
+- This prevents AI agents from calling tools that aren't configured
+- Provides better error messages when agents try to use disabled features
+- Reduces token usage by not sending unused tool definitions to AI agents
+
+**Integration flow**:
+1. Workflow defines `safe-outputs.your-new-type: {}`
+2. `extractSafeOutputsConfig()` parses config into `data.SafeOutputs.YourNewType`
+3. `generateFilteredToolsJSON()` checks if `YourNewType != nil` and adds to filter
+4. Filtered JSON is written to `/tmp/gh-aw/safeoutputs/tools.json`
+5. MCP server reads filtered JSON and exposes only enabled tools to AI agents
+
+### Step 7: Create JavaScript Implementation
 
 **File**: `pkg/workflow/js/your_new_type.cjs`
 
@@ -355,7 +545,7 @@ await main();
 - Use GitHub Actions context variables for repo information
 - Follow the existing pattern for environment variable handling
 
-### Step 6: Create Test File
+### Step 8: Create Test File
 
 **File**: `pkg/workflow/js/your_new_type.test.cjs`
 
@@ -369,7 +559,7 @@ Create comprehensive tests following existing patterns in the codebase:
 - Use vitest framework with proper mocking
 - Follow existing test patterns in `.test.cjs` files
 
-### Step 7: Update Collection Tests
+### Step 9: Update Collection Tests
 
 **File**: `pkg/workflow/js/collect_ndjson_output.test.cjs`
 
@@ -415,7 +605,7 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### Step 9: Create Go Job Builder
+### Step 11: Create Go Job Builder
 
 **File**: `pkg/workflow/your_new_type.go`
 
@@ -617,7 +807,7 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 }
 ```
 
-### Step 10: Build and Test
+### Step 12: Build and Test
 
 1. **Compile TypeScript**: `make js`
 2. **Format code**: `make fmt-cjs`
@@ -626,7 +816,7 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 5. **Compile workflows**: `make recompile`
 6. **Full validation**: `make agent-finish`
 
-### Step 11: Manual Validation
+### Step 13: Manual Validation
 
 1. Create a simple test workflow using your new safe output type
 2. Test both staged and non-staged modes
@@ -639,6 +829,8 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 - [ ] JSON schema validates your new type correctly
 - [ ] TypeScript types compile without errors
 - [ ] Safe outputs tools JSON includes the new tool signature
+- [ ] MCP server handles the new type (custom handler if needed)
+- [ ] Go filter function includes the new type in `generateFilteredToolsJSON`
 - [ ] Collection logic validates fields properly
 - [ ] JavaScript implementation handles all cases
 - [ ] Tests achieve good coverage
@@ -650,13 +842,15 @@ func NewPermissionsContentsReadYourPermissions() *Permissions {
 
 1. **Inconsistent naming**: Ensure type names match exactly across all files (kebab-case in JSON, camelCase in TypeScript, underscores in tools.json)
 2. **Missing tools.json update**: Don't forget to add the tool signature in `safe_outputs_tools.json` - AI agents won't be able to call your new type without it
-3. **Missing validation**: Always validate required fields and sanitize string content
-4. **Incorrect union types**: Add your new type to all relevant union types
-5. **Missing exports**: Export all new interfaces and types
-6. **Test coverage gaps**: Test both success and failure scenarios
-7. **Schema violations**: Follow JSON Schema draft-07 syntax strictly
-8. **GitHub API misuse**: Use proper error handling for API calls
-9. **Staged mode**: Always implement preview functionality for staged mode
+3. **Missing Go filter update**: Don't forget to add your type to `generateFilteredToolsJSON` in `safe_outputs.go` - the MCP server won't expose the tool without it
+4. **Missing validation**: Always validate required fields and sanitize string content
+5. **Incorrect union types**: Add your new type to all relevant union types
+6. **Missing exports**: Export all new interfaces and types
+7. **Test coverage gaps**: Test both success and failure scenarios
+8. **Schema violations**: Follow JSON Schema draft-07 syntax strictly
+9. **GitHub API misuse**: Use proper error handling for API calls
+10. **Staged mode**: Always implement preview functionality for staged mode
+11. **Forgetting to rebuild**: After modifying `safe_outputs_tools.json`, you **must** run `make build` for changes to take effect (file is embedded via `//go:embed`)
 
 ## Resources and References
 
