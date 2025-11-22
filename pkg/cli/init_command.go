@@ -29,6 +29,7 @@ This command:
 
 With --mcp flag:
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
+- Creates .github/workflows/copilot-mcp-config.json with gh-aw MCP server configuration for GitHub Copilot Agent
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
 After running this command, you can:

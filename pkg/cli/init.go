@@ -102,6 +102,15 @@ func InitRepository(verbose bool, mcp bool) error {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
 		}
 
+		// Create copilot-mcp-config.json
+		if err := ensureCopilotMCPConfig(verbose); err != nil {
+			initLog.Printf("Failed to create copilot-mcp-config.json: %v", err)
+			return fmt.Errorf("failed to create copilot-mcp-config.json: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-mcp-config.json"))
+		}
+
 		// Create .vscode/mcp.json
 		if err := ensureMCPConfig(verbose); err != nil {
 			initLog.Printf("Failed to create MCP config: %v", err)

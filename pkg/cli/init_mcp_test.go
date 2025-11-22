@@ -74,6 +74,35 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		}
 	}
 
+	// Verify copilot-mcp-config.json was created
+	copilotMCPConfigPath := filepath.Join(tempDir, ".github", "workflows", "copilot-mcp-config.json")
+	if _, err := os.Stat(copilotMCPConfigPath); os.IsNotExist(err) {
+		t.Errorf("Expected copilot-mcp-config.json to exist")
+	} else {
+		// Verify content is valid JSON with gh-aw server
+		content, err := os.ReadFile(copilotMCPConfigPath)
+		if err != nil {
+			t.Fatalf("Failed to read copilot-mcp-config.json: %v", err)
+		}
+
+		var config CopilotMCPConfig
+		if err := json.Unmarshal(content, &config); err != nil {
+			t.Fatalf("Failed to parse copilot-mcp-config.json: %v", err)
+		}
+
+		if _, exists := config.MCPServers["github-agentic-workflows"]; !exists {
+			t.Errorf("Expected copilot-mcp-config.json to contain github-agentic-workflows server")
+		}
+
+		server := config.MCPServers["github-agentic-workflows"]
+		if server.Command != "gh" {
+			t.Errorf("Expected command to be 'gh', got %s", server.Command)
+		}
+		if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
+			t.Errorf("Expected args to be ['aw', 'mcp-server'], got %v", server.Args)
+		}
+	}
+
 	// Verify .vscode/mcp.json was created
 	mcpConfigPath := filepath.Join(tempDir, ".vscode", "mcp.json")
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
@@ -148,6 +177,11 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 	setupStepsPath := filepath.Join(tempDir, ".github", "workflows", "copilot-setup-steps.yml")
 	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
 		t.Errorf("Expected copilot-setup-steps.yml to exist after second call")
+	}
+
+	copilotMCPConfigPath := filepath.Join(tempDir, ".github", "workflows", "copilot-mcp-config.json")
+	if _, err := os.Stat(copilotMCPConfigPath); os.IsNotExist(err) {
+		t.Errorf("Expected copilot-mcp-config.json to exist after second call")
 	}
 
 	mcpConfigPath := filepath.Join(tempDir, ".vscode", "mcp.json")
