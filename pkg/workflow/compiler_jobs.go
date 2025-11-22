@@ -47,7 +47,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
-	hasSkipIfMatch := data.SkipIfMatch != ""
+	hasSkipIfMatch := data.SkipIfMatch != nil
 	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
@@ -496,7 +496,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	// Add skip-if-match check if configured
-	if data.SkipIfMatch != "" {
+	if data.SkipIfMatch != nil {
 		// Extract workflow name for the skip-if-match check
 		workflowName := data.Name
 
@@ -504,14 +504,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfMatchStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch.Query))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
-		// Add max matches parameter (defaults to 1 if not set)
-		maxMatches := data.SkipIfMatchMax
-		if maxMatches == 0 {
-			maxMatches = 1
-		}
-		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", maxMatches))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -561,7 +556,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		conditions = append(conditions, stopTimeCheck)
 	}
 
-	if data.SkipIfMatch != "" {
+	if data.SkipIfMatch != nil {
 		// Add skip-if-match check condition
 		skipCheckOk := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput)),

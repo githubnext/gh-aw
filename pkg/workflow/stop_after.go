@@ -141,17 +141,17 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 }
 
 // extractSkipIfMatchFromOn extracts the skip-if-match value from the on: section
-func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (query string, max int, err error) {
+func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (*SkipIfMatchConfig, error) {
 	onSection, exists := frontmatter["on"]
 	if !exists {
-		return "", 0, nil
+		return nil, nil
 	}
 
 	// Handle different formats of the on: section
 	switch on := onSection.(type) {
 	case string:
 		// Simple string format like "on: push" - no skip-if-match possible
-		return "", 0, nil
+		return nil, nil
 	case map[string]any:
 		// Complex object format - look for skip-if-match
 		if skipIfMatch, exists := on["skip-if-match"]; exists {
@@ -159,17 +159,20 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (query s
 			switch skip := skipIfMatch.(type) {
 			case string:
 				// Simple string format: skip-if-match: "query" (implies max=1)
-				return skip, 1, nil
+				return &SkipIfMatchConfig{
+					Query: skip,
+					Max:   1,
+				}, nil
 			case map[string]any:
 				// Object format: skip-if-match: { query: "...", max: 3 }
 				queryVal, hasQuery := skip["query"]
 				if !hasQuery {
-					return "", 0, fmt.Errorf("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
+					return nil, fmt.Errorf("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
 				}
 
 				queryStr, ok := queryVal.(string)
 				if !ok {
-					return "", 0, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
+					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
 				}
 
 				// Extract max value (optional, defaults to 1)
@@ -185,40 +188,42 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (query s
 					case float64:
 						maxVal = int(m)
 					default:
-						return "", 0, fmt.Errorf("skip-if-match 'max' field must be an integer, got %T. Example: max: 3", maxRaw)
+						return nil, fmt.Errorf("skip-if-match 'max' field must be an integer, got %T. Example: max: 3", maxRaw)
 					}
 
 					if maxVal < 1 {
-						return "", 0, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
+						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
 					}
 				}
 
-				return queryStr, maxVal, nil
+				return &SkipIfMatchConfig{
+					Query: queryStr,
+					Max:   maxVal,
+				}, nil
 			default:
-				return "", 0, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
+				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
 			}
 		}
-		return "", 0, nil
+		return nil, nil
 	default:
-		return "", 0, fmt.Errorf("invalid on: section format")
+		return nil, fmt.Errorf("invalid on: section format")
 	}
 }
 
 // processSkipIfMatchConfiguration extracts and processes skip-if-match configuration from frontmatter
 func (c *Compiler) processSkipIfMatchConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
 	// Extract skip-if-match from the on: section
-	skipIfMatch, maxMatches, err := c.extractSkipIfMatchFromOn(frontmatter)
+	skipIfMatchConfig, err := c.extractSkipIfMatchFromOn(frontmatter)
 	if err != nil {
 		return err
 	}
-	workflowData.SkipIfMatch = skipIfMatch
-	workflowData.SkipIfMatchMax = maxMatches
+	workflowData.SkipIfMatch = skipIfMatchConfig
 
-	if c.verbose && workflowData.SkipIfMatch != "" {
-		if workflowData.SkipIfMatchMax == 1 {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: 1 match)", workflowData.SkipIfMatch)))
+	if c.verbose && workflowData.SkipIfMatch != nil {
+		if workflowData.SkipIfMatch.Max == 1 {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: 1 match)", workflowData.SkipIfMatch.Query)))
 		} else {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: %d matches)", workflowData.SkipIfMatch, workflowData.SkipIfMatchMax)))
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: %d matches)", workflowData.SkipIfMatch.Query, workflowData.SkipIfMatch.Max)))
 		}
 	}
 

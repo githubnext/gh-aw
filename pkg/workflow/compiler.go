@@ -187,6 +187,12 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 	return c
 }
 
+// SkipIfMatchConfig holds the configuration for skip-if-match conditions
+type SkipIfMatchConfig struct {
+	Query string // GitHub search query to check before running workflow
+	Max   int    // Maximum number of matches before skipping (defaults to 1)
+}
+
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
@@ -219,16 +225,15 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	SkipIfMatch         string               // GitHub search query to check before running workflow
-	SkipIfMatchMax      int                  // Maximum number of matches for skip-if-match (0 means default of 1)
-	ManualApproval      string               // environment name for manual approval from on: section
-	Command             string               // for /command trigger support
-	CommandEvents       []string             // events where command should be active (nil = all events)
-	CommandOtherEvents  map[string]any       // for merging command with other events
-	AIReaction          string               // AI reaction type like "eyes", "heart", etc.
-	Jobs                map[string]any       // custom job configurations with dependencies
-	Cache               string               // cache configuration
-	NeedsTextOutput     bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
+	SkipIfMatch         *SkipIfMatchConfig // skip-if-match configuration with query and max threshold
+	ManualApproval      string             // environment name for manual approval from on: section
+	Command             string             // for /command trigger support
+	CommandEvents       []string           // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any     // for merging command with other events
+	AIReaction          string             // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any     // custom job configurations with dependencies
+	Cache               string             // cache configuration
+	NeedsTextOutput     bool               // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions  *NetworkPermissions  // parsed network permissions
 	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
 	Roles               []string             // permission levels required to trigger workflow
