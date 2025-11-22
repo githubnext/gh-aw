@@ -522,7 +522,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.60.1
+        run: npm install -g @openai/codex@0.63.0
       - name: Downloading container images
         run: |
           set -e
@@ -1588,7 +1588,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.60.1",
+              agent_version: "0.63.0",
               workflow_name: "Duplicate Code Detector",
               experimental: true,
               supports_tools_allowlist: true,
@@ -4266,7 +4266,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.60.1
+        run: npm install -g @openai/codex@0.63.0
       - name: Run Codex
         run: |
           set -o pipefail
