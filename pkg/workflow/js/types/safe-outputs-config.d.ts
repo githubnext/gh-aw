@@ -35,6 +35,24 @@ interface CloseDiscussionConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for closing GitHub issues
+ */
+interface CloseIssueConfig extends SafeOutputConfig {
+  "required-labels"?: string[];
+  "required-title-prefix"?: string;
+  target?: string;
+}
+
+/**
+ * Configuration for closing GitHub pull requests
+ */
+interface ClosePullRequestConfig extends SafeOutputConfig {
+  "required-labels"?: string[];
+  "required-title-prefix"?: string;
+  target?: string;
+}
+
+/**
  * Configuration for adding comments to issues or PRs
  */
 interface AddCommentConfig extends SafeOutputConfig {
@@ -177,6 +195,8 @@ type SpecificSafeOutputConfig =
   | CreateIssueConfig
   | CreateDiscussionConfig
   | CloseDiscussionConfig
+  | CloseIssueConfig
+  | ClosePullRequestConfig
   | AddCommentConfig
   | CreatePullRequestConfig
   | CreatePullRequestReviewCommentConfig
@@ -201,6 +221,8 @@ export {
   CreateIssueConfig,
   CreateDiscussionConfig,
   CloseDiscussionConfig,
+  CloseIssueConfig,
+  ClosePullRequestConfig,
   AddCommentConfig,
   CreatePullRequestConfig,
   CreatePullRequestReviewCommentConfig,
