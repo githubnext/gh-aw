@@ -1817,6 +1817,7 @@ jobs:
               }
             }
               const maxBodyLength = 65000;
+              const MAX_GITHUB_USERNAME_LENGTH = 39;
               function getMaxAllowedForType(itemType, config) {
                 const itemConfig = config?.[itemType];
                 if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -1835,6 +1836,8 @@ jobs:
                     return 1;
                   case "add_labels":
                     return 5;
+                  case "add_reviewer":
+                    return 3;
                   case "assign_milestone":
                     return 1;
                   case "update_issue":
@@ -2258,6 +2261,22 @@ jobs:
                         continue;
                       }
                       item.labels = item.labels.map(label => sanitizeContent(label, 128));
+                      break;
+                    case "add_reviewer":
+                      if (!item.reviewers || !Array.isArray(item.reviewers)) {
+                        errors.push(`Line ${i + 1}: add_reviewer requires a 'reviewers' array field`);
+                        continue;
+                      }
+                      if (item.reviewers.some(reviewer => typeof reviewer !== "string")) {
+                        errors.push(`Line ${i + 1}: add_reviewer reviewers array must contain only strings`);
+                        continue;
+                      }
+                      const reviewerPRNumberValidation = validateIssueOrPRNumber(item.pull_request_number, "add_reviewer 'pull_request_number'", i + 1);
+                      if (!reviewerPRNumberValidation.isValid) {
+                        if (reviewerPRNumberValidation.error) errors.push(reviewerPRNumberValidation.error);
+                        continue;
+                      }
+                      item.reviewers = item.reviewers.map(reviewer => sanitizeContent(reviewer, MAX_GITHUB_USERNAME_LENGTH));
                       break;
                     case "update_issue":
                       const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;

@@ -124,6 +124,17 @@ interface AddLabelsItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for adding reviewers to a pull request
+ */
+interface AddReviewerItem extends BaseSafeOutputItem {
+  type: "add_reviewer";
+  /** Array of GitHub usernames to add as reviewers */
+  reviewers: string[];
+  /** Pull request number (optional - uses triggering PR if not provided) */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for updating an issue
  */
 interface UpdateIssueItem extends BaseSafeOutputItem {
@@ -216,6 +227,7 @@ type SafeOutputItem =
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
   | AddLabelsItem
+  | AddReviewerItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
@@ -243,6 +255,7 @@ export {
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
   AddLabelsItem,
+  AddReviewerItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

@@ -39,6 +39,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
+		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
@@ -104,6 +105,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Adding Labels to Issues or Pull Requests")
+		written = true
+	}
+
+	if safeOutputs.AddReviewer != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Adding Reviewers to Pull Requests")
 		written = true
 	}
 
@@ -189,6 +198,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString(fmt.Sprintf("          To add labels to an issue or a pull request, use the add-labels tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.AddReviewer != nil {
+		yaml.WriteString("          **Adding Reviewers to Pull Requests**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To add reviewers to a pull request, use the add-reviewer tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -398,6 +414,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					// Handle null case: create empty config (allows any labels)
 					config.AddLabels = &AddLabelsConfig{}
 				}
+			}
+
+			// Parse add-reviewer configuration
+			addReviewerConfig := c.parseAddReviewerConfig(outputMap)
+			if addReviewerConfig != nil {
+				config.AddReviewer = addReviewerConfig
 			}
 
 			// Parse assign-milestone configuration
@@ -1138,6 +1160,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
+	}
+	if data.SafeOutputs.AddReviewer != nil {
+		enabledTools["add_reviewer"] = true
 	}
 	if data.SafeOutputs.AssignMilestone != nil {
 		enabledTools["assign_milestone"] = true

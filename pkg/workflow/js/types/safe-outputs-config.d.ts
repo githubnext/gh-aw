@@ -74,6 +74,14 @@ interface AddLabelsConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for adding reviewers to pull requests
+ */
+interface AddReviewerConfig extends SafeOutputConfig {
+  reviewers?: string[];
+  target?: string;
+}
+
+/**
  * Configuration for updating issues
  */
 interface UpdateIssueConfig extends SafeOutputConfig {
@@ -174,6 +182,7 @@ type SpecificSafeOutputConfig =
   | CreatePullRequestReviewCommentConfig
   | CreateCodeScanningAlertConfig
   | AddLabelsConfig
+  | AddReviewerConfig
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
@@ -197,6 +206,7 @@ export {
   CreatePullRequestReviewCommentConfig,
   CreateCodeScanningAlertConfig,
   AddLabelsConfig,
+  AddReviewerConfig,
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,

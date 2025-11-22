@@ -6,11 +6,19 @@
       "type": "object",
       "required": ["title", "body"],
       "properties": {
-        "title": { "type": "string", "description": "Issue title" },
-        "body": { "type": "string", "description": "Issue body/description" },
+        "title": {
+          "type": "string",
+          "description": "Issue title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Issue body/description"
+        },
         "labels": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Issue labels"
         },
         "parent": {
@@ -28,7 +36,10 @@
       "type": "object",
       "required": ["body"],
       "properties": {
-        "body": { "type": "string", "description": "Task description/instructions for the agent" }
+        "body": {
+          "type": "string",
+          "description": "Task description/instructions for the agent"
+        }
       },
       "additionalProperties": false
     }
@@ -40,9 +51,18 @@
       "type": "object",
       "required": ["title", "body"],
       "properties": {
-        "title": { "type": "string", "description": "Discussion title" },
-        "body": { "type": "string", "description": "Discussion body/content" },
-        "category": { "type": "string", "description": "Discussion category" }
+        "title": {
+          "type": "string",
+          "description": "Discussion title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Discussion body/content"
+        },
+        "category": {
+          "type": "string",
+          "description": "Discussion category"
+        }
       },
       "additionalProperties": false
     }
@@ -97,7 +117,10 @@
       "type": "object",
       "required": ["body", "item_number"],
       "properties": {
-        "body": { "type": "string", "description": "Comment body/content" },
+        "body": {
+          "type": "string",
+          "description": "Comment body/content"
+        },
         "item_number": {
           "type": "number",
           "description": "Issue, pull request or discussion number"
@@ -113,7 +136,10 @@
       "type": "object",
       "required": ["title", "body"],
       "properties": {
-        "title": { "type": "string", "description": "Pull request title" },
+        "title": {
+          "type": "string",
+          "description": "Pull request title"
+        },
         "body": {
           "type": "string",
           "description": "Pull request body/description"
@@ -124,7 +150,9 @@
         },
         "labels": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Optional labels to add to the PR"
         }
       },
@@ -146,7 +174,10 @@
           "type": ["number", "string"],
           "description": "Line number for the comment"
         },
-        "body": { "type": "string", "description": "Comment body content" },
+        "body": {
+          "type": "string",
+          "description": "Comment body content"
+        },
         "start_line": {
           "type": ["number", "string"],
           "description": "Optional start line for multi-line comments"
@@ -205,12 +236,36 @@
       "properties": {
         "labels": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Labels to add"
         },
         "item_number": {
           "type": "number",
           "description": "Issue or PR number (optional for current context)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_reviewer",
+    "description": "Add reviewers to a GitHub pull request",
+    "inputSchema": {
+      "type": "object",
+      "required": ["reviewers"],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "GitHub usernames to add as reviewers"
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number (optional - uses triggering PR if not provided)"
         }
       },
       "additionalProperties": false
@@ -246,8 +301,14 @@
           "enum": ["open", "closed"],
           "description": "Optional new issue status"
         },
-        "title": { "type": "string", "description": "Optional new issue title" },
-        "body": { "type": "string", "description": "Optional new issue body" },
+        "title": {
+          "type": "string",
+          "description": "Optional new issue title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Optional new issue body"
+        },
         "issue_number": {
           "type": ["number", "string"],
           "description": "Optional issue number for target '*'"
@@ -267,7 +328,10 @@
           "type": "string",
           "description": "Optional branch name. Do not provide this parameter if you want to push changes from the current branch. If not provided, the current branch will be used."
         },
-        "message": { "type": "string", "description": "Commit message" },
+        "message": {
+          "type": "string",
+          "description": "Commit message"
+        },
         "pull_request_number": {
           "type": ["number", "string"],
           "description": "Optional pull request number for target '*'"
@@ -322,8 +386,14 @@
       "type": "object",
       "required": ["tool", "reason"],
       "properties": {
-        "tool": { "type": "string", "description": "Name of the missing tool (max 128 characters)" },
-        "reason": { "type": "string", "description": "Why this tool is needed (max 256 characters)" },
+        "tool": {
+          "type": "string",
+          "description": "Name of the missing tool (max 128 characters)"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this tool is needed (max 256 characters)"
+        },
         "alternatives": {
           "type": "string",
           "description": "Possible alternatives or workarounds (max 256 characters)"
