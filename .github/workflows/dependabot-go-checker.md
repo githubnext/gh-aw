@@ -18,8 +18,12 @@ permissions:
 network: defaults
 
 safe-outputs:
+  close-issue:
+    required-title-prefix: "[deps]"
+    target: "*"
+    max: 20
   create-issue:
-    title-prefix: "[Dependabot] "
+    title-prefix: "[deps]"
     labels: [dependencies, go]
     max: 10
 

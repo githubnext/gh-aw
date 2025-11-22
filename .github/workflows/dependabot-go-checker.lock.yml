@@ -25,14 +25,18 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   close_issue["close_issue"]
 #   conclusion["conclusion"]
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
+#   agent --> close_issue
+#   detection --> close_issue
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_issue --> conclusion
+#   close_issue --> conclusion
 #   missing_tool --> conclusion
 #   agent --> create_issue
 #   detection --> create_issue
@@ -675,10 +679,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":10},"missing_tool":{},"noop":{"max":1}}
+          {"close_issue":{"max":20,"required_title_prefix":"[deps]"},"create_issue":{"max":10},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Issue body/description","type":"string"},"labels":{"description":"Issue labels","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number to create this issue as a sub-issue of","type":"number"},"title":{"description":"Issue title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a new GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Issue body/description","type":"string"},"labels":{"description":"Issue labels","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number to create this issue as a sub-issue of","type":"number"},"title":{"description":"Issue title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Close a GitHub issue with a comment","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment body to add when closing the issue","type":"string"},"issue_number":{"description":"Optional issue number (uses triggering issue if not provided)","type":["number","string"]}},"required":["body"],"type":"object"},"name":"close_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -4285,11 +4289,294 @@ jobs:
               main();
             }
 
+  close_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_issue'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      comment_url: ${{ steps.close_issue.outputs.comment_url }}
+      issue_number: ${{ steps.close_issue.outputs.issue_number }}
+      issue_url: ${{ steps.close_issue.outputs.issue_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Close Issue
+        id: close_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX: "[deps]"
+          GH_AW_CLOSE_ISSUE_TARGET: "*"
+          GH_AW_WORKFLOW_NAME: "Dependabot Dependency Checker"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function getRepositoryUrl() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${targetRepoSlug}`;
+              } else if (context.payload.repository?.html_url) {
+                return context.payload.repository.html_url;
+              } else {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+              }
+            }
+            async function getIssueDetails(github, owner, repo, issueNumber) {
+              const { data: issue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+              if (!issue) {
+                throw new Error(`Issue #${issueNumber} not found in ${owner}/${repo}`);
+              }
+              return issue;
+            }
+            async function addIssueComment(github, owner, repo, issueNumber, message) {
+              const { data: comment } = await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: message,
+              });
+              return comment;
+            }
+            async function closeIssue(github, owner, repo, issueNumber) {
+              const { data: issue } = await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                state: "closed",
+              });
+              return issue;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const closeIssueItems = result.items.filter( item => item.type === "close_issue");
+              if (closeIssueItems.length === 0) {
+                core.info("No close-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${closeIssueItems.length} close-issue item(s)`);
+              const requiredLabels = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS
+                ? process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS.split(",").map(l => l.trim())
+                : [];
+              const requiredTitlePrefix = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX || "";
+              const target = process.env.GH_AW_CLOSE_ISSUE_TARGET || "triggering";
+              core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
+                summaryContent += "The following issues would be closed if staged mode was disabled:\n\n";
+                for (let i = 0; i < closeIssueItems.length; i++) {
+                  const item = closeIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  const issueNumber = item.issue_number;
+                  if (issueNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    const issueUrl = `${repoUrl}/issues/${issueNumber}`;
+                    summaryContent += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
+                  } else {
+                    summaryContent += `**Target:** Current issue\n\n`;
+                  }
+                  summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
+                  if (requiredLabels.length > 0) {
+                    summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
+                  }
+                  if (requiredTitlePrefix) {
+                    summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Issue close preview written to step summary");
+                return;
+              }
+              if (target === "triggering" && !isIssueContext) {
+                core.info('Target is "triggering" but not running in issue context, skipping issue close');
+                return;
+              }
+              const triggeringIssueNumber = context.payload?.issue?.number;
+              const closedIssues = [];
+              for (let i = 0; i < closeIssueItems.length; i++) {
+                const item = closeIssueItems[i];
+                core.info(`Processing close-issue item ${i + 1}/${closeIssueItems.length}: bodyLength=${item.body.length}`);
+                let issueNumber;
+                if (target === "*") {
+                  const targetNumber = item.issue_number;
+                  if (targetNumber) {
+                    issueNumber = parseInt(targetNumber, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid issue number specified: ${targetNumber}`);
+                      continue;
+                    }
+                  } else {
+                    core.info(`Target is "*" but no issue_number specified in close-issue item`);
+                    continue;
+                  }
+                } else if (target && target !== "triggering") {
+                  issueNumber = parseInt(target, 10);
+                  if (isNaN(issueNumber) || issueNumber <= 0) {
+                    core.info(`Invalid issue number in target configuration: ${target}`);
+                    continue;
+                  }
+                } else {
+                  if (isIssueContext) {
+                    issueNumber = context.payload.issue?.number;
+                    if (!issueNumber) {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else {
+                    core.info("Not in issue context and no explicit target specified");
+                    continue;
+                  }
+                }
+                try {
+                  const issue = await getIssueDetails(github, context.repo.owner, context.repo.repo, issueNumber);
+                  if (requiredLabels.length > 0) {
+                    const issueLabels = issue.labels.map(l => l.name);
+                    const hasRequiredLabel = requiredLabels.some(required => issueLabels.includes(required));
+                    if (!hasRequiredLabel) {
+                      core.info(`Issue #${issueNumber} does not have required labels: ${requiredLabels.join(", ")}`);
+                      continue;
+                    }
+                  }
+                  if (requiredTitlePrefix && !issue.title.startsWith(requiredTitlePrefix)) {
+                    core.info(`Issue #${issueNumber} does not have required title prefix: ${requiredTitlePrefix}`);
+                    continue;
+                  }
+                  if (issue.state === "closed") {
+                    core.info(`Issue #${issueNumber} is already closed, skipping`);
+                    continue;
+                  }
+                  const trackerID = getTrackerID();
+                  const footer = generateFooter(trackerID, triggeringIssueNumber);
+                  const commentBody = item.body + footer;
+                  const comment = await addIssueComment(github, context.repo.owner, context.repo.repo, issueNumber, commentBody);
+                  core.info(`✓ Added comment to issue #${issueNumber}: ${comment.html_url}`);
+                  const closedIssue = await closeIssue(github, context.repo.owner, context.repo.repo, issueNumber);
+                  core.info(`✓ Closed issue #${issueNumber}: ${closedIssue.html_url}`);
+                  closedIssues.push({
+                    issue: closedIssue,
+                    comment,
+                  });
+                  if (i === closeIssueItems.length - 1) {
+                    core.setOutput("issue_number", closedIssue.number);
+                    core.setOutput("issue_url", closedIssue.html_url);
+                    core.setOutput("comment_url", comment.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to close issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (closedIssues.length > 0) {
+                let summaryContent = "\n\n## Closed Issues\n";
+                for (const { issue, comment } of closedIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url}) ([comment](${comment.html_url}))\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully closed ${closedIssues.length} issue(s)`);
+              return closedIssues;
+            }
+            await main();
+
   conclusion:
     needs:
       - agent
       - activation
       - create_issue
+      - close_issue
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -4600,7 +4887,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "[Dependabot] "
+          GH_AW_ISSUE_TITLE_PREFIX: "[deps]"
           GH_AW_ISSUE_LABELS: "dependencies,go"
           GH_AW_WORKFLOW_NAME: "Dependabot Dependency Checker"
         with:
