@@ -22,7 +22,6 @@ safe-outputs:
     max: 1
 
 tools:
-  agentic-workflows:
   github:
     toolsets:
       - default
@@ -32,6 +31,7 @@ tools:
   edit:
   cache-memory:
 imports:
+  - shared/mcp/gh-aw.md
   - shared/reporting.md
   - shared/trending-charts-simple.md
 ---
