@@ -23,6 +23,8 @@ async function main() {
         return 1;
       case "add_labels":
         return 5;
+      case "add_reviewer":
+        return 3;
       case "assign_milestone":
         return 1;
       case "update_issue":
@@ -454,6 +456,23 @@ async function main() {
             continue;
           }
           item.labels = item.labels.map(label => sanitizeContent(label, 128));
+          break;
+        case "add_reviewer":
+          if (!item.reviewers || !Array.isArray(item.reviewers)) {
+            errors.push(`Line ${i + 1}: add_reviewer requires a 'reviewers' array field`);
+            continue;
+          }
+          if (item.reviewers.some(reviewer => typeof reviewer !== "string")) {
+            errors.push(`Line ${i + 1}: add_reviewer reviewers array must contain only strings`);
+            continue;
+          }
+          const reviewerPRNumberValidation = validateIssueOrPRNumber(item.pull_request_number, "add_reviewer 'pull_request_number'", i + 1);
+          if (!reviewerPRNumberValidation.isValid) {
+            if (reviewerPRNumberValidation.error) errors.push(reviewerPRNumberValidation.error);
+            continue;
+          }
+          // Sanitize reviewer usernames (limit to 39 chars, max GitHub username length)
+          item.reviewers = item.reviewers.map(reviewer => sanitizeContent(reviewer, 39));
           break;
         case "update_issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;

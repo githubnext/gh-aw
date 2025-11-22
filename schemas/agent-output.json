@@ -31,6 +31,7 @@
         {"$ref": "#/$defs/AddCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddLabelsOutput"},
+        {"$ref": "#/$defs/AddReviewerOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
@@ -141,6 +142,33 @@
         }
       },
       "required": ["type", "labels"],
+      "additionalProperties": false
+    },
+    "AddReviewerOutput": {
+      "title": "Add Reviewer Output",
+      "description": "Output for adding reviewers to a pull request",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add_reviewer"
+        },
+        "reviewers": {
+          "type": "array",
+          "description": "Array of GitHub usernames to add as reviewers",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number (optional - uses triggering PR if not provided)"
+        }
+      },
+      "required": ["type", "reviewers"],
       "additionalProperties": false
     },
     "UpdateIssueOutput": {
