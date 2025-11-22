@@ -19,6 +19,8 @@
     "@astrojs/starlight": "^0.35.2",
     "@primer/octicons": "^19.20.0",
     "astro": "^5.15.9",
+    "astro-mermaid": "^1.1.0",
+    "mermaid": "^11.12.1",
     "sharp": "^0.34.2",
     "starlight-changelogs": "^0.2.1",
     "starlight-links-validator": "^0.17.2",
