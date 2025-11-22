@@ -225,15 +225,15 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	SkipIfMatch         *SkipIfMatchConfig // skip-if-match configuration with query and max threshold
-	ManualApproval      string             // environment name for manual approval from on: section
-	Command             string             // for /command trigger support
-	CommandEvents       []string           // events where command should be active (nil = all events)
-	CommandOtherEvents  map[string]any     // for merging command with other events
-	AIReaction          string             // AI reaction type like "eyes", "heart", etc.
-	Jobs                map[string]any     // custom job configurations with dependencies
-	Cache               string             // cache configuration
-	NeedsTextOutput     bool               // whether the workflow uses ${{ needs.task.outputs.text }}
+	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
+	ManualApproval      string               // environment name for manual approval from on: section
+	Command             string               // for /command trigger support
+	CommandEvents       []string             // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any       // for merging command with other events
+	AIReaction          string               // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any       // custom job configurations with dependencies
+	Cache               string               // cache configuration
+	NeedsTextOutput     bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions  *NetworkPermissions  // parsed network permissions
 	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
 	Roles               []string             // permission levels required to trigger workflow
