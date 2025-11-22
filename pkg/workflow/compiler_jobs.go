@@ -208,6 +208,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, closeDiscussionJob.Name)
 	}
 
+	// Build close_issue job if safe-outputs.close-issue is configured
+	if data.SafeOutputs.CloseIssues != nil {
+		closeIssueJob, err := c.buildCreateOutputCloseIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build close_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			closeIssueJob.Needs = append(closeIssueJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			closeIssueJob.If = AddDetectionSuccessCheck(closeIssueJob.If)
+		}
+		if err := c.jobManager.AddJob(closeIssueJob); err != nil {
+			return fmt.Errorf("failed to add close_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, closeIssueJob.Name)
+	}
+
 	// Build create_pull_request job if output.create-pull-request is configured
 	// NOTE: This is built BEFORE add_comment so that add_comment can depend on it
 	if data.SafeOutputs.CreatePullRequests != nil {
