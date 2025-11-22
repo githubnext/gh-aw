@@ -187,6 +187,12 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 	return c
 }
 
+// SkipIfMatchConfig holds the configuration for skip-if-match conditions
+type SkipIfMatchConfig struct {
+	Query string // GitHub search query to check before running workflow
+	Max   int    // Maximum number of matches before skipping (defaults to 1)
+}
+
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
@@ -219,7 +225,7 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	SkipIfMatch         string               // GitHub search query to check before running workflow
+	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
 	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)

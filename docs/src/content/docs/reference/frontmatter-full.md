@@ -548,11 +548,28 @@ on:
   # (optional)
   stop-after: "example-value"
 
-  # GitHub search query string to check before running workflow. If the search
-  # returns any results, the workflow will be skipped. Query is automatically scoped
-  # to the current repository. Example: 'is:issue is:open label:bug'
+  # Conditionally skip workflow execution when a GitHub search query has matches.
+  # Can be a string (query only, implies max=1) or an object with 'query' and
+  # optional 'max' fields.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: GitHub search query string to check before running workflow (implies
+  # max=1). If the search returns any results, the workflow will be skipped. Query
+  # is automatically scoped to the current repository. Example: 'is:issue is:open
+  # label:bug'
   skip-if-match: "example-value"
+
+  # Option 2: Skip-if-match configuration object with query and maximum match count
+  skip-if-match:
+    # GitHub search query string to check before running workflow. Query is
+    # automatically scoped to the current repository.
+    query: "example-value"
+
+    # Maximum number of items that must be matched for the workflow to be skipped.
+    # Defaults to 1 if not specified.
+    # (optional)
+    max: 1
 
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
