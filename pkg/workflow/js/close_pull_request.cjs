@@ -212,10 +212,22 @@ async function main() {
         continue;
       }
 
-      // Build comment body with optional tracker ID
-      const trackerID = getTrackerID();
-      const footer = generateFooter(trackerID, triggeringPRNumber);
-      const commentBody = item.body + footer;
+      // Build comment body with workflow info
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+      const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+      const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+      const runId = context.runId;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const runUrl = context.payload.repository
+        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+        : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+      // Add tracker ID to body
+      let commentBody = item.body.trim();
+      commentBody += getTrackerID("markdown");
+
+      // Add footer with AI attribution
+      commentBody += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined);
 
       // Add comment before closing
       const comment = await addPullRequestComment(github, context.repo.owner, context.repo.repo, prNumber, commentBody);
