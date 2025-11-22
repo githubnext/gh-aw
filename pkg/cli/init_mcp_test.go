@@ -69,8 +69,8 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		if !strings.Contains(contentStr, "copilot-setup-steps:") {
 			t.Errorf("Expected copilot-setup-steps.yml to contain job name")
 		}
-		if !strings.Contains(contentStr, "gh extension install githubnext/gh-aw") {
-			t.Errorf("Expected copilot-setup-steps.yml to contain gh-aw installation steps")
+		if !strings.Contains(contentStr, "install-gh-aw.sh") {
+			t.Errorf("Expected copilot-setup-steps.yml to contain gh-aw installation steps with bash script")
 		}
 	}
 
@@ -275,8 +275,11 @@ jobs:
 	if !strings.Contains(contentStr, "Install gh-aw extension") {
 		t.Errorf("Expected extension install step to be injected")
 	}
-	if !strings.Contains(contentStr, "gh extension install githubnext/gh-aw") {
-		t.Errorf("Expected extension install command to be present")
+	if !strings.Contains(contentStr, "install-gh-aw.sh") {
+		t.Errorf("Expected extension install command to be present with bash script")
+	}
+	if !strings.Contains(contentStr, "curl -fsSL") {
+		t.Errorf("Expected curl command to be present")
 	}
 
 	// Verify it was injected at the beginning (before other steps)
@@ -328,7 +331,8 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Install gh-aw extension
-        run: gh extension install githubnext/gh-aw
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
 
       - name: Build code
         run: make build

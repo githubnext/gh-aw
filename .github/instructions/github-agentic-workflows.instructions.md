@@ -29,6 +29,49 @@ Natural language description of what the AI should do.
 Use GitHub context expressions like ${{ github.event.issue.number }}.
 ```
 
+## Compiling Workflows
+
+**⚠️ IMPORTANT**: After creating or modifying a workflow file, you must compile it to generate the GitHub Actions YAML file.
+
+Agentic workflows (`.md` files) must be compiled to GitHub Actions YAML (`.lock.yml` files) before they can run:
+
+```bash
+# Compile all workflows in .github/workflows/
+gh aw compile
+
+# Compile a specific workflow by name (without .md extension)
+gh aw compile my-workflow
+
+# Using the standalone binary (after installing with bash script)
+./gh-aw compile
+./gh-aw compile my-workflow
+```
+
+**Compilation Process:**
+- `.github/workflows/example.md` → `.github/workflows/example.lock.yml`
+- Include dependencies are resolved and merged
+- Tool configurations are processed
+- GitHub Actions syntax is generated
+
+**Additional Compilation Options:**
+```bash
+# Compile with strict security checks
+gh aw compile --strict
+
+# Remove orphaned .lock.yml files (no corresponding .md)
+gh aw compile --purge
+
+# Run security scanners
+gh aw compile --actionlint  # Includes shellcheck
+gh aw compile --zizmor      # Security vulnerability scanner
+gh aw compile --poutine     # Supply chain security analyzer
+
+# Strict mode with all scanners
+gh aw compile --strict --actionlint --zizmor --poutine
+```
+
+**Best Practice**: Always run `gh aw compile` (or `./gh-aw compile`) after every workflow change to ensure the GitHub Actions YAML is up to date.
+
 ## Complete Frontmatter Schema
 
 The YAML frontmatter supports these fields:

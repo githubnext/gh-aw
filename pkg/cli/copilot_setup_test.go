@@ -27,8 +27,14 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				if !strings.Contains(string(content), "copilot-setup-steps") {
 					t.Error("Expected workflow to contain 'copilot-setup-steps' job name")
 				}
-				if !strings.Contains(string(content), "gh extension install githubnext/gh-aw") {
-					t.Error("Expected workflow to contain gh extension install command")
+				if !strings.Contains(string(content), "install-gh-aw.sh") {
+					t.Error("Expected workflow to contain install-gh-aw.sh bash script")
+				}
+				if !strings.Contains(string(content), "curl -fsSL") {
+					t.Error("Expected workflow to contain curl command")
+				}
+				if !strings.Contains(string(content), "./gh-aw version") {
+					t.Error("Expected workflow to contain ./gh-aw version verification")
 				}
 			},
 		},
@@ -47,10 +53,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 							},
 							{
 								Name: "Install gh-aw extension",
-								Run:  "gh extension install githubnext/gh-aw",
-								Env: map[string]any{
-									"GH_TOKEN": "${{ github.token }}",
-								},
+								Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 							},
 						},
 					},
@@ -343,14 +346,14 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 	// Verify it has the extension install step
 	hasExtensionInstall := false
 	for _, step := range job.Steps {
-		if strings.Contains(step.Run, "gh extension install githubnext/gh-aw") {
+		if strings.Contains(step.Run, "install-gh-aw.sh") || strings.Contains(step.Run, "curl -fsSL") {
 			hasExtensionInstall = true
 			break
 		}
 	}
 
 	if !hasExtensionInstall {
-		t.Error("Expected copilotSetupStepsYAML to contain extension install step")
+		t.Error("Expected copilotSetupStepsYAML to contain extension install step with bash script")
 	}
 
 	// Verify it does NOT have checkout, Go setup or build steps (for universal use)
@@ -369,16 +372,13 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		}
 	}
 
-	// Verify verification step only uses 'gh aw version' (not './gh-aw version')
+	// Verify verification step uses './gh-aw version' (works in the runner environment after bash install)
 	hasVerification := false
 	for _, step := range job.Steps {
 		if strings.Contains(step.Name, "Verify") {
 			hasVerification = true
-			if strings.Contains(step.Run, "./gh-aw") {
-				t.Error("Verification step should not try to run './gh-aw' (only works in gh-aw repo)")
-			}
-			if !strings.Contains(step.Run, "gh aw version") {
-				t.Error("Verification step should use 'gh aw version'")
+			if !strings.Contains(step.Run, "./gh-aw") {
+				t.Error("Verification step should use './gh-aw version' after bash install")
 			}
 		}
 	}
