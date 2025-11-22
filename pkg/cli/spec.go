@@ -6,8 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var specLog = logger.New("cli:spec")
 
 // RepoSpec represents a parsed repository specification
 type RepoSpec struct {
@@ -72,6 +75,7 @@ func isRepoOnlySpec(spec string) bool {
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
 // Also supports GitHub URLs like "https://github.com/owner/repo[@version]"
 func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
+	specLog.Printf("Parsing repo spec: %q", repoSpec)
 	parts := strings.SplitN(repoSpec, "@", 2)
 	repo := parts[0]
 	var version string
@@ -168,13 +172,17 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 // Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
 // Also supports local paths like ./workflows/workflow-name.md
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
+	specLog.Printf("Parsing workflow spec: %q", spec)
+
 	// Check if this is a GitHub URL
 	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
+		specLog.Print("Detected GitHub URL format")
 		return parseGitHubURL(spec)
 	}
 
 	// Check if this is a local path starting with "./"
 	if strings.HasPrefix(spec, "./") {
+		specLog.Print("Detected local path format")
 		return parseLocalWorkflowSpec(spec)
 	}
 
@@ -287,6 +295,7 @@ func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
 // parseSourceSpec parses a source specification like "owner/repo/path@ref"
 // This is used for parsing the source field from workflow frontmatter
 func parseSourceSpec(source string) (*SourceSpec, error) {
+	specLog.Printf("Parsing source spec: %q", source)
 	// Split on @ to separate ref
 	parts := strings.SplitN(source, "@", 2)
 	pathPart := parts[0]
@@ -306,6 +315,7 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 		spec.Ref = parts[1]
 	}
 
+	specLog.Printf("Parsed source spec: repo=%s, path=%s, ref=%s", spec.Repo, spec.Path, spec.Ref)
 	return spec, nil
 }
 
