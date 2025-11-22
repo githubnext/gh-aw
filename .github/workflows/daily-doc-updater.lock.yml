@@ -5037,7 +5037,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}

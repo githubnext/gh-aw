@@ -45,16 +45,6 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AddLabels.TargetRepoSlug)...)
 
-	// Build the GitHub Script step using the common helper
-	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Add Labels",
-		StepID:        "add_labels",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getAddLabelsScript(),
-		Token:         data.SafeOutputs.AddLabels.GitHubToken,
-	})
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
@@ -69,16 +59,18 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
-	job := &Job{
-		Name:           "add_labels",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:        "add_labels",
+		StepName:       "Add Labels",
+		StepID:         "add_labels",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getAddLabelsScript(),
+		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite(),
 		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+		Condition:      jobCondition,
+		Token:          data.SafeOutputs.AddLabels.GitHubToken,
+		TargetRepoSlug: data.SafeOutputs.AddLabels.TargetRepoSlug,
+	})
 }

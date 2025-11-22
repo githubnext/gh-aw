@@ -42,31 +42,22 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Add workflow metadata (name, source, and tracker-id) for consistency
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
-	// Build the GitHub Script step using the common helper
-	var steps []string
-	steps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Code Scanning Alert",
-		StepID:        "create_code_scanning_alert",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateCodeScanningAlertScript(),
-		Token:         data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken,
-	})
-
+	// Build post-steps for SARIF artifact upload
+	var postSteps []string
 	// Add step to upload SARIF artifact
-	steps = append(steps, "      - name: Upload SARIF artifact\n")
-	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: code-scanning-alert.sarif\n")
-	steps = append(steps, "          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
+	postSteps = append(postSteps, "      - name: Upload SARIF artifact\n")
+	postSteps = append(postSteps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
+	postSteps = append(postSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	postSteps = append(postSteps, "        with:\n")
+	postSteps = append(postSteps, "          name: code-scanning-alert.sarif\n")
+	postSteps = append(postSteps, "          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
 
 	// Add step to upload SARIF to GitHub Code Scanning
-	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
-	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
+	postSteps = append(postSteps, "      - name: Upload SARIF to GitHub Security\n")
+	postSteps = append(postSteps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
+	postSteps = append(postSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
+	postSteps = append(postSteps, "        with:\n")
+	postSteps = append(postSteps, "          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -76,20 +67,22 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_code_scanning_alert").Render()
+	jobCondition := BuildSafeOutputType("create_code_scanning_alert")
 
-	job := &Job{
-		Name:           "create_code_scanning_alert",
-		If:             jobCondition,
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadSecurityEventsWriteActionsRead().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:       "create_code_scanning_alert",
+		StepName:      "Create Code Scanning Alert",
+		StepID:        "create_code_scanning_alert",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        getCreateCodeScanningAlertScript(),
+		Permissions:   NewPermissionsContentsReadSecurityEventsWriteActionsRead(),
+		Outputs:       outputs,
+		Condition:     jobCondition,
+		PostSteps:     postSteps,
+		Token:         data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken,
+	})
 }
 
 // parseCodeScanningAlertsConfig handles create-code-scanning-alert configuration

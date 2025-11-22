@@ -44,16 +44,6 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug)...)
 
-	// Build the GitHub Script step using the common helper
-	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create PR Review Comment",
-		StepID:        "create_pr_review_comment",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreatePRReviewCommentScript(),
-		Token:         data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken,
-	})
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"review_comment_id":  "${{ steps.create_pr_review_comment.outputs.review_comment_id }}",
@@ -73,18 +63,20 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
-	job := &Job{
-		Name:           "create_pr_review_comment",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadPRWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:        "create_pr_review_comment",
+		StepName:       "Create PR Review Comment",
+		StepID:         "create_pr_review_comment",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getCreatePRReviewCommentScript(),
+		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+		Condition:      jobCondition,
+		Token:          data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken,
+		TargetRepoSlug: data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
+	})
 }
 
 // parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
