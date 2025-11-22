@@ -331,7 +331,6 @@ func getCloseIssueScript() string {
 	return closeIssueScript
 }
 
-
 // getUpdateIssueScript returns the bundled update_issue script
 // Bundling is performed on first access and cached for subsequent calls
 func getUpdateIssueScript() string {

@@ -92,9 +92,7 @@ async function main() {
   const requiredTitlePrefix = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX || "";
   const target = process.env.GH_AW_CLOSE_ISSUE_TARGET || "triggering";
 
-  core.info(
-    `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`
-  );
+  core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
 
   // Check if we're in an issue context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";

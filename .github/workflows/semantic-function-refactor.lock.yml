@@ -4514,9 +4514,7 @@ jobs:
                 : [];
               const requiredTitlePrefix = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX || "";
               const target = process.env.GH_AW_CLOSE_ISSUE_TARGET || "triggering";
-              core.info(
-                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`
-              );
+              core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
