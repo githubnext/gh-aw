@@ -59,13 +59,13 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 	createAgentTaskLog.Printf("Building create-agent-task job: workflow=%s, main_job=%s, base=%s",
 		data.Name, mainJobName, data.SafeOutputs.CreateAgentTasks.Base)
 
-	var steps []string
+	var preSteps []string
 
 	// Step 1: Checkout repository for gh CLI to work
-	steps = append(steps, "      - name: Checkout repository for gh CLI\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          persist-credentials: false\n")
+	preSteps = append(preSteps, "      - name: Checkout repository for gh CLI\n")
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          persist-credentials: false\n")
 
 	// Build custom environment variables specific to create-agent-task
 	customEnvVars := []string{
@@ -83,18 +83,6 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateAgentTasks.TargetRepoSlug)...)
 
-	// Build the GitHub Script step using the common helper and append to existing steps
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:        "Create Agent Task",
-		StepID:          "create_agent_task",
-		MainJobName:     mainJobName,
-		CustomEnvVars:   customEnvVars,
-		Script:          createAgentTaskScript,
-		Token:           data.SafeOutputs.CreateAgentTasks.GitHubToken,
-		UseCopilotToken: true, // Use Copilot token preference for agent task creation
-	})
-	steps = append(steps, scriptSteps...)
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"task_number": "${{ steps.create_agent_task.outputs.task_number }}",
@@ -103,16 +91,20 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 
 	jobCondition := BuildSafeOutputType("create_agent_task")
 
-	job := &Job{
-		Name:           "create_agent_task",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:         "create_agent_task",
+		StepName:        "Create Agent Task",
+		StepID:          "create_agent_task",
+		MainJobName:     mainJobName,
+		CustomEnvVars:   customEnvVars,
+		Script:          createAgentTaskScript,
+		Permissions:     NewPermissionsContentsWriteIssuesWritePRWrite(),
+		Outputs:         outputs,
+		Condition:       jobCondition,
+		PreSteps:        preSteps,
+		Token:           data.SafeOutputs.CreateAgentTasks.GitHubToken,
+		UseCopilotToken: true, // Use Copilot token preference for agent task creation
+		TargetRepoSlug:  data.SafeOutputs.CreateAgentTasks.TargetRepoSlug,
+	})
 }
