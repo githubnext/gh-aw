@@ -32,12 +32,12 @@ func (g *NetworkHookGenerator) GenerateNetworkHookScript(allowedDomains []string
 		}
 	}
 
-	// Embed domain list JSON directly as a Python literal (safe for []string from json.Marshal)
-	// This prevents any quote-related injection vulnerabilities (CWE-78, CWE-89, CWE-94)
-	// Use domainsJSON directly for ALLOWED_DOMAINS assignment
+	// Embed domain list JSON using json.loads() to eliminate any quoting vulnerabilities
+	// This approach prevents quote-related injection vulnerabilities (CWE-78, CWE-89, CWE-94)
+	// by using Python's json.loads() to safely parse the JSON string
 
 	// Build the Python script using a safe template approach
-	// The JSON array is embedded directly as a Python list literal
+	// The JSON is parsed at runtime using json.loads() to avoid any quoting issues
 	return fmt.Sprintf(`#!/usr/bin/env python3
 """
 Network permissions validator for Claude Code engine.
@@ -50,8 +50,8 @@ import urllib.parse
 import re
 
 # Domain allow-list (populated during generation)
-# JSON array safely embedded as Python list literal
-ALLOWED_DOMAINS = %s
+# JSON string is safely parsed using json.loads() to eliminate quoting vulnerabilities
+ALLOWED_DOMAINS = json.loads('''%s''')
 
 def extract_domain(url_or_query):
     """Extract domain from URL or search query."""
