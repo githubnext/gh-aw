@@ -274,14 +274,14 @@
   },
   {
     "name": "update_release",
-    "description": "Update a GitHub release description",
+    "description": "Update a GitHub release description. IMPORTANT: You must provide the 'tag' parameter with the release tag name (e.g., 'v1.0.0'). The tag cannot be inferred from event context in all scenarios.",
     "inputSchema": {
       "type": "object",
       "required": ["tag", "operation", "body"],
       "properties": {
         "tag": {
           "type": "string",
-          "description": "Release tag name"
+          "description": "Release tag name (REQUIRED - e.g., 'v1.0.0'). This must be provided explicitly."
         },
         "operation": {
           "type": "string",
