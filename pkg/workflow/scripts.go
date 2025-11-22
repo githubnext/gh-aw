@@ -26,6 +26,9 @@ var createIssueScriptSource string
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
 
+//go:embed js/add_reviewer.cjs
+var addReviewerScriptSource string
+
 //go:embed js/assign_milestone.cjs
 var assignMilestoneScriptSource string
 
@@ -98,6 +101,9 @@ var (
 
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
+
+	addReviewerScript     string
+	addReviewerScriptOnce sync.Once
 
 	assignMilestoneScript     string
 	assignMilestoneScriptOnce sync.Once
@@ -242,6 +248,24 @@ func getAddLabelsScript() string {
 		}
 	})
 	return addLabelsScript
+}
+
+// getAddReviewerScript returns the bundled add_reviewer script
+// Bundling is performed on first access and cached for subsequent calls
+func getAddReviewerScript() string {
+	addReviewerScriptOnce.Do(func() {
+		scriptsLog.Print("Bundling add_reviewer script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(addReviewerScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for add_reviewer, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			addReviewerScript = addReviewerScriptSource
+		} else {
+			addReviewerScript = bundled
+		}
+	})
+	return addReviewerScript
 }
 
 // getAssignMilestoneScript returns the bundled assign_milestone script

@@ -321,6 +321,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
 	}
 
+	// Build add_reviewer job if output.add-reviewer is configured
+	if data.SafeOutputs.AddReviewer != nil {
+		addReviewerJob, err := c.buildAddReviewerJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build add_reviewer job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			addReviewerJob.Needs = append(addReviewerJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			addReviewerJob.If = AddDetectionSuccessCheck(addReviewerJob.If)
+		}
+		if err := c.jobManager.AddJob(addReviewerJob); err != nil {
+			return fmt.Errorf("failed to add add_reviewer job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, addReviewerJob.Name)
+	}
+
 	// Build assign_milestone job if output.assign-milestone is configured
 	if data.SafeOutputs.AssignMilestone != nil {
 		assignMilestoneJob, err := c.buildAssignMilestoneJob(data, jobName)
