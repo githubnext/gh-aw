@@ -5,7 +5,9 @@ async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
   const maxBodyLength = 65000;
-  const MAX_GITHUB_USERNAME_LENGTH = 39; // Maximum length for GitHub usernames
+  // Maximum length for GitHub usernames (39 characters)
+  // Reference: https://github.com/dead-claudia/github-limits
+  const MAX_GITHUB_USERNAME_LENGTH = 39;
   function getMaxAllowedForType(itemType, config) {
     const itemConfig = config?.[itemType];
     if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {

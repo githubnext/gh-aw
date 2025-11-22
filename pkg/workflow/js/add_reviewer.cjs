@@ -4,6 +4,9 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
+// GitHub Copilot reviewer bot username
+const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
+
 async function main() {
   const result = loadAgentOutput();
   if (!result.success) {
@@ -157,9 +160,11 @@ No reviewers were added (no valid reviewers found in agent output).
   core.info(`Adding ${uniqueReviewers.length} reviewers to PR #${prNumber}: ${JSON.stringify(uniqueReviewers)}`);
 
   try {
-    // Special handling for "copilot" reviewer
-    const copilotIndex = uniqueReviewers.findIndex(r => r === "copilot");
-    let otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
+    // Special handling for "copilot" reviewer - separate it from other reviewers in a single pass
+    const hasCopilot = uniqueReviewers.includes("copilot");
+    const otherReviewers = hasCopilot 
+      ? uniqueReviewers.filter(r => r !== "copilot")
+      : uniqueReviewers;
 
     // Add non-copilot reviewers first
     if (otherReviewers.length > 0) {
@@ -173,13 +178,13 @@ No reviewers were added (no valid reviewers found in agent output).
     }
 
     // Add copilot reviewer separately if requested
-    if (copilotIndex !== -1) {
+    if (hasCopilot) {
       try {
         await github.rest.pulls.requestReviewers({
           owner: context.repo.owner,
           repo: context.repo.repo,
           pull_number: prNumber,
-          reviewers: ["copilot-pull-request-reviewer[bot]"],
+          reviewers: [COPILOT_REVIEWER_BOT],
         });
         core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
       } catch (copilotError) {

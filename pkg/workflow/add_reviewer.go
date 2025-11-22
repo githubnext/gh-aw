@@ -20,13 +20,15 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
-	// Handle case where AddReviewer is nil (equivalent to empty configuration)
+	// Handle case where AddReviewer configuration is provided
 	var allowedReviewers []string
 	maxCount := 3
 
-	allowedReviewers = data.SafeOutputs.AddReviewer.Reviewers
-	if data.SafeOutputs.AddReviewer.Max > 0 {
-		maxCount = data.SafeOutputs.AddReviewer.Max
+	if data.SafeOutputs.AddReviewer != nil {
+		allowedReviewers = data.SafeOutputs.AddReviewer.Reviewers
+		if data.SafeOutputs.AddReviewer.Max > 0 {
+			maxCount = data.SafeOutputs.AddReviewer.Max
+		}
 	}
 
 	// Build custom environment variables specific to add-reviewer
@@ -38,7 +40,7 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_REVIEWERS_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
-	if data.SafeOutputs.AddReviewer.Target != "" {
+	if data.SafeOutputs.AddReviewer != nil && data.SafeOutputs.AddReviewer.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_REVIEWERS_TARGET: %q\n", data.SafeOutputs.AddReviewer.Target))
 	}
 
