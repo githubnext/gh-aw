@@ -26,6 +26,7 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/reporting.md
+  - shared/safe-output-app.md
 ---
 
 # Artifacts Summary

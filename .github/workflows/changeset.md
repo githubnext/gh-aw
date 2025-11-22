@@ -31,6 +31,7 @@ tools:
 imports:
   - shared/changeset-format.md
   - shared/jqschema.md
+  - shared/safe-output-app.md
 steps:
   - name: Setup changeset directory
     run: |

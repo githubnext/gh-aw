@@ -24,6 +24,7 @@
 #   Imports:
 #     - shared/changeset-format.md
 #     - shared/jqschema.md
+#     - shared/safe-output-app.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -197,6 +198,29 @@
 # # Now you know which fields exist and can use them in your analysis
 # ```
 #
+# # Shared Safe Output App Configuration
+#
+# This shared workflow provides repository-level GitHub App configuration for safe outputs.
+#
+# ## Configuration Variables
+#
+# This shared workflow expects:
+# - **Repository Variable**: `APP_ID` - The GitHub App ID
+# - **Repository Secret**: `APP_PRIVATE_KEY` - The GitHub App private key
+#
+# ## Usage
+#
+# Import this configuration in your workflows to enable GitHub App authentication for safe outputs.
+#
+# The configuration will be automatically merged into your workflow's safe-outputs section.
+#
+# ## Benefits
+#
+# - **Centralized Configuration**: Single source of truth for app credentials
+# - **Easy Updates**: Change credentials in one place
+# - **Consistent Usage**: All workflows use the same configuration pattern
+# - **Repository-Scoped**: Uses repository-specific variables and secrets
+#
 # # Changeset Generator
 #
 # You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
@@ -262,6 +286,8 @@
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
+#   - actions/create-github-app-token@v2 (7e473efe3cb98aa54f8d4bac15400b15fad77d94)
+#     https://github.com/actions/create-github-app-token/commit/7e473efe3cb98aa54f8d4bac15400b15fad77d94
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
@@ -1904,6 +1930,29 @@ jobs:
           
           # Now you know which fields exist and can use them in your analysis
           ```
+          
+          # Shared Safe Output App Configuration
+          
+          This shared workflow provides repository-level GitHub App configuration for safe outputs.
+          
+          ## Configuration Variables
+          
+          This shared workflow expects:
+          - **Repository Variable**: `APP_ID` - The GitHub App ID
+          - **Repository Secret**: `APP_PRIVATE_KEY` - The GitHub App private key
+          
+          ## Usage
+          
+          Import this configuration in your workflows to enable GitHub App authentication for safe outputs.
+          
+          The configuration will be automatically merged into your workflow's safe-outputs section.
+          
+          ## Benefits
+          
+          - **Centralized Configuration**: Single source of truth for app credentials
+          - **Easy Updates**: Change credentials in one place
+          - **Consistent Usage**: All workflows use the same configuration pattern
+          - **Repository-Scoped**: Uses repository-specific variables and secrets
           
           # Changeset Generator
           
@@ -5160,6 +5209,18 @@ jobs:
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94 # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -5190,7 +5251,7 @@ jobs:
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -5277,7 +5338,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -5426,6 +5487,19 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
   detection:
     needs: agent
@@ -5650,7 +5724,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -5870,6 +5944,18 @@ jobs:
       commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
       push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94 # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -5890,7 +5976,7 @@ jobs:
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
+          git remote set-url origin "https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -5908,7 +5994,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_COMMIT_TITLE_SUFFIX: " [skip-ci]"
           GH_AW_MAX_PATCH_SIZE: 1024
@@ -5916,7 +6002,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const fs = require("fs");
             async function generateStagedPreview(options) {

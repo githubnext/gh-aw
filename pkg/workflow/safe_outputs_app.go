@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -120,25 +121,41 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
-	// Add owner if specified
-	if app.Owner != "" {
-		steps = append(steps, fmt.Sprintf("          owner: %s\n", app.Owner))
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
 	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
 
-	// Add repositories if specified
+	// Add repositories - default to current repository name if not specified
 	if len(app.Repositories) > 0 {
 		reposStr := strings.Join(app.Repositories, ",")
 		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	} else {
+		// Extract repo name from github.repository (which is "owner/repo")
+		// Using GitHub Actions expression: split(github.repository, '/')[1]
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
 	}
 
 	// Always add github-api-url from environment variable
 	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
 
 	// Add permission-* fields automatically computed from job permissions
+	// Sort keys to ensure deterministic compilation order
 	if permissions != nil {
 		permissionFields := convertPermissionsToAppTokenFields(permissions)
-		for key, value := range permissionFields {
-			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, value))
+
+		// Extract and sort keys for deterministic ordering
+		keys := make([]string, 0, len(permissionFields))
+		for key := range permissionFields {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		// Add permissions in sorted order
+		for _, key := range keys {
+			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
 		}
 	}
 
@@ -147,40 +164,54 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 
 // convertPermissionsToAppTokenFields converts job Permissions to permission-* action inputs
 // This follows GitHub's recommendation for explicit permission control
+// Note: This only includes permissions that are valid for GitHub App tokens.
+// Some GitHub Actions permissions (like 'discussions', 'models') don't have
+// corresponding GitHub App permissions and are skipped.
 func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
 	fields := make(map[string]string)
 
-	// Check each permission scope and add to fields if set
-	if level, ok := permissions.Get(PermissionContents); ok {
-		fields["permission-contents"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionIssues); ok {
-		fields["permission-issues"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionPullRequests); ok {
-		fields["permission-pull-requests"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionDiscussions); ok {
-		fields["permission-discussions"] = string(level)
+	// Map GitHub Actions permissions to GitHub App permissions
+	// Only include permissions that exist in the actions/create-github-app-token action
+	// See: https://github.com/actions/create-github-app-token#permissions
+
+	// Repository permissions that map directly
+	if level, ok := permissions.Get(PermissionActions); ok {
+		fields["permission-actions"] = string(level)
 	}
 	if level, ok := permissions.Get(PermissionChecks); ok {
 		fields["permission-checks"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionStatuses); ok {
-		fields["permission-statuses"] = string(level)
-	}
-	if level, ok := permissions.Get(PermissionActions); ok {
-		fields["permission-actions"] = string(level)
+	if level, ok := permissions.Get(PermissionContents); ok {
+		fields["permission-contents"] = string(level)
 	}
 	if level, ok := permissions.Get(PermissionDeployments); ok {
 		fields["permission-deployments"] = string(level)
 	}
+	if level, ok := permissions.Get(PermissionIssues); ok {
+		fields["permission-issues"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionPackages); ok {
+		fields["permission-packages"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionPages); ok {
+		fields["permission-pages"] = string(level)
+	}
+	if level, ok := permissions.Get(PermissionPullRequests); ok {
+		fields["permission-pull-requests"] = string(level)
+	}
 	if level, ok := permissions.Get(PermissionSecurityEvents); ok {
 		fields["permission-security-events"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionModels); ok {
-		fields["permission-models"] = string(level)
+	if level, ok := permissions.Get(PermissionStatuses); ok {
+		fields["permission-statuses"] = string(level)
 	}
+
+	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents:
+	// - discussions (no GitHub App permission for this)
+	// - models (no GitHub App permission for this)
+	// - id-token (not applicable to GitHub Apps)
+	// - attestations (no GitHub App permission for this)
+	// - repository-projects (use permission-repository-projects instead, but rarely needed)
 
 	return fields
 }
