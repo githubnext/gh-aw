@@ -28,7 +28,7 @@ Once initialized, GitHub Copilot will automatically use these instructions when 
 
 ## What is the `create-agentic-workflow` custom agent?
 
-`.github/agents/create-agentic-workflow.md` is a custom agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands.
+`.github/agents/create-agentic-workflow.md` is a custom agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. A [custom agent](/gh-aw/reference/glossary/#custom-agents) is a specialized instruction set that customizes AI behavior for specific tasks.
 
 Use the custom agent when you want to:
 - Draft a new agentic workflow using natural language
@@ -84,4 +84,4 @@ The assistant uses a neutral, technical tone and focuses on what needs to be don
 
 ## After compiling
 
-Commit the generated files (`.lock.yml`) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.
+Commit the generated files ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml), the compiled GitHub Actions workflow file) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.

@@ -79,6 +79,16 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
 	}
 
+	// Write debug agentic workflow agent
+	initLog.Print("Writing debug agentic workflow agent")
+	if err := ensureDebugAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write debug agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write debug agentic workflow agent: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
+	}
+
 	// Configure MCP if requested
 	if mcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")

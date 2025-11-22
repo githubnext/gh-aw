@@ -37,8 +37,6 @@ permissions:
 # Workflow content
 ```
 
-**Related:** Frontmatter must start with `---` on the first line and end with `---` before the markdown content begins.
-
 ### Failed to Parse Frontmatter
 
 **Error Message:**
@@ -49,20 +47,10 @@ failed to parse frontmatter: [yaml error details]
 
 **Cause:** The YAML syntax in the frontmatter is invalid. Common issues include incorrect indentation, missing colons, or invalid characters.
 
-**Solution:** Validate the YAML syntax. Common fixes include:
-
-- Check indentation (use spaces, not tabs)
-- Ensure colons are followed by spaces
-- Quote strings containing special characters
-- Verify array and object syntax
+**Solution:** Validate the YAML syntax. Check indentation (use spaces, not tabs), ensure colons are followed by spaces, quote strings with special characters, and verify array/object syntax.
 
 ```yaml wrap
-# Incorrect
-on:
-issues:
-  types:[opened]
-
-# Correct
+# Correct indentation and spacing
 on:
   issues:
     types: [opened]
@@ -78,15 +66,7 @@ timeout-minutes must be an integer
 
 **Cause:** A field received a value of the wrong type according to the schema.
 
-**Solution:** Provide the correct type as specified in the [frontmatter reference](/gh-aw/reference/frontmatter/):
-
-```yaml wrap
-# Incorrect
-timeout-minutes: "10"
-
-# Correct
-timeout-minutes: 10
-```
+**Solution:** Use the correct type as specified in the [frontmatter reference](/gh-aw/reference/frontmatter/). For example, use `timeout-minutes: 10` (integer) not `"10"` (string).
 
 ### Unknown Property
 
@@ -98,31 +78,7 @@ Unknown property: permisions. Did you mean 'permissions'?
 
 **Cause:** A field name in the frontmatter is not recognized by the schema validator, often due to a typo.
 
-**Solution:** Use the suggested field name from the error message. The compiler uses fuzzy matching to suggest the most likely correct field names based on edit distance.
-
-```yaml wrap
-# Incorrect - typo in field name
----
-on: issues
-permisions:  # Typo
-  contents: read
----
-
-# Correct
----
-on: issues
-permissions:
-  contents: read
----
-```
-
-**Common typos detected:**
-
-- `permisions` → `permissions`
-- `engnie` → `engine`
-- `toolz` → `tools`
-- `timeout_minute` → `timeout-minutes`
-- `runs_on` → `runs-on`
+**Solution:** Use the suggested field name from the error message. The compiler uses fuzzy matching to suggest corrections for common typos like `permisions` → `permissions`, `engnie` → `engine`, `toolz` → `tools`, `timeout_minute` → `timeout-minutes`, or `runs_on` → `runs-on`.
 
 ### Imports Field Must Be Array
 
@@ -134,13 +90,9 @@ imports field must be an array of strings
 
 **Cause:** The `imports:` field was provided but is not an array of string paths.
 
-**Solution:** Provide an array of import paths:
+**Solution:** Use array syntax for imports:
 
 ```yaml wrap
-# Incorrect
-imports: shared/tools.md
-
-# Correct
 imports:
   - shared/tools.md
   - shared/security.md
@@ -156,18 +108,7 @@ multiple agent files found in imports: 'file1.md' and 'file2.md'. Only one agent
 
 **Cause:** More than one file under `.github/agents/` was included in the imports list.
 
-**Solution:** Import only one agent file per workflow:
-
-```yaml wrap
-# Incorrect
-imports:
-  - .github/agents/agent1.md
-  - .github/agents/agent2.md
-
-# Correct
-imports:
-  - .github/agents/agent1.md
-```
+**Solution:** Import only one agent file per workflow.
 
 ## Compilation Errors
 
@@ -195,17 +136,7 @@ failed to resolve import 'path': [details]
 
 **Cause:** An imported file specified in the `imports:` field could not be found or accessed.
 
-**Solution:** Verify the import path:
-
-- Check the file exists at the specified path
-- Ensure the path is relative to the repository root
-- Verify file permissions allow reading
-
-```yaml wrap
-# Imports are relative to repository root
-imports:
-  - .github/workflows/shared/tools.md
-```
+**Solution:** Ensure the file exists at the specified path (relative to repository root) and has read permissions.
 
 ### Invalid Workflow Specification
 
@@ -217,12 +148,7 @@ invalid workflowspec: must be owner/repo/path[@ref]
 
 **Cause:** When using remote imports, the specification format is incorrect.
 
-**Solution:** Use the correct format: `owner/repo/path[@ref]`
-
-```yaml wrap
-imports:
-  - githubnext/gh-aw/.github/workflows/shared/example.md@main
-```
+**Solution:** Use the correct format: `owner/repo/path[@ref]`, for example `githubnext/gh-aw/.github/workflows/shared/example.md@main`.
 
 ### Section Not Found
 
@@ -250,21 +176,7 @@ invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, 
 
 **Cause:** The `stop-after` field in the `on:` section contains an invalid time delta format.
 
-**Solution:** Use the correct time delta syntax:
-
-```yaml wrap
-on:
-  issues:
-    types: [opened]
-  stop-after: +24h  # Valid: hours, days, weeks, months
-```
-
-**Supported units:**
-
-- `h` - hours (minimum unit for stop-after)
-- `d` - days
-- `w` - weeks
-- `mo` - months
+**Solution:** Use the correct time delta syntax with supported units: `h` (hours, minimum for stop-after), `d` (days), `w` (weeks), `mo` (months). Example: `stop-after: +24h`.
 
 **Error Message:**
 
@@ -274,15 +186,7 @@ minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[
 
 **Cause:** The `stop-after` field uses minutes (`m`), but the minimum allowed unit is hours.
 
-**Solution:** Convert to hours:
-
-```yaml wrap
-# Incorrect
-stop-after: +90m
-
-# Correct
-stop-after: +2h
-```
+**Solution:** Convert minutes to hours (round up as needed). For example, use `+2h` instead of `+90m`.
 
 ### Time Delta Too Large
 
@@ -294,17 +198,7 @@ time delta too large: [value] [unit] exceeds maximum of [max]
 
 **Cause:** The time delta exceeds the maximum allowed value for the specified unit.
 
-**Solution:** Reduce the time delta or use a larger unit:
-
-- Maximum: 12 months, 52 weeks, 365 days, 8760 hours
-
-```yaml wrap
-# Incorrect
-stop-after: +400d
-
-# Correct
-stop-after: +12mo
-```
+**Solution:** Reduce the time delta or use a larger unit. Maximum values: 12 months, 52 weeks, 365 days, 8760 hours.
 
 ### Duplicate Time Unit
 
@@ -316,15 +210,7 @@ duplicate unit '[unit]' in time delta: +[value]
 
 **Cause:** The same time unit appears multiple times in a time delta.
 
-**Solution:** Combine values for the same unit:
-
-```yaml wrap
-# Incorrect
-stop-after: +1d2d
-
-# Correct
-stop-after: +3d
-```
+**Solution:** Combine values for the same unit (e.g., `+3d` instead of `+1d2d`).
 
 ### Unable to Parse Date-Time
 
@@ -336,15 +222,7 @@ unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:
 
 **Cause:** The `stop-after` field contains an absolute timestamp that couldn't be parsed.
 
-**Solution:** Use one of the supported date formats:
-
-```yaml wrap
-stop-after: "2025-12-31 23:59:59"
-# or
-stop-after: "December 31, 2025"
-# or
-stop-after: "12/31/2025"
-```
+**Solution:** Use a supported date format like `"2025-12-31 23:59:59"`, `"December 31, 2025"`, or `"12/31/2025"`.
 
 ### JQ Not Found
 
@@ -356,15 +234,7 @@ jq not found in PATH
 
 **Cause:** The `jq` command-line tool is required but not available in the environment.
 
-**Solution:** Install `jq` on the system:
-
-```bash wrap
-# Ubuntu/Debian
-sudo apt-get install jq
-
-# macOS
-brew install jq
-```
+**Solution:** Install `jq` (Ubuntu/Debian: `sudo apt-get install jq`, macOS: `brew install jq`).
 
 ### Authentication Errors
 
@@ -376,18 +246,7 @@ authentication required
 
 **Cause:** GitHub CLI authentication is required but not configured.
 
-**Solution:** Authenticate with GitHub CLI:
-
-```bash wrap
-gh auth login
-```
-
-For GitHub Actions, ensure `GITHUB_TOKEN` or the appropriate token is available:
-
-```yaml wrap
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+**Solution:** Authenticate with GitHub CLI (`gh auth login`) or ensure `GITHUB_TOKEN` is available in GitHub Actions environment.
 
 ## Engine-Specific Errors
 
@@ -401,17 +260,7 @@ manual-approval value must be a string
 
 **Cause:** The `manual-approval:` field in the `on:` section has an incorrect type.
 
-**Solution:** Provide a string value:
-
-```yaml wrap
-# Incorrect
-on:
-  manual-approval: true
-
-# Correct
-on:
-  manual-approval: "Approve deployment to production"
-```
+**Solution:** Use a string value, e.g. `manual-approval: "Approve deployment to production"`.
 
 ### Invalid On Section Format
 
@@ -423,22 +272,7 @@ invalid on: section format
 
 **Cause:** The `on:` trigger configuration is malformed or contains unsupported syntax.
 
-**Solution:** Verify the trigger configuration follows [GitHub Actions syntax](/gh-aw/reference/triggers/):
-
-```yaml wrap
-# Valid formats
-on: push
-
-# or
-on:
-  push:
-    branches: [main]
-
-# or
-on:
-  issues:
-    types: [opened, edited]
-```
+**Solution:** Verify the trigger configuration follows [GitHub Actions syntax](/gh-aw/reference/triggers/). Valid formats include `on: push`, `on: push: branches: [main]`, or `on: issues: types: [opened, edited]`.
 
 ## File Processing Errors
 
@@ -452,11 +286,7 @@ failed to read file [path]: [details]
 
 **Cause:** The file cannot be read due to permissions, missing file, or I/O error.
 
-**Solution:** Verify:
-
-- File exists at the specified path
-- File permissions allow reading
-- Disk is not full or experiencing errors
+**Solution:** Verify the file exists, has read permissions, and the disk is not full.
 
 ### Failed to Create Directory
 
@@ -480,11 +310,7 @@ workflow file '[path]' already exists. Use --force to overwrite
 
 **Cause:** Attempting to create a workflow that already exists.
 
-**Solution:** Use the `--force` flag to overwrite:
-
-```bash wrap
-gh aw init my-workflow --force
-```
+**Solution:** Use `gh aw init my-workflow --force` to overwrite.
 
 ## Safe Output Errors
 
@@ -498,15 +324,7 @@ failed to parse existing mcp.json: [details]
 
 **Cause:** The existing `.vscode/mcp.json` file contains invalid JSON.
 
-**Solution:** Fix the JSON syntax or delete the file to regenerate:
-
-```bash wrap
-# Validate JSON
-cat .vscode/mcp.json | jq .
-
-# Or remove and regenerate
-rm .vscode/mcp.json
-```
+**Solution:** Fix the JSON syntax (validate with `cat .vscode/mcp.json | jq .`) or delete the file to regenerate.
 
 ### Failed to Marshal MCP Config
 
@@ -534,30 +352,7 @@ cannot use 'command' with 'issues' in the same workflow
 
 **Cause:** The workflow specifies both a `command:` trigger and a conflicting event like `issues`, `issue_comment`, `pull_request`, or `pull_request_review_comment`. Command triggers automatically handle these events internally.
 
-**Solution:** Remove the conflicting event trigger. The `command:` configuration already includes support for these events:
-
-```yaml wrap
-# Incorrect - command conflicts with issues
-on:
-  command:
-    name: bot-helper
-  issues:
-    types: [opened]
-
-# Correct - command handles issues automatically
-on:
-  command:
-    name: bot-helper
-```
-
-**Note:** Command triggers can be restricted to specific events using the `events:` field:
-
-```yaml wrap
-on:
-  command:
-    name: bot-helper
-    events: [issues, issue_comment]  # Only active on these events
-```
+**Solution:** Remove the conflicting event trigger. The `command:` configuration automatically handles these events. To restrict to specific events, use the `events:` field within the command configuration.
 
 ### Strict Mode Network Configuration Required
 
@@ -569,39 +364,7 @@ strict mode: 'network' configuration is required
 
 **Cause:** The workflow is compiled with `--strict` flag but does not include network configuration. Strict mode requires explicit network permissions for security.
 
-**Solution:** Add network configuration to the workflow:
-
-```yaml wrap
-# Option 1: Use defaults (recommended for most workflows)
-network: defaults
-
-# Option 2: Specify allowed domains explicitly
-network:
-  allowed:
-    - "api.github.com"
-    - "*.example.com"
-
-# Option 3: Deny all network access
-network: {}
-```
-
-**Example:** Complete workflow with network configuration:
-
-```aw wrap
----
-on: issues
-permissions:
-  contents: read
-network: defaults
-tools:
-  github:
-    allowed: [list_issues]
----
-
-# Issue Handler
-
-Process issues with network access restricted to defaults.
-```
+**Solution:** Add network configuration: use `network: defaults` (recommended), specify allowed domains explicitly, or deny all network access with `network: {}`.
 
 ### Strict Mode Write Permission Not Allowed
 
@@ -613,44 +376,7 @@ strict mode: write permission 'contents: write' is not allowed
 
 **Cause:** The workflow is compiled with `--strict` flag but requests write permissions on `contents`, `issues`, or `pull-requests`. Strict mode enforces read-only operations.
 
-**Solution:** Use `safe-outputs` instead of write permissions:
-
-```yaml wrap
-# Incorrect - write permissions in strict mode
-permissions:
-  contents: write
-  issues: write
-
-# Correct - use safe-outputs
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  create-issue:
-    labels: [automation]
-  create-pull-request:
-    draft: true
-```
-
-**Example:** Complete workflow with safe outputs:
-
-```aw wrap
----
-on: push
-permissions:
-  contents: read
-  actions: read
-network: defaults
-safe-outputs:
-  create-issue:
-    title-prefix: "[analysis] "
-    labels: [automated-review]
----
-
-# Code Analysis
-
-Analyze changes and create an issue with findings.
-```
+**Solution:** Use `safe-outputs` instead of write permissions. Configure safe outputs like `create-issue` or `create-pull-request` with appropriate options.
 
 ### Strict Mode Network Wildcard Not Allowed
 
@@ -662,24 +388,7 @@ strict mode: wildcard '*' is not allowed in network.allowed domains
 
 **Cause:** The workflow uses `*` wildcard in network.allowed domains when compiled with `--strict` flag. Strict mode requires specific domain patterns.
 
-**Solution:** Replace wildcard with specific domains or patterns:
-
-```yaml wrap
-# Incorrect
-network:
-  allowed:
-    - "*"
-
-# Correct - use specific domains
-network:
-  allowed:
-    - "api.github.com"
-    - "*.githubusercontent.com"
-    - "example.com"
-
-# Or use defaults
-network: defaults
-```
+**Solution:** Replace wildcard with specific domain patterns (e.g., `*.githubusercontent.com`) or use `network: defaults`.
 
 ### HTTP MCP Tool Missing Required URL Field
 
@@ -691,45 +400,7 @@ http MCP tool 'my-tool' missing required 'url' field
 
 **Cause:** An HTTP-based MCP server configuration is missing the required `url:` field.
 
-**Solution:** Add the `url:` field to the HTTP MCP server configuration:
-
-```yaml wrap
-# Incorrect
-mcp-servers:
-  my-api:
-    type: http
-    headers:
-      Authorization: "Bearer token"
-
-# Correct
-mcp-servers:
-  my-api:
-    type: http
-    url: "https://api.example.com/mcp"
-    headers:
-      Authorization: "Bearer token"
-```
-
-**Example:** Complete HTTP MCP configuration:
-
-```aw wrap
----
-on: workflow_dispatch
-mcp-servers:
-  custom-api:
-    type: http
-    url: "https://api.example.com/v1/mcp"
-    headers:
-      X-API-Key: "${{ secrets.API_KEY }}"
-    allowed:
-      - search_data
-      - analyze_results
----
-
-# API Integration
-
-Use custom MCP server to process data.
-```
+**Solution:** Add the required `url:` field to the HTTP MCP server configuration.
 
 ### Job Name Cannot Be Empty
 
@@ -743,143 +414,6 @@ job name cannot be empty
 
 **Solution:** This is typically an internal error. If you encounter it, report it with your workflow file. The workflow compiler should generate valid job names automatically.
 
-**Workaround:** If using custom jobs in `steps:` configuration, ensure they have valid names:
-
-```yaml wrap
-# Incorrect - empty job name would be generated internally
-steps:
-  "":
-    uses: some-action@v1
-
-# Jobs are normally auto-generated; if customizing, ensure valid names
-```
-
-### Invalid Time Delta Format
-
-**Error Message:**
-
-```
-invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m
-```
-
-**Cause:** The `stop-after:` field contains an invalid time delta format.
-
-**Solution:** Use the correct time delta syntax with supported units:
-
-```yaml wrap
-# Incorrect formats
-stop-after: "24h"     # Missing + prefix
-stop-after: "+24"     # Missing unit
-stop-after: "+1y"     # Unsupported unit
-
-# Correct formats
-stop-after: "+24h"    # 24 hours
-stop-after: "+3d"     # 3 days
-stop-after: "+2w"     # 2 weeks
-stop-after: "+1mo"    # 1 month
-stop-after: "+1d12h"  # 1 day and 12 hours
-```
-
-**Supported units:**
-
-- `h` - hours
-- `d` - days
-- `w` - weeks
-- `mo` - months
-
-**Example:** Multiple time delta formats:
-
-```aw wrap
----
-on:
-  workflow_dispatch:
-  stop-after: "+2w3d"  # 2 weeks and 3 days
----
-
-# Long Running Task
-
-Task will automatically stop after configured time.
-```
-
-### Minute Unit Not Allowed for Stop-After
-
-**Error Message:**
-
-```
-minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +2h instead of +90m
-```
-
-**Cause:** The `stop-after:` field uses minutes (`m`), but the minimum allowed unit is hours.
-
-**Solution:** Convert minutes to hours:
-
-```yaml wrap
-# Incorrect
-stop-after: "+90m"
-
-# Correct - convert to hours (round up if needed)
-stop-after: "+2h"
-```
-
-**Conversion examples:**
-
-- 90 minutes → `+2h` (rounds up)
-- 120 minutes → `+2h`
-- 30 minutes → `+1h` (rounds up)
-
-### Time Delta Too Large
-
-**Error Message:**
-
-```
-time delta too large: 400 days exceeds maximum of 365 days
-```
-
-**Cause:** The time delta exceeds the maximum allowed value for the specified unit.
-
-**Solution:** Use a smaller value or larger unit:
-
-**Maximums:**
-
-- Hours: 8,760 (1 year)
-- Days: 365 (1 year)
-- Weeks: 52 (1 year)
-- Months: 12
-
-```yaml wrap
-# Incorrect - exceeds maximum
-stop-after: "+400d"
-stop-after: "+60w"
-stop-after: "+15mo"
-
-# Correct - within limits
-stop-after: "+365d"
-stop-after: "+52w"
-stop-after: "+12mo"
-```
-
-### Duplicate Time Unit in Time Delta
-
-**Error Message:**
-
-```
-duplicate unit 'd' in time delta: +1d2d
-```
-
-**Cause:** The same time unit appears multiple times in a time delta expression.
-
-**Solution:** Combine values for the same unit:
-
-```yaml wrap
-# Incorrect
-stop-after: "+1d2d"
-stop-after: "+3h5h"
-
-# Correct
-stop-after: "+3d"
-stop-after: "+8h"
-```
-
 ### Unable to Determine MCP Type
 
 **Error Message:**
@@ -890,33 +424,7 @@ unable to determine MCP type for tool 'my-tool': missing type, url, command, or 
 
 **Cause:** An MCP server configuration is missing the required fields to determine its type.
 
-**Solution:** Specify at least one of: `type`, `url`, `command`, or `container`:
-
-```yaml wrap
-# Incorrect - missing required fields
-mcp-servers:
-  my-tool:
-    allowed:
-      - some_function
-
-# Correct - using type and command
-mcp-servers:
-  my-tool:
-    type: stdio
-    command: "node"
-    args: ["server.js"]
-
-# Or using container
-mcp-servers:
-  my-tool:
-    container: "myorg/mcp-server:latest"
-
-# Or using HTTP
-mcp-servers:
-  my-tool:
-    type: http
-    url: "https://api.example.com/mcp"
-```
+**Solution:** Specify at least one of: `type`, `url`, `command`, or `container`.
 
 ### Tool MCP Configuration Cannot Specify Both Container and Command
 
@@ -928,28 +436,7 @@ tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'
 
 **Cause:** An MCP server configuration includes both `container:` and `command:` fields, which are mutually exclusive.
 
-**Solution:** Use either `container:` OR `command:`, not both:
-
-```yaml wrap
-# Incorrect - both container and command
-mcp-servers:
-  my-tool:
-    container: "myorg/server:latest"
-    command: "node"
-    args: ["server.js"]
-
-# Correct - use container only
-mcp-servers:
-  my-tool:
-    container: "myorg/server:latest"
-    args: ["--port", "8080"]
-
-# Or use command only
-mcp-servers:
-  my-tool:
-    command: "node"
-    args: ["server.js"]
-```
+**Solution:** Use either `container:` OR `command:`, not both.
 
 ### HTTP MCP Configuration Cannot Use Container
 
@@ -961,24 +448,7 @@ tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field
 
 **Cause:** An HTTP MCP server configuration includes the `container:` field, which is only valid for stdio-based servers.
 
-**Solution:** Remove the `container:` field from HTTP configurations:
-
-```yaml wrap
-# Incorrect - container with HTTP
-mcp-servers:
-  my-api:
-    type: http
-    url: "https://api.example.com/mcp"
-    container: "myorg/server:latest"
-
-# Correct - HTTP without container
-mcp-servers:
-  my-api:
-    type: http
-    url: "https://api.example.com/mcp"
-    headers:
-      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
-```
+**Solution:** Remove the `container:` field from HTTP MCP server configurations.
 
 ### Strict Mode Custom MCP Server Requires Network Configuration
 
@@ -990,23 +460,7 @@ strict mode: custom MCP server 'my-server' with container must have network conf
 
 **Cause:** A containerized MCP server lacks network configuration when workflow is compiled with `--strict` flag.
 
-**Solution:** Add network configuration to the MCP server:
-
-```yaml wrap
-# Incorrect - container without network in strict mode
-mcp-servers:
-  my-server:
-    container: "myorg/server:latest"
-
-# Correct - add network configuration
-mcp-servers:
-  my-server:
-    container: "myorg/server:latest"
-    network:
-      allowed:
-        - "api.example.com"
-        - "*.safe-domain.com"
-```
+**Solution:** Add network configuration with allowed domains to containerized MCP servers in strict mode.
 
 ### Repository Features Not Enabled for Safe Outputs
 
@@ -1018,25 +472,7 @@ workflow uses safe-outputs.create-issue but repository owner/repo does not have 
 
 **Cause:** The workflow uses `safe-outputs.create-issue` but the target repository has issues disabled.
 
-**Solution:** Enable the required repository feature or remove the safe-outputs configuration:
-
-```yaml wrap
-# Option 1: Enable issues in repository settings
-# Go to Settings → General → Features → Issues (check the box)
-
-# Option 2: Use a different safe output
-safe-outputs:
-  create-discussion:  # Use discussions instead
-    category: "General"
-
-# Option 3: Remove safe-outputs if not needed
-# (remove the safe-outputs section entirely)
-```
-
-**Similar errors:**
-
-- `create-discussion` requires discussions enabled
-- `add-comment` with `discussion: true` requires discussions enabled
+**Solution:** Enable the required repository feature (Settings → General → Features) or use a different safe output type. Note: `create-discussion` requires discussions enabled, `create-issue` requires issues enabled.
 
 ### Engine Does Not Support Firewall
 
@@ -1048,40 +484,17 @@ strict mode: engine does not support firewall
 
 **Cause:** The workflow specifies network restrictions but uses an engine that doesn't support network firewalling, and strict mode is enabled.
 
-**Solution:** Use an engine with firewall support or remove network restrictions:
-
-```yaml wrap
-# Option 1: Use engine with firewall support
-engine: copilot  # Supports firewall
-network:
-  allowed:
-    - "api.github.com"
-
-# Option 2: Remove strict mode (not recommended for security)
-# Compile without --strict flag
-
-# Option 3: Use network: defaults with no specific restrictions
-network: defaults
-```
+**Solution:** Use an engine with firewall support (e.g., `copilot`), compile without `--strict` flag, or use `network: defaults`.
 
 ## Troubleshooting Tips
 
-1. **Enable verbose output:** Use `--verbose` flag with CLI commands for detailed error information
-2. **Validate YAML syntax:** Use online YAML validators or editor extensions
-3. **Check file paths:** Ensure all paths are correct and files exist
-4. **Review frontmatter schema:** Consult the [frontmatter reference](/gh-aw/reference/frontmatter-full/) for all available options
-5. **Compile early:** Run `gh aw compile` frequently to catch errors early
-6. **Check logs:** Review GitHub Actions workflow logs for runtime errors
-7. **Use strict mode:** Compile with `--strict` flag to catch security issues early
-8. **Test incrementally:** Add one feature at a time and compile after each change
+- Use `--verbose` flag for detailed error information
+- Validate YAML syntax and check file paths
+- Consult the [frontmatter reference](/gh-aw/reference/frontmatter-full/)
+- Run `gh aw compile` frequently to catch errors early
+- Use `--strict` flag to catch security issues early
+- Test incrementally: add one feature at a time
 
 ## Getting Help
 
-If you encounter an error not documented here:
-
-1. **Search this page:** Use Ctrl+F / Cmd+F to search for keywords from your error message
-2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/examples/scheduled/research-planning/), [Triage & Analysis](/gh-aw/examples/issue-pr-events/triage-analysis/), [Coding & Development](/gh-aw/examples/issue-pr-events/coding-development/), or [Quality & Testing](/gh-aw/examples/issue-pr-events/quality-testing/)
-3. **Enable verbose mode:** Run `gh aw compile --verbose` for detailed error context
-4. **Report issues:** If you believe you've found a bug, [report it on GitHub](https://github.com/githubnext/gh-aw/issues)
-
-For additional help, see [Common Issues](/gh-aw/troubleshooting/common-issues/).
+If you encounter an error not documented here, search this page (Ctrl+F / Cmd+F) for keywords, review workflow examples in the documentation, enable verbose mode with `gh aw compile --verbose`, or [report issues on GitHub](https://github.com/githubnext/gh-aw/issues). See [Common Issues](/gh-aw/troubleshooting/common-issues/) for additional help.

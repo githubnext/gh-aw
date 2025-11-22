@@ -35,6 +35,7 @@
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
+        {"$ref": "#/$defs/CloseDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
         {"$ref": "#/$defs/UpdateProjectOutput"},
@@ -260,6 +261,35 @@
       "required": ["type", "title", "body"],
       "additionalProperties": false
     },
+    "CloseDiscussionOutput": {
+      "title": "Close Discussion Output",
+      "description": "Output for closing a GitHub discussion with an optional comment and resolution reason",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_discussion"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when closing the discussion",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "description": "Optional resolution reason",
+          "enum": ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"]
+        },
+        "discussion_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Discussion number to close (optional - uses triggering discussion if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
     "MissingToolOutput": {
       "title": "Missing Tool Output",
       "description": "Output for reporting missing tools or functionality",
@@ -385,7 +415,7 @@
           "minLength": 1
         }
       },
-      "required": ["type", "operation", "body"],
+      "required": ["type", "tag", "operation", "body"],
       "additionalProperties": false
     },
     "AssignMilestoneOutput": {

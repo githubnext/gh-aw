@@ -34,6 +34,7 @@ This declares that the workflow should create at most one new issue.
 | **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
+| **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
 | **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
@@ -76,55 +77,51 @@ Creates GitHub issues based on workflow output.
 ```yaml wrap
 safe-outputs:
   create-issue:
-    title-prefix: "[ai] "            # Optional: prefix for titles
-    labels: [automation, agentic]    # Optional: labels to attach
-    assignees: [user1, copilot]      # Optional: assignees (use 'copilot' for bot)
-    max: 5                           # Optional: max issues (default: 1)
-    target-repo: "owner/repo"        # Optional: cross-repository
+    title-prefix: "[ai] "            # prefix for titles
+    labels: [automation, agentic]    # labels to attach
+    assignees: [user1, copilot]      # assignees (use 'copilot' for bot)
+    max: 5                           # max issues (default: 1)
+    target-repo: "owner/repo"        # cross-repository
 ```
-
-:::caution
-Bot assignments (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets. The default `GITHUB_TOKEN` lacks bot assignment permissions.
-:::
 
 ### Comment Creation (`add-comment:`)
 
-Posts comments on issues, PRs, or discussions. Defaults to triggering item; configure with `target` for specific items or `"*"` for any.
+Posts comments on issues, PRs, or discussions. Defaults to triggering item; configure `target` for specific items or `"*"` for any.
 
 ```yaml wrap
 safe-outputs:
   add-comment:
-    max: 3                    # Optional: max comments (default: 1)
-    target: "*"               # Optional: "triggering" (default), "*", or number
-    discussion: true          # Optional: target discussions
-    target-repo: "owner/repo" # Optional: cross-repository
+    max: 3                    # max comments (default: 1)
+    target: "*"               # "triggering" (default), "*", or number
+    discussion: true          # target discussions
+    target-repo: "owner/repo" # cross-repository
 ```
 
-When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section with links.
+When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
 
 ### Add Labels (`add-labels:`)
 
-Adds labels to issues or PRs. If `allowed` is specified, only those labels are permitted.
+Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels.
 
 ```yaml wrap
 safe-outputs:
   add-labels:
-    allowed: [bug, enhancement]  # Optional: restrict to specific labels
-    max: 3                       # Optional: max labels (default: 3)
-    target: "*"                  # Optional: "triggering" (default), "*", or number
-    target-repo: "owner/repo"    # Optional: cross-repository
+    allowed: [bug, enhancement]  # restrict to specific labels
+    max: 3                       # max labels (default: 3)
+    target: "*"                  # "triggering" (default), "*", or number
+    target-repo: "owner/repo"    # cross-repository
 ```
 
 ### Assign Milestone (`assign-milestone:`)
 
-Assigns issues to milestones. If `allowed` is specified, only those milestone titles are permitted.
+Assigns issues to milestones. Specify `allowed` to restrict to specific milestone titles.
 
 ```yaml wrap
 safe-outputs:
   assign-milestone:
-    allowed: [v1.0, v2.0]    # Optional: restrict to specific milestone titles
-    max: 1                   # Optional: max assignments (default: 1)
-    target-repo: "owner/repo" # Optional: cross-repository
+    allowed: [v1.0, v2.0]    # restrict to specific milestone titles
+    max: 1                   # max assignments (default: 1)
+    target-repo: "owner/repo" # cross-repository
 ```
 
 ### Issue Updates (`update-issue:`)
@@ -134,26 +131,26 @@ Updates issue status, title, or body. Only explicitly enabled fields can be upda
 ```yaml wrap
 safe-outputs:
   update-issue:
-    status:                   # Optional: enable status updates
-    title:                    # Optional: enable title updates
-    body:                     # Optional: enable body updates
-    max: 3                    # Optional: max updates (default: 1)
-    target: "*"               # Optional: "triggering" (default), "*", or number
-    target-repo: "owner/repo" # Optional: cross-repository
+    status:                   # enable status updates
+    title:                    # enable title updates
+    body:                     # enable body updates
+    max: 3                    # max updates (default: 1)
+    target: "*"               # "triggering" (default), "*", or number
+    target-repo: "owner/repo" # cross-repository
 ```
 
 ### Project Board Updates (`update-project:`)
 
-Manages GitHub Projects boards associated with the repository. The generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
+Manages GitHub Projects boards. Generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
 
 ```yaml wrap
 safe-outputs:
   update-project:
-    max: 20                         # Optional: max project operations (default: 10)
-    github-token: ${{ secrets.PROJECTS_PAT }} # Optional: token override with projects:write
+    max: 20                         # max project operations (default: 10)
+    github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
 ```
 
-Agent output for this safe output must include a `project` identifier (name, number, or project URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id` values. The job adds the referenced issue or pull request to the board, updates custom fields, applies a `campaign:<id>` label, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs for downstream jobs. Cross-repository targeting is not supported.
+Agent output must include a `project` identifier (name, number, or URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -162,20 +159,17 @@ Creates pull requests with code changes. Falls back to creating an issue if PR c
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    title-prefix: "[ai] "         # Optional: prefix for titles
-    labels: [automation]          # Optional: labels to attach
-    reviewers: [user1, copilot]   # Optional: reviewers (use 'copilot' for bot)
-    draft: true                   # Optional: create as draft (default: true)
-    if-no-changes: "warn"         # Optional: "warn" (default), "error", or "ignore"
-    target-repo: "owner/repo"     # Optional: cross-repository
+    title-prefix: "[ai] "         # prefix for titles
+    labels: [automation]          # labels to attach
+    reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
+    draft: true                   # create as draft (default: true)
+    if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
+    target-repo: "owner/repo"     # cross-repository
 ```
 
-:::caution
-Bot reviewers (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets.
+:::note
+PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings → Actions → General → Workflow permissions. When fallback occurs, an issue is created with branch link and error details.
 :::
-
-> [!NOTE]
-> PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings → Actions → General → Workflow permissions. When fallback occurs, an issue is created with branch link and error details.
 
 ### PR Review Comments (`create-pull-request-review-comment:`)
 
@@ -184,138 +178,128 @@ Creates review comments on specific code lines in PRs. Supports single-line and 
 ```yaml wrap
 safe-outputs:
   create-pull-request-review-comment:
-    max: 3                    # Optional: max comments (default: 1)
-    side: "RIGHT"             # Optional: "LEFT" or "RIGHT" (default: "RIGHT")
-    target: "*"               # Optional: "triggering" (default), "*", or number
-    target-repo: "owner/repo" # Optional: cross-repository
+    max: 3                    # max comments (default: 1)
+    side: "RIGHT"             # "LEFT" or "RIGHT" (default: "RIGHT")
+    target: "*"               # "triggering" (default), "*", or number
+    target-repo: "owner/repo" # cross-repository
 ```
 
 ### Code Scanning Alerts (`create-code-scanning-alert:`)
 
-Creates security advisories in SARIF format and submits to GitHub Code Scanning. Supports severity levels: error, warning, info, note.
+Creates security advisories in SARIF format and submits to GitHub Code Scanning. Supports severity: error, warning, info, note.
 
 ```yaml wrap
 safe-outputs:
   create-code-scanning-alert:
-    max: 50  # Optional: max findings (default: unlimited)
+    max: 50  # max findings (default: unlimited)
 ```
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes additional changes to a PR's branch. Supports validation via `title-prefix` and `labels` to ensure only approved PRs receive changes.
+Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes.
 
 ```yaml wrap
 safe-outputs:
   push-to-pull-request-branch:
-    target: "*"                 # Optional: "triggering" (default), "*", or number
-    title-prefix: "[bot] "      # Optional: require title prefix
-    labels: [automated]         # Optional: require all labels
-    if-no-changes: "warn"       # Optional: "warn" (default), "error", or "ignore"
+    target: "*"                 # "triggering" (default), "*", or number
+    title-prefix: "[bot] "      # require title prefix
+    labels: [automated]         # require all labels
+    if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
 ```
 
-When `create-pull-request` or `push-to-pull-request-branch` are enabled, file editing tools (Edit, Write, NotebookEdit) and git commands are automatically added.
+When `create-pull-request` or `push-to-pull-request-branch` are enabled, file editing tools (Edit, Write, NotebookEdit) and git commands are added.
 
 ### Release Updates (`update-release:`)
 
-Updates GitHub release descriptions with three operations: replace, append, or prepend content.
+Updates GitHub release descriptions: replace (complete replacement), append (add to end), or prepend (add to start).
 
 ```yaml wrap
 safe-outputs:
   update-release:
-    max: 1                       # Optional: max releases (default: 1, max: 10)
-    target-repo: "owner/repo"    # Optional: cross-repository
-    github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
+    max: 1                       # max releases (default: 1, max: 10)
+    target-repo: "owner/repo"    # cross-repository
+    github-token: ${{ secrets.CUSTOM_TOKEN }}  # custom token
 ```
 
-**Operations:**
-- **replace** - Completely replaces the release body
-- **append** - Adds content to the end with separator and AI attribution
-- **prepend** - Adds content to the start with AI attribution and separator
-
-**Agent Output Format:**
-```jsonl
-{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New content"}
-{"type": "update_release", "tag": "v2.0.0", "operation": "append", "body": "Additional notes"}
-{"type": "update_release", "operation": "prepend", "body": "Summary (tag inferred)"}
-```
-
-The `tag` field is optional when triggered by release events (automatically inferred from context). The workflow needs read access to releases; only the generated job receives write permissions.
+Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "..."}`. The `tag` field is optional for release events (inferred from context). Workflow needs read access; only the generated job receives write permissions.
 
 ### No-Op Logging (`noop:`)
 
-Enabled by default with any safe-outputs configuration. Allows agents to produce human-visible completion messages when no actions are needed, ensuring workflows never complete silently.
+Enabled by default. Allows agents to produce completion messages when no actions are needed, preventing silent workflow completion.
 
 ```yaml wrap
 safe-outputs:
   create-issue:     # noop enabled automatically
-  noop: false       # Or explicitly disable
-  # noop:
-  #   max: 1        # Or configure max messages (default: 1)
+  noop: false       # explicitly disable
 ```
 
-**Agent Output Format:**
-```jsonl
-{"type": "noop", "message": "Analysis complete - no issues found"}
-{"type": "noop", "message": "No changes needed, code follows best practices"}
-```
-
-Messages are displayed in the workflow conclusion comment (when reaction configured) or step summary. This provides transparency and prevents confusion from silent workflow completion.
+Agent output: `{"type": "noop", "message": "Analysis complete - no issues found"}`. Messages appear in the workflow conclusion comment or step summary.
 
 ### Missing Tool Reporting (`missing-tool:`)
 
-Enabled by default with any safe-outputs configuration. Automatically detects and reports tools lacking permissions or unavailable functionality.
+Enabled by default. Automatically detects and reports tools lacking permissions or unavailable functionality.
 
 ```yaml wrap
 safe-outputs:
   create-issue:           # missing-tool enabled automatically
-  missing-tool: false     # Or explicitly disable
-  # missing-tool:
-  #   max: 10             # Or configure max reports
+  missing-tool: false     # explicitly disable
 ```
 
 ### Discussion Creation (`create-discussion:`)
 
-Creates GitHub discussions. The `category` accepts a slug, name, or ID. If omitted, uses the first available category.
+Creates GitHub discussions. The `category` accepts a slug, name, or ID (defaults to first available category if omitted).
 
 ```yaml wrap
 safe-outputs:
   create-discussion:
-    title-prefix: "[ai] "     # Optional: prefix for titles
-    category: "general"       # Optional: category slug, name, or ID
-    max: 3                    # Optional: max discussions (default: 1)
-    target-repo: "owner/repo" # Optional: cross-repository
+    title-prefix: "[ai] "     # prefix for titles
+    category: "general"       # category slug, name, or ID
+    max: 3                    # max discussions (default: 1)
+    target-repo: "owner/repo" # cross-repository
 ```
+
+### Close Discussion (`close-discussion:`)
+
+Closes GitHub discussions with optional comment and resolution reason. Filters by category, labels, and title prefix control which discussions can be closed.
+
+```yaml wrap
+safe-outputs:
+  close-discussion:
+    target: "triggering"         # "triggering" (default), "*", or number
+    required-category: "Ideas"   # only close in category
+    required-labels: [resolved]  # only close with labels
+    required-title-prefix: "[ai]" # only close matching prefix
+    max: 1                       # max closures (default: 1)
+    target-repo: "owner/repo"    # cross-repository
+```
+
+**Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
+
+**Resolution Reasons**: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
 
 ### Agent Task Creation (`create-agent-task:`)
 
-Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`.
+Creates GitHub Copilot agent tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks agent task permissions.
 
 ```yaml wrap
 safe-outputs:
   create-agent-task:
-    base: main                # Optional: base branch (defaults to current)
-    target-repo: "owner/repo" # Optional: cross-repository
+    base: main                # base branch (defaults to current)
+    target-repo: "owner/repo" # cross-repository
 ```
-
-:::caution
-Requires a PAT. The default `GITHUB_TOKEN` lacks agent task permissions.
-:::
 
 ## Cross-Repository Operations
 
-Many safe outputs support `target-repo` for cross-repository operations. Requires a PAT (via `github-token` field or `GH_AW_GITHUB_TOKEN`) with access to target repositories. The default `GITHUB_TOKEN` only has permissions for the current repository.
+Many safe outputs support `target-repo` for cross-repository operations. Requires a PAT (via `github-token` or `GH_AW_GITHUB_TOKEN`) with access to target repositories. The default `GITHUB_TOKEN` only has permissions for the current repository.
 
 ```yaml wrap
 safe-outputs:
   github-token: ${{ secrets.CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"
-  add-comment:
-    target-repo: "org/notifications-repo"
-    target: "123"
 ```
 
-Use specific repository names (no wildcards). Grant tokens minimum necessary permissions.
+Use specific repository names (no wildcards).
 
 ## Automatically Added Tools
 
@@ -323,11 +307,11 @@ When `create-pull-request` or `push-to-pull-request-branch` are configured, file
 
 ## Security and Sanitization
 
-Agent output is automatically sanitized: XML characters escaped, only HTTPS URIs allowed, domains checked against allowlist (defaults to GitHub domains), content truncated if exceeding 0.5MB or 65k lines, control characters stripped.
+Agent output is automatically sanitized: XML escaped, HTTPS URIs only, domain allowlist (defaults to GitHub), content truncated at 0.5MB or 65k lines, control characters stripped.
 
 ```yaml wrap
 safe-outputs:
-  allowed-domains:        # Optional: additional trusted domains
+  allowed-domains:        # additional trusted domains
     - api.github.com      # GitHub domains always included
 ```
 
@@ -335,29 +319,53 @@ safe-outputs:
 
 ### Custom GitHub Token (`github-token:`)
 
-Token precedence: `GH_AW_GITHUB_TOKEN` (override) → `GITHUB_TOKEN` (default). Override globally or per safe output:
+Token precedence: `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` (default). Override globally or per safe output:
 
 ```yaml wrap
 safe-outputs:
-  github-token: ${{ secrets.CUSTOM_PAT }}  # Global override
+  github-token: ${{ secrets.CUSTOM_PAT }}  # global
   create-issue:
   create-pull-request:
-    github-token: ${{ secrets.PR_PAT }}    # Per-output override
+    github-token: ${{ secrets.PR_PAT }}    # per-output
 ```
+
+### GitHub App Token (`app:`)
+
+Use GitHub App installation tokens instead of PATs for enhanced security. Tokens are minted on-demand at job start and auto-revoked at job end, even on failure.
+
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}                 # required
+    private-key: ${{ secrets.APP_PRIVATE_KEY }} # required
+    owner: "my-org"                             # installation owner
+    repositories: ["repo1", "repo2"]            # scope to repositories
+  create-issue:
+```
+
+**Benefits**: On-demand minting, automatic revocation, fine-grained permissions, better attribution, clear audit trail.
+
+**Repository Scoping**: Not specified (current repo only), empty with `owner` (all repos in installation), or specified (listed repos only).
+
+**Import Support**: App config can be imported from shared workflows. Local config takes precedence.
+
+:::tip
+Use GitHub App tokens for org-wide automation. Better security and audit capabilities than PATs.
+:::
 
 ### Maximum Patch Size (`max-patch-size:`)
 
-Limits git patch size for PR operations (range: 1-10,240 KB, default: 1024 KB):
+Limits git patch size for PR operations (1-10,240 KB, default: 1024 KB):
 
 ```yaml wrap
 safe-outputs:
-  max-patch-size: 512  # Optional: max patch size in KB
+  max-patch-size: 512  # max patch size in KB
   create-pull-request:
 ```
 
 ## Assigning to Copilot
 
-Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Use `assignees: copilot` or `reviewers: copilot` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 
 ```yaml wrap
 safe-outputs:
@@ -369,7 +377,7 @@ safe-outputs:
 
 ## Custom Runner Image
 
-Use `runs-on` to specify a custom runner image for safe output jobs (default: `ubuntu-slim`):
+Specify a custom runner image for safe output jobs (default: `ubuntu-slim`):
 
 ```yaml wrap
 safe-outputs:
@@ -379,26 +387,17 @@ safe-outputs:
 
 ## Threat Detection
 
-Automatically enabled with safe outputs. Analyzes agent output for prompt injection, secret leaks, and malicious patches before applying safe outputs.
+Automatically enabled. Analyzes agent output for prompt injection, secret leaks, and malicious patches before applying safe outputs. See [Threat Detection Guide](/gh-aw/guides/threat-detection/) for details.
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-  threat-detection: true              # Explicit enable (default)
-  # Or with custom configuration:
-  # threat-detection:
-  #   enabled: true
-  #   prompt: "Focus on SQL injection"
-  #   steps:                          # Custom security scanning steps
-  #     - name: Run TruffleHog
-  #       uses: trufflesecurity/trufflehog@main
+  threat-detection: true              # explicit enable (default)
 ```
-
-See [Threat Detection Guide](/gh-aw/guides/threat-detection/) for details.
 
 ## Campaign Workflows
 
-Campaign workflows combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps project boards synchronized with generated issues and pull requests. Downstream worker workflows can reuse the same identifier to update board status. For end-to-end guidance, see [Campaign Workflows](/gh-aw/guides/campaigns/).
+Combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps boards synchronized. See [Campaign Workflows](/gh-aw/guides/campaigns/).
 
 ## Related Documentation
 

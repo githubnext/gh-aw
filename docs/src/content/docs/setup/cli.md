@@ -7,6 +7,24 @@ sidebar:
 
 The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language markdown files into GitHub Actions.
 
+## 🚀 Most Common Commands
+
+95% of users only need these 5 commands:
+
+:::tip[New to gh-aw?]
+Start here! These commands cover the essential workflow lifecycle from setup to monitoring.
+:::
+
+| Command | When to Use | Details |
+|---------|-------------|---------|
+| **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
+| **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
+| **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
+| **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
+| **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
+
+**Complete command reference below** ↓
+
 ## Quick Start
 
 Get started in seconds:
@@ -224,11 +242,13 @@ Results are saved to `trials/` directory.
 Execute workflows immediately in GitHub Actions.
 
 ```bash wrap
-gh aw run WorkflowName                      # Run workflow
+gh aw run workflow-name                     # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
 ```
+
+After triggering a workflow, the command displays the workflow URL and suggests using `gh aw audit` to analyze the run.
 
 **Options:**
 - `--repeat N`: Execute the workflow N times
@@ -274,7 +294,7 @@ gh aw logs workflow-name --repo owner/repo # Download logs from specific reposit
 | `--json` | Output structured metrics | `--json` |
 | `--repo owner/repo` | Download logs from specific repository | `--repo owner/repo` |
 
-Downloads workflow execution logs, analyzes tool usage and network patterns, and caches results for faster subsequent runs (~10-100x speedup).
+Downloads workflow execution logs, analyzes tool usage and network patterns, and caches results for faster subsequent runs (~10-100x speedup). The overview table includes columns for errors, warnings, missing tools, and noop messages.
 
 #### `audit`
 
@@ -286,7 +306,7 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-Provides detailed analysis including overview, execution metrics, tool usage patterns, MCP server failures, firewall analysis, and artifact information. Accepts run IDs or URLs from any repository and GitHub instance.
+Provides detailed analysis including overview, execution metrics, tool usage patterns, MCP server failures, firewall analysis, noop messages, and artifact information. Accepts run IDs or URLs from any repository and GitHub instance. JSON output includes parsed noop messages similar to missing-tool reports.
 
 **GitHub Copilot Agent Detection:** Automatically detects GitHub Copilot agent runs and uses specialized log parsing to extract agent-specific metrics including turns, tool calls, errors, and token usage. Detection is based on workflow path (`copilot-swe-agent`) and agent-specific log patterns.
 
@@ -329,7 +349,7 @@ Disables workflows to prevent execution and cancels any currently running workfl
 Remove workflows from the repository.
 
 ```bash wrap
-gh aw remove WorkflowName
+gh aw remove my-workflow
 ```
 
 Removes both `.md` and `.lock.yml` files and updates repository configuration.

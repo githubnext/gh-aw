@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.30.2 - 2025-11-21
+
+### Bug Fixes
+
+#### Fix aw.patch generation logic to handle local commits
+
+Fixed a bug where patch generation only captured commits from explicitly named branches. When an LLM makes commits directly to the currently checked out branch during action execution, those commits are now properly captured in the patch file. Added HEAD-based patch generation as a fallback strategy and extensive logging throughout the patch generation process.
+
+
 ## v0.30.1 - 2025-11-20
 
 ### Bug Fixes

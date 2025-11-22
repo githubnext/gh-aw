@@ -321,6 +321,9 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
 		runLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
+
+		// Suggest audit command for analysis
+		fmt.Printf("\n💡 To analyze this run, use: %s audit %d\n", constants.CLIExtensionPrefix, runInfo.DatabaseID)
 	} else if verbose && runErr != nil {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
 	}

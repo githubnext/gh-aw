@@ -48,8 +48,9 @@ func TestAuditReportIncludesInputSizes(t *testing.T) {
 		Run: run,
 	}
 
-	// Generate markdown report
-	report := generateAuditReport(processedRun, metrics)
+	// Generate markdown report with empty downloaded files
+	downloadedFiles := []FileInfo{}
+	report := generateAuditReport(processedRun, metrics, downloadedFiles)
 
 	// Verify the report contains the MCP Tool Usage section
 	if !strings.Contains(report, "## MCP Tool Usage") {

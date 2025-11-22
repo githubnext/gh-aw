@@ -111,7 +111,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 			// Pattern: /owner/repo/pull/123
 			if len(pathParts) >= 4 {
 				urlLog.Print("Parsing pull request URL")
-				prNumber, err := strconv.ParseInt(pathParts[3], 10, 64)
+				prNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("invalid PR number: %s", pathParts[3])
 				}

@@ -288,6 +288,18 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of issues to update (default: 1)
     ```
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+  - `noop:` - Log completion message for transparency (auto-enabled)
+    ```yaml
+    safe-outputs:
+      noop:
+    ```
+    The noop safe-output provides a fallback mechanism ensuring workflows never complete silently. When enabled (automatically by default), agents can emit human-visible messages even when no other actions are required (e.g., "Analysis complete - no issues found"). This ensures every workflow run produces visible output.
+  - `missing-tool:` - Report missing tools or functionality (auto-enabled)
+    ```yaml
+    safe-outputs:
+      missing-tool:
+    ```
+    The missing-tool safe-output allows agents to report when they need tools or functionality not currently available. This is automatically enabled by default and helps track feature requests from agents.
 
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs

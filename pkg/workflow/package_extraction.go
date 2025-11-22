@@ -96,7 +96,11 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("workflow:package_extraction")
 
 // PackageExtractor provides a configurable framework for extracting package names
 // from command-line strings. It can be configured to handle different package
@@ -214,6 +218,11 @@ type PackageExtractor struct {
 //	packages := extractor.ExtractPackages("npx @playwright/mcp@latest")
 //	// Returns: []string{"@playwright/mcp@latest"}
 func (pe *PackageExtractor) ExtractPackages(commands string) []string {
+	if pkgLog.Enabled() {
+		pkgLog.Printf("Extracting packages from commands using %v (subcommand: %q)",
+			pe.CommandNames, pe.RequiredSubcommand)
+	}
+
 	var packages []string
 	lines := strings.Split(commands, "\n")
 
@@ -229,18 +238,21 @@ func (pe *PackageExtractor) ExtractPackages(commands string) []string {
 			if pe.RequiredSubcommand != "" {
 				pkg := pe.extractWithSubcommand(words, i)
 				if pkg != "" {
+					pkgLog.Printf("Extracted package with subcommand: %s", pkg)
 					packages = append(packages, pkg)
 				}
 			} else {
 				// No subcommand required - package comes directly after command
 				pkg := pe.extractDirectPackage(words, i)
 				if pkg != "" {
+					pkgLog.Printf("Extracted direct package: %s", pkg)
 					packages = append(packages, pkg)
 				}
 			}
 		}
 	}
 
+	pkgLog.Printf("Total packages extracted: %d", len(packages))
 	return packages
 }
 

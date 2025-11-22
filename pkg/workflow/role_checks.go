@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var roleLog = logger.New("workflow:role_checks")
 
 // generateMembershipCheck generates steps for the check_membership job that only sets outputs
 func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) []string {
@@ -45,9 +48,9 @@ core.setOutput("result", "roles_all");
 console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
-	// Use the embedded check_membership.cjs script
+	// Use the embedded check_membership.cjs script (bundled with dependencies)
 	// The GH_AW_REQUIRED_ROLES environment variable is set via the env field
-	return checkMembershipScript
+	return getCheckMembershipScript()
 }
 
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements
@@ -57,9 +60,11 @@ func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 		case string:
 			if v == "all" {
 				// Special case: "all" means no restrictions
+				roleLog.Print("Roles set to 'all' - no permission restrictions")
 				return []string{"all"}
 			}
 			// Single permission level as string
+			roleLog.Printf("Extracted single role: %s", v)
 			return []string{v}
 		case []any:
 			// Array of permission levels
@@ -69,34 +74,42 @@ func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 					permissions = append(permissions, str)
 				}
 			}
+			roleLog.Printf("Extracted %d roles from array: %v", len(permissions), permissions)
 			return permissions
 		case []string:
 			// Already a string slice
+			roleLog.Printf("Extracted %d roles: %v", len(v), v)
 			return v
 		}
 	}
 	// Default: require admin, maintainer, or write permissions
-	return []string{"admin", "maintainer", "write"}
+	defaultRoles := []string{"admin", "maintainer", "write"}
+	roleLog.Printf("No roles specified, using defaults: %v", defaultRoles)
+	return defaultRoles
 }
 
 // needsRoleCheck determines if the workflow needs permission checks with full context
 func (c *Compiler) needsRoleCheck(data *WorkflowData, frontmatter map[string]any) bool {
 	// If user explicitly specified "roles: all", no permission checks needed
 	if len(data.Roles) == 1 && data.Roles[0] == "all" {
+		roleLog.Print("Role check not needed: roles set to 'all'")
 		return false
 	}
 
 	// Command workflows always need permission checks
 	if data.Command != "" {
+		roleLog.Print("Role check needed: command workflow")
 		return true
 	}
 
 	// Check if the workflow uses only safe events (only if frontmatter is available)
 	if frontmatter != nil && c.hasSafeEventsOnly(data, frontmatter) {
+		roleLog.Print("Role check not needed: workflow uses only safe events")
 		return false
 	}
 
 	// Permission checks are needed by default for non-safe events
+	roleLog.Print("Role check needed: workflow uses non-safe events")
 	return true
 }
 

@@ -115,7 +115,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		Name:           "push_to_pull_request_branch",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsWritePRReadIssuesRead().RenderToYAML(),
+		Permissions:    NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

@@ -63,3 +63,6 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Update semver to v3.4.0 for bug fixes and new features
+replace github.com/Masterminds/semver/v3 => github.com/Masterminds/semver/v3 v3.4.0
