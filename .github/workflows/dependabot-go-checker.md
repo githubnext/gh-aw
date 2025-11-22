@@ -18,8 +18,12 @@ permissions:
 network: defaults
 
 safe-outputs:
+  close-issue:
+    required-title-prefix: "[deps]"
+    target: "*"
+    max: 20
   create-issue:
-    title-prefix: "[Dependabot] "
+    title-prefix: "[deps]"
     labels: [dependencies, go]
     max: 10
 
@@ -33,7 +37,7 @@ tools:
 # Dependabot Dependency Checker
 
 ## Objective
-Check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
+Close any existing open dependency update issues with the `[deps]` prefix, then check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
 
 ## Current Context
 - **Repository**: ${{ github.repository }}
@@ -41,6 +45,27 @@ Check for available Go module and NPM dependency updates using Dependabot, categ
 - **NPM Packages**: Check for `@playwright/mcp` updates in constants.go
 
 ## Your Tasks
+
+### Phase 0: Close Existing Dependency Issues (CRITICAL FIRST STEP)
+
+**Before performing any analysis**, you must close existing open issues with the `[deps]` title prefix to prevent duplicate dependency update issues.
+
+Use the GitHub API tools to:
+1. Search for open issues with title starting with `[deps]` in repository ${{ github.repository }}
+2. Close each found issue with a comment explaining that a new dependency check is being performed
+3. Use the `close_issue` safe output to close these issues with reason "not_planned"
+
+**Important**: The `close-issue` safe output is configured with:
+- `required-title-prefix: "[deps]"` - Only issues starting with this prefix will be closed
+- `target: "*"` - Can close any issue by number (not just triggering issue)
+- `max: 20` - Can close up to 20 issues in one run
+
+To close an existing dependency issue, emit:
+```
+close_issue(issue_number=123, body="Closing this issue as a new dependency check is being performed.")
+```
+
+**Do not proceed to Phase 1 until all existing `[deps]` issues are closed.**
 
 ### Phase 1: Check Dependabot Alerts
 1. Use the Dependabot toolset to check for available dependency updates for the `go.mod` file
