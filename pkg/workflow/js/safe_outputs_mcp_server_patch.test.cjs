@@ -9,7 +9,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       // Test the logic for detecting empty patches
       const emptyPatchContent = "";
       const isEmpty = !emptyPatchContent || !emptyPatchContent.trim();
-      
+
       expect(isEmpty).toBe(true);
     });
 
@@ -17,7 +17,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       // Test the logic for detecting non-empty patches
       const patchWithContent = "From 1234567890abcdef\nSubject: Test commit\n\ndiff --git a/file.txt b/file.txt";
       const isEmpty = !patchWithContent || !patchWithContent.trim();
-      
+
       expect(isEmpty).toBe(false);
     });
 
@@ -25,7 +25,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       // Test patch size calculation
       const patchContent = "test content";
       const patchSize = Buffer.byteLength(patchContent, "utf8");
-      
+
       expect(patchSize).toBe(12);
     });
 
@@ -33,7 +33,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       // Test patch line counting
       const patchContent = "line 1\nline 2\nline 3";
       const patchLines = patchContent.split("\n").length;
-      
+
       expect(patchLines).toBe(3);
     });
 
@@ -111,13 +111,13 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ 
+            text: JSON.stringify({
               result: "success",
               patch: {
                 path: patchResult.patchPath,
                 size: patchResult.patchSize,
                 lines: patchResult.patchLines,
-              }
+              },
             }),
           },
         ],
@@ -125,7 +125,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
 
       expect(response.content).toHaveLength(1);
       expect(response.content[0].type).toBe("text");
-      
+
       const responseData = JSON.parse(response.content[0].text);
       expect(responseData.result).toBe("success");
       expect(responseData.patch.path).toBe("/tmp/gh-aw/aw.patch");
@@ -152,7 +152,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
     it("should validate patch path format", () => {
       // Test patch path validation
       const patchPath = "/tmp/gh-aw/aw.patch";
-      
+
       expect(patchPath).toMatch(/^\/tmp\/gh-aw\//);
       expect(patchPath).toMatch(/\.patch$/);
       expect(path.dirname(patchPath)).toBe("/tmp/gh-aw");
@@ -164,7 +164,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       const baseRef = "origin/main";
       const branchName = "feature-branch";
       const expectedCommand = `git format-patch ${baseRef}..${branchName} --stdout`;
-      
+
       expect(expectedCommand).toContain("git format-patch");
       expect(expectedCommand).toContain(baseRef);
       expect(expectedCommand).toContain(branchName);
@@ -176,7 +176,7 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       const baseRef = "main";
       const headRef = "HEAD";
       const expectedCommand = `git rev-list --count ${baseRef}..${headRef}`;
-      
+
       expect(expectedCommand).toContain("git rev-list");
       expect(expectedCommand).toContain("--count");
       expect(expectedCommand).toContain(baseRef);
@@ -187,14 +187,14 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
   describe("error messages", () => {
     it("should provide clear error for empty patch", () => {
       const error = "No changes to commit - patch is empty";
-      
+
       expect(error).toContain("No changes");
       expect(error).toContain("empty");
     });
 
     it("should provide clear error for missing GITHUB_SHA", () => {
       const error = "GITHUB_SHA environment variable is not set";
-      
+
       expect(error).toContain("GITHUB_SHA");
       expect(error).toContain("not set");
     });
@@ -202,14 +202,14 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
     it("should provide clear error for branch not found", () => {
       const branchName = "feature-branch";
       const error = `Branch ${branchName} does not exist locally`;
-      
+
       expect(error).toContain(branchName);
       expect(error).toContain("does not exist");
     });
 
     it("should provide clear error for general failure", () => {
       const error = "Failed to generate patch: git command failed";
-      
+
       expect(error).toContain("Failed to generate patch");
       expect(error).toContain("git command failed");
     });

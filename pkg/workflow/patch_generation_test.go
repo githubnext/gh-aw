@@ -55,7 +55,7 @@ This workflow tests how patches are generated automatically.
 	// NOTE: Patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called within the MCP server, not as a separate workflow step.
-	
+
 	// Check that the dedicated "Generate git patch" step is NOT in the main job anymore
 	if strings.Contains(lockStr, "Generate git patch") {
 		t.Error("Did not expect 'Generate git patch' step in main job (now handled by MCP server)")

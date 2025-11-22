@@ -81,7 +81,7 @@ Please do the following tasks:
 	// Note: git commands may still appear elsewhere in the workflow (e.g., checkout, git config)
 	mainJobIndex := strings.Index(lockContent, "execute_agentic_workflow:")
 	createPRJobIndex := strings.Index(lockContent, "create_pull_request:")
-	
+
 	var mainJobContent string
 	if mainJobIndex != -1 && createPRJobIndex != -1 {
 		mainJobContent = lockContent[mainJobIndex:createPRJobIndex]
