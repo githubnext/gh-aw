@@ -59,8 +59,15 @@ func ensureCopilotMCPConfig(verbose bool) error {
 	if existingConfig, exists := config.MCPServers[ghAwServerName]; exists {
 		copilotMCPConfigLog.Printf("Server '%s' already exists in config", ghAwServerName)
 		// Check if configuration is different
-		existingJSON, _ := json.Marshal(existingConfig)
-		newJSON, _ := json.Marshal(ghAwConfig)
+		// These marshal operations should never fail for simple structs, but we check anyway for consistency
+		existingJSON, err := json.Marshal(existingConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal existing config for comparison: %w", err)
+		}
+		newJSON, err := json.Marshal(ghAwConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal new config for comparison: %w", err)
+		}
 		if string(existingJSON) == string(newJSON) {
 			copilotMCPConfigLog.Print("Configuration is identical, skipping update")
 			if verbose {
