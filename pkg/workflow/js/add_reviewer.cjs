@@ -3,7 +3,8 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { parseAllowedItems, parseMaxCount, resolveTarget } = require("./safe_output_helpers.cjs");
+const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
+const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validator.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -42,16 +43,19 @@ async function main() {
     return;
   }
 
-  // Parse allowed reviewers
-  const allowedReviewers = parseAllowedItems(process.env.GH_AW_REVIEWERS_ALLOWED);
+  // Get configuration from config.json
+  const config = getSafeOutputConfig("add_reviewer");
+
+  // Parse allowed reviewers (from env or config)
+  const allowedReviewers = parseAllowedItems(process.env.GH_AW_REVIEWERS_ALLOWED) || config.reviewers;
   if (allowedReviewers) {
     core.info(`Allowed reviewers: ${JSON.stringify(allowedReviewers)}`);
   } else {
     core.info("No reviewer restrictions - any reviewers are allowed");
   }
 
-  // Parse max count
-  const maxCountResult = parseMaxCount(process.env.GH_AW_REVIEWERS_MAX_COUNT, 3);
+  // Parse max count (env takes priority, then config)
+  const maxCountResult = validateMaxCount(process.env.GH_AW_REVIEWERS_MAX_COUNT, config.max);
   if (!maxCountResult.valid) {
     core.setFailed(maxCountResult.error);
     return;

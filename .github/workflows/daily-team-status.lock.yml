@@ -387,7 +387,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Create a new GitHub discussion","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion body/content","type":"string"},"category":{"description":"Discussion category","type":"string"},"title":{"description":"Discussion title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -3118,6 +3118,49 @@ jobs:
                 return `${summary}\n\n`;
               }
             }
+            function parseLogEntries(logContent) {
+              let logEntries;
+              try {
+                logEntries = JSON.parse(logContent);
+                if (!Array.isArray(logEntries)) {
+                  throw new Error("Not a JSON array");
+                }
+                return logEntries;
+              } catch (jsonArrayError) {
+                logEntries = [];
+                const lines = logContent.split("\n");
+                for (const line of lines) {
+                  const trimmedLine = line.trim();
+                  if (trimmedLine === "") {
+                    continue; 
+                  }
+                  if (trimmedLine.startsWith("[{")) {
+                    try {
+                      const arrayEntries = JSON.parse(trimmedLine);
+                      if (Array.isArray(arrayEntries)) {
+                        logEntries.push(...arrayEntries);
+                        continue;
+                      }
+                    } catch (arrayParseError) {
+                      continue;
+                    }
+                  }
+                  if (!trimmedLine.startsWith("{")) {
+                    continue;
+                  }
+                  try {
+                    const jsonEntry = JSON.parse(trimmedLine);
+                    logEntries.push(jsonEntry);
+                  } catch (jsonLineError) {
+                    continue;
+                  }
+                }
+              }
+              if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                return null;
+              }
+              return logEntries;
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -3155,37 +3198,10 @@ jobs:
                   if (debugLogEntries && debugLogEntries.length > 0) {
                     logEntries = debugLogEntries;
                   } else {
-                    logEntries = [];
-                    const lines = logContent.split("\n");
-                    for (const line of lines) {
-                      const trimmedLine = line.trim();
-                      if (trimmedLine === "") {
-                        continue; 
-                      }
-                      if (trimmedLine.startsWith("[{")) {
-                        try {
-                          const arrayEntries = JSON.parse(trimmedLine);
-                          if (Array.isArray(arrayEntries)) {
-                            logEntries.push(...arrayEntries);
-                            continue;
-                          }
-                        } catch (arrayParseError) {
-                          continue;
-                        }
-                      }
-                      if (!trimmedLine.startsWith("{")) {
-                        continue;
-                      }
-                      try {
-                        const jsonEntry = JSON.parse(trimmedLine);
-                        logEntries.push(jsonEntry);
-                      } catch (jsonLineError) {
-                        continue;
-                      }
-                    }
+                    logEntries = parseLogEntries(logContent);
                   }
                 }
-                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                if (!logEntries) {
                   return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {

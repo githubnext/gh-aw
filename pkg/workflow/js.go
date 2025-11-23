@@ -101,6 +101,9 @@ var stagedPreviewScript string
 //go:embed js/safe_output_helpers.cjs
 var safeOutputHelpersScript string
 
+//go:embed js/safe_output_validator.cjs
+var safeOutputValidatorScript string
+
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
 
@@ -159,6 +162,7 @@ func GetJavaScriptSources() map[string]string {
 		"load_agent_output.cjs":         loadAgentOutputScript,
 		"staged_preview.cjs":            stagedPreviewScript,
 		"safe_output_helpers.cjs":       safeOutputHelpersScript,
+		"safe_output_validator.cjs":     safeOutputValidatorScript,
 		"is_truthy.cjs":                 isTruthyScript,
 		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
 		"log_parser_shared.cjs":         logParserSharedScript,

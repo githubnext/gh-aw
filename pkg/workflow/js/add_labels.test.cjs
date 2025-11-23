@@ -144,6 +144,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       delete process.env.GH_AW_LABELS_ALLOWED;
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label processing
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -169,6 +170,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "   ";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label processing
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -194,6 +196,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label filtering
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -262,12 +265,12 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("Max count: 3");
+      expect(mockCore.info).toHaveBeenCalledWith("Max count: 1");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
         issue_number: 123,
-        labels: ["bug", "enhancement", "feature"], // Only first 3 due to default max count
+        labels: ["bug"], // Only first 1 due to default max count
       });
     });
   });
@@ -415,6 +418,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label filtering
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -441,6 +445,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label processing
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -481,6 +486,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test deduplication
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -508,7 +514,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("too many labels, keep 2");
+      expect(mockCore.info).toHaveBeenCalledWith("Too many labels (5), limiting to 2");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -549,6 +555,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label addition
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -709,6 +716,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test logging
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -728,6 +736,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_ALLOWED = " bug , enhancement , feature ";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label processing
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -793,6 +802,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test deduplication
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -842,6 +852,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test length truncation
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -863,6 +874,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test label filtering
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -974,6 +986,7 @@ describe("add_labels.cjs", () => {
         ],
       });
       process.env.GH_AW_LABELS_TARGET = "999";
+      process.env.GH_AW_LABELS_MAX_COUNT = "10"; // Set high max to test target configuration
 
       // Context doesn't matter when explicit issue number is provided
       global.context.eventName = "push";
