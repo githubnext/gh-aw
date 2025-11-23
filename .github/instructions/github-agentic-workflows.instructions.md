@@ -320,7 +320,7 @@ The YAML frontmatter supports these fields:
         side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
     ```
     When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
-  - `update-issue:` - Safe issue updates 
+  - `update-issue:` - Safe issue updates
     ```yaml
     safe-outputs:
       update-issue:
@@ -331,6 +331,16 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of issues to update (default: 1)
     ```
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+  - `close-pull-request:` - Safe pull request closing with filtering
+    ```yaml
+    safe-outputs:
+      close-pull-request:
+        required-labels: [test, automated]  # Optional: only close PRs with these labels
+        required-title-prefix: "[bot]"      # Optional: only close PRs with this title prefix
+        target: "triggering"                # Optional: "triggering" (default), "*" (any PR), or explicit PR number
+        max: 3                              # Optional: maximum number of PRs to close (default: 1)
+    ```
+    When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
