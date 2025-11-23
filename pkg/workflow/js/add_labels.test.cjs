@@ -508,7 +508,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("too many labels, keep 2");
+      expect(mockCore.info).toHaveBeenCalledWith("Too many labels (5), limiting to 2");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",

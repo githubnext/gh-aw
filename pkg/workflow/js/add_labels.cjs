@@ -1,10 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { parseAllowedItems, parseMaxCount, resolveTarget } = require("./safe_output_helpers.cjs");
+const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
+const { getSafeOutputConfig, validateLabels, validateMaxCount } = require("./safe_output_validator.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -39,16 +39,19 @@ async function main() {
     return;
   }
 
-  // Parse allowed labels
-  const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED);
+  // Get configuration from config.json
+  const config = getSafeOutputConfig("add_labels");
+  
+  // Parse allowed labels (from env or config)
+  const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
   if (allowedLabels) {
     core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
     core.info("No label restrictions - any labels are allowed");
   }
 
-  // Parse max count
-  const maxCountResult = parseMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, 3);
+  // Parse max count (env takes priority, then config, then hardcoded default)
+  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max, 3);
   if (!maxCountResult.valid) {
     core.setFailed(maxCountResult.error);
     return;
@@ -81,30 +84,32 @@ async function main() {
   const contextType = targetResult.contextType;
   const requestedLabels = labelsItem.labels || [];
   core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-  for (const label of requestedLabels) {
-    if (label && typeof label === "string" && label.startsWith("-")) {
-      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
+  
+  // Use validation helper to sanitize and validate labels
+  const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+  if (!labelsResult.valid) {
+    // If no valid labels, log info and return gracefully instead of failing
+    if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
+      core.info("No labels to add");
+      core.setOutput("labels_added", "");
+      await core.summary
+        .addRaw(
+          `
+## Label Addition
+
+No labels were added (no valid labels found in agent output).
+`
+        )
+        .write();
       return;
     }
+    // For other validation errors, fail the workflow
+    core.setFailed(labelsResult.error || "Invalid labels");
+    return;
   }
-  let validLabels;
-  if (allowedLabels) {
-    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-  } else {
-    validLabels = requestedLabels;
-  }
-  let uniqueLabels = validLabels
-    .filter(label => label != null && label !== false && label !== 0)
-    .map(label => String(label).trim())
-    .filter(label => label)
-    .map(label => sanitizeLabelContent(label))
-    .filter(label => label)
-    .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-    .filter((label, index, arr) => arr.indexOf(label) === index);
-  if (uniqueLabels.length > maxCount) {
-    core.info(`too many labels, keep ${maxCount}`);
-    uniqueLabels = uniqueLabels.slice(0, maxCount);
-  }
+  
+  const uniqueLabels = labelsResult.value || [];
+  
   if (uniqueLabels.length === 0) {
     core.info("No labels to add");
     core.setOutput("labels_added", "");
