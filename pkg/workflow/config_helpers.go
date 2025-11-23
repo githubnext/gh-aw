@@ -95,6 +95,11 @@ func parseParticipantsFromConfig(configMap map[string]any, participantKey string
 					participantStrings = append(participantStrings, participantStr)
 				}
 			}
+			// Return the slice even if empty (to distinguish from not provided)
+			if participantStrings == nil {
+				configHelpersLog.Printf("No valid %s strings found, returning empty array", participantKey)
+				return []string{}
+			}
 			configHelpersLog.Printf("Parsed %d %s from config", len(participantStrings), participantKey)
 			return participantStrings
 		}
