@@ -28,6 +28,7 @@ tools:
   playwright:
     allowed_domains:
       - github.com
+  serena: ["go"]
 safe-outputs:
     staged: true
     add-comment:
