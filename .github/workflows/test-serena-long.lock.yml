@@ -188,12 +188,12 @@ jobs:
           python-version: '3.12'
       - name: Setup uv
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Install Python language service
-        run: pip install python-lsp-server
       - name: Install Go language service (gopls)
         run: go install golang.org/x/tools/gopls@v0.14.2
       - name: Install TypeScript language service
         run: npm install -g typescript-language-server typescript
+      - name: Install Python language service
+        run: pip install python-lsp-server
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -394,6 +394,9 @@ jobs:
           
           {{#if ${{ github.repository }} }}
           - **Repository**: `${{ github.repository }}`
+          {{/if}}
+          {{#if ${{ github.workspace }} }}
+          - **Workspace**: `${{ github.workspace }}`
           {{/if}}
           {{#if ${{ github.event.issue.number }} }}
           - **Issue Number**: `#${{ github.event.issue.number }}`
