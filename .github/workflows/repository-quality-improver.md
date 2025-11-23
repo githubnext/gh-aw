@@ -31,11 +31,7 @@ strict: true
 imports:
   - shared/reporting.md
 
-tools:
-  serena:
-    languages:
-      go:
-  edit:
+---
 
 # Repository Quality Improvement Agent
 

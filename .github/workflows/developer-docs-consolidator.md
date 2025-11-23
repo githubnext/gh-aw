@@ -30,6 +30,9 @@ safe-outputs:
     draft: false
 
 tools:
+  serena:
+    languages:
+      go:
   cache-memory:
     key: developer-docs-cache
   github:
@@ -47,11 +50,7 @@ timeout-minutes: 30
 imports:
   - shared/reporting.md
 
-tools:
-  serena:
-    languages:
-      go:
-  cache-memory:
+---
 
 # Developer Documentation Consolidator
 

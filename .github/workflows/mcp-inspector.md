@@ -19,10 +19,6 @@ network:
     - "cdn.jsdelivr.net"        # npm package CDN
     - "fonts.googleapis.com"    # Google Fonts API
     - "fonts.gstatic.com"       # Google Fonts static content
-tools:
-  edit:
-  bash:
-  cache-memory: true
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -51,6 +47,9 @@ tools:
   serena:
     languages:
       go:
+  edit:
+  bash:
+  cache-memory: true
 ---
 
 # MCP Inspector Agent
