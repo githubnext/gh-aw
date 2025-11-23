@@ -43,11 +43,14 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/notion.md
   - shared/mcp/sentry.md
-  - shared/mcp/serena.md
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+tools:
+  serena:
+    languages:
+      go:
 ---
 
 # MCP Inspector Agent

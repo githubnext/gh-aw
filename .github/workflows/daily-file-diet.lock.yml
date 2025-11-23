@@ -22,7 +22,6 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
@@ -51,16 +50,6 @@
 #
 # Original Prompt:
 # ```markdown
-# ## Serena configuration
-#
-# The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-#
-# <!--
-#
-#   # https://github.com/mcp/oraios/serena#using-docker-experimental
-#
-# -->
-#
 # ## Report Formatting
 #
 # Structure your report with an overview followed by detailed content:
@@ -534,13 +523,8 @@ jobs:
           python-version: '3.12'
       - name: Setup uv
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
+      - name: Install Go language service (gopls)
         run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -1392,14 +1376,6 @@ jobs:
             "--context",
             "codex",
             "--project",
-            "${{ github.workspace }}",
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
             "${{ github.workspace }}"
           ]
           EOF
@@ -1412,12 +1388,6 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ## Serena configuration
-          
-          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:

@@ -11,6 +11,9 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  serena:
+    languages:
+      go:
   edit:
   bash: ["*"]
   cache-memory:
@@ -27,8 +30,12 @@ timeout-minutes: 20
 strict: true
 imports:
   - shared/reporting.md
-  - shared/mcp/serena.md
----
+
+tools:
+  serena:
+    languages:
+      go:
+  edit:
 
 # Repository Quality Improvement Agent
 

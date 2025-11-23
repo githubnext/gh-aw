@@ -13,9 +13,10 @@ permissions:
   actions: read
 engine: copilot
 strict: true
-imports:
-  - shared/mcp/serena.md
 tools:
+  serena:
+    languages:
+      go:
   github:
     toolsets:
       - default

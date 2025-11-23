@@ -10,8 +10,10 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
-imports:
-  - shared/mcp/serena.md
+tools:
+  serena:
+    languages:
+      go:
 safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "

@@ -46,9 +46,12 @@ timeout-minutes: 30
 
 imports:
   - shared/reporting.md
-  - shared/mcp/serena.md
 
----
+tools:
+  serena:
+    languages:
+      go:
+  cache-memory:
 
 # Developer Documentation Consolidator
 
