@@ -72,3 +72,32 @@ func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
 	}
 	return targetRepoSlug, false
 }
+
+// parseParticipantsFromConfig extracts and validates participants (assignees/reviewers) from a config map.
+// Supports both string (single participant) and array (multiple participants) formats.
+// Returns a slice of participant usernames, or nil if not present or invalid.
+// The participantKey parameter specifies which key to look for (e.g., "assignees" or "reviewers").
+func parseParticipantsFromConfig(configMap map[string]any, participantKey string) []string {
+	if participants, exists := configMap[participantKey]; exists {
+		configHelpersLog.Printf("Parsing %s from config", participantKey)
+
+		// Handle single string format
+		if participantStr, ok := participants.(string); ok {
+			configHelpersLog.Printf("Parsed single %s: %s", participantKey, participantStr)
+			return []string{participantStr}
+		}
+
+		// Handle array format
+		if participantsArray, ok := participants.([]any); ok {
+			var participantStrings []string
+			for _, participant := range participantsArray {
+				if participantStr, ok := participant.(string); ok {
+					participantStrings = append(participantStrings, participantStr)
+				}
+			}
+			configHelpersLog.Printf("Parsed %d %s from config", len(participantStrings), participantKey)
+			return participantStrings
+		}
+	}
+	return nil
+}
