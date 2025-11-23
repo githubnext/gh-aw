@@ -37,6 +37,12 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 		return "", err
 	}
 
+	// Validate that no line exceeds GitHub Actions character limit
+	if err := validateLineLength(bundled); err != nil {
+		bundlerLog.Printf("Line length validation failed: %v", err)
+		return "", err
+	}
+
 	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes", len(processed), len(bundled))
 	return bundled, nil
 }
