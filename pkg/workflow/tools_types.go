@@ -194,7 +194,9 @@ type SerenaToolConfig struct {
 
 // SerenaLangConfig represents per-language configuration for Serena
 type SerenaLangConfig struct {
-	Version string `yaml:"version,omitempty"`
+	Version      string `yaml:"version,omitempty"`
+	GoModFile    string `yaml:"go-mod-file,omitempty"`   // Path to go.mod file (Go only)
+	GoplsVersion string `yaml:"gopls-version,omitempty"` // Version of gopls to install (Go only)
 }
 
 // BashToolConfig represents the configuration for the Bash tool
@@ -509,6 +511,15 @@ func parseSerenaTool(val any) *SerenaToolConfig {
 					} else if versionNum, ok := langMap["version"].(float64); ok {
 						// Convert numeric version to string
 						langConfig.Version = fmt.Sprintf("%.0f", versionNum)
+					}
+					// Parse Go-specific fields
+					if langName == "go" {
+						if goModFile, ok := langMap["go-mod-file"].(string); ok {
+							langConfig.GoModFile = goModFile
+						}
+						if goplsVersion, ok := langMap["gopls-version"].(string); ok {
+							langConfig.GoplsVersion = goplsVersion
+						}
 					}
 					config.Languages[langName] = langConfig
 				}

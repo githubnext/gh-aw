@@ -2214,6 +2214,14 @@
                             "version": {
                               "type": ["string", "number"],
                               "description": "Go version (e.g., \"1.21\", 1.21)"
+                            },
+                            "go-mod-file": {
+                              "type": "string",
+                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
+                            },
+                            "gopls-version": {
+                              "type": "string",
+                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
                             }
                           },
                           "additionalProperties": false

@@ -10,6 +10,8 @@ tools:
     languages:
       go:
         version: "1.21"
+        go-mod-file: "go.mod"
+        gopls-version: "v0.14.2"
       typescript:
       python:
         version: "3.12"
@@ -17,4 +19,4 @@ tools:
 
 # Test Serena Long Syntax
 
-Test workflow to verify Serena MCP with long syntax (detailed configuration).
+Test workflow to verify Serena MCP with long syntax (detailed configuration including Go version, go.mod path, and gopls version).

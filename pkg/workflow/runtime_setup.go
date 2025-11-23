@@ -29,6 +29,7 @@ type RuntimeRequirement struct {
 	Runtime     *Runtime
 	Version     string         // Empty string means use default
 	ExtraFields map[string]any // Additional 'with' fields from user's setup step (e.g., cache settings)
+	GoModFile   string         // Path to go.mod file for Go runtime (Go-specific)
 }
 
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
@@ -339,7 +340,30 @@ func detectSerenaLanguages(serenaTool any, requirements map[string]*RuntimeRequi
 			// Go language service requires Go runtime
 			goRuntime := findRuntimeByID("go")
 			if goRuntime != nil {
-				updateRequiredRuntime(goRuntime, "", requirements)
+				// Check if there's a version or go-mod-file specified in language config
+				version := ""
+				goModFile := ""
+				if toolMap, ok := serenaTool.(map[string]any); ok {
+					if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
+						if goConfig, ok := languagesVal["go"].(map[string]any); ok {
+							if v, ok := goConfig["version"].(string); ok {
+								version = v
+							} else if vNum, ok := goConfig["version"].(float64); ok {
+								version = fmt.Sprintf("%.0f", vNum)
+							}
+							if gmf, ok := goConfig["go-mod-file"].(string); ok {
+								goModFile = gmf
+							}
+						}
+					}
+				}
+				// Create requirement with go-mod-file if specified
+				req := &RuntimeRequirement{
+					Runtime:   goRuntime,
+					Version:   version,
+					GoModFile: goModFile,
+				}
+				requirements[goRuntime.ID] = req
 			}
 		case "typescript":
 			// TypeScript language service requires Node.js runtime
@@ -465,9 +489,20 @@ func GenerateSerenaLanguageServiceSteps(tools map[string]any) []GitHubActionStep
 		switch lang {
 		case "go":
 			// Install gopls for Go language service
+			// Check if there's a custom gopls version specified
+			goplsVersion := "latest"
+			if toolMap, ok := serenaTool.(map[string]any); ok {
+				if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
+					if goConfig, ok := languagesVal["go"].(map[string]any); ok {
+						if gv, ok := goConfig["gopls-version"].(string); ok {
+							goplsVersion = gv
+						}
+					}
+				}
+			}
 			steps = append(steps, GitHubActionStep{
 				"      - name: Install Go language service (gopls)",
-				"        run: go install golang.org/x/tools/gopls@latest",
+				fmt.Sprintf("        run: go install golang.org/x/tools/gopls@%s", goplsVersion),
 			})
 		case "typescript":
 			// Install TypeScript language server
@@ -530,10 +565,15 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 		fmt.Sprintf("        uses: %s", actionRef),
 	}
 
-	// Special handling for Go when no version is specified
-	if runtime.ID == "go" && version == "" {
+	// Special handling for Go when no version is specified or when go-mod-file is specified
+	if runtime.ID == "go" && (version == "" || req.GoModFile != "") {
 		step = append(step, "        with:")
-		step = append(step, "          go-version-file: go.mod")
+		// Use custom go-mod-file path if specified, otherwise default to "go.mod"
+		goModPath := "go.mod"
+		if req.GoModFile != "" {
+			goModPath = req.GoModFile
+		}
+		step = append(step, fmt.Sprintf("          go-version-file: %s", goModPath))
 		step = append(step, "          cache: true")
 		// Add any extra fields from user's setup step (sorted for stable output)
 		var extraKeys []string
