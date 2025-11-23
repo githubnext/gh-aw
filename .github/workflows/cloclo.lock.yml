@@ -164,10 +164,12 @@
 #
 # ## Trigger Context
 #
-# This workflow is triggered when someone posts `/cloclo` in:
-# - Issue bodies or comments
-# - Pull request bodies or comments
-# - Discussion bodies or comments
+# This workflow is triggered when:
+# - Someone posts `/cloclo` in:
+#   - Issue bodies or comments
+#   - Pull request bodies or comments
+#   - Discussion bodies or comments
+# - An issue is labeled with "cloclo"
 #
 # ## Current Context
 #
@@ -345,10 +347,10 @@ name: "Claude Command Processor - /cloclo"
     - created
     - edited
   issues:
+    names:
+    - cloclo
     types:
-    - opened
-    - edited
-    - reopened
+    - labeled
   pull_request:
     types:
     - opened
@@ -376,14 +378,19 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
+      (needs.pre_activation.outputs.activated == 'true') && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/cloclo')) ||
       (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/cloclo')) ||
       (github.event_name == 'discussion') &&
       (contains(github.event.discussion.body, '/cloclo')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/cloclo')))
+      (contains(github.event.comment.body, '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'cloclo'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -2669,10 +2676,12 @@ jobs:
           
           ## Trigger Context
           
-          This workflow is triggered when someone posts `/cloclo` in:
-          - Issue bodies or comments
-          - Pull request bodies or comments
-          - Discussion bodies or comments
+          This workflow is triggered when:
+          - Someone posts `/cloclo` in:
+            - Issue bodies or comments
+            - Pull request bodies or comments
+            - Discussion bodies or comments
+          - An issue is labeled with "cloclo"
           
           ## Current Context
           
@@ -6562,8 +6571,9 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
-      (github.event_name == 'issue_comment') &&
+      (((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
+      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) || (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request != null)) ||
@@ -6572,7 +6582,10 @@ jobs:
       (contains(github.event.pull_request.body, '/cloclo')) ||
       (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/cloclo')) ||
       (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/cloclo'))
+      (contains(github.event.comment.body, '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'cloclo')))
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
