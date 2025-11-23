@@ -17,6 +17,7 @@ tools:
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"
+  threat-detection: false
 timeout-minutes: 15
 strict: true
 ---
