@@ -20,8 +20,11 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var logsDownloadLog = logger.New("cli:logs_download")
 
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
 // This handles the case where gh CLI creates a directory for each artifact, even if it's just one file
@@ -87,6 +90,8 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
 func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error {
+	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s", runID, outputDir)
+
 	// Create a temporary file for the zip download
 	tmpZip := filepath.Join(os.TempDir(), fmt.Sprintf("workflow-logs-%d.zip", runID))
 	defer os.RemoveAll(tmpZip)
@@ -235,11 +240,14 @@ func listArtifacts(outputDir string) ([]string, error) {
 
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
+	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s", runID, outputDir)
+
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
 		// Try to load cached summary
 		if summary, ok := loadRunSummary(outputDir, verbose); ok {
 			// Valid cached summary exists, skip download
+			logsDownloadLog.Printf("Using cached artifacts for run %d", runID)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", runID, outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
 			}
