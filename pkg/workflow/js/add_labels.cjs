@@ -41,7 +41,7 @@ async function main() {
 
   // Get configuration from config.json
   const config = getSafeOutputConfig("add_labels");
-  
+
   // Parse allowed labels (from env or config)
   const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
   if (allowedLabels) {
@@ -84,7 +84,7 @@ async function main() {
   const contextType = targetResult.contextType;
   const requestedLabels = labelsItem.labels || [];
   core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-  
+
   // Use validation helper to sanitize and validate labels
   const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
   if (!labelsResult.valid) {
@@ -107,9 +107,9 @@ No labels were added (no valid labels found in agent output).
     core.setFailed(labelsResult.error || "Invalid labels");
     return;
   }
-  
+
   const uniqueLabels = labelsResult.value || [];
-  
+
   if (uniqueLabels.length === 0) {
     core.info("No labels to add");
     core.setOutput("labels_added", "");

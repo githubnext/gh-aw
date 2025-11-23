@@ -88,13 +88,6 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 }
 
-// renderSerenaMCPConfig generates the Serena MCP server configuration
-// This is a shared function used by both Claude and Custom engines
-func renderSerenaMCPConfig(yaml *strings.Builder, serenaTool any, isLast bool) {
-	mcpLog.Print("Rendering Serena MCP configuration")
-	renderSerenaMCPConfigWithOptions(yaml, serenaTool, isLast, false, false)
-}
-
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
