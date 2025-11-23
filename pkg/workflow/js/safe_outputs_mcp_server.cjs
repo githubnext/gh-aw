@@ -6,6 +6,14 @@ const path = require("path");
 const crypto = require("crypto");
 const { execSync } = require("child_process");
 
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+const { estimateTokens } = require("./estimate_tokens.cjs");
+const { generateCompactSchema } = require("./generate_compact_schema.cjs");
+const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
+const { getCurrentBranch } = require("./get_current_branch.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
+const { generateGitPatch } = require("./generate_git_patch.cjs");
+
 const encoder = new TextEncoder();
 const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
