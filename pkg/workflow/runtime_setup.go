@@ -275,7 +275,13 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 // detectFromMCPConfigs scans MCP server configurations for runtime commands
 func detectFromMCPConfigs(tools map[string]any, requirements map[string]*RuntimeRequirement) {
 	log.Printf("Scanning %d MCP configurations for runtime commands", len(tools))
-	for _, tool := range tools {
+	for toolName, tool := range tools {
+		// Special handling for Serena tool - detect language services
+		if toolName == "serena" {
+			detectSerenaLanguages(tool, requirements)
+			continue
+		}
+
 		// Handle structured MCP config with command field
 		if toolMap, ok := tool.(map[string]any); ok {
 			if command, exists := toolMap["command"]; exists {
@@ -289,6 +295,79 @@ func detectFromMCPConfigs(tools map[string]any, requirements map[string]*Runtime
 			// Handle string-format MCP tool (e.g., "npx -y package")
 			// Parse the command string to detect runtime
 			detectRuntimeFromCommand(cmdStr, requirements)
+		}
+	}
+}
+
+// detectSerenaLanguages detects runtime requirements from Serena language configuration
+func detectSerenaLanguages(serenaTool any, requirements map[string]*RuntimeRequirement) {
+	runtimeSetupLog.Print("Detecting Serena language requirements")
+
+	// First, ensure UV is detected (Serena requires uvx)
+	uvRuntime := findRuntimeByID("uv")
+	if uvRuntime != nil {
+		updateRequiredRuntime(uvRuntime, "", requirements)
+	}
+
+	// Parse Serena configuration to get languages
+	var languages []string
+
+	// Handle short syntax: ["go", "typescript"]
+	if langArray, ok := serenaTool.([]any); ok {
+		for _, item := range langArray {
+			if str, ok := item.(string); ok {
+				languages = append(languages, str)
+			}
+		}
+	}
+
+	// Handle object syntax with languages field
+	if toolMap, ok := serenaTool.(map[string]any); ok {
+		if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
+			for langName := range languagesVal {
+				languages = append(languages, langName)
+			}
+		}
+	}
+
+	runtimeSetupLog.Printf("Detected %d Serena languages: %v", len(languages), languages)
+
+	// Map languages to runtime requirements
+	for _, lang := range languages {
+		switch lang {
+		case "go":
+			// Go language service requires Go runtime
+			goRuntime := findRuntimeByID("go")
+			if goRuntime != nil {
+				updateRequiredRuntime(goRuntime, "", requirements)
+			}
+		case "typescript":
+			// TypeScript language service requires Node.js runtime
+			nodeRuntime := findRuntimeByID("node")
+			if nodeRuntime != nil {
+				updateRequiredRuntime(nodeRuntime, "", requirements)
+			}
+		case "python":
+			// Python language service requires Python runtime
+			pythonRuntime := findRuntimeByID("python")
+			if pythonRuntime != nil {
+				updateRequiredRuntime(pythonRuntime, "", requirements)
+			}
+		case "java":
+			// Java language service requires Java runtime
+			javaRuntime := findRuntimeByID("java")
+			if javaRuntime != nil {
+				updateRequiredRuntime(javaRuntime, "", requirements)
+			}
+		case "rust":
+			// Rust language service - no runtime setup needed (uses rustup from Ubuntu)
+			// The language service (rust-analyzer) is typically installed separately
+		case "csharp":
+			// C# language service requires .NET runtime
+			dotnetRuntime := findRuntimeByID("dotnet")
+			if dotnetRuntime != nil {
+				updateRequiredRuntime(dotnetRuntime, "", requirements)
+			}
 		}
 	}
 }
@@ -343,6 +422,83 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 		steps = append(steps, generateSetupStep(&req))
 	}
 
+	return steps
+}
+
+// GenerateSerenaLanguageServiceSteps creates installation steps for Serena language services
+// This is called after runtime detection to install the language servers needed by Serena
+func GenerateSerenaLanguageServiceSteps(tools map[string]any) []GitHubActionStep {
+	runtimeSetupLog.Print("Generating Serena language service installation steps")
+	var steps []GitHubActionStep
+
+	// Check if Serena is configured
+	serenaTool, hasSerena := tools["serena"]
+	if !hasSerena {
+		return steps
+	}
+
+	// Detect languages from Serena configuration
+	var languages []string
+
+	// Handle short syntax: ["go", "typescript"]
+	if langArray, ok := serenaTool.([]any); ok {
+		for _, item := range langArray {
+			if str, ok := item.(string); ok {
+				languages = append(languages, str)
+			}
+		}
+	}
+
+	// Handle object syntax with languages field
+	if toolMap, ok := serenaTool.(map[string]any); ok {
+		if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
+			for langName := range languagesVal {
+				languages = append(languages, langName)
+			}
+		}
+	}
+
+	runtimeSetupLog.Printf("Found %d Serena languages to install: %v", len(languages), languages)
+
+	// Generate installation steps for each language service
+	for _, lang := range languages {
+		switch lang {
+		case "go":
+			// Install gopls for Go language service
+			steps = append(steps, GitHubActionStep{
+				"      - name: Install Go language service (gopls)",
+				"        run: go install golang.org/x/tools/gopls@latest",
+			})
+		case "typescript":
+			// Install TypeScript language server
+			steps = append(steps, GitHubActionStep{
+				"      - name: Install TypeScript language service",
+				"        run: npm install -g typescript-language-server typescript",
+			})
+		case "python":
+			// Install Python language server
+			steps = append(steps, GitHubActionStep{
+				"      - name: Install Python language service",
+				"        run: pip install python-lsp-server",
+			})
+		case "java":
+			// Java language service typically comes with the JDK setup
+			// No additional installation needed
+			runtimeSetupLog.Print("Java language service (jdtls) typically bundled with JDK, skipping explicit install")
+		case "rust":
+			// Install rust-analyzer for Rust language service
+			steps = append(steps, GitHubActionStep{
+				"      - name: Install Rust language service (rust-analyzer)",
+				"        run: rustup component add rust-analyzer",
+			})
+		case "csharp":
+			// C# language service typically comes with .NET SDK
+			// No additional installation needed
+			runtimeSetupLog.Print("C# language service (OmniSharp) typically bundled with .NET SDK, skipping explicit install")
+		}
+	}
+
+	runtimeSetupLog.Printf("Generated %d Serena language service installation steps", len(steps))
 	return steps
 }
 
