@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { parseAllowedItems, parseMaxCount, resolveTarget } = require("./safe_output_helpers.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -41,83 +42,45 @@ async function main() {
     return;
   }
 
-  // Parse allowed reviewers from environment (if configured)
-  const allowedReviewersEnv = process.env.GH_AW_REVIEWERS_ALLOWED?.trim();
-  const allowedReviewers = allowedReviewersEnv
-    ? allowedReviewersEnv
-        .split(",")
-        .map(reviewer => reviewer.trim())
-        .filter(reviewer => reviewer)
-    : undefined;
-
+  // Parse allowed reviewers
+  const allowedReviewers = parseAllowedItems(process.env.GH_AW_REVIEWERS_ALLOWED);
   if (allowedReviewers) {
     core.info(`Allowed reviewers: ${JSON.stringify(allowedReviewers)}`);
   } else {
     core.info("No reviewer restrictions - any reviewers are allowed");
   }
 
-  // Parse max count from environment
-  const maxCountEnv = process.env.GH_AW_REVIEWERS_MAX_COUNT;
-  const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-  if (isNaN(maxCount) || maxCount < 1) {
-    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+  // Parse max count
+  const maxCountResult = parseMaxCount(process.env.GH_AW_REVIEWERS_MAX_COUNT, 3);
+  if (!maxCountResult.valid) {
+    core.setFailed(maxCountResult.error);
     return;
   }
+  const maxCount = maxCountResult.value;
   core.info(`Max count: ${maxCount}`);
 
-  // Parse target configuration
+  // Resolve target
   const reviewersTarget = process.env.GH_AW_REVIEWERS_TARGET || "triggering";
   core.info(`Reviewers target configuration: ${reviewersTarget}`);
 
-  // Check if we're in a PR context
-  const isPRContext =
-    context.eventName === "pull_request" ||
-    context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
+  const targetResult = resolveTarget({
+    targetConfig: reviewersTarget,
+    item: reviewerItem,
+    context,
+    itemType: "reviewer addition",
+    supportsPR: false,
+  });
 
-  if (reviewersTarget === "triggering" && !isPRContext) {
-    core.info('Target is "triggering" but not running in pull request context, skipping reviewer addition');
-    return;
-  }
-
-  // Determine the pull request number
-  let prNumber;
-  if (reviewersTarget === "*") {
-    if (reviewerItem.pull_request_number) {
-      prNumber =
-        typeof reviewerItem.pull_request_number === "number"
-          ? reviewerItem.pull_request_number
-          : parseInt(String(reviewerItem.pull_request_number), 10);
-      if (isNaN(prNumber) || prNumber <= 0) {
-        core.setFailed(`Invalid pull_request_number specified: ${reviewerItem.pull_request_number}`);
-        return;
-      }
+  if (!targetResult.success) {
+    if (targetResult.shouldFail) {
+      core.setFailed(targetResult.error);
     } else {
-      core.setFailed('Target is "*" but no pull_request_number specified in reviewer item');
-      return;
+      core.info(targetResult.error);
     }
-  } else if (reviewersTarget && reviewersTarget !== "triggering") {
-    prNumber = parseInt(reviewersTarget, 10);
-    if (isNaN(prNumber) || prNumber <= 0) {
-      core.setFailed(`Invalid pull request number in target configuration: ${reviewersTarget}`);
-      return;
-    }
-  } else {
-    // Use triggering PR
-    if (isPRContext) {
-      if (context.payload.pull_request) {
-        prNumber = context.payload.pull_request.number;
-      } else {
-        core.setFailed("Pull request context detected but no pull request found in payload");
-        return;
-      }
-    }
-  }
-
-  if (!prNumber) {
-    core.setFailed("Could not determine pull request number");
     return;
   }
+
+  const prNumber = targetResult.number;
 
   const requestedReviewers = reviewerItem.reviewers || [];
   core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
