@@ -102,7 +102,7 @@ fuzz:
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
-	cd pkg/workflow/js && npm run test:js
+	cd pkg/workflow/js && npm run test:js -- --no-file-parallelism
 
 .PHONY: build-js
 build-js:
