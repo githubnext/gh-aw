@@ -50,8 +50,8 @@ async function main() {
     core.info("No label restrictions - any labels are allowed");
   }
 
-  // Parse max count (env takes priority, then config, then hardcoded default)
-  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max, 3);
+  // Parse max count (env takes priority, then config)
+  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
   if (!maxCountResult.valid) {
     core.setFailed(maxCountResult.error);
     return;

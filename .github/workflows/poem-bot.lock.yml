@@ -1592,8 +1592,8 @@ jobs:
               }
               return { valid: true, value: uniqueLabels };
             }
-            function validateMaxCount(envValue, configDefault, hardcodedDefault = 3) {
-              const defaultValue = configDefault !== undefined ? configDefault : hardcodedDefault;
+            function validateMaxCount(envValue, configDefault, fallbackDefault = 3) {
+              const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
               if (!envValue) {
                 return { valid: true, value: defaultValue };
               }
@@ -1644,7 +1644,7 @@ jobs:
               } else {
                 core.info("No label restrictions - any labels are allowed");
               }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max, 3);
+              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
               if (!maxCountResult.valid) {
                 core.setFailed(maxCountResult.error);
                 return;

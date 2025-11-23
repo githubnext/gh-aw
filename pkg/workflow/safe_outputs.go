@@ -1035,6 +1035,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["add_labels"] = labelConfig
 		}
+		if data.SafeOutputs.AddReviewer != nil {
+			reviewerConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 3 // default
+			if data.SafeOutputs.AddReviewer.Max > 0 {
+				maxValue = data.SafeOutputs.AddReviewer.Max
+			}
+			reviewerConfig["max"] = maxValue
+			if len(data.SafeOutputs.AddReviewer.Reviewers) > 0 {
+				reviewerConfig["reviewers"] = data.SafeOutputs.AddReviewer.Reviewers
+			}
+			safeOutputsConfig["add_reviewer"] = reviewerConfig
+		}
 		if data.SafeOutputs.AssignMilestone != nil {
 			assignMilestoneConfig := map[string]any{}
 			// Always include max (use configured value or default)

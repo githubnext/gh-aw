@@ -130,12 +130,14 @@ function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
  * Validate max count from environment variable with config fallback
  * @param {string|undefined} envValue - Environment variable value
  * @param {number|undefined} configDefault - Default from config.json
- * @param {number} hardcodedDefault - Hardcoded default if no other source
+ * @param {number} [fallbackDefault] - Fallback default for testing (optional, defaults to 3)
  * @returns {{valid: true, value: number} | {valid: false, error: string}} Validation result
  */
-function validateMaxCount(envValue, configDefault, hardcodedDefault = 3) {
-  // Priority: env var > config.json > hardcoded default
-  const defaultValue = configDefault !== undefined ? configDefault : hardcodedDefault;
+function validateMaxCount(envValue, configDefault, fallbackDefault = 3) {
+  // Priority: env var > config.json > fallback default
+  // In production, config.json should always have the default
+  // Fallback is provided for backward compatibility and testing
+  const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
 
   if (!envValue) {
     return { valid: true, value: defaultValue };

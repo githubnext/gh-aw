@@ -231,43 +231,50 @@ describe("safe_output_validator.cjs", () => {
   });
 
   describe("validateMaxCount", () => {
-    it("should use hardcoded default when no env or config", () => {
-      const result = validator.validateMaxCount(undefined, undefined, 3);
+    it("should use fallback default when no config or env", () => {
+      const result = validator.validateMaxCount(undefined, undefined);
 
       expect(result.valid).toBe(true);
-      expect(result.value).toBe(3);
+      expect(result.value).toBe(3); // fallback default
     });
 
-    it("should prefer config default over hardcoded default", () => {
-      const result = validator.validateMaxCount(undefined, 5, 3);
+    it("should use config default when provided", () => {
+      const result = validator.validateMaxCount(undefined, 5);
 
       expect(result.valid).toBe(true);
       expect(result.value).toBe(5);
     });
 
-    it("should prefer env value over config and hardcoded defaults", () => {
-      const result = validator.validateMaxCount("7", 5, 3);
+    it("should prefer env value over config", () => {
+      const result = validator.validateMaxCount("7", 5);
 
       expect(result.valid).toBe(true);
       expect(result.value).toBe(7);
     });
 
+    it("should use custom fallback when provided", () => {
+      const result = validator.validateMaxCount(undefined, undefined, 10);
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toBe(10);
+    });
+
     it("should reject invalid env value", () => {
-      const result = validator.validateMaxCount("invalid", 5, 3);
+      const result = validator.validateMaxCount("invalid", 5);
 
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid max value");
     });
 
     it("should reject negative env value", () => {
-      const result = validator.validateMaxCount("-1", 5, 3);
+      const result = validator.validateMaxCount("-1", 5);
 
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid max value");
     });
 
     it("should reject zero env value", () => {
-      const result = validator.validateMaxCount("0", 5, 3);
+      const result = validator.validateMaxCount("0", 5);
 
       expect(result.valid).toBe(false);
       expect(result.error).toContain("Invalid max value");
