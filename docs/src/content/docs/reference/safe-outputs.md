@@ -26,12 +26,15 @@ This declares that the workflow should create at most one new issue.
 | Output Type | Key | Description | Max | Cross-Repo |
 |-------------|-----|-------------|-----|-----------|
 | **Create Issue** | `create-issue:` | Create GitHub issues | 1 | ✅ |
+| **Close Issue** | `close-issue:` | Close issues with comment | 1 | ✅ |
 | **Add Comment** | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
 | **Update Issue** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
 | **Update Project** | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
 | **Add Labels** | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
+| **Add Reviewer** | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
 | **Assign Milestone** | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
 | **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
+| **Close PR** | `close-pull-request:` | Close pull requests without merging | 10 | ✅ |
 | **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
@@ -84,6 +87,24 @@ safe-outputs:
     target-repo: "owner/repo"        # cross-repository
 ```
 
+### Close Issue (`close-issue:`)
+
+Closes GitHub issues with an optional comment and state reason. Filters by labels and title prefix control which issues can be closed.
+
+```yaml wrap
+safe-outputs:
+  close-issue:
+    target: "triggering"              # "triggering" (default), "*", or number
+    required-labels: [automated]      # only close with any of these labels
+    required-title-prefix: "[bot]"    # only close matching prefix
+    max: 20                           # max closures (default: 1)
+    target-repo: "owner/repo"         # cross-repository
+```
+
+**Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
+
+**State Reasons**: `completed`, `not_planned`, `reopened` (default: `completed`).
+
 ### Comment Creation (`add-comment:`)
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; configure `target` for specific items or `"*"` for any.
@@ -111,6 +132,23 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
 ```
+
+### Add Reviewer (`add-reviewer:`)
+
+Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames.
+
+```yaml wrap
+safe-outputs:
+  add-reviewer:
+    reviewers: [user1, copilot]  # restrict to specific reviewers
+    max: 3                       # max reviewers (default: 3)
+    target: "*"                  # "triggering" (default), "*", or number
+    target-repo: "owner/repo"    # cross-repository
+```
+
+**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
+
+Use `reviewers: copilot` to assign the Copilot PR reviewer bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`.
 
 ### Assign Milestone (`assign-milestone:`)
 
@@ -170,6 +208,24 @@ safe-outputs:
 :::note
 PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings → Actions → General → Workflow permissions. When fallback occurs, an issue is created with branch link and error details.
 :::
+
+### Close Pull Request (`close-pull-request:`)
+
+Closes pull requests without merging, with an optional comment. Filters by labels and title prefix control which PRs can be closed.
+
+```yaml wrap
+safe-outputs:
+  close-pull-request:
+    target: "triggering"              # "triggering" (default), "*", or number
+    required-labels: [automated, stale] # only close with any of these labels
+    required-title-prefix: "[bot]"    # only close matching prefix
+    max: 10                           # max closures (default: 1)
+    target-repo: "owner/repo"         # cross-repository
+```
+
+**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
+
+Useful for automated cleanup of stale bot PRs or closing PRs that don't meet criteria. The comment explains why the PR was closed and includes workflow attribution.
 
 ### PR Review Comments (`create-pull-request-review-comment:`)
 
