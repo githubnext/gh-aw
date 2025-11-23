@@ -91,6 +91,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("Creating an Agent Task")
 		written = true
 	}
+	if safeOutputs.AssignToAgent != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Assigning Agents to Issues")
+		written = true
+	}
 	if safeOutputs.CreatePullRequests != nil {
 		if written {
 			yaml.WriteString(", ")
@@ -170,6 +177,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Creating an Agent Task**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString(fmt.Sprintf("          To create a GitHub Copilot agent task, use the create-agent-task tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.AssignToAgent != nil {
+		yaml.WriteString("          **Assigning Agents to Issues**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To assign a GitHub Copilot agent to an issue, use the assign-to-agent tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 

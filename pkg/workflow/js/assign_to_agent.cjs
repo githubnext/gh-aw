@@ -151,7 +151,38 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+
+    // Check for permission-related errors
+    if (
+      errorMessage.includes("Resource not accessible by personal access token") ||
+      errorMessage.includes("Resource not accessible by integration") ||
+      errorMessage.includes("Insufficient permissions to assign")
+    ) {
+      core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+      core.error("");
+      core.error("Assigning Copilot agents requires:");
+      core.error("  1. All four workflow permissions:");
+      core.error("     - actions: write");
+      core.error("     - contents: write");
+      core.error("     - issues: write");
+      core.error("     - pull-requests: write");
+      core.error("");
+      core.error("  2. GitHub Actions GITHUB_TOKEN (not a PAT):");
+      core.error("     github-token: ${{ secrets.GITHUB_TOKEN }}");
+      core.error("");
+      core.error("  3. Repository settings:");
+      core.error("     - Actions must have write permissions");
+      core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+      core.error("     - Select: 'Read and write permissions'");
+      core.error("");
+      core.error("  4. Organization/Enterprise settings:");
+      core.error("     - Check if your org restricts bot assignments");
+      core.error("     - Verify Copilot is enabled for your repository");
+      core.error("");
+      core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+    } else {
+      core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+    }
     return false;
   }
 }
@@ -325,6 +356,33 @@ async function main() {
     summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
     for (const result of results.filter(r => !r.success)) {
       summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
+    }
+
+    // Check if any failures were permission-related
+    const hasPermissionError = results.some(
+      r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
+    );
+
+    if (hasPermissionError) {
+      summaryContent += "\n### ⚠️ Permission Requirements\n\n";
+      summaryContent += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+      summaryContent += "```yaml\n";
+      summaryContent += "permissions:\n";
+      summaryContent += "  actions: write\n";
+      summaryContent += "  contents: write\n";
+      summaryContent += "  issues: write\n";
+      summaryContent += "  pull-requests: write\n";
+      summaryContent += "```\n\n";
+      summaryContent += "**Token requirements:**\n";
+      summaryContent += "- ✅ **GitHub Actions GITHUB_TOKEN** with all permissions above\n";
+      summaryContent += "- ❌ **Personal Access Tokens (PATs)** are NOT supported\n\n";
+      summaryContent += "Ensure your workflow uses:\n";
+      summaryContent += "```yaml\n";
+      summaryContent += "safe-outputs:\n";
+      summaryContent += "  github-token: ${{ secrets.GITHUB_TOKEN }}\n";
+      summaryContent += "```\n\n";
+      summaryContent +=
+        "📖 [Learn more about Copilot agent permissions](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr)\n";
     }
   }
 

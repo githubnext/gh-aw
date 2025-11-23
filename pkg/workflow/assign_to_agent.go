@@ -68,6 +68,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	}
 
 	// Use the shared builder function to create the job
+	// Note: replaceActorsForAssignable GraphQL mutation requires all four write permissions
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:        "assign_to_agent",
 		StepName:       "Assign to Agent",
@@ -75,7 +76,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getAssignToAgentScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
+		Permissions:    NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
 		Outputs:        outputs,
 		Token:          token,
 		Condition:      BuildSafeOutputType("assign_to_agent"),

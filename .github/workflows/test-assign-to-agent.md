@@ -12,18 +12,29 @@ on:
         type: string
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
   issues: write
-  pull-requests: read
+  pull-requests: write
+
+# NOTE: Assigning Copilot agents requires:
+# 1. A Personal Access Token (PAT) with repo scope
+#    - The standard GITHUB_TOKEN does NOT have permission to assign bot agents
+#    - Create a PAT at: https://github.com/settings/tokens
+#    - Add it as a repository secret named COPILOT_GITHUB_TOKEN
+#    - Required scopes: repo (full control)
+# 
+# 2. All four workflow permissions declared above (for the safe output job)
+#
+# 3. Repository Settings > Actions > General > Workflow permissions:
+#    Must be set to "Read and write permissions"
 
 engine: copilot
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
+timeout-minutes: 5
+github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
 safe-outputs:
-  github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
   assign-to-agent:
     max: 5
     default-agent: copilot
@@ -35,27 +46,7 @@ This workflow tests the `assign_to_agent` safe output feature, which allows AI a
 
 ## Task
 
-You are testing the assign_to_agent feature. Based on the trigger:
-
 **For workflow_dispatch:**
-- Assign agent "copilot" to issue #${{ github.event.inputs.issue_number }}
+Assign the Copilot agent to issue #${{ github.event.inputs.issue_number }} using the `assign_to_agent` tool from the `safeoutputs` MCP server.
 
-**For issue labeled events:**
-- If the issue has label "needs-agent", assign agent "copilot" to issue #${{ github.event.issue.number }}
-- If the issue has label "needs-review", assign agent "code-reviewer" to issue #${{ github.event.issue.number }}
-
-Use the `assign_to_agent` safe output with the following structure:
-```json
-{
-  "type": "assign_to_agent",
-  "issue_number": <number>,
-  "agent": "<agent-name>"
-}
-```
-
-**Important notes:**
-- `issue_number` is REQUIRED (will fail validation if missing)
-- `agent` is optional (defaults to "copilot" if not provided)
-- Only provide valid issue numbers from this repository
-
-After assigning, create a comment summarizing what you did.
+Do not use GitHub tools. The assign_to_agent tool will handle the actual assignment.
