@@ -32,11 +32,11 @@ describe("safe_output_validator.cjs", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
     // Reset mock implementations to default
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockReturnValue("");
-    
+
     // Dynamically import the module
     validator = await import("./safe_output_validator.cjs");
   });

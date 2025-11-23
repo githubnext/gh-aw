@@ -645,8 +645,8 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:    "command-with-labeled-issues.md",
-			shouldError: false,
+			filename:        "command-with-labeled-issues.md",
+			shouldError:     false,
 			expectedCommand: "label-bot",
 		},
 		{
@@ -662,8 +662,8 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:    "command-with-labeled-unlabeled.md",
-			shouldError: false,
+			filename:        "command-with-labeled-unlabeled.md",
+			shouldError:     false,
 			expectedCommand: "label-bot",
 		},
 	}
