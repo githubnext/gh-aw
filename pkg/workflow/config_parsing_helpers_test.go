@@ -515,3 +515,209 @@ func TestParseTargetRepoWithValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseParticipantsFromConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          map[string]any
+		participantKey string
+		expected       []string
+	}{
+		{
+			name: "single assignee as string",
+			input: map[string]any{
+				"assignees": "user1",
+			},
+			participantKey: "assignees",
+			expected:       []string{"user1"},
+		},
+		{
+			name: "multiple assignees as array",
+			input: map[string]any{
+				"assignees": []any{"user1", "user2", "user3"},
+			},
+			participantKey: "assignees",
+			expected:       []string{"user1", "user2", "user3"},
+		},
+		{
+			name: "empty assignees array",
+			input: map[string]any{
+				"assignees": []any{},
+			},
+			participantKey: "assignees",
+			expected:       []string{}, // Empty array returns empty slice (consistent with parseLabelsFromConfig)
+		},
+		{
+			name:           "assignees key not present",
+			input:          map[string]any{},
+			participantKey: "assignees",
+			expected:       nil,
+		},
+		{
+			name: "assignees with non-string values (filtered out)",
+			input: map[string]any{
+				"assignees": []any{"user1", 123, "user2", nil, "user3"},
+			},
+			participantKey: "assignees",
+			expected:       []string{"user1", "user2", "user3"},
+		},
+		{
+			name: "assignees array with only non-string values",
+			input: map[string]any{
+				"assignees": []any{123, true, nil},
+			},
+			participantKey: "assignees",
+			expected:       []string{}, // All filtered out returns empty slice
+		},
+		{
+			name: "single reviewer as string",
+			input: map[string]any{
+				"reviewers": "reviewer1",
+			},
+			participantKey: "reviewers",
+			expected:       []string{"reviewer1"},
+		},
+		{
+			name: "multiple reviewers as array",
+			input: map[string]any{
+				"reviewers": []any{"reviewer1", "reviewer2"},
+			},
+			participantKey: "reviewers",
+			expected:       []string{"reviewer1", "reviewer2"},
+		},
+		{
+			name:           "reviewers key not present",
+			input:          map[string]any{},
+			participantKey: "reviewers",
+			expected:       nil,
+		},
+		{
+			name: "assignees is not string or array",
+			input: map[string]any{
+				"assignees": 123,
+			},
+			participantKey: "assignees",
+			expected:       nil,
+		},
+		{
+			name: "empty string assignee",
+			input: map[string]any{
+				"assignees": "",
+			},
+			participantKey: "assignees",
+			expected:       []string{""},
+		},
+		{
+			name: "mixed valid and empty strings in array",
+			input: map[string]any{
+				"assignees": []any{"user1", "", "user2"},
+			},
+			participantKey: "assignees",
+			expected:       []string{"user1", "", "user2"},
+		},
+		{
+			name: "assignees with special characters",
+			input: map[string]any{
+				"assignees": []any{"user-1", "user_2", "user.3"},
+			},
+			participantKey: "assignees",
+			expected:       []string{"user-1", "user_2", "user.3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseParticipantsFromConfig(tt.input, tt.participantKey)
+
+			// Check nil vs empty array
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Errorf("expected %v, got nil", tt.expected)
+				return
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("expected %d participants, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, expectedParticipant := range tt.expected {
+				if result[i] != expectedParticipant {
+					t.Errorf("participant %d: expected %q, got %q", i, expectedParticipant, result[i])
+				}
+			}
+		})
+	}
+}
+
+// TestParseParticipantsFromConfigConsistency verifies that assignees and reviewers
+// are parsed with identical logic when using the same input data structure
+func TestParseParticipantsFromConfigConsistency(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input map[string]any
+	}{
+		{
+			name: "single participant string",
+			input: map[string]any{
+				"assignees": "user1",
+				"reviewers": "user1",
+			},
+		},
+		{
+			name: "multiple participants array",
+			input: map[string]any{
+				"assignees": []any{"user1", "user2"},
+				"reviewers": []any{"user1", "user2"},
+			},
+		},
+		{
+			name: "empty participants array",
+			input: map[string]any{
+				"assignees": []any{},
+				"reviewers": []any{},
+			},
+		},
+		{
+			name: "participants with filtered non-strings",
+			input: map[string]any{
+				"assignees": []any{"user1", 123, "user2"},
+				"reviewers": []any{"user1", 123, "user2"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assignees := parseParticipantsFromConfig(tc.input, "assignees")
+			reviewers := parseParticipantsFromConfig(tc.input, "reviewers")
+
+			// Both should return the same results
+			if (assignees == nil) != (reviewers == nil) {
+				t.Errorf("nil mismatch: assignees=%v, reviewers=%v", assignees, reviewers)
+				return
+			}
+
+			if assignees == nil {
+				return
+			}
+
+			if len(assignees) != len(reviewers) {
+				t.Errorf("length mismatch: assignees=%d, reviewers=%d", len(assignees), len(reviewers))
+				return
+			}
+
+			for i := range assignees {
+				if assignees[i] != reviewers[i] {
+					t.Errorf("value mismatch at index %d: assignees=%q, reviewers=%q", i, assignees[i], reviewers[i])
+				}
+			}
+		})
+	}
+}
