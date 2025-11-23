@@ -298,3 +298,100 @@ Test workflow with multiple comment triggers.
 		}
 	}
 }
+
+// TestPRCheckoutGHTokenConfiguration verifies that GH_TOKEN is correctly configured for gh CLI
+func TestPRCheckoutGHTokenConfiguration(t *testing.T) {
+	workflowContent := `---
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+---
+
+# Test Workflow
+Test workflow to verify GH_TOKEN configuration.
+`
+
+	// Create temporary directory for test
+	tempDir, err := os.MkdirTemp("", "pr-checkout-token-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create workflows directory
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write test workflow file
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile workflow
+	compiler := NewCompiler(false, "", "test-version")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read generated lock file
+	lockPath := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Find the Checkout PR branch step
+	checkoutStepIndex := strings.Index(lockStr, "- name: Checkout PR branch")
+	if checkoutStepIndex == -1 {
+		t.Fatal("Checkout PR branch step not found")
+	}
+
+	// Extract the step section (until the next step)
+	nextStepIndex := strings.Index(lockStr[checkoutStepIndex+1:], "- name:")
+	var stepSection string
+	if nextStepIndex == -1 {
+		stepSection = lockStr[checkoutStepIndex:]
+	} else {
+		stepSection = lockStr[checkoutStepIndex : checkoutStepIndex+nextStepIndex]
+	}
+
+	// Verify env section with GH_TOKEN exists
+	if !strings.Contains(stepSection, "env:") {
+		t.Error("Expected env: section in PR checkout step")
+	}
+
+	// Verify GH_TOKEN is set in env section
+	if !strings.Contains(stepSection, "GH_TOKEN:") {
+		t.Error("Expected GH_TOKEN environment variable in PR checkout step")
+	}
+
+	// Verify github-token is set in with section
+	if !strings.Contains(stepSection, "github-token:") {
+		t.Error("Expected github-token parameter in with section of PR checkout step")
+	}
+
+	// Verify the token uses the standard fallback pattern
+	if !strings.Contains(stepSection, "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Expected standard token fallback pattern in PR checkout step")
+	}
+
+	// Verify JavaScript does not include redundant env passing
+	// The old problematic code was: env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN }
+	if strings.Contains(stepSection, "process.env.GITHUB_TOKEN") {
+		t.Error("JavaScript should not reference process.env.GITHUB_TOKEN - token is passed via step env")
+	}
+
+	// Verify gh pr checkout is called correctly
+	if !strings.Contains(stepSection, `exec.exec("gh", ["pr", "checkout", prNumber.toString()])`) {
+		t.Error("Expected simplified gh pr checkout call without explicit env options")
+	}
+}

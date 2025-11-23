@@ -109,13 +109,8 @@ describe("checkout_pr_branch.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("Pull Request #123");
       expect(mockCore.info).toHaveBeenCalledWith("Checking out PR #123 using gh pr checkout");
 
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["pr", "checkout", "123"],
-        expect.objectContaining({
-          env: expect.objectContaining({ GH_TOKEN: "test-token" }),
-        })
-      );
+      // Updated expectation: no env options passed, GH_TOKEN comes from step environment
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out PR #123");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -130,20 +125,15 @@ describe("checkout_pr_branch.cjs", () => {
     });
 
     it("should pass environment variables to gh command", async () => {
+      // This test is no longer relevant since we don't pass env options explicitly
+      // The GH_TOKEN is now set at the step level, not in the exec options
+      // Keeping the test but updating to verify the call without env options
       process.env.CUSTOM_VAR = "custom-value";
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["pr", "checkout", "123"],
-        expect.objectContaining({
-          env: expect.objectContaining({
-            GH_TOKEN: "test-token",
-            CUSTOM_VAR: "custom-value",
-          }),
-        })
-      );
+      // Verify exec is called without env options
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       delete process.env.CUSTOM_VAR;
     });
@@ -189,7 +179,8 @@ describe("checkout_pr_branch.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_target");
       // pull_request_target uses gh pr checkout, not git
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
+      // Updated expectation: no third argument (env options removed)
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
 
     it("should handle pull_request_review event", async () => {
@@ -199,7 +190,8 @@ describe("checkout_pr_branch.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_review");
       // pull_request_review uses gh pr checkout, not git
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
+      // Updated expectation: no third argument (env options removed)
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
 
     it("should handle pull_request_review_comment event", async () => {
@@ -207,7 +199,8 @@ describe("checkout_pr_branch.cjs", () => {
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.any(Object));
+      // Updated expectation: no third argument (env options removed)
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
   });
 

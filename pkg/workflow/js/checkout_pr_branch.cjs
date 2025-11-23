@@ -33,9 +33,7 @@ async function main() {
       const prNumber = pullRequest.number;
       core.info(`Checking out PR #${prNumber} using gh pr checkout`);
 
-      await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-        env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-      });
+      await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
 
       core.info(`✅ Successfully checked out PR #${prNumber}`);
     }
