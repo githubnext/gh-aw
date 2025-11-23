@@ -139,7 +139,6 @@ function replyError(id, code, message) {
   writeMessage(res);
 }
 
-
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
   // Normalize type to use underscores (convert any dashes to underscores)
@@ -307,7 +306,6 @@ const uploadAssetHandler = args => {
     ],
   };
 };
-
 
 /**
  * Handler for create_pull_request tool
