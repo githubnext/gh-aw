@@ -88,6 +88,57 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 }
 
+// renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
+func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+	customArgs := getSerenaCustomArgs(serenaTool)
+
+	yaml.WriteString("              \"serena\": {\n")
+
+	// Add type field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"local\",\n")
+	}
+
+	yaml.WriteString("                \"command\": \"uvx\",\n")
+
+	if inlineArgs {
+		// Inline format for Copilot
+		yaml.WriteString("                \"args\": [\"--from\", \"git+https://github.com/oraios/serena\", \"serena\", \"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"${{ github.workspace }}\"")
+		// Append custom args if present
+		writeArgsToYAMLInline(yaml, customArgs)
+		yaml.WriteString("]")
+	} else {
+		// Multi-line format for Claude/Custom
+		yaml.WriteString("                \"args\": [\n")
+		yaml.WriteString("                  \"--from\",\n")
+		yaml.WriteString("                  \"git+https://github.com/oraios/serena\",\n")
+		yaml.WriteString("                  \"serena\",\n")
+		yaml.WriteString("                  \"start-mcp-server\",\n")
+		yaml.WriteString("                  \"--context\",\n")
+		yaml.WriteString("                  \"codex\",\n")
+		yaml.WriteString("                  \"--project\",\n")
+		yaml.WriteString("                  \"${{ github.workspace }}\"")
+		// Append custom args if present
+		writeArgsToYAML(yaml, customArgs, "                  ")
+		yaml.WriteString("\n")
+		yaml.WriteString("                ]")
+	}
+
+	// Add tools field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString(",\n")
+		yaml.WriteString("                \"tools\": [\"*\"]")
+	}
+
+	yaml.WriteString("\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
 // renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
 // for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
 // This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and

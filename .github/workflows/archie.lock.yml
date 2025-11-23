@@ -2305,19 +2305,8 @@ jobs:
               "serena": {
                 "type": "local",
                 "command": "uvx",
-                "tools": [
-                  "*"
-                ],
-                "args": [
-                  "--from",
-                  "git+https://github.com/oraios/serena",
-                  "serena",
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "${{ github.workspace }}"
-                ]
+                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "tools": ["*"]
               }
             }
           }

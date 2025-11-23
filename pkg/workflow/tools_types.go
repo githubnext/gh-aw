@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"fmt"
+
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -70,6 +72,7 @@ type ToolsConfig struct {
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
+	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
@@ -129,6 +132,14 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	if t.Playwright != nil {
 		result["playwright"] = t.Playwright
 	}
+	if t.Serena != nil {
+		// Convert back based on whether it was short syntax or object
+		if len(t.Serena.ShortSyntax) > 0 {
+			result["serena"] = t.Serena.ShortSyntax
+		} else {
+			result["serena"] = t.Serena
+		}
+	}
 	if t.AgenticWorkflows != nil {
 		result["agentic-workflows"] = t.AgenticWorkflows.Enabled
 	}
@@ -170,6 +181,22 @@ type PlaywrightToolConfig struct {
 	Version        string   `yaml:"version,omitempty"`
 	AllowedDomains []string `yaml:"allowed_domains,omitempty"`
 	Args           []string `yaml:"args,omitempty"`
+}
+
+// SerenaToolConfig represents the configuration for the Serena MCP tool
+type SerenaToolConfig struct {
+	Version   string                       `yaml:"version,omitempty"`
+	Args      []string                     `yaml:"args,omitempty"`
+	Languages map[string]*SerenaLangConfig `yaml:"languages,omitempty"`
+	// ShortSyntax stores the array of language names when using short syntax (e.g., ["go", "typescript"])
+	ShortSyntax []string `yaml:"-"`
+}
+
+// SerenaLangConfig represents per-language configuration for Serena
+type SerenaLangConfig struct {
+	Version      string `yaml:"version,omitempty"`
+	GoModFile    string `yaml:"go-mod-file,omitempty"`   // Path to go.mod file (Go only)
+	GoplsVersion string `yaml:"gopls-version,omitempty"` // Version of gopls to install (Go only)
 }
 
 // BashToolConfig represents the configuration for the Bash tool
@@ -245,6 +272,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
 	}
+	if val, exists := toolsMap["serena"]; exists {
+		tools.Serena = parseSerenaTool(val)
+	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
 	}
@@ -269,6 +299,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"web-search":        true,
 		"edit":              true,
 		"playwright":        true,
+		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
 		"safety-prompt":     true,
@@ -284,7 +315,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		}
 	}
 
-	toolsTypesLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
+	toolsTypesLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, serena=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Serena != nil, customCount)
 	return tools
 }
 
@@ -428,6 +459,79 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	return &PlaywrightToolConfig{}
 }
 
+// parseSerenaTool converts raw serena tool configuration to SerenaToolConfig
+func parseSerenaTool(val any) *SerenaToolConfig {
+	if val == nil {
+		return &SerenaToolConfig{}
+	}
+
+	// Handle array format (short syntax): ["go", "typescript"]
+	if langArray, ok := val.([]any); ok {
+		config := &SerenaToolConfig{
+			ShortSyntax: make([]string, 0, len(langArray)),
+		}
+		for _, item := range langArray {
+			if str, ok := item.(string); ok {
+				config.ShortSyntax = append(config.ShortSyntax, str)
+			}
+		}
+		return config
+	}
+
+	// Handle object format with detailed configuration
+	if configMap, ok := val.(map[string]any); ok {
+		config := &SerenaToolConfig{}
+
+		if version, ok := configMap["version"].(string); ok {
+			config.Version = version
+		}
+
+		if args, ok := configMap["args"].([]any); ok {
+			config.Args = make([]string, 0, len(args))
+			for _, item := range args {
+				if str, ok := item.(string); ok {
+					config.Args = append(config.Args, str)
+				}
+			}
+		}
+
+		// Parse languages configuration
+		if languagesVal, ok := configMap["languages"].(map[string]any); ok {
+			config.Languages = make(map[string]*SerenaLangConfig)
+			for langName, langVal := range languagesVal {
+				if langVal == nil {
+					// nil means enable with defaults
+					config.Languages[langName] = &SerenaLangConfig{}
+					continue
+				}
+				if langMap, ok := langVal.(map[string]any); ok {
+					langConfig := &SerenaLangConfig{}
+					if version, ok := langMap["version"].(string); ok {
+						langConfig.Version = version
+					} else if versionNum, ok := langMap["version"].(float64); ok {
+						// Convert numeric version to string
+						langConfig.Version = fmt.Sprintf("%.0f", versionNum)
+					}
+					// Parse Go-specific fields
+					if langName == "go" {
+						if goModFile, ok := langMap["go-mod-file"].(string); ok {
+							langConfig.GoModFile = goModFile
+						}
+						if goplsVersion, ok := langMap["gopls-version"].(string); ok {
+							langConfig.GoplsVersion = goplsVersion
+						}
+					}
+					config.Languages[langName] = langConfig
+				}
+			}
+		}
+
+		return config
+	}
+
+	return &SerenaToolConfig{}
+}
+
 // parseWebFetchTool converts raw web-fetch tool configuration
 func parseWebFetchTool(val any) *WebFetchToolConfig {
 	// web-fetch is either nil or an empty object
@@ -518,6 +622,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.Edit != nil
 	case "playwright":
 		return t.Playwright != nil
+	case "serena":
+		return t.Serena != nil
 	case "agentic-workflows":
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
@@ -559,6 +665,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.Playwright != nil {
 		names = append(names, "playwright")
+	}
+	if t.Serena != nil {
+		names = append(names, "serena")
 	}
 	if t.AgenticWorkflows != nil {
 		names = append(names, "agentic-workflows")
