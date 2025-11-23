@@ -110,10 +110,7 @@ describe("checkout_pr_branch.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("Checking out PR #123 using gh pr checkout");
 
       // Updated expectation: no env options passed, GH_TOKEN comes from step environment
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["pr", "checkout", "123"]
-      );
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out PR #123");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -136,10 +133,7 @@ describe("checkout_pr_branch.cjs", () => {
       await runScript();
 
       // Verify exec is called without env options
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["pr", "checkout", "123"]
-      );
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       delete process.env.CUSTOM_VAR;
     });

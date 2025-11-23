@@ -23,17 +23,17 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 
 	// Use actions/github-script instead of shell script
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	
+
 	// Add env section with GH_TOKEN for gh CLI
 	effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
 	yaml.WriteString("        env:\n")
 	yaml.WriteString(fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-	
+
 	yaml.WriteString("        with:\n")
-	
+
 	// Add github-token to make it available to the GitHub API client
 	yaml.WriteString(fmt.Sprintf("          github-token: %s\n", effectiveToken))
-	
+
 	yaml.WriteString("          script: |\n")
 
 	// Add the JavaScript for checking out the PR branch
