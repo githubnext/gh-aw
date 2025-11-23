@@ -632,6 +632,40 @@ tools:
 			shouldError:      true,
 			expectedErrorMsg: "command trigger cannot be used with 'pull_request_review_comment' event",
 		},
+		{
+			name: "command with label-only issues event - should succeed",
+			frontmatter: `---
+on:
+  command:
+    name: label-bot
+  issues:
+    types: [labeled]
+    names: [label-bot]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:        "command-with-labeled-issues.md",
+			shouldError:     false,
+			expectedCommand: "label-bot",
+		},
+		{
+			name: "command with labeled and unlabeled - should succeed",
+			frontmatter: `---
+on:
+  command:
+    name: label-bot
+  issues:
+    types: [labeled, unlabeled]
+    names: [bot-label]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:        "command-with-labeled-unlabeled.md",
+			shouldError:     false,
+			expectedCommand: "label-bot",
+		},
 	}
 
 	for _, tt := range tests {

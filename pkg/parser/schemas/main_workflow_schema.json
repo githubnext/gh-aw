@@ -3591,16 +3591,6 @@
               "anyOf": [
                 {
                   "properties": {
-                    "issues": {
-                      "not": {
-                        "type": "null"
-                      }
-                    }
-                  },
-                  "required": ["issues"]
-                },
-                {
-                  "properties": {
                     "issue_comment": {
                       "not": {
                         "type": "null"
@@ -3608,16 +3598,6 @@
                     }
                   },
                   "required": ["issue_comment"]
-                },
-                {
-                  "properties": {
-                    "pull_request": {
-                      "not": {
-                        "type": "null"
-                      }
-                    }
-                  },
-                  "required": ["pull_request"]
                 },
                 {
                   "properties": {
