@@ -141,7 +141,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
-		for _, line := range FormatJavaScriptForYAML(safeOutputsMCPServerScript) {
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          EOF\n")
