@@ -279,6 +279,7 @@ describe("add_reviewer", () => {
     };
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
+    process.env.GH_AW_REVIEWERS_MAX_COUNT = "10"; // Set high max to test deduplication
 
     await import("./add_reviewer.cjs");
 

@@ -1592,7 +1592,7 @@ jobs:
               }
               return { valid: true, value: uniqueLabels };
             }
-            function validateMaxCount(envValue, configDefault, fallbackDefault = 3) {
+            function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
               const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
               if (!envValue) {
                 return { valid: true, value: defaultValue };

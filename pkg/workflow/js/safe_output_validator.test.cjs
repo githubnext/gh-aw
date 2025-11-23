@@ -235,7 +235,7 @@ describe("safe_output_validator.cjs", () => {
       const result = validator.validateMaxCount(undefined, undefined);
 
       expect(result.valid).toBe(true);
-      expect(result.value).toBe(3); // fallback default
+      expect(result.value).toBe(1); // fallback default
     });
 
     it("should use config default when provided", () => {
