@@ -188,12 +188,12 @@ jobs:
           python-version: '3.12'
       - name: Setup uv
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
+      - name: Install Go language service (gopls)
+        run: go install golang.org/x/tools/gopls@v0.14.2
       - name: Install TypeScript language service
         run: npm install -g typescript-language-server typescript
       - name: Install Python language service
         run: pip install python-lsp-server
-      - name: Install Go language service (gopls)
-        run: go install golang.org/x/tools/gopls@v0.14.2
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -213,7 +213,10 @@ jobs:
         if: |
           github.event.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const eventName = context.eventName;
@@ -234,9 +237,7 @@ jobs:
                 } else {
                   const prNumber = pullRequest.number;
                   core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-                  });
+                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
                   core.info(`✅ Successfully checked out PR #${prNumber}`);
                 }
               } catch (error) {
