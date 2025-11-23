@@ -309,6 +309,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CloseIssues = closeIssuesConfig
 			}
 
+			// Handle close-pull-request
+			closePullRequestsConfig := c.parseClosePullRequestsConfig(outputMap)
+			if closePullRequestsConfig != nil {
+				config.ClosePullRequests = closePullRequestsConfig
+			}
+
 			// Handle add-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {
@@ -1145,6 +1151,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.CloseIssues != nil {
 		enabledTools["close_issue"] = true
+	}
+	if data.SafeOutputs.ClosePullRequests != nil {
+		enabledTools["close_pull_request"] = true
 	}
 	if data.SafeOutputs.AddComments != nil {
 		enabledTools["add_comment"] = true

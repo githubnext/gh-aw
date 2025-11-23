@@ -2932,6 +2932,10 @@ jobs:
                     return 1;
                   case "close_discussion":
                     return 1;
+                  case "close_issue":
+                    return 1;
+                  case "close_pull_request":
+                    return 1;
                   case "missing_tool":
                     return 20;
                   case "create_code_scanning_alert":
@@ -3511,6 +3515,34 @@ jobs:
                       );
                       if (!discussionNumberValidation.isValid) {
                         if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "close_issue":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_issue requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      const issueNumberValidation = validateOptionalPositiveInteger(item.issue_number, "close_issue 'issue_number'", i + 1);
+                      if (!issueNumberValidation.isValid) {
+                        if (issueNumberValidation.error) errors.push(issueNumberValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "close_pull_request":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: close_pull_request requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      const prNumberValidation = validateOptionalPositiveInteger(
+                        item.pull_request_number,
+                        "close_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!prNumberValidation.isValid) {
+                        if (prNumberValidation.error) errors.push(prNumberValidation.error);
                         continue;
                       }
                       break;

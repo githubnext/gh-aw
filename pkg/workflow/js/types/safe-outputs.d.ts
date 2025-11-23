@@ -53,6 +53,28 @@ interface CloseDiscussionItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for closing a GitHub issue
+ */
+interface CloseIssueItem extends BaseSafeOutputItem {
+  type: "close_issue";
+  /** Comment body to add when closing the issue */
+  body: string;
+  /** Optional issue number (uses triggering issue if not provided) */
+  issue_number?: number | string;
+}
+
+/**
+ * JSONL item for closing a GitHub pull request without merging
+ */
+interface ClosePullRequestItem extends BaseSafeOutputItem {
+  type: "close_pull_request";
+  /** Comment body to add when closing the pull request */
+  body: string;
+  /** Optional pull request number (uses triggering PR if not provided) */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
@@ -222,6 +244,8 @@ type SafeOutputItem =
   | CreateIssueItem
   | CreateDiscussionItem
   | CloseDiscussionItem
+  | CloseIssueItem
+  | ClosePullRequestItem
   | AddCommentItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
@@ -250,6 +274,8 @@ export {
   CreateIssueItem,
   CreateDiscussionItem,
   CloseDiscussionItem,
+  CloseIssueItem,
+  ClosePullRequestItem,
   AddCommentItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,

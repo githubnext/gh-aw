@@ -41,6 +41,9 @@ var closeDiscussionScriptSource string
 //go:embed js/close_issue.cjs
 var closeIssueScriptSource string
 
+//go:embed js/close_pull_request.cjs
+var closePullRequestScriptSource string
+
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
 
@@ -116,6 +119,9 @@ var (
 
 	closeIssueScript     string
 	closeIssueScriptOnce sync.Once
+
+	closePullRequestScript     string
+	closePullRequestScriptOnce sync.Once
 
 	updateIssueScript     string
 	updateIssueScriptOnce sync.Once
@@ -353,6 +359,23 @@ func getCloseIssueScript() string {
 		}
 	})
 	return closeIssueScript
+}
+
+// getClosePullRequestScript returns the bundled close_pull_request script
+// Bundling is performed on first access and cached for subsequent calls
+func getClosePullRequestScript() string {
+	closePullRequestScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(closePullRequestScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for close_pull_request, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			closePullRequestScript = closePullRequestScriptSource
+		} else {
+			closePullRequestScript = bundled
+		}
+	})
+	return closePullRequestScript
 }
 
 // getUpdateIssueScript returns the bundled update_issue script

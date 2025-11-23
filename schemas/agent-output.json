@@ -37,6 +37,8 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/CloseDiscussionOutput"},
+        {"$ref": "#/$defs/CloseIssueOutput"},
+        {"$ref": "#/$defs/ClosePullRequestOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
         {"$ref": "#/$defs/UpdateProjectOutput"},
@@ -313,6 +315,54 @@
             {"type": "string"}
           ],
           "description": "Discussion number to close (optional - uses triggering discussion if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
+    "CloseIssueOutput": {
+      "title": "Close Issue Output",
+      "description": "Output for closing a GitHub issue with a comment",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_issue"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when closing the issue",
+          "minLength": 1
+        },
+        "issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to close (optional - uses triggering issue if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
+    "ClosePullRequestOutput": {
+      "title": "Close Pull Request Output",
+      "description": "Output for closing a GitHub pull request without merging, with a comment",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_pull_request"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when closing the pull request",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number to close (optional - uses triggering PR if not provided)"
         }
       },
       "required": ["type", "body"],
