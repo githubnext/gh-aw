@@ -195,7 +195,7 @@ var getCurrentBranchScript string
 var getBaseBranchScript string
 
 //go:embed js/generate_git_patch.cjs
-var generateGitPatchScript string
+var generateGitPatchJSScript string
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
@@ -222,7 +222,7 @@ func GetJavaScriptSources() map[string]string {
 		"write_large_content_to_file.cjs": writeLargeContentToFileScript,
 		"get_current_branch.cjs":        getCurrentBranchScript,
 		"get_base_branch.cjs":           getBaseBranchScript,
-		"generate_git_patch.cjs":        generateGitPatchScript,
+		"generate_git_patch.cjs":        generateGitPatchJSScript,
 	}
 }
 
