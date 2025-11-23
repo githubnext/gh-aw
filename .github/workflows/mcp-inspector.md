@@ -44,9 +44,7 @@ imports:
   - shared/mcp/tavily.md
   - shared/reporting.md
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   edit:
   bash:
   cache-memory: true

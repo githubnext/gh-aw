@@ -11,9 +11,7 @@ permissions:
   pull-requests: read
 engine: codex
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
 safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "

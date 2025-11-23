@@ -11,9 +11,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   edit:
   bash: ["*"]
   cache-memory:

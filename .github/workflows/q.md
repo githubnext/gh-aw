@@ -16,9 +16,7 @@ imports:
   - shared/mcp/gh-aw.md
   - shared/mcp/tavily.md
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   github:
     toolsets:
       - default

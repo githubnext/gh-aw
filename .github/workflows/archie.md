@@ -14,9 +14,7 @@ permissions:
 engine: copilot
 strict: true
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   github:
     toolsets:
       - default

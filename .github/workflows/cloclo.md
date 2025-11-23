@@ -21,9 +21,7 @@ imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   edit:
   playwright:
   cache-memory:

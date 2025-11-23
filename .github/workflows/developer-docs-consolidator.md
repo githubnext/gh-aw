@@ -30,9 +30,7 @@ safe-outputs:
     draft: false
 
 tools:
-  serena:
-    languages:
-      go:
+  serena: ["go"]
   cache-memory:
     key: developer-docs-cache
   github:
