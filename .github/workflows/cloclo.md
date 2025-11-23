@@ -18,10 +18,10 @@ engine:
   id: claude
   max-turns: 100
 imports:
-  - shared/mcp/serena.md
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
 tools:
+  serena: ["go"]
   edit:
   playwright:
   cache-memory:

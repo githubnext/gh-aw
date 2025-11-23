@@ -14,7 +14,6 @@ permissions:
 engine: claude
 
 imports:
-  - shared/mcp/serena.md
   - shared/reporting.md
 
 safe-outputs:

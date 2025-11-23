@@ -30,6 +30,7 @@ safe-outputs:
     draft: false
 
 tools:
+  serena: ["go"]
   cache-memory:
     key: developer-docs-cache
   github:
@@ -46,7 +47,6 @@ timeout-minutes: 30
 
 imports:
   - shared/reporting.md
-  - shared/mcp/serena.md
 
 ---
 
