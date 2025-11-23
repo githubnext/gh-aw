@@ -8,6 +8,9 @@ The following GitHub context information is available for this workflow:
 {{#if ${{ github.repository }} }}
 - **Repository**: `${{ github.repository }}`
 {{/if}}
+{{#if ${{ github.workspace }} }}
+- **Workspace**: `${{ github.workspace }}`
+{{/if}}
 {{#if ${{ github.event.issue.number }} }}
 - **Issue Number**: `#${{ github.event.issue.number }}`
 {{/if}}
