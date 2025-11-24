@@ -230,6 +230,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro\"")
 		copilotLog.Print("Added workspace mount to AWF")
 
+		// Mount .github directory to /workspace/.github so Copilot CLI can discover agents
+		// Copilot CLI looks for agents in .github/agents/ relative to its working directory (/workspace)
+		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}/.github:/workspace/.github:ro\"")
+		copilotLog.Print("Added .github mount to /workspace for agent discovery")
+
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 
