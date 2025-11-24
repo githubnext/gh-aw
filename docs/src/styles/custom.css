@@ -1031,15 +1031,36 @@ html {
 
 /* Hero Section */
 .sl-link-button.primary {
-  background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%) !important;
-  border-color: #d896ff !important;
+  background: rgba(139, 92, 246, 0.35) !important;
+  border: 1px solid rgba(139, 92, 246, 0.6) !important;
   color: #ffffff !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  font-weight: 600 !important;
 }
 
 .sl-link-button.primary:hover {
-  background: linear-gradient(180deg, #e5c7ff 0%, #8250df 100%) !important;
-  border-color: #e5c7ff !important;
+  background: rgba(139, 92, 246, 0.5) !important;
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35), 0 3px 8px rgba(0, 0, 0, 0.2) !important;
   color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+:root[data-theme='light'] .sl-link-button.primary {
+  background: #8b5cf6 !important;
+  border: 2px solid #6b46c1 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  font-weight: 600 !important;
+}
+
+:root[data-theme='light'] .sl-link-button.primary:hover {
+  background: #a78bfa !important;
+  border: 2px solid #7c3aed !important;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
 }
 
 /* General Links */
