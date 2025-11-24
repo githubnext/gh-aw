@@ -339,6 +339,7 @@ This is a normal-sized workflow that should compile successfully.`
 		"    types: [opened]\n" +
 		"permissions:\n" +
 		"  issues: write\n" +
+		"strict: false\n" +
 		"tools:\n" +
 		"  github:\n" +
 		"    toolsets: [issues]\n" +

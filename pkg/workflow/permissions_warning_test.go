@@ -72,6 +72,7 @@ on: push
 permissions:
   contents: write
   issues: write
+strict: false
 tools:
   github:
     toolsets: [repos, issues]

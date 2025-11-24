@@ -73,6 +73,7 @@ engine:
   id: claude
   max-turns: 10
 timeout_minutes: 15
+strict: false
 tools:
   github:
     allowed: [get_issue]

@@ -2550,6 +2550,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     toolsets: [issues]
@@ -2629,6 +2630,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -2715,6 +2717,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -2784,6 +2787,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -2860,6 +2864,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -2925,6 +2930,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -2989,6 +2995,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3009,6 +3016,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3028,6 +3036,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3049,6 +3058,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3071,6 +3081,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3090,6 +3101,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3175,6 +3187,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3196,6 +3209,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3216,6 +3230,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -3239,6 +3254,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -4912,6 +4928,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -4936,6 +4953,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -4962,6 +4980,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -4989,6 +5008,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5014,6 +5034,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5039,6 +5060,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5062,6 +5084,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5085,6 +5108,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5108,6 +5132,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5130,6 +5155,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5215,6 +5241,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5242,6 +5269,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5263,6 +5291,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5283,6 +5312,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5668,6 +5698,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -5706,6 +5737,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     allowed: [get_issue]

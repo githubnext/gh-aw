@@ -41,6 +41,7 @@ network:
     - "github.com"
     - "*.example.com"
     - "api.trusted.com"
+strict: false
 ---
 
 # Test Workflow
@@ -105,6 +106,7 @@ engine:
   model: claude-3-5-sonnet-20241022
 network:
   allowed: []
+strict: false
 ---
 
 # Test Workflow
@@ -136,6 +138,7 @@ engine:
 network:
   allowed:
     - "single.domain.com"
+strict: false
 ---
 
 # Test Workflow
@@ -171,6 +174,7 @@ engine:
 network:
   allowed:
     - "compilation.test.com"
+strict: false
 ---
 
 # Test Workflow
@@ -204,6 +208,7 @@ engine:
 network:
   allowed:
     - "first.domain.com"
+strict: false
 ---
 
 # First Workflow`
@@ -217,6 +222,7 @@ network:
   allowed:
     - "second.domain.com"
     - "third.domain.com"
+strict: false
 ---
 
 # Second Workflow`

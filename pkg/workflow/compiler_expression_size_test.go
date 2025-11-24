@@ -25,6 +25,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     allowed: [list_issues, get_issue]
@@ -66,6 +67,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: read
+strict: false
 tools:
   github:
     allowed: [list_issues]

@@ -34,6 +34,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -54,6 +55,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -74,6 +76,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -94,6 +97,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -114,6 +118,7 @@ permissions:
   pull-requests: write
   issues: read
 
+strict: false
 tools:
   github:
     allowed: [get_pull_request]
@@ -134,6 +139,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -153,6 +159,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -221,6 +228,7 @@ permissions:
   issues: write
   pull-requests: read
 
+strict: false
 tools:
   github:
     allowed: [get_issue]
