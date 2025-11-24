@@ -44,7 +44,6 @@
         {"$ref": "#/$defs/UpdateProjectOutput"},
         {"$ref": "#/$defs/UpdateReleaseOutput"},
         {"$ref": "#/$defs/AssignMilestoneOutput"},
-        {"$ref": "#/$defs/AssignToAgentOutput"},
         {"$ref": "#/$defs/NoOpOutput"}
       ]
     },
@@ -521,29 +520,6 @@
         }
       },
       "required": ["type", "issue_number", "milestone_number"],
-      "additionalProperties": false
-    },
-    "AssignToAgentOutput": {
-      "title": "Assign to Agent Output",
-      "description": "Output for assigning a GitHub Copilot agent to an issue or project item",
-      "type": "object",
-      "properties": {
-        "type": {
-          "const": "assign_to_agent"
-        },
-        "issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
-          "description": "Issue number to assign agent to"
-        },
-        "agent": {
-          "type": "string",
-          "description": "Agent name or slug (defaults to 'copilot' if not provided)"
-        }
-      },
-      "required": ["type", "issue_number"],
       "additionalProperties": false
     },
     "NoOpOutput": {

@@ -32,9 +32,6 @@ var addReviewerScriptSource string
 //go:embed js/assign_milestone.cjs
 var assignMilestoneScriptSource string
 
-//go:embed js/assign_to_agent.cjs
-var assignToAgentScriptSource string
-
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -113,9 +110,6 @@ var (
 
 	assignMilestoneScript     string
 	assignMilestoneScriptOnce sync.Once
-
-	assignToAgentScript     string
-	assignToAgentScriptOnce sync.Once
 
 	createDiscussionScript     string
 	createDiscussionScriptOnce sync.Once
@@ -297,25 +291,6 @@ func getAssignMilestoneScript() string {
 		}
 	})
 	return assignMilestoneScript
-}
-
-// getAssignToAgentScript returns the bundled assign_to_agent script
-// Bundling is performed on first access and cached for subsequent calls
-func getAssignToAgentScript() string {
-	assignToAgentScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling assign_to_agent script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(assignToAgentScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for assign_to_agent, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			assignToAgentScript = assignToAgentScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled assign_to_agent script: %d bytes", len(bundled))
-			assignToAgentScript = bundled
-		}
-	})
-	return assignToAgentScript
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script

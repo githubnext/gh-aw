@@ -270,7 +270,6 @@ type SafeOutputsConfig struct {
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
-	AssignToAgent                   *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`

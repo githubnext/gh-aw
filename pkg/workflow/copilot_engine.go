@@ -245,13 +245,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	// Use COPILOT_GITHUB_TOKEN with fallback to legacy COPILOT_CLI_TOKEN
-	// If github-token is specified at workflow level, use that instead
-	var copilotGitHubToken string
-	if workflowData.GitHubToken != "" {
-		copilotGitHubToken = workflowData.GitHubToken
-	} else {
-		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}"
-	}
+	copilotGitHubToken := "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}"
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
