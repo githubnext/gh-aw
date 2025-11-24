@@ -22,7 +22,6 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/serena.md
 #     - shared/reporting.md
 #
 # Job Dependency Graph:
@@ -52,16 +51,6 @@
 #
 # Original Prompt:
 # ```markdown
-# ## Serena configuration
-#
-# The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-#
-# <!--
-#
-#   # https://github.com/mcp/oraios/serena#using-docker-experimental
-#
-# -->
-#
 # ## Report Formatting
 #
 # Structure your report with an overview followed by detailed content:
@@ -578,16 +567,10 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
-#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
-#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Semantic Function Refactoring"
 "on":
@@ -722,24 +705,6 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
-        run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -759,7 +724,10 @@ jobs:
         if: |
           github.event.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const eventName = context.eventName;
@@ -780,9 +748,7 @@ jobs:
                 } else {
                   const prNumber = pullRequest.number;
                   core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-                  });
+                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
                   core.info(`✅ Successfully checked out PR #${prNumber}`);
                 }
               } catch (error) {
@@ -1649,20 +1615,6 @@ jobs:
                   "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
                   "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
                 }
-              },
-              "serena": {
-                "type": "stdio",
-                "command": "uvx",
-                "args": [
-                  "--from",
-                  "git+https://github.com/oraios/serena",
-                  "serena",
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "${{ github.workspace }}"
-                ]
               }
             }
           }
@@ -1676,12 +1628,6 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ## Serena configuration
-          
-          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
@@ -2159,13 +2105,6 @@ jobs:
           Args: { "symbol_name": "parseConfig", "workspace": "${GH_AW_EXPR_2D1CC6E7}" }
           ```
           
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ### Search for Patterns
           ```
           Tool: search_for_pattern
@@ -2173,6 +2112,13 @@ jobs:
           ```
           
           ### Find References
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ```
           Tool: find_referencing_symbols
           Args: { "symbol_name": "CompileWorkflow", "file_path": "pkg/workflow/compiler.go" }
@@ -2302,6 +2248,9 @@ jobs:
           
           {{#if ${{ github.repository }} }}
           - **Repository**: `${{ github.repository }}`
+          {{/if}}
+          {{#if ${{ github.workspace }} }}
+          - **Workspace**: `${{ github.workspace }}`
           {{/if}}
           {{#if ${{ github.event.issue.number }} }}
           - **Issue Number**: `#${{ github.event.issue.number }}`
@@ -2539,12 +2488,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        # - mcp__serena
         timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '\''*.go'\'' ! -name '\''*_test.go'\'' -type f),Bash(find pkg -type f -name '\''*.go'\'' ! -name '\''*_test.go'\''),Bash(grep -r '\''func '\'' pkg --include='\''*.go'\''),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__serena' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '\''*.go'\'' ! -name '\''*_test.go'\'' -type f),Bash(find pkg -type f -name '\''*.go'\'' ! -name '\''*_test.go'\''),Bash(grep -r '\''func '\'' pkg --include='\''*.go'\''),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

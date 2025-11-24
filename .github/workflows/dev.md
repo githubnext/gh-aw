@@ -16,6 +16,7 @@ tools:
   edit:
   github:
     toolsets: [default, repos, issues, discussions]
+  serena: ["go"]
 safe-outputs:
   close-discussion:
     max: 1

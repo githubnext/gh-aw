@@ -20,7 +20,6 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/serena.md
 #     - shared/mcp/gh-aw.md
 #     - shared/jqschema.md
 #
@@ -60,18 +59,6 @@
 #
 # Original Prompt:
 # ```markdown
-# ## Serena configuration
-#
-# The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-#
-# <!--
-#
-#   # https://github.com/mcp/oraios/serena#using-docker-experimental
-#
-# -->
-#
-#
-#
 # ## jqschema - JSON Schema Discovery
 #
 # A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -164,10 +151,12 @@
 #
 # ## Trigger Context
 #
-# This workflow is triggered when someone posts `/cloclo` in:
-# - Issue bodies or comments
-# - Pull request bodies or comments
-# - Discussion bodies or comments
+# This workflow is triggered when:
+# - Someone posts `/cloclo` in:
+#   - Issue bodies or comments
+#   - Pull request bodies or comments
+#   - Discussion bodies or comments
+# - An issue is labeled with "cloclo"
 #
 # ## Current Context
 #
@@ -345,10 +334,10 @@ name: "Claude Command Processor - /cloclo"
     - created
     - edited
   issues:
+    names:
+    - cloclo
     types:
-    - opened
-    - edited
-    - reopened
+    - labeled
   pull_request:
     types:
     - opened
@@ -376,14 +365,19 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
+      (needs.pre_activation.outputs.activated == 'true') && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/cloclo')) ||
       (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/cloclo')) ||
       (github.event_name == 'discussion') &&
       (contains(github.event.discussion.body, '/cloclo')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/cloclo')))
+      (contains(github.event.comment.body, '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'cloclo'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1542,12 +1536,8 @@ jobs:
           python-version: '3.12'
       - name: Setup uv
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
+      - name: Install Go language service (gopls)
         run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
       - name: Install dependencies
         run: make deps-dev
       - name: Install binary as 'gh-aw'
@@ -1599,7 +1589,10 @@ jobs:
         if: |
           github.event.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const eventName = context.eventName;
@@ -1620,9 +1613,7 @@ jobs:
                 } else {
                   const prNumber = pullRequest.number;
                   core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-                  });
+                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
                   core.info(`✅ Successfully checked out PR #${prNumber}`);
                 }
               } catch (error) {
@@ -2505,7 +2496,6 @@ jobs:
                 }
               },
               "serena": {
-                "type": "stdio",
                 "command": "uvx",
                 "args": [
                   "--from",
@@ -2530,12 +2520,6 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ## Serena configuration
-          
-          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
           
           
           ## jqschema - JSON Schema Discovery
@@ -2630,10 +2614,12 @@ jobs:
           
           ## Trigger Context
           
-          This workflow is triggered when someone posts `/cloclo` in:
-          - Issue bodies or comments
-          - Pull request bodies or comments
-          - Discussion bodies or comments
+          This workflow is triggered when:
+          - Someone posts `/cloclo` in:
+            - Issue bodies or comments
+            - Pull request bodies or comments
+            - Discussion bodies or comments
+          - An issue is labeled with "cloclo"
           
           ## Current Context
           
@@ -2937,6 +2923,9 @@ jobs:
           {{#if ${{ github.repository }} }}
           - **Repository**: `${{ github.repository }}`
           {{/if}}
+          {{#if ${{ github.workspace }} }}
+          - **Workspace**: `${{ github.workspace }}`
+          {{/if}}
           {{#if ${{ github.event.issue.number }} }}
           - **Issue Number**: `#${{ github.event.issue.number }}`
           {{/if}}
@@ -2992,7 +2981,6 @@ jobs:
           GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
           GH_AW_EXPR_176C9F7A: ${{ github.event.pull_request.state }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
           GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         with:
           script: |
@@ -3232,12 +3220,11 @@ jobs:
         # - mcp__playwright__browser_take_screenshot
         # - mcp__playwright__browser_type
         # - mcp__playwright__browser_wait_for
-        # - mcp__serena
         timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --max-turns 100 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__serena' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --max-turns 100 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -6523,8 +6510,9 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) ||
-      (github.event_name == 'issue_comment') &&
+      (((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
+      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/cloclo')) || (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/cloclo')) && (github.event.issue.pull_request != null)) ||
@@ -6533,7 +6521,10 @@ jobs:
       (contains(github.event.pull_request.body, '/cloclo')) ||
       (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/cloclo')) ||
       (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/cloclo'))
+      (contains(github.event.comment.body, '/cloclo')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))) && ((github.event_name != 'issues') || ((github.event.action != 'labeled') ||
+      (github.event.label.name == 'cloclo')))
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}

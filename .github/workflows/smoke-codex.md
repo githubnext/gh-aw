@@ -26,6 +26,7 @@ tools:
   edit:
   bash:
     - "*"
+  serena: ["go"]
 safe-outputs:
     staged: true
     add-comment:

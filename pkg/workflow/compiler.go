@@ -1313,10 +1313,14 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 					workflowData.Command = baseName
 				}
-				// Check for conflicting events
+				// Check for conflicting events (but allow issues/pull_request with labeled/unlabeled types)
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 				for _, eventName := range conflictingEvents {
-					if _, hasConflict := onMap[eventName]; hasConflict {
+					if eventValue, hasConflict := onMap[eventName]; hasConflict {
+						// Special case: allow issues/pull_request if they only have labeled/unlabeled types
+						if (eventName == "issues" || eventName == "pull_request") && parser.IsLabelOnlyEvent(eventValue) {
+							continue // Allow this - it doesn't conflict with command triggers
+						}
 						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
 					}
 				}

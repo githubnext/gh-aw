@@ -470,13 +470,19 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// List of conflicting events
+	// List of conflicting events - but we'll check if issues/pull_request are label-only
 	conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 
 	// Check for conflicts
 	var foundConflicts []string
 	for _, eventName := range conflictingEvents {
 		if eventValue, hasEvent := onMap[eventName]; hasEvent && eventValue != nil {
+			// Special case: allow issues/pull_request events if they only have labeled/unlabeled types
+			if eventName == "issues" || eventName == "pull_request" {
+				if IsLabelOnlyEvent(eventValue) {
+					continue // Allow this - it doesn't conflict with command triggers
+				}
+			}
 			foundConflicts = append(foundConflicts, eventName)
 		}
 	}
@@ -489,6 +495,45 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 	}
 
 	return nil
+}
+
+// IsLabelOnlyEvent checks if an event configuration only contains labeled/unlabeled types
+// This is exported for use in the compiler to validate command trigger combinations
+func IsLabelOnlyEvent(eventValue any) bool {
+	// Event can be a map with types field
+	eventMap, isMap := eventValue.(map[string]any)
+	if !isMap {
+		return false
+	}
+
+	// Get the types field
+	typesValue, hasTypes := eventMap["types"]
+	if !hasTypes {
+		return false
+	}
+
+	// Types should be an array
+	typesArray, isArray := typesValue.([]any)
+	if !isArray {
+		return false
+	}
+
+	// Check if all types are labeled or unlabeled
+	if len(typesArray) == 0 {
+		return false
+	}
+
+	for _, typeValue := range typesArray {
+		typeStr, isString := typeValue.(string)
+		if !isString {
+			return false
+		}
+		if typeStr != "labeled" && typeStr != "unlabeled" {
+			return false
+		}
+	}
+
+	return true
 }
 
 // findFrontmatterBounds finds the start and end indices of frontmatter in file lines
