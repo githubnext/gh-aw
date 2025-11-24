@@ -272,6 +272,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Create /tmp/gh-aw/ base directory for all temporary files
+	// This must be created before custom steps so they can use the temp directory
+	yaml.WriteString("      - name: Create gh-aw temp directory\n")
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
@@ -285,11 +291,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			c.addCustomStepsAsIs(yaml, data.CustomSteps)
 		}
 	}
-
-	// Create /tmp/gh-aw/ base directory for all temporary files
-	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)

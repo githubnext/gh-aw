@@ -461,6 +461,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - id: setup-ffmpeg
         name: Setup FFmpeg
         run: |-
@@ -469,10 +473,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           mkdir -p /tmp/gh-aw/ffmpeg
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
