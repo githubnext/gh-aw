@@ -170,6 +170,7 @@ Note: Output can be filtered using the jq parameter.`,
 	// Add compile tool
 	type compileArgs struct {
 		Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+		Strict     bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
 		Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 		Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 		Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
@@ -178,6 +179,10 @@ Note: Output can be filtered using the jq parameter.`,
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compile",
 		Description: `Compile markdown workflow files to YAML workflows with optional static analysis tools.
+
+Workflows use strict mode validation by default (unless frontmatter sets strict: false).
+Strict mode enforces: action pinning to SHAs, explicit network config, safe-outputs for write operations,
+and refuses write permissions and deprecated fields. Use the strict parameter to override frontmatter settings.
 
 Returns JSON array with validation results for each workflow:
 - workflow: Name of the workflow file
@@ -191,6 +196,11 @@ Note: Output can be filtered using the jq parameter.`,
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP
 		cmdArgs := []string{"compile", "--validate", "--json"}
+
+		// Add strict flag if requested
+		if args.Strict {
+			cmdArgs = append(cmdArgs, "--strict")
+		}
 
 		// Add static analysis flags if requested
 		if args.Zizmor {

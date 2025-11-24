@@ -194,8 +194,6 @@ jobs:
         run: pip install python-lsp-server
       - name: Install TypeScript language service
         run: npm install -g typescript-language-server typescript
-      - name: Install Python language service
-        run: pip install python-lsp-server
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
