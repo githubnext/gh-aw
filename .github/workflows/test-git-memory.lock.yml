@@ -30,9 +30,11 @@
 #
 # Original Prompt:
 # ```markdown
-# # Test Serena Long Syntax
+# # Test Git Memory
 #
-# Test workflow to verify Serena MCP with long syntax (detailed configuration including Go version, go.mod path, and gopls version).
+# This is a test workflow to verify git-memory functionality.
+#
+# Create a file called `test.txt` with the current date and time, then verify it persists.
 # ```
 #
 # Pinned GitHub Actions:
@@ -40,27 +42,21 @@
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
-#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
-#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Test Serena Long Syntax"
+name: "Test Git Memory"
 "on": workflow_dispatch
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Serena Long Syntax"
+run-name: "Test Git Memory"
 
 jobs:
   activation:
@@ -76,7 +72,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "test-serena-long.lock.yml"
+          GH_AW_WORKFLOW_FILE: "test-git-memory.lock.yml"
         with:
           script: |
             async function main() {
@@ -165,7 +161,7 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     steps:
@@ -173,31 +169,33 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
-        with:
-          node-version: '24'
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Install TypeScript language service
-        run: npm install -g typescript-language-server typescript
-      - name: Install Python language service
-        run: pip install python-lsp-server
-      - name: Install Go language service (gopls)
-        run: go install golang.org/x/tools/gopls@v0.14.2
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Git memory branch checkout steps
+      - name: Checkout or create git-memory branch (default)
+        run: |
+          set -e
+          BRANCH="memory/default"
+          
+          # Fetch the branch if it exists remotely
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            echo "Branch $BRANCH exists remotely, checking out..."
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH" || true
+          else
+            echo "Branch $BRANCH does not exist, creating orphaned branch..."
+            git checkout --orphan "$BRANCH"
+            git rm -rf . || true
+            echo "# Git Memory Branch: $BRANCH" > README.md
+            git add README.md
+            git commit -m "Initialize git-memory branch: $BRANCH"
+          fi
+          
+          # Return to original branch for workflow execution
+          git checkout -
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -302,12 +300,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
-              },
-              "serena": {
-                "type": "local",
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}", "--verbose"],
-                "tools": ["*"]
               }
             }
           }
@@ -327,9 +319,11 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Test Serena Long Syntax
+          # Test Git Memory
           
-          Test workflow to verify Serena MCP with long syntax (detailed configuration including Go version, go.mod path, and gopls version).
+          This is a test workflow to verify git-memory functionality.
+          
+          Create a file called `test.txt` with the current date and time, then verify it persists.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -378,6 +372,33 @@ jobs:
           
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
+          PROMPT_EOF
+      - name: Append git memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          
+          ---
+          
+          ## Git Memory Branch Available
+          
+          You have access to a persistent git memory branch `memory/default` where you can read and write files to create memories and store information.
+          
+          - **Git Storage**: Files are stored in a git branch and persist across workflow runs
+          - **Read/Write Access**: You can freely read from and write to any files in the working directory
+          - **Orphaned Branch**: This is an orphaned git branch separate from the main codebase
+          - **Fast-Forward Merge**: Changes use fast-forward merge with 'ours' strategy (current version wins on conflicts)
+          - **Automatic Commit**: All changes are automatically committed and pushed after workflow execution
+          
+          Examples of what you can store:
+          - `notes.txt` - general notes and observations
+          - `preferences.json` - user preferences and settings
+          - `history.log` - activity history and logs
+          - `state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files as needed for your tasks.
           PROMPT_EOF
       - name: Append GitHub context to prompt
         env:
@@ -512,7 +533,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.358",
-              workflow_name: "Test Serena Long Syntax",
+              workflow_name: "Test Git Memory",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1937,6 +1958,34 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      # Git memory branch commit and push steps
+      - name: Commit and push git-memory branch (default)
+        if: always()
+        run: |
+          set -e
+          BRANCH="memory/default"
+          
+          # Checkout the memory branch
+          git checkout "$BRANCH"
+          
+          # Stage all changes
+          git add -A
+          
+          # Commit if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "Update git-memory: ${{ github.workflow }} run ${{ github.run_id }}"
+            
+            # Push with fast-forward merge strategy (ours - current version wins)
+            git push origin "$BRANCH" || {
+              # If push fails due to conflicts, use our version
+              git fetch origin "$BRANCH"
+              git merge -X ours origin/"$BRANCH" -m "Merge with ours strategy"
+              git push origin "$BRANCH"
+            }
+            echo "Changes pushed to $BRANCH"
+          else
+            echo "No changes to commit for $BRANCH"
+          fi
 
   pre_activation:
     runs-on: ubuntu-slim

@@ -238,6 +238,7 @@ type WorkflowData struct {
 	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
 	Roles               []string             // permission levels required to trigger workflow
 	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
+	GitMemoryConfig     *GitMemoryConfig     // parsed git-memory configuration
 	SafetyPrompt        bool                 // whether to include XPIA safety prompt (default true)
 	Runtimes            map[string]any       // runtime version overrides from frontmatter
 	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
@@ -1185,6 +1186,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
+
+	// Extract git-memory config and check for errors
+	gitMemoryConfig, err := c.extractGitMemoryConfig(workflowData.ParsedTools) // Use parsed tools config
+	if err != nil {
+		return nil, err
+	}
+	workflowData.GitMemoryConfig = gitMemoryConfig
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)

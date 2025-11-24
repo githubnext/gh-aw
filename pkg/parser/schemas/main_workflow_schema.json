@@ -2152,6 +2152,97 @@
             ]
           ]
         },
+        "git-memory": {
+          "description": "Git memory configuration for persistent storage using git branches",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable git-memory with default branch (memory/default)"
+            },
+            {
+              "type": "null",
+              "description": "Enable git-memory with default branch (memory/default)"
+            },
+            {
+              "type": "object",
+              "description": "Git-memory configuration object",
+              "properties": {
+                "branch": {
+                  "type": "string",
+                  "pattern": "^memory/",
+                  "description": "Git branch name for storage (must start with 'memory/')"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description for the branch that will be shown in the agent prompt"
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "branch": "memory/session"
+                },
+                {
+                  "branch": "memory/audit",
+                  "description": "Audit workflow persistent state"
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "description": "Array of git-memory configurations for multiple branches",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Branch identifier (required for array notation, default: 'default')"
+                  },
+                  "branch": {
+                    "type": "string",
+                    "pattern": "^memory/",
+                    "description": "Git branch name for this memory (must start with 'memory/')"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description for this branch that will be shown in the agent prompt"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "examples": [
+                [
+                  {
+                    "id": "default",
+                    "branch": "memory/default"
+                  },
+                  {
+                    "id": "session",
+                    "branch": "memory/session"
+                  }
+                ]
+              ]
+            }
+          ],
+          "examples": [
+            true,
+            null,
+            {
+              "branch": "memory/audit"
+            },
+            [
+              {
+                "id": "default",
+                "branch": "memory/default"
+              },
+              {
+                "id": "state",
+                "branch": "memory/state"
+              }
+            ]
+          ]
+        },
         "safety-prompt": {
           "type": "boolean",
           "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."

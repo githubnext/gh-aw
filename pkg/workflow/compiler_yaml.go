@@ -298,6 +298,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
+	// Add git-memory checkout steps if git-memory configuration is present
+	generateGitMemoryCheckoutSteps(yaml, data.GitMemoryConfig)
+
 	// Configure git credentials for agentic workflows
 	gitConfigSteps := c.generateGitConfigurationSteps()
 	for _, line := range gitConfigSteps {
@@ -748,6 +751,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
 
+	// Add git memory prompt as separate step if enabled
+	c.generateGitMemoryPromptStep(yaml, data.GitMemoryConfig)
+
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
 
@@ -791,6 +797,9 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 			}
 		}
 	}
+
+	// Add git-memory commit and push steps after post-steps
+	generateGitMemoryCommitPushSteps(yaml, data.GitMemoryConfig)
 }
 
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {

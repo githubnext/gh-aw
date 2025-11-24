@@ -75,6 +75,7 @@ type ToolsConfig struct {
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
+	GitMemory        *GitMemoryToolConfig        `yaml:"git-memory,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
@@ -145,6 +146,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
+	}
+	if t.GitMemory != nil {
+		result["git-memory"] = t.GitMemory.Raw
 	}
 	if t.SafetyPrompt != nil {
 		result["safety-prompt"] = *t.SafetyPrompt
@@ -233,6 +237,13 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// GitMemoryToolConfig represents the configuration for git-memory
+// This is handled separately by the existing GitMemoryConfig in git_memory.go
+type GitMemoryToolConfig struct {
+	// Can be boolean, object, or array - handled by git_memory.go
+	Raw any `yaml:"-"`
+}
+
 // NewTools creates a new Tools instance from a map
 func NewTools(toolsMap map[string]any) *Tools {
 	toolsTypesLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
@@ -281,6 +292,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
 	}
+	if val, exists := toolsMap["git-memory"]; exists {
+		tools.GitMemory = parseGitMemoryTool(val)
+	}
 	if val, exists := toolsMap["safety-prompt"]; exists {
 		tools.SafetyPrompt = parseSafetyPromptTool(val)
 	}
@@ -302,6 +316,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"git-memory":        true,
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
@@ -569,6 +584,12 @@ func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	return &CacheMemoryToolConfig{Raw: val}
 }
 
+// parseGitMemoryTool converts raw git-memory tool configuration
+func parseGitMemoryTool(val any) *GitMemoryToolConfig {
+	// git-memory can be boolean, object, or array - store raw value
+	return &GitMemoryToolConfig{Raw: val}
+}
+
 // parseSafetyPromptTool converts raw safety-prompt tool configuration
 func parseSafetyPromptTool(val any) *bool {
 	if boolVal, ok := val.(bool); ok {
@@ -628,6 +649,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
+	case "git-memory":
+		return t.GitMemory != nil
 	case "safety-prompt":
 		return t.SafetyPrompt != nil
 	case "timeout":
@@ -674,6 +697,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
+	}
+	if t.GitMemory != nil {
+		names = append(names, "git-memory")
 	}
 	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")
