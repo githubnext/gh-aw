@@ -2,8 +2,6 @@
 name: Issue Monster
 description: The Cookie Monster of issues - hungrily consumes issues one by one, assigning them to agents for resolution
 on:
-  schedule:
-    - cron: "0 * * * *"  # Every hour
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[issue-monster]"'
 
@@ -20,12 +18,11 @@ tools:
     toolsets: [default, pull_requests]
 
 safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
   assign-to-agent:
-    max: 1
-    name: copilot
   add-comment:
-    max: 1
-    target: triggering
 ---
 
 # Issue Monster 🍪
