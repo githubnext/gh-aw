@@ -14,6 +14,41 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
+ * Return list of coding agent bot login names that are currently available as assignable actors
+ * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<string[]>}
+ */
+async function getAvailableAgentLogins(owner, repo) {
+  const query = `
+    query {
+      repository(owner: "${owner}", name: "${repo}") {
+        suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+          nodes { ... on Bot { login __typename } }
+        }
+      }
+    }
+  `;
+  try {
+    const response = await github.graphql(query);
+    const actors = response.repository?.suggestedActors?.nodes || [];
+    const knownValues = Object.values(AGENT_LOGIN_NAMES);
+    const available = [];
+    for (const actor of actors) {
+      if (actor && actor.login && knownValues.includes(actor.login)) {
+        available.push(actor.login);
+      }
+    }
+    return available.sort();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    core.debug(`Failed to list available agent logins: ${msg}`);
+    return [];
+  }
+}
+
+/**
  * Find an agent in repository's suggested actors using GraphQL
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -53,7 +88,16 @@ async function findAgent(owner, repo, agentName) {
       }
     }
 
+    const available = actors
+      .filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login))
+      .map(a => a.login);
+
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+    if (available.length > 0) {
+      core.info(`Available assignable coding agents: ${available.join(", ")}`);
+    } else {
+      core.info("No coding agents are currently assignable in this repository.");
+    }
     if (agentName === "copilot") {
       core.info(
         "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
@@ -373,7 +417,18 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("coding agent is not available for this repository")) {
+        // Enrich with available agent logins to aid troubleshooting
+        try {
+          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+          if (available.length > 0) {
+            errorMessage += ` (available agents: ${available.join(", ")})`;
+          }
+        } catch (e) {
+          core.debug("Failed to enrich unavailable agent message with available list");
+        }
+      }
       core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
       results.push({
         issue_number: issueNumber,
