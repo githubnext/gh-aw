@@ -174,6 +174,7 @@ type GitHubToolConfig struct {
 	ReadOnly    bool     `yaml:"read-only,omitempty"`
 	GitHubToken string   `yaml:"github-token,omitempty"`
 	Toolset     []string `yaml:"toolsets,omitempty"`
+	Lockdown    bool     `yaml:"lockdown,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -386,6 +387,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 					config.Toolset = append(config.Toolset, str)
 				}
 			}
+		}
+
+		if lockdown, ok := configMap["lockdown"].(bool); ok {
+			config.Lockdown = lockdown
 		}
 
 		return config
