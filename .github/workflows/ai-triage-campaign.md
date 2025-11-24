@@ -17,30 +17,19 @@ on:
         default: '10'
 
 permissions:
-  actions: write
-  contents: write
-  issues: write
-  pull-requests: write
-  repository-projects: write
-
-# Important: GITHUB_TOKEN cannot access private user projects or organization projects
-# You MUST create a PAT with 'project' scope and add it as a repository secret
-# Create PAT at: https://github.com/settings/tokens/new?scopes=project&description=Agentic%20Workflows%20Project%20Access
+  contents: read
+  issues: read
 
 engine: copilot
 tools:
   github:
-    mode: local
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     toolsets: [repos, issues]
 safe-outputs:
   update-project:
     max: 20
     github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
   assign-to-agent:
-    default-agent: copilot
-    max: 10
-  missing-tool:
+    name: copilot
 ---
 
 You are an AI-focused issue triage bot that identifies issues AI agents can solve efficiently and routes them appropriately.

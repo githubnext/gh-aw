@@ -8,9 +8,7 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
  * Map agent names to their GitHub bot login names
  */
 const AGENT_LOGIN_NAMES = {
-  copilot: "copilot-swe-agent",
-  claude: "claude-swe-agent",
-  codex: "codex-swe-agent",
+  copilot: "copilot-swe-agent"
 };
 
 /**
@@ -185,6 +183,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   `;
 
   try {
+    // TODO: Use another token here (to assign bots)
     const response = await github.graphql(mutation);
 
     if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
