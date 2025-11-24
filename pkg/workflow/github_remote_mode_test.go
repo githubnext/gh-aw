@@ -292,7 +292,7 @@ This is a test workflow for GitHub remote mode configuration.
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
 				}
-				if !strings.Contains(lockContent, `ghcr.io/github/github-mcp-server:v0.21.0`) {
+				if !strings.Contains(lockContent, `ghcr.io/github/github-mcp-server:v0.22.0`) {
 					t.Errorf("Expected Docker image but didn't find it in:\n%s", lockContent)
 				}
 				// Should NOT contain HTTP type
