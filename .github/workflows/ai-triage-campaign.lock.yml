@@ -306,6 +306,8 @@
 
 name: "AI Triage Campaign"
 "on":
+  schedule:
+  - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
       max_issues:
@@ -519,7 +521,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.22.0
+          docker pull ghcr.io/github/github-mcp-server:v0.21.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1226,7 +1228,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=repos,issues",
-                  "ghcr.io/github/github-mcp-server:v0.22.0"
+                  "ghcr.io/github/github-mcp-server:v0.21.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -4208,7 +4210,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 1
-          GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
