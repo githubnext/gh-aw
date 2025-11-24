@@ -31,11 +31,14 @@
         {"$ref": "#/$defs/AddCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddLabelsOutput"},
+        {"$ref": "#/$defs/AddReviewerOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/CloseDiscussionOutput"},
+        {"$ref": "#/$defs/CloseIssueOutput"},
+        {"$ref": "#/$defs/ClosePullRequestOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
         {"$ref": "#/$defs/UpdateProjectOutput"},
@@ -142,6 +145,33 @@
         }
       },
       "required": ["type", "labels"],
+      "additionalProperties": false
+    },
+    "AddReviewerOutput": {
+      "title": "Add Reviewer Output",
+      "description": "Output for adding reviewers to a pull request",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add_reviewer"
+        },
+        "reviewers": {
+          "type": "array",
+          "description": "Array of GitHub usernames to add as reviewers",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number (optional - uses triggering PR if not provided)"
+        }
+      },
+      "required": ["type", "reviewers"],
       "additionalProperties": false
     },
     "UpdateIssueOutput": {
@@ -291,6 +321,54 @@
       "required": ["type", "body"],
       "additionalProperties": false
     },
+    "CloseIssueOutput": {
+      "title": "Close Issue Output",
+      "description": "Output for closing a GitHub issue with a comment",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_issue"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when closing the issue",
+          "minLength": 1
+        },
+        "issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to close (optional - uses triggering issue if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
+    "ClosePullRequestOutput": {
+      "title": "Close Pull Request Output",
+      "description": "Output for closing a GitHub pull request without merging, with a comment",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "close_pull_request"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when closing the pull request",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number to close (optional - uses triggering PR if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
     "MissingToolOutput": {
       "title": "Missing Tool Output",
       "description": "Output for reporting missing tools or functionality",
@@ -416,7 +494,7 @@
           "minLength": 1
         }
       },
-      "required": ["type", "operation", "body"],
+      "required": ["type", "tag", "operation", "body"],
       "additionalProperties": false
     },
     "AssignMilestoneOutput": {

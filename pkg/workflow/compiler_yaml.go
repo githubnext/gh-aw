@@ -41,7 +41,8 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Add ASCII logo
 	yaml.WriteString("#\n")
-	logoLines := strings.Split(strings.TrimSpace(asciiLogo), "\n")
+	// TrimRight removes only trailing newlines, preserving per-line leading spaces
+	logoLines := strings.Split(strings.TrimRight(asciiLogo, "\n"), "\n")
 	for _, line := range logoLines {
 		yaml.WriteString(fmt.Sprintf("# %s\n", line))
 	}
@@ -258,7 +259,24 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				yaml.WriteString(line + "\n")
 			}
 		}
+
+		// Add Serena language service installation steps if Serena is configured
+		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.Tools)
+		if len(serenaLanguageSteps) > 0 {
+			compilerYamlLog.Printf("Adding %d Serena language service installation steps", len(serenaLanguageSteps))
+			for _, step := range serenaLanguageSteps {
+				for _, line := range step {
+					yaml.WriteString(line + "\n")
+				}
+			}
+		}
 	}
+
+	// Create /tmp/gh-aw/ base directory for all temporary files
+	// This must be created before custom steps so they can use the temp directory
+	yaml.WriteString("      - name: Create gh-aw temp directory\n")
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {
@@ -266,18 +284,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			// Custom steps contain checkout and we have runtime steps to insert
 			// Insert runtime steps after the first checkout step
 			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps)
+			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps, data.Tools)
 		} else {
 			// No checkout in custom steps or no runtime steps, just add custom steps as-is
 			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
 			c.addCustomStepsAsIs(yaml, data.CustomSteps)
 		}
 	}
-
-	// Create /tmp/gh-aw/ base directory for all temporary files
-	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
@@ -393,9 +406,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, data)
 
-	// Add git patch generation step only if safe-outputs create-pull-request feature is used
+	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
+	// The patch is now generated when create_pull_request or push_to_pull_request_branch
+	// tools are called, providing immediate error feedback if no changes are present.
+	// We still upload the patch artifact for processing jobs to download.
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		c.generateGitPatchStep(yaml)
+		c.generateGitPatchUploadStep(yaml)
 	}
 
 	// Add post-steps (if any) after AI execution
@@ -1079,7 +1095,7 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 }
 
 // addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout
-func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep) {
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools map[string]any) {
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
@@ -1155,6 +1171,18 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 						yaml.WriteString(stepLine + "\n")
 					}
 				}
+
+				// Also insert Serena language service steps if configured
+				serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(tools)
+				if len(serenaLanguageSteps) > 0 {
+					compilerYamlLog.Printf("Inserting %d Serena language service steps after runtime setup", len(serenaLanguageSteps))
+					for _, step := range serenaLanguageSteps {
+						for _, stepLine := range step {
+							yaml.WriteString(stepLine + "\n")
+						}
+					}
+				}
+
 				insertedRuntime = true
 				continue // Continue with the next iteration (i is already advanced)
 			}

@@ -6,57 +6,17 @@ const path = require("path");
 const crypto = require("crypto");
 const { execSync } = require("child_process");
 
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+const { estimateTokens } = require("./estimate_tokens.cjs");
+const { generateCompactSchema } = require("./generate_compact_schema.cjs");
+const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
+const { getCurrentBranch } = require("./get_current_branch.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
+const { generateGitPatch } = require("./generate_git_patch.cjs");
+
 const encoder = new TextEncoder();
 const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
-
-/**
- * Normalizes a branch name to be a valid git branch name.
- *
- * IMPORTANT: Keep this function in sync with the normalizeBranchName function in upload_assets.cjs
- *
- * Valid characters: alphanumeric (a-z, A-Z, 0-9), dash (-), underscore (_), forward slash (/), dot (.)
- * Max length: 128 characters
- *
- * The normalization process:
- * 1. Replaces invalid characters with a single dash
- * 2. Collapses multiple consecutive dashes to a single dash
- * 3. Removes leading and trailing dashes
- * 4. Truncates to 128 characters
- * 5. Removes trailing dashes after truncation
- * 6. Converts to lowercase
- *
- * @param {string} branchName - The branch name to normalize
- * @returns {string} The normalized branch name
- */
-function normalizeBranchName(branchName) {
-  if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-    return branchName;
-  }
-
-  // Replace any sequence of invalid characters with a single dash
-  // Valid characters are: a-z, A-Z, 0-9, -, _, /, .
-  let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-
-  // Collapse multiple consecutive dashes to a single dash
-  normalized = normalized.replace(/-+/g, "-");
-
-  // Remove leading and trailing dashes
-  normalized = normalized.replace(/^-+|-+$/g, "");
-
-  // Truncate to max 128 characters
-  if (normalized.length > 128) {
-    normalized = normalized.substring(0, 128);
-  }
-
-  // Ensure it doesn't end with a dash after truncation
-  normalized = normalized.replace(/-+$/, "");
-
-  // Convert to lowercase
-  normalized = normalized.toLowerCase();
-
-  return normalized;
-}
 
 // Read configuration from file
 const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
@@ -177,87 +137,6 @@ function replyError(id, code, message) {
     error,
   };
   writeMessage(res);
-}
-
-/**
- * Estimates token count from text using 4 chars per token estimate
- * @param {string} text - The text to estimate tokens for
- * @returns {number} Approximate token count
- */
-function estimateTokens(text) {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
-}
-
-/**
- * Generates a compact schema description from JSON content
- * @param {string} content - The JSON content to analyze
- * @returns {string} Compact schema description for jq/agent
- */
-function generateCompactSchema(content) {
-  try {
-    const parsed = JSON.parse(content);
-
-    // Generate a compact schema based on the structure
-    if (Array.isArray(parsed)) {
-      if (parsed.length === 0) {
-        return "[]";
-      }
-      // For arrays, describe the first element's structure
-      const firstItem = parsed[0];
-      if (typeof firstItem === "object" && firstItem !== null) {
-        const keys = Object.keys(firstItem);
-        return `[{${keys.join(", ")}}] (${parsed.length} items)`;
-      }
-      return `[${typeof firstItem}] (${parsed.length} items)`;
-    } else if (typeof parsed === "object" && parsed !== null) {
-      // For objects, list top-level keys
-      const keys = Object.keys(parsed);
-      if (keys.length > 10) {
-        return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
-      }
-      return `{${keys.join(", ")}}`;
-    }
-
-    return `${typeof parsed}`;
-  } catch {
-    // If not valid JSON, return generic description
-    return "text content";
-  }
-}
-
-/**
- * Writes large content to a file and returns metadata
- * @param {string} content - The content to write
- * @returns {Object} Object with filename and description
- */
-function writeLargeContentToFile(content) {
-  const logsDir = "/tmp/gh-aw/safeoutputs";
-
-  // Ensure directory exists
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
-
-  // Generate SHA256 hash of content
-  const hash = crypto.createHash("sha256").update(content).digest("hex");
-
-  // MCP tools return JSON, so always use .json extension
-  const filename = `${hash}.json`;
-  const filepath = path.join(logsDir, filename);
-
-  // Write content to file
-  fs.writeFileSync(filepath, content, "utf8");
-
-  debug(`Wrote large content (${content.length} chars) to ${filepath}`);
-
-  // Generate compact schema description for jq/agent
-  const description = generateCompactSchema(content);
-
-  return {
-    filename: filename,
-    description: description,
-  };
 }
 
 function appendSafeOutput(entry) {
@@ -429,55 +308,9 @@ const uploadAssetHandler = args => {
 };
 
 /**
- * Get the current git branch name
- * @returns {string} The current branch name
- */
-function getCurrentBranch() {
-  // Priority 1: Try git command first to get the actual checked-out branch
-  // This is more reliable than environment variables which may not reflect
-  // branch changes made during the workflow execution
-  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-  try {
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-      encoding: "utf8",
-      cwd: cwd,
-    }).trim();
-    debug(`Resolved current branch from git in ${cwd}: ${branch}`);
-    return branch;
-  } catch (error) {
-    debug(`Failed to get branch from git: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  // Priority 2: Fallback to GitHub Actions environment variables
-  // GITHUB_HEAD_REF is set for pull_request events and contains the source branch name
-  // GITHUB_REF_NAME is set for all events and contains the branch/tag name
-  const ghHeadRef = process.env.GITHUB_HEAD_REF;
-  const ghRefName = process.env.GITHUB_REF_NAME;
-
-  if (ghHeadRef) {
-    debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
-    return ghHeadRef;
-  }
-
-  if (ghRefName) {
-    debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
-    return ghRefName;
-  }
-
-  throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
-}
-
-/**
- * Get the base branch name from environment variable
- * @returns {string} The base branch name (defaults to "main")
- */
-function getBaseBranch() {
-  return process.env.GH_AW_BASE_BRANCH || "main";
-}
-
-/**
  * Handler for create_pull_request tool
  * Resolves the current branch if branch is not provided or is the base branch
+ * Generates git patch for the changes
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
@@ -497,12 +330,32 @@ const createPullRequestHandler = args => {
     entry.branch = detectedBranch;
   }
 
+  // Generate git patch
+  debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
+  const patchResult = generateGitPatch(entry.branch);
+
+  if (!patchResult.success) {
+    // Patch generation failed or patch is empty
+    const errorMsg = patchResult.error || "Failed to generate patch";
+    debug(`Patch generation failed: ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
   appendSafeOutput(entry);
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify({ result: "success" }),
+        text: JSON.stringify({
+          result: "success",
+          patch: {
+            path: patchResult.patchPath,
+            size: patchResult.patchSize,
+            lines: patchResult.patchLines,
+          },
+        }),
       },
     ],
   };
@@ -511,6 +364,7 @@ const createPullRequestHandler = args => {
 /**
  * Handler for push_to_pull_request_branch tool
  * Resolves the current branch if branch is not provided or is the base branch
+ * Generates git patch for the changes
  */
 const pushToPullRequestBranchHandler = args => {
   const entry = { ...args, type: "push_to_pull_request_branch" };
@@ -530,12 +384,32 @@ const pushToPullRequestBranchHandler = args => {
     entry.branch = detectedBranch;
   }
 
+  // Generate git patch
+  debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+  const patchResult = generateGitPatch(entry.branch);
+
+  if (!patchResult.success) {
+    // Patch generation failed or patch is empty
+    const errorMsg = patchResult.error || "Failed to generate patch";
+    debug(`Patch generation failed: ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
   appendSafeOutput(entry);
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify({ result: "success" }),
+        text: JSON.stringify({
+          result: "success",
+          patch: {
+            path: patchResult.patchPath,
+            size: patchResult.patchSize,
+            lines: patchResult.patchLines,
+          },
+        }),
       },
     ],
   };

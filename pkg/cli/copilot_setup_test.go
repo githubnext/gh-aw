@@ -27,8 +27,14 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				if !strings.Contains(string(content), "copilot-setup-steps") {
 					t.Error("Expected workflow to contain 'copilot-setup-steps' job name")
 				}
-				if !strings.Contains(string(content), "gh extension install githubnext/gh-aw") {
-					t.Error("Expected workflow to contain gh extension install command")
+				if !strings.Contains(string(content), "install-gh-aw.sh") {
+					t.Error("Expected workflow to contain install-gh-aw.sh bash script")
+				}
+				if !strings.Contains(string(content), "curl -fsSL") {
+					t.Error("Expected workflow to contain curl command")
+				}
+				if !strings.Contains(string(content), "./gh-aw version") {
+					t.Error("Expected workflow to contain ./gh-aw version verification")
 				}
 			},
 		},
@@ -47,10 +53,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 							},
 							{
 								Name: "Install gh-aw extension",
-								Run:  "gh extension install githubnext/gh-aw",
-								Env: map[string]any{
-									"GH_TOKEN": "${{ github.token }}",
-								},
+								Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 							},
 						},
 					},
@@ -100,13 +103,17 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 					t.Fatalf("Expected job 'copilot-setup-steps' not found")
 				}
 
-				// Extension install should be injected at the beginning
-				if len(job.Steps) < 3 {
-					t.Fatalf("Expected at least 3 steps after injection, got %d", len(job.Steps))
+				// Extension install and verify steps should be injected at the beginning
+				if len(job.Steps) < 4 {
+					t.Fatalf("Expected at least 4 steps after injection (2 injected + 2 existing), got %d", len(job.Steps))
 				}
 
 				if job.Steps[0].Name != "Install gh-aw extension" {
 					t.Errorf("Expected first step to be 'Install gh-aw extension', got %q", job.Steps[0].Name)
+				}
+
+				if job.Steps[1].Name != "Verify gh-aw installation" {
+					t.Errorf("Expected second step to be 'Verify gh-aw installation', got %q", job.Steps[1].Name)
 				}
 			},
 		},
@@ -196,12 +203,16 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 				},
 			},
 			wantErr:       false,
-			expectedSteps: 3,
+			expectedSteps: 4, // 2 injected steps + 2 existing steps
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
 				// Extension install should be at index 0 (beginning)
 				if steps[0].Name != "Install gh-aw extension" {
 					t.Errorf("Expected step 0 to be 'Install gh-aw extension', got %q", steps[0].Name)
+				}
+				// Verify step should be at index 1
+				if steps[1].Name != "Verify gh-aw installation" {
+					t.Errorf("Expected step 1 to be 'Verify gh-aw installation', got %q", steps[1].Name)
 				}
 			},
 		},
@@ -215,15 +226,18 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 				},
 			},
 			wantErr:       false,
-			expectedSteps: 1,
+			expectedSteps: 2, // 2 injected steps (install + verify)
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
-				// Extension install should be the only step
-				if len(steps) != 1 {
-					t.Errorf("Expected 1 step, got %d", len(steps))
+				// Should have 2 steps
+				if len(steps) != 2 {
+					t.Errorf("Expected 2 steps, got %d", len(steps))
 				}
 				if steps[0].Name != "Install gh-aw extension" {
-					t.Errorf("Expected step to be 'Install gh-aw extension', got %q", steps[0].Name)
+					t.Errorf("Expected step 0 to be 'Install gh-aw extension', got %q", steps[0].Name)
+				}
+				if steps[1].Name != "Verify gh-aw installation" {
+					t.Errorf("Expected step 1 to be 'Verify gh-aw installation', got %q", steps[1].Name)
 				}
 			},
 		},
@@ -343,14 +357,14 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 	// Verify it has the extension install step
 	hasExtensionInstall := false
 	for _, step := range job.Steps {
-		if strings.Contains(step.Run, "gh extension install githubnext/gh-aw") {
+		if strings.Contains(step.Run, "install-gh-aw.sh") || strings.Contains(step.Run, "curl -fsSL") {
 			hasExtensionInstall = true
 			break
 		}
 	}
 
 	if !hasExtensionInstall {
-		t.Error("Expected copilotSetupStepsYAML to contain extension install step")
+		t.Error("Expected copilotSetupStepsYAML to contain extension install step with bash script")
 	}
 
 	// Verify it does NOT have checkout, Go setup or build steps (for universal use)
@@ -369,16 +383,13 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		}
 	}
 
-	// Verify verification step only uses 'gh aw version' (not './gh-aw version')
+	// Verify verification step uses './gh-aw version' (works in the runner environment after bash install)
 	hasVerification := false
 	for _, step := range job.Steps {
 		if strings.Contains(step.Name, "Verify") {
 			hasVerification = true
-			if strings.Contains(step.Run, "./gh-aw") {
-				t.Error("Verification step should not try to run './gh-aw' (only works in gh-aw repo)")
-			}
-			if !strings.Contains(step.Run, "gh aw version") {
-				t.Error("Verification step should use 'gh aw version'")
+			if !strings.Contains(step.Run, "./gh-aw") {
+				t.Error("Verification step should use './gh-aw version' after bash install")
 			}
 		}
 	}

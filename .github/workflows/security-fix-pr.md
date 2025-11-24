@@ -2,7 +2,15 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
+  schedule:
+    - cron: "0 */4 * * *"  # Every 4 hours
   workflow_dispatch:
+    inputs:
+      security_url:
+        description: 'Security alert URL (e.g., https://github.com/owner/repo/security/code-scanning/123)'
+        required: false
+        default: ''
+  skip-if-match: 'is:pr is:open in:title "[security-fix]"'
 permissions:
   contents: read
   pull-requests: read
@@ -31,31 +39,38 @@ You are a security-focused code analysis agent that identifies and fixes code se
 When triggered manually via workflow_dispatch, you must:
 0. **List previous PRs**: Check if there are any open or recently closed security fix PRs to avoid duplicates
 1. **List previous security fixes in the cache memory**: Check if the cache-memory contains any recently fixed security issues to avoid duplicates
-2. **List Code Scanning Alerts**: Retrieve all open code scanning alerts from the repository
-3. **Select a Security Alert**: Pick the first open security alert to fix that is not already being addressed in an open PR or recently fixed
-4. **Analyze the Issue**: Understand the security vulnerability and its context
-5. **Generate a Fix**: Create code changes that address the security issue.
-6. **Create Pull Request**: Submit a pull request with the fix
+2. **Select Security Alert**: 
+   - If a security URL was provided (`${{ github.event.inputs.security_url }}`), extract the alert number from the URL and use it directly
+   - Otherwise, list all open code scanning alerts and pick the first one
+3. **Analyze the Issue**: Understand the security vulnerability and its context
+4. **Generate a Fix**: Create code changes that address the security issue.
+5. **Create Pull Request**: Submit a pull request with the fix
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: @${{ github.actor }}
+- **Security URL**: ${{ github.event.inputs.security_url }}
 
 ## Workflow Steps
 
-### 1. Retrieve Code Scanning Alerts
+### 1. Determine Alert Selection Method
 
-Use the GitHub API to list all open code scanning alerts:
-- Use `list_code_scanning_alerts` to get all open alerts
-- Filter for `state: open` alerts
-- Sort by severity (critical/high first)
+Check if a security URL was provided:
+- **If security URL is provided** (`${{ github.event.inputs.security_url }}`):
+  - Extract the alert number from the URL (e.g., from `https://github.com/owner/repo/security/code-scanning/123`, extract `123`)
+  - Skip to step 2 to get the alert details directly
+- **If no security URL is provided**:
+  - Use the GitHub API to list all open code scanning alerts
+  - Use `list_code_scanning_alerts` to get all open alerts
+  - Filter for `state: open` alerts
+  - Sort by severity (critical/high first)
+  - Select the first alert from the list
+  - If no alerts exist, stop and report "No open security alerts found"
 
-### 2. Select the First Alert
+### 2. Get Alert Details
 
-Pick the first alert from the list:
-- If no alerts exist, stop and report "No open security alerts found"
-- Get detailed information about the selected alert using `get_code_scanning_alert`
+Get detailed information about the selected alert using `get_code_scanning_alert`:
 - Extract key information:
   - Alert number
   - Severity level

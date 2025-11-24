@@ -44,6 +44,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build the job steps
 	var steps []string
 
+	// Add GitHub App token minting step if app is configured
+	if data.SafeOutputs.App != nil {
+		// Use permissions for the conclusion job
+		permissions := NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite()
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
+	}
+
 	// Add debug step
 	steps = append(steps, "      - name: Debug job inputs\n")
 	steps = append(steps, "        env:\n")
@@ -111,6 +118,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
+
+	// Add GitHub App token invalidation step if app is configured
+	if data.SafeOutputs.App != nil {
+		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
+	}
 
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails

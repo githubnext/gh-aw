@@ -33,14 +33,10 @@ jobs:
 
     steps:
       - name: Install gh-aw extension
-        run: gh extension install githubnext/gh-aw
-        env:
-          GH_TOKEN: ${{ github.token }}
-
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
       - name: Verify gh-aw installation
-        run: gh aw version
-        env:
-          GH_TOKEN: ${{ github.token }}
+        run: ./gh-aw version
 `
 
 // WorkflowStep represents a GitHub Actions workflow step
@@ -92,8 +88,8 @@ func ensureCopilotSetupSteps(verbose bool) error {
 
 		// Check if the extension install step is already present (quick check)
 		contentStr := string(content)
-		if strings.Contains(contentStr, "gh extension install githubnext/gh-aw") ||
-			strings.Contains(contentStr, "Install gh-aw extension") {
+		if strings.Contains(contentStr, "install-gh-aw.sh") ||
+			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL")) {
 			copilotSetupLog.Print("Extension install step already exists, skipping update")
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Skipping %s (already has gh-aw extension install step)\n", setupStepsPath)
@@ -138,15 +134,16 @@ func ensureCopilotSetupSteps(verbose bool) error {
 	return nil
 }
 
-// injectExtensionInstallStep injects the gh-aw extension install step into an existing workflow
+// injectExtensionInstallStep injects the gh-aw extension install and verification steps into an existing workflow
 func injectExtensionInstallStep(workflow *Workflow) error {
-	// Define the extension install step to inject
-	extensionStep := WorkflowStep{
+	// Define the extension install and verify steps to inject
+	installStep := WorkflowStep{
 		Name: "Install gh-aw extension",
-		Run:  "gh extension install githubnext/gh-aw",
-		Env: map[string]any{
-			"GH_TOKEN": "${{ github.token }}",
-		},
+		Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+	}
+	verifyStep := WorkflowStep{
+		Name: "Verify gh-aw installation",
+		Run:  "./gh-aw version",
 	}
 
 	// Find the copilot-setup-steps job
@@ -155,13 +152,14 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 		return fmt.Errorf("copilot-setup-steps job not found in workflow")
 	}
 
-	// Insert the extension install step at the beginning
+	// Insert the extension install and verify steps at the beginning
 	insertPosition := 0
 
-	// Insert the step at the determined position
-	newSteps := make([]WorkflowStep, 0, len(job.Steps)+1)
+	// Insert both steps at the determined position
+	newSteps := make([]WorkflowStep, 0, len(job.Steps)+2)
 	newSteps = append(newSteps, job.Steps[:insertPosition]...)
-	newSteps = append(newSteps, extensionStep)
+	newSteps = append(newSteps, installStep)
+	newSteps = append(newSteps, verifyStep)
 	newSteps = append(newSteps, job.Steps[insertPosition:]...)
 
 	job.Steps = newSteps

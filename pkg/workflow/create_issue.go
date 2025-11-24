@@ -31,22 +31,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 			// Parse labels using shared helper
 			issuesConfig.Labels = parseLabelsFromConfig(configMap)
 
-			// Parse assignees (supports both string and array)
-			if assignees, exists := configMap["assignees"]; exists {
-				if assigneeStr, ok := assignees.(string); ok {
-					// Single string format
-					issuesConfig.Assignees = []string{assigneeStr}
-				} else if assigneesArray, ok := assignees.([]any); ok {
-					// Array format
-					var assigneeStrings []string
-					for _, assignee := range assigneesArray {
-						if assigneeStr, ok := assignee.(string); ok {
-							assigneeStrings = append(assigneeStrings, assigneeStr)
-						}
-					}
-					issuesConfig.Assignees = assigneeStrings
-				}
-			}
+			// Parse assignees using shared helper
+			issuesConfig.Assignees = parseParticipantsFromConfig(configMap, "assignees")
 
 			// Parse target-repo using shared helper with validation
 			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)

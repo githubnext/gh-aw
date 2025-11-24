@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var accessLogLog = logger.New("cli:access_log")
 
 // AccessLogEntry represents a parsed squid access log entry
 type AccessLogEntry struct {
@@ -45,8 +48,11 @@ func (d *DomainAnalysis) AddMetrics(other LogAnalysis) {
 
 // parseSquidAccessLog parses a squid access log file and extracts domain information
 func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) {
+	accessLogLog.Printf("Parsing squid access log: %s", logPath)
+
 	file, err := os.Open(logPath)
 	if err != nil {
+		accessLogLog.Printf("Failed to open access log %s: %v", logPath, err)
 		return nil, fmt.Errorf("failed to open access log: %w", err)
 	}
 	defer file.Close()
@@ -119,6 +125,9 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	sort.Strings(analysis.AllowedDomains)
 	sort.Strings(analysis.DeniedDomains)
 
+	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, denied=%d, unique_allowed_domains=%d, unique_denied_domains=%d",
+		analysis.TotalRequests, analysis.AllowedCount, analysis.DeniedCount, len(analysis.AllowedDomains), len(analysis.DeniedDomains))
+
 	return analysis, nil
 }
 
@@ -170,13 +179,17 @@ func extractDomainFromURL(url string) string {
 
 // analyzeAccessLogs analyzes access logs in a run directory
 func analyzeAccessLogs(runDir string, verbose bool) (*DomainAnalysis, error) {
+	accessLogLog.Printf("Analyzing access logs in: %s", runDir)
+
 	// Check for access log files in access.log directory
 	accessLogsDir := filepath.Join(runDir, "access.log")
 	if _, err := os.Stat(accessLogsDir); err == nil {
+		accessLogLog.Printf("Found access logs directory: %s", accessLogsDir)
 		return analyzeMultipleAccessLogs(accessLogsDir, verbose)
 	}
 
 	// No access logs found
+	accessLogLog.Printf("No access logs directory found in: %s", runDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No access logs found in %s", runDir)))
 	}

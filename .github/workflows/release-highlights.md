@@ -260,7 +260,8 @@ BODY: [Your complete highlights markdown here]
 ```
 
 **Important Notes:**
-- The `TAG` will be automatically inferred from the release event if you don't specify it
+- **The `TAG` field is REQUIRED** - You must specify the release tag (e.g., "v0.30.2") using the ${RELEASE_TAG} environment variable
+- The tag cannot be automatically inferred when the workflow is triggered manually (workflow_dispatch)
 - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
 - Include all your markdown formatting in the BODY section
 - The system will automatically add an AI attribution footer
@@ -280,6 +281,7 @@ Here's a sample of what your output might look like:
 
 ```
 TYPE: update_release
+TAG: v0.30.2
 OPERATION: prepend
 BODY: ## 🌟 Release Highlights
 

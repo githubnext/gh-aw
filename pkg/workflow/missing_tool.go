@@ -31,16 +31,6 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	// Add workflow metadata for consistency
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
-	// Build the GitHub Script step using the common helper
-	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Record Missing Tool",
-		StepID:        "missing_tool",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        missingToolScript,
-		Token:         data.SafeOutputs.MissingTool.GitHubToken,
-	})
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"tools_reported": "${{ steps.missing_tool.outputs.tools_reported }}",
@@ -48,21 +38,21 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	}
 
 	// Build the job condition using BuildSafeOutputType
-	jobCondition := BuildSafeOutputType("missing_tool").Render()
+	jobCondition := BuildSafeOutputType("missing_tool")
 
-	// Create the job
-	job := &Job{
-		Name:           "missing_tool",
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		If:             jobCondition,
-		Permissions:    NewPermissionsContentsRead().RenderToYAML(),
-		TimeoutMinutes: 5, // Short timeout since it's just processing output
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:       "missing_tool",
+		StepName:      "Record Missing Tool",
+		StepID:        "missing_tool",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        missingToolScript,
+		Permissions:   NewPermissionsContentsRead(),
+		Outputs:       outputs,
+		Condition:     jobCondition,
+		Token:         data.SafeOutputs.MissingTool.GitHubToken,
+	})
 }
 
 // parseMissingToolConfig handles missing-tool configuration

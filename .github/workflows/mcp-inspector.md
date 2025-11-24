@@ -19,10 +19,6 @@ network:
     - "cdn.jsdelivr.net"        # npm package CDN
     - "fonts.googleapis.com"    # Google Fonts API
     - "fonts.gstatic.com"       # Google Fonts static content
-tools:
-  edit:
-  bash:
-  cache-memory: true
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -43,11 +39,15 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/notion.md
   - shared/mcp/sentry.md
-  - shared/mcp/serena.md
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+tools:
+  serena: ["go"]
+  edit:
+  bash:
+  cache-memory: true
 ---
 
 # MCP Inspector Agent

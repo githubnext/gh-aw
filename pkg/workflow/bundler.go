@@ -16,7 +16,7 @@ var bundlerLog = logger.New("workflow:bundler")
 // mainContent is the main JavaScript content that may contain require() calls
 // basePath is the base directory path for resolving relative imports (e.g., "js")
 func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {
-	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s", len(sources), basePath)
+	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s, main_content_size=%d bytes", len(sources), basePath, len(mainContent))
 
 	// Track already processed files to avoid circular dependencies
 	processed := make(map[string]bool)
@@ -37,7 +37,17 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 		return "", err
 	}
 
-	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes", len(processed), len(bundled))
+	// Log size information about the bundled output
+	lines := strings.Split(bundled, "\n")
+	var maxLineLength int
+	for _, line := range lines {
+		if len(line) > maxLineLength {
+			maxLineLength = len(line)
+		}
+	}
+
+	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes, output_lines=%d, max_line_length=%d chars",
+		len(processed), len(bundled), len(lines), maxLineLength)
 	return bundled, nil
 }
 
@@ -111,6 +121,8 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 				return "", fmt.Errorf("required file not found in sources: %s", fullPath)
 			}
 
+			bundlerLog.Printf("Inlining file: %s (size: %d bytes)", fullPath, len(requiredContent))
+
 			// Recursively bundle the required file
 			requiredDir := filepath.Dir(fullPath)
 			bundledRequired, err := bundleFromSources(requiredContent, requiredDir, sources, processed)
@@ -120,6 +132,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 
 			// Remove exports from the bundled content
 			cleanedRequired := removeExports(bundledRequired)
+			bundlerLog.Printf("Processed %s: original_size=%d, after_export_removal=%d", fullPath, len(bundledRequired), len(cleanedRequired))
 
 			// Add a comment indicating the inlined file
 			result.WriteString(fmt.Sprintf("// === Inlined from %s ===\n", requirePath))

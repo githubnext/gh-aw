@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
 
+var mcpCommandLog = logger.New("cli:mcp")
+
 // NewMCPCommand creates the main mcp command with subcommands
 func NewMCPCommand() *cobra.Command {
+	mcpCommandLog.Print("Creating MCP command with subcommands")
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Manage MCP (Model Context Protocol) servers",

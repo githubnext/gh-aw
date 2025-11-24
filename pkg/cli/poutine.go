@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var poutineLog = logger.New("cli:poutine")
 
 // poutineFinding represents a single finding from poutine JSON output
 type poutineFinding struct {
@@ -41,7 +44,7 @@ func ensurePoutineConfig(gitRoot string) error {
 	// Check if config already exists
 	if _, err := os.Stat(configPath); err == nil {
 		// Config exists, do not update it
-		compileLog.Print(".poutine.yml already exists, skipping creation")
+		poutineLog.Print(".poutine.yml already exists, skipping creation")
 		return nil
 	}
 
@@ -61,13 +64,13 @@ rulesConfig:
 		return fmt.Errorf("failed to write .poutine.yml: %w", err)
 	}
 
-	compileLog.Printf("Created .poutine.yml at %s", configPath)
+	poutineLog.Printf("Created .poutine.yml at %s", configPath)
 	return nil
 }
 
 // runPoutineOnFile runs the poutine security scanner on a single .lock.yml file using Docker
 func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
-	compileLog.Printf("Running poutine security scanner on %s", lockFile)
+	poutineLog.Printf("Running poutine security scanner: file=%s, strict=%v", lockFile, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := findGitRoot()
@@ -119,7 +122,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	// Parse and reformat the output, get total warning count
 	totalWarnings, parseErr := parseAndDisplayPoutineOutput(stdout.String(), relPath, verbose)
 	if parseErr != nil {
-		compileLog.Printf("Failed to parse poutine output: %v", parseErr)
+		poutineLog.Printf("Failed to parse poutine output: %v", parseErr)
 		// Fall back to showing raw output
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
@@ -134,7 +137,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		// poutine exits with non-zero code when findings are present
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
-			compileLog.Printf("Poutine exited with code %d", exitCode)
+			poutineLog.Printf("Poutine exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit code 1 typically indicates findings in the repository
 			// In non-strict mode, we allow this even if we don't have findings
 			// specific to the current file (poutine scans the whole directory)

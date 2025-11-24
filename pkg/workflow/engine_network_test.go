@@ -69,7 +69,7 @@ func TestNetworkHookGenerator(t *testing.T) {
 		script := generator.GenerateNetworkHookScript(allowedDomains)
 
 		// Should still generate a valid script
-		if !strings.Contains(script, "ALLOWED_DOMAINS = []") {
+		if !strings.Contains(script, "json.loads('''[]''')") {
 			t.Error("Script should handle empty domains list (deny-all policy)")
 		}
 		if !strings.Contains(script, "def is_domain_allowed") {

@@ -548,11 +548,28 @@ on:
   # (optional)
   stop-after: "example-value"
 
-  # GitHub search query string to check before running workflow. If the search
-  # returns any results, the workflow will be skipped. Query is automatically scoped
-  # to the current repository. Example: 'is:issue is:open label:bug'
+  # Conditionally skip workflow execution when a GitHub search query has matches.
+  # Can be a string (query only, implies max=1) or an object with 'query' and
+  # optional 'max' fields.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: GitHub search query string to check before running workflow (implies
+  # max=1). If the search returns any results, the workflow will be skipped. Query
+  # is automatically scoped to the current repository. Example: 'is:issue is:open
+  # label:bug'
   skip-if-match: "example-value"
+
+  # Option 2: Skip-if-match configuration object with query and maximum match count
+  skip-if-match:
+    # GitHub search query string to check before running workflow. Query is
+    # automatically scoped to the current repository.
+    query: "example-value"
+
+    # Maximum number of items that must be matched for the workflow to be skipped.
+    # Defaults to 1 if not specified.
+    # (optional)
+    max: 1
 
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
@@ -1203,6 +1220,115 @@ tools:
   # (optional)
   startup-timeout: 1
 
+  # Serena MCP server for AI-powered code intelligence with language service
+  # integration
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable Serena with default settings
+  serena: null
+
+  # Option 2: Short syntax: array of language identifiers to enable (e.g., ["go",
+  # "typescript"])
+  serena: []
+    # Array items: string
+
+  # Option 3: Serena configuration with custom version and language-specific
+  # settings
+  serena:
+    # Optional Serena MCP version. Numeric values are automatically converted to
+    # strings at runtime.
+    # (optional)
+    version: null
+
+    # Optional additional arguments to append to the generated MCP server command
+    # (optional)
+    args: []
+      # Array of strings
+
+    # Language-specific configuration for Serena language services
+    # (optional)
+    languages:
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable Go language service with default version
+      go: null
+
+      # Option 2: object
+      go:
+        # Go version (e.g., "1.21", 1.21)
+        # (optional)
+        version: null
+
+        # Path to go.mod file for Go version detection (e.g., "go.mod", "backend/go.mod")
+        # (optional)
+        go-mod-file: "example-value"
+
+        # Version of gopls to install (e.g., "latest", "v0.14.2")
+        # (optional)
+        gopls-version: "example-value"
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable TypeScript language service with default version
+      typescript: null
+
+      # Option 2: object
+      typescript:
+        # Node.js version for TypeScript (e.g., "22", 22)
+        # (optional)
+        version: null
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable Python language service with default version
+      python: null
+
+      # Option 2: object
+      python:
+        # Python version (e.g., "3.12", 3.12)
+        # (optional)
+        version: null
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable Java language service with default version
+      java: null
+
+      # Option 2: object
+      java:
+        # Java version (e.g., "21", 21)
+        # (optional)
+        version: null
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable Rust language service with default version
+      rust: null
+
+      # Option 2: object
+      rust:
+        # Rust version (e.g., "stable", "1.75")
+        # (optional)
+        version: null
+
+      # (optional)
+      # This field supports multiple formats (oneOf):
+
+      # Option 1: Enable C# language service with default version
+      csharp: null
+
+      # Option 2: object
+      csharp:
+        # .NET version for C# (e.g., "8.0", 8.0)
+        # (optional)
+        version: null
+
 # Command name for the workflow
 # (optional)
 command: "example-value"
@@ -1441,6 +1567,80 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for closing GitHub issues with comment from agentic
+  # workflow output
+  close-issue:
+    # Only close issues that have all of these labels
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Only close issues with this title prefix
+    # (optional)
+    required-title-prefix: "example-value"
+
+    # Target for closing: 'triggering' (default, current issue), or '*' (any issue
+    # with issue_number field)
+    # (optional)
+    target: "example-value"
+
+    # Maximum number of issues to close (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository operations. Takes
+    # precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable issue closing with default configuration
+  close-issue: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for closing GitHub pull requests without merging, with
+  # comment from agentic workflow output
+  close-pull-request:
+    # Only close pull requests that have any of these labels
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Only close pull requests with this title prefix
+    # (optional)
+    required-title-prefix: "example-value"
+
+    # Target for closing: 'triggering' (default, current PR), or '*' (any PR with
+    # pull_request_number field)
+    # (optional)
+    target: "example-value"
+
+    # Maximum number of pull requests to close (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository operations. Takes
+    # precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable pull request closing with default configuration
+  close-pull-request: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for automatically creating GitHub issue or pull request
   # comments from AI workflow output. The main job does not need write permissions.
   add-comment:
@@ -1609,6 +1809,39 @@ safe-outputs:
     target: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository label addition.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null configuration allows any reviewers
+  add-reviewer: null
+
+  # Option 2: Configuration for adding reviewers to pull requests from agentic
+  # workflow output
+  add-reviewer:
+    # Optional list of allowed reviewers. If omitted, any reviewers are allowed.
+    # (optional)
+    reviewers: []
+      # Array of strings
+
+    # Optional maximum number of reviewers to add (default: 3)
+    # (optional)
+    max: 1
+
+    # Target for reviewers: 'triggering' (default), '*' (any PR), or explicit PR
+    # number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository reviewer addition.
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"

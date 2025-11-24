@@ -26,6 +26,9 @@ var createIssueScriptSource string
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
 
+//go:embed js/add_reviewer.cjs
+var addReviewerScriptSource string
+
 //go:embed js/assign_milestone.cjs
 var assignMilestoneScriptSource string
 
@@ -37,6 +40,12 @@ var createDiscussionScriptSource string
 
 //go:embed js/close_discussion.cjs
 var closeDiscussionScriptSource string
+
+//go:embed js/close_issue.cjs
+var closeIssueScriptSource string
+
+//go:embed js/close_pull_request.cjs
+var closePullRequestScriptSource string
 
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
@@ -99,6 +108,9 @@ var (
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
 
+	addReviewerScript     string
+	addReviewerScriptOnce sync.Once
+
 	assignMilestoneScript     string
 	assignMilestoneScriptOnce sync.Once
 
@@ -110,6 +122,12 @@ var (
 
 	closeDiscussionScript     string
 	closeDiscussionScriptOnce sync.Once
+
+	closeIssueScript     string
+	closeIssueScriptOnce sync.Once
+
+	closePullRequestScript     string
+	closePullRequestScriptOnce sync.Once
 
 	updateIssueScript     string
 	updateIssueScriptOnce sync.Once
@@ -244,6 +262,24 @@ func getAddLabelsScript() string {
 	return addLabelsScript
 }
 
+// getAddReviewerScript returns the bundled add_reviewer script
+// Bundling is performed on first access and cached for subsequent calls
+func getAddReviewerScript() string {
+	addReviewerScriptOnce.Do(func() {
+		scriptsLog.Print("Bundling add_reviewer script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(addReviewerScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for add_reviewer, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			addReviewerScript = addReviewerScriptSource
+		} else {
+			addReviewerScript = bundled
+		}
+	})
+	return addReviewerScript
+}
+
 // getAssignMilestoneScript returns the bundled assign_milestone script
 // Bundling is performed on first access and cached for subsequent calls
 func getAssignMilestoneScript() string {
@@ -331,6 +367,40 @@ func getCloseDiscussionScript() string {
 		}
 	})
 	return closeDiscussionScript
+}
+
+// getCloseIssueScript returns the bundled close_issue script
+// Bundling is performed on first access and cached for subsequent calls
+func getCloseIssueScript() string {
+	closeIssueScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(closeIssueScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for close_issue, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			closeIssueScript = closeIssueScriptSource
+		} else {
+			closeIssueScript = bundled
+		}
+	})
+	return closeIssueScript
+}
+
+// getClosePullRequestScript returns the bundled close_pull_request script
+// Bundling is performed on first access and cached for subsequent calls
+func getClosePullRequestScript() string {
+	closePullRequestScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(closePullRequestScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for close_pull_request, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			closePullRequestScript = closePullRequestScriptSource
+		} else {
+			closePullRequestScript = bundled
+		}
+	})
+	return closePullRequestScript
 }
 
 // getUpdateIssueScript returns the bundled update_issue script

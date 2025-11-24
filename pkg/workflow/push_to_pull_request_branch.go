@@ -25,6 +25,13 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	var steps []string
 
+	// Add GitHub App token minting step if app is configured
+	if data.SafeOutputs.App != nil {
+		// Get permissions for the job to pass to the app token minting step
+		permissions := NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite()
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
+	}
+
 	// Step 1: Download patch artifact
 	steps = append(steps, "      - name: Download patch artifact\n")
 	steps = append(steps, "        continue-on-error: true\n")
@@ -37,12 +44,22 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	steps = buildCheckoutRepository(steps, c)
 
 	// Step 3: Configure Git credentials
-	steps = append(steps, c.generateGitConfigurationSteps()...)
+	// Use app token if configured, otherwise use github.token
+	if data.SafeOutputs.App != nil {
+		steps = append(steps, c.generateGitConfigurationStepsWithToken("${{ steps.app-token.outputs.token }}")...)
+	} else {
+		steps = append(steps, c.generateGitConfigurationSteps()...)
+	}
 
 	// Build custom environment variables specific to push-to-pull-request-branch
 	var customEnvVars []string
 	// Add GH_TOKEN for authentication, because we shell out to 'gh' commands
-	customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ github.token }}\n")
+	// Use app token if configured, otherwise use github.token
+	if data.SafeOutputs.App != nil {
+		customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ steps.app-token.outputs.token }}\n")
+	} else {
+		customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ github.token }}\n")
+	}
 	// Pass the target configuration
 	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))

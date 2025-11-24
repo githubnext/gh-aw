@@ -76,31 +76,31 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
 	}
 
-	var steps []string
+	var preSteps []string
 
 	// Permission checks are now handled by the separate check_membership job
 	// which is always created when needed (when activation job is created)
 
 	// Step 1: Checkout repository
-	steps = buildCheckoutRepository(steps, c)
+	preSteps = buildCheckoutRepository(preSteps, c)
 
 	// Step 2: Configure Git credentials
-	steps = append(steps, c.generateGitConfigurationSteps()...)
+	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
 
 	// Step 3: Download assets artifact if it exists
-	steps = append(steps, "      - name: Download assets\n")
-	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: safe-outputs-assets\n")
-	steps = append(steps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
+	preSteps = append(preSteps, "      - name: Download assets\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          name: safe-outputs-assets\n")
+	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
 
 	// Step 4: List files
-	steps = append(steps, "      - name: List downloaded asset files\n")
-	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
-	steps = append(steps, "          ls -la /tmp/gh-aw/safeoutputs/assets/\n")
+	preSteps = append(preSteps, "      - name: List downloaded asset files\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	preSteps = append(preSteps, "        run: |\n")
+	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
+	preSteps = append(preSteps, "          ls -la /tmp/gh-aw/safeoutputs/assets/\n")
 
 	// Build custom environment variables specific to upload-assets
 	var customEnvVars []string
@@ -111,17 +111,6 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...) // No target repo for upload assets
 
-	// Build the GitHub Script step using the common helper
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Upload Assets to Orphaned Branch",
-		StepID:        "upload_assets",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getUploadAssetsScript(),
-		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
-	})
-	steps = append(steps, scriptSteps...)
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"published_count": "${{ steps.upload_assets.outputs.published_count }}",
@@ -131,16 +120,18 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset")
 
-	job := &Job{
-		Name:           "upload_assets",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:       "upload_assets",
+		StepName:      "Upload Assets to Orphaned Branch",
+		StepID:        "upload_assets",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        getUploadAssetsScript(),
+		Permissions:   NewPermissionsContentsWrite(),
+		Outputs:       outputs,
+		Condition:     jobCondition,
+		PreSteps:      preSteps,
+		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
+	})
 }

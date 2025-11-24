@@ -402,6 +402,10 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 				renderer := createRenderer(isLast)
 				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
 			},
+			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderSerenaMCP(yaml, serenaTool)
+			},
 			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				// Cache-memory is not used for Copilot (filtered out)
 			},

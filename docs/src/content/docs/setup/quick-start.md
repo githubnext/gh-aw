@@ -10,7 +10,7 @@ sidebar:
 > Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered automation that can make decisions) requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
-## ✅ Prerequisites
+## Prerequisites
 
 Before you begin, make sure you have:
 

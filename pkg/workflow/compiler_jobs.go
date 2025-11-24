@@ -47,7 +47,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
-	hasSkipIfMatch := data.SkipIfMatch != ""
+	hasSkipIfMatch := data.SkipIfMatch != nil
 	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
@@ -208,6 +208,42 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, closeDiscussionJob.Name)
 	}
 
+	// Build close_issue job if safe-outputs.close-issue is configured
+	if data.SafeOutputs.CloseIssues != nil {
+		closeIssueJob, err := c.buildCreateOutputCloseIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build close_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			closeIssueJob.Needs = append(closeIssueJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			closeIssueJob.If = AddDetectionSuccessCheck(closeIssueJob.If)
+		}
+		if err := c.jobManager.AddJob(closeIssueJob); err != nil {
+			return fmt.Errorf("failed to add close_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, closeIssueJob.Name)
+	}
+
+	// Build close_pull_request job if safe-outputs.close-pull-request is configured
+	if data.SafeOutputs.ClosePullRequests != nil {
+		closePullRequestJob, err := c.buildCreateOutputClosePullRequestJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build close_pull_request job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			closePullRequestJob.Needs = append(closePullRequestJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			closePullRequestJob.If = AddDetectionSuccessCheck(closePullRequestJob.If)
+		}
+		if err := c.jobManager.AddJob(closePullRequestJob); err != nil {
+			return fmt.Errorf("failed to add close_pull_request job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, closePullRequestJob.Name)
+	}
+
 	// Build create_pull_request job if output.create-pull-request is configured
 	// NOTE: This is built BEFORE add_comment so that add_comment can depend on it
 	if data.SafeOutputs.CreatePullRequests != nil {
@@ -301,6 +337,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add add_labels job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
+	}
+
+	// Build add_reviewer job if output.add-reviewer is configured
+	if data.SafeOutputs.AddReviewer != nil {
+		addReviewerJob, err := c.buildAddReviewerJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build add_reviewer job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			addReviewerJob.Needs = append(addReviewerJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			addReviewerJob.If = AddDetectionSuccessCheck(addReviewerJob.If)
+		}
+		if err := c.jobManager.AddJob(addReviewerJob); err != nil {
+			return fmt.Errorf("failed to add add_reviewer job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, addReviewerJob.Name)
 	}
 
 	// Build assign_milestone job if output.assign-milestone is configured
@@ -514,7 +568,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	// Add skip-if-match check if configured
-	if data.SkipIfMatch != "" {
+	if data.SkipIfMatch != nil {
 		// Extract workflow name for the skip-if-match check
 		workflowName := data.Name
 
@@ -522,8 +576,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfMatchStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch.Query))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -573,7 +628,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		conditions = append(conditions, stopTimeCheck)
 	}
 
-	if data.SkipIfMatch != "" {
+	if data.SkipIfMatch != nil {
 		// Add skip-if-match check condition
 		skipCheckOk := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput)),

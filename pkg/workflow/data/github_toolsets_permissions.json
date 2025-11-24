@@ -17,25 +17,25 @@
         "get_file_contents",
         "get_latest_release",
         "get_release_by_tag",
+        "get_repository_tree",
         "get_tag",
         "list_branches",
         "list_commits",
         "list_releases",
-        "list_tags",
-        "search_repositories"
+        "list_tags"
       ]
     },
     "issues": {
       "description": "Issue management",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["issue_read", "list_issue_types", "list_issues", "search_issues"]
+      "tools": ["issue_read", "list_issue_types", "list_issues"]
     },
     "pull_requests": {
       "description": "Pull request operations",
       "read_permissions": ["pull-requests"],
       "write_permissions": ["pull-requests"],
-      "tools": ["list_pull_requests", "pull_request_read", "search_pull_requests"]
+      "tools": ["list_pull_requests", "pull_request_read"]
     },
     "actions": {
       "description": "GitHub Actions workflows",
@@ -81,7 +81,7 @@
       "description": "Gist operations",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_gists"]
+      "tools": ["get_gist", "list_gists"]
     },
     "labels": {
       "description": "Label management",
@@ -99,7 +99,7 @@
       "description": "Organization operations",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_org_repository_security_advisories", "search_orgs"]
+      "tools": ["list_org_repository_security_advisories"]
     },
     "projects": {
       "description": "GitHub Projects",
@@ -129,7 +129,7 @@
       "description": "User information",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["search_users"]
+      "tools": []
     },
     "search": {
       "description": "Advanced search",

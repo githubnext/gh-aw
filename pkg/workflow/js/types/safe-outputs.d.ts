@@ -53,6 +53,28 @@ interface CloseDiscussionItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for closing a GitHub issue
+ */
+interface CloseIssueItem extends BaseSafeOutputItem {
+  type: "close_issue";
+  /** Comment body to add when closing the issue */
+  body: string;
+  /** Optional issue number (uses triggering issue if not provided) */
+  issue_number?: number | string;
+}
+
+/**
+ * JSONL item for closing a GitHub pull request without merging
+ */
+interface ClosePullRequestItem extends BaseSafeOutputItem {
+  type: "close_pull_request";
+  /** Comment body to add when closing the pull request */
+  body: string;
+  /** Optional pull request number (uses triggering PR if not provided) */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
@@ -121,6 +143,17 @@ interface AddLabelsItem extends BaseSafeOutputItem {
   labels: string[];
   /** Target issue; otherwize resolved from current context */
   issue_number?: number;
+}
+
+/**
+ * JSONL item for adding reviewers to a pull request
+ */
+interface AddReviewerItem extends BaseSafeOutputItem {
+  type: "add_reviewer";
+  /** Array of GitHub usernames to add as reviewers */
+  reviewers: string[];
+  /** Pull request number (optional - uses triggering PR if not provided) */
+  pull_request_number?: number | string;
 }
 
 /**
@@ -222,11 +255,14 @@ type SafeOutputItem =
   | CreateIssueItem
   | CreateDiscussionItem
   | CloseDiscussionItem
+  | CloseIssueItem
+  | ClosePullRequestItem
   | AddCommentItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
   | AddLabelsItem
+  | AddReviewerItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
@@ -250,11 +286,14 @@ export {
   CreateIssueItem,
   CreateDiscussionItem,
   CloseDiscussionItem,
+  CloseIssueItem,
+  ClosePullRequestItem,
   AddCommentItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
   AddLabelsItem,
+  AddReviewerItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

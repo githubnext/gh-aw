@@ -69,7 +69,31 @@ var validateErrorsScript string
 var missingToolScript string
 
 //go:embed js/safe_outputs_mcp_server.cjs
-var safeOutputsMCPServerScript string
+var safeOutputsMCPServerScriptSource string
+
+var (
+	safeOutputsMCPServerScript     string
+	safeOutputsMCPServerScriptOnce sync.Once
+)
+
+// getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
+// Bundling is performed on first access and cached for subsequent calls
+func getSafeOutputsMCPServerScript() string {
+	safeOutputsMCPServerScriptOnce.Do(func() {
+		jsLog.Print("Bundling safe_outputs_mcp_server script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(safeOutputsMCPServerScriptSource, sources, "")
+		if err != nil {
+			jsLog.Printf("Failed to bundle safe_outputs_mcp_server script, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			safeOutputsMCPServerScript = safeOutputsMCPServerScriptSource
+		} else {
+			jsLog.Printf("Successfully bundled safe_outputs_mcp_server script: %d bytes", len(bundled))
+			safeOutputsMCPServerScript = bundled
+		}
+	})
+	return safeOutputsMCPServerScript
+}
 
 //go:embed js/safe_outputs_tools.json
 var safeOutputsToolsJSON string
@@ -97,6 +121,12 @@ var loadAgentOutputScript string
 
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
+
+//go:embed js/safe_output_helpers.cjs
+var safeOutputHelpersScript string
+
+//go:embed js/safe_output_validator.cjs
+var safeOutputValidatorScript string
 
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
@@ -146,23 +176,53 @@ var getRepositoryUrlScript string
 //go:embed js/check_permissions_utils.cjs
 var checkPermissionsUtilsScript string
 
+//go:embed js/normalize_branch_name.cjs
+var normalizeBranchNameScript string
+
+//go:embed js/estimate_tokens.cjs
+var estimateTokensScript string
+
+//go:embed js/generate_compact_schema.cjs
+var generateCompactSchemaScript string
+
+//go:embed js/write_large_content_to_file.cjs
+var writeLargeContentToFileScript string
+
+//go:embed js/get_current_branch.cjs
+var getCurrentBranchScript string
+
+//go:embed js/get_base_branch.cjs
+var getBaseBranchScript string
+
+//go:embed js/generate_git_patch.cjs
+var generateGitPatchJSScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize_content.cjs":          sanitizeContentScript,
-		"sanitize_label_content.cjs":    sanitizeLabelContentScript,
-		"sanitize_workflow_name.cjs":    sanitizeWorkflowNameScript,
-		"load_agent_output.cjs":         loadAgentOutputScript,
-		"staged_preview.cjs":            stagedPreviewScript,
-		"is_truthy.cjs":                 isTruthyScript,
-		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
-		"log_parser_shared.cjs":         logParserSharedScript,
-		"update_activation_comment.cjs": updateActivationCommentScript,
-		"generate_footer.cjs":           generateFooterScript,
-		"get_tracker_id.cjs":            getTrackerIDScript,
-		"get_repository_url.cjs":        getRepositoryUrlScript,
-		"check_permissions_utils.cjs":   checkPermissionsUtilsScript,
+		"sanitize_content.cjs":            sanitizeContentScript,
+		"sanitize_label_content.cjs":      sanitizeLabelContentScript,
+		"sanitize_workflow_name.cjs":      sanitizeWorkflowNameScript,
+		"load_agent_output.cjs":           loadAgentOutputScript,
+		"staged_preview.cjs":              stagedPreviewScript,
+		"safe_output_helpers.cjs":         safeOutputHelpersScript,
+		"safe_output_validator.cjs":       safeOutputValidatorScript,
+		"is_truthy.cjs":                   isTruthyScript,
+		"log_parser_bootstrap.cjs":        logParserBootstrapScript,
+		"log_parser_shared.cjs":           logParserSharedScript,
+		"update_activation_comment.cjs":   updateActivationCommentScript,
+		"generate_footer.cjs":             generateFooterScript,
+		"get_tracker_id.cjs":              getTrackerIDScript,
+		"get_repository_url.cjs":          getRepositoryUrlScript,
+		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,
+		"normalize_branch_name.cjs":       normalizeBranchNameScript,
+		"estimate_tokens.cjs":             estimateTokensScript,
+		"generate_compact_schema.cjs":     generateCompactSchemaScript,
+		"write_large_content_to_file.cjs": writeLargeContentToFileScript,
+		"get_current_branch.cjs":          getCurrentBranchScript,
+		"get_base_branch.cjs":             getBaseBranchScript,
+		"generate_git_patch.cjs":          generateGitPatchJSScript,
 	}
 }
 
@@ -609,7 +669,7 @@ func GetLogParserBootstrap() string {
 
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
-	return safeOutputsMCPServerScript
+	return getSafeOutputsMCPServerScript()
 }
 
 // GetSafeOutputsToolsJSON returns the JSON content for the safe outputs tools definitions

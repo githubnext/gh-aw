@@ -11,7 +11,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var zizmorLog = logger.New("cli:zizmor")
 
 // zizmorFinding represents a single finding from zizmor JSON output
 type zizmorFinding struct {
@@ -43,7 +46,7 @@ type zizmorFinding struct {
 
 // runZizmorOnFile runs the zizmor security scanner on a single .lock.yml file using Docker
 func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
-	compileLog.Printf("Running zizmor security scanner on %s", lockFile)
+	zizmorLog.Printf("Running zizmor security scanner: file=%s, strict=%v", lockFile, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := findGitRoot()
@@ -88,7 +91,7 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 	// Parse and reformat the output, get total warning count
 	totalWarnings, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
 	if parseErr != nil {
-		compileLog.Printf("Failed to parse zizmor output: %v", parseErr)
+		zizmorLog.Printf("Failed to parse zizmor output: %v", parseErr)
 		// Fall back to showing raw output
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
@@ -107,7 +110,7 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 		// Other codes = actual errors
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
-			compileLog.Printf("Zizmor exited with code %d", exitCode)
+			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit codes 10-14 indicate findings
 			if exitCode >= 10 && exitCode <= 14 {
 				// In strict mode, findings are treated as errors

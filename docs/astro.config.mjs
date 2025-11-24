@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import mermaid from 'astro-mermaid';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
@@ -23,6 +24,7 @@ export default defineConfig({
 		clientPrerender: false
 	},
 	integrations: [
+		mermaid(),
 		starlight({
 			title: 'GitHub Agentic Workflows',
 			logo: {

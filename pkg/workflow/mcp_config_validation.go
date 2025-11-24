@@ -57,7 +57,30 @@ var mcpValidationLog = logger.New("workflow:mcp_config_validation")
 func ValidateMCPConfigs(tools map[string]any) error {
 	mcpValidationLog.Printf("Validating MCP configurations for %d tools", len(tools))
 
+	// List of built-in tools that have their own validation logic
+	// These tools should not be validated as custom MCP servers
+	builtInTools := map[string]bool{
+		"github":            true,
+		"playwright":        true,
+		"serena":            true,
+		"agentic-workflows": true,
+		"cache-memory":      true,
+		"bash":              true,
+		"edit":              true,
+		"web-fetch":         true,
+		"web-search":        true,
+		"safety-prompt":     true,
+		"timeout":           true,
+		"startup-timeout":   true,
+	}
+
 	for toolName, toolConfig := range tools {
+		// Skip built-in tools - they have their own schema validation
+		if builtInTools[toolName] {
+			mcpValidationLog.Printf("Skipping MCP validation for built-in tool: %s", toolName)
+			continue
+		}
+
 		if config, ok := toolConfig.(map[string]any); ok {
 			// Extract raw MCP configuration (without transformation)
 			mcpConfig, err := getRawMCPConfig(config)

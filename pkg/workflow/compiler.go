@@ -187,6 +187,12 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 	return c
 }
 
+// SkipIfMatchConfig holds the configuration for skip-if-match conditions
+type SkipIfMatchConfig struct {
+	Query string // GitHub search query to check before running workflow
+	Max   int    // Maximum number of matches before skipping (defaults to 1)
+}
+
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
@@ -219,7 +225,7 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	SkipIfMatch         string               // GitHub search query to check before running workflow
+	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
 	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)
@@ -255,11 +261,14 @@ type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
 	CloseDiscussions                *CloseDiscussionsConfig                `yaml:"close-discussions,omitempty"`
+	CloseIssues                     *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
+	ClosePullRequests               *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
 	AddComments                     *AddCommentsConfig                     `yaml:"add-comments,omitempty"`
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
+	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
 	AssignToAgent                   *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
@@ -1305,10 +1314,14 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 					workflowData.Command = baseName
 				}
-				// Check for conflicting events
+				// Check for conflicting events (but allow issues/pull_request with labeled/unlabeled types)
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 				for _, eventName := range conflictingEvents {
-					if _, hasConflict := onMap[eventName]; hasConflict {
+					if eventValue, hasConflict := onMap[eventName]; hasConflict {
+						// Special case: allow issues/pull_request if they only have labeled/unlabeled types
+						if (eventName == "issues" || eventName == "pull_request") && parser.IsLabelOnlyEvent(eventValue) {
+							continue // Allow this - it doesn't conflict with command triggers
+						}
 						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
 					}
 				}

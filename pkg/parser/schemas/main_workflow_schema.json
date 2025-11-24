@@ -917,8 +917,30 @@
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
             "skip-if-match": {
-              "type": "string",
-              "description": "GitHub search query string to check before running workflow. If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "GitHub search query string to check before running workflow (implies max=1). If the search returns any results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:issue is:open label:bug'"
+                },
+                {
+                  "type": "object",
+                  "required": ["query"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "GitHub search query string to check before running workflow. Query is automatically scoped to the current repository."
+                    },
+                    "max": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Maximum number of items that must be matched for the workflow to be skipped. Defaults to 1 if not specified."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Skip-if-match configuration object with query and maximum match count"
+                }
+              ],
+              "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
             },
             "manual-approval": {
               "type": "string",
@@ -1730,7 +1752,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -2144,6 +2166,165 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
+        },
+        "serena": {
+          "description": "Serena MCP server for AI-powered code intelligence with language service integration",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Serena with default settings"
+            },
+            {
+              "type": "array",
+              "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"])",
+              "items": {
+                "type": "string",
+                "enum": ["go", "typescript", "python", "java", "rust", "csharp"]
+              }
+            },
+            {
+              "type": "object",
+              "description": "Serena configuration with custom version and language-specific settings",
+              "properties": {
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["latest", "0.1.0", 1.0]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "languages": {
+                  "type": "object",
+                  "description": "Language-specific configuration for Serena language services",
+                  "properties": {
+                    "go": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Go language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Go version (e.g., \"1.21\", 1.21)"
+                            },
+                            "go-mod-file": {
+                              "type": "string",
+                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
+                            },
+                            "gopls-version": {
+                              "type": "string",
+                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "typescript": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable TypeScript language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "python": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Python language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Python version (e.g., \"3.12\", 3.12)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "java": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Java language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Java version (e.g., \"21\", 21)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "rust": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Rust language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Rust version (e.g., \"stable\", \"1.75\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "csharp": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable C# language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": {
@@ -2537,6 +2718,112 @@
             }
           ]
         },
+        "close-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for closing GitHub issues with comment from agentic workflow output",
+              "properties": {
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Only close issues that have all of these labels"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Only close issues with this title prefix"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for closing: 'triggering' (default, current issue), or '*' (any issue with issue_number field)"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to close (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "required-title-prefix": "[refactor] "
+                },
+                {
+                  "required-labels": ["automated", "stale"],
+                  "max": 10
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable issue closing with default configuration"
+            }
+          ]
+        },
+        "close-pull-request": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for closing GitHub pull requests without merging, with comment from agentic workflow output",
+              "properties": {
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Only close pull requests that have any of these labels"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Only close pull requests with this title prefix"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for closing: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of pull requests to close (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "required-title-prefix": "[bot] "
+                },
+                {
+                  "required-labels": ["automated", "outdated"],
+                  "max": 5
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable pull request closing with default configuration"
+            }
+          ]
+        },
         "add-comment": {
           "oneOf": [
             {
@@ -2752,6 +3039,46 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository label addition. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "add-reviewer": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any reviewers"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for adding reviewers to pull requests from agentic workflow output",
+              "properties": {
+                "reviewers": {
+                  "type": "array",
+                  "description": "Optional list of allowed reviewers. If omitted, any reviewers are allowed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of reviewers to add (default: 3)",
+                  "minimum": 1
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for reviewers: 'triggering' (default), '*' (any PR), or explicit PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository reviewer addition. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -3308,12 +3635,12 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
@@ -3455,16 +3782,6 @@
               "anyOf": [
                 {
                   "properties": {
-                    "issues": {
-                      "not": {
-                        "type": "null"
-                      }
-                    }
-                  },
-                  "required": ["issues"]
-                },
-                {
-                  "properties": {
                     "issue_comment": {
                       "not": {
                         "type": "null"
@@ -3472,16 +3789,6 @@
                     }
                   },
                   "required": ["issue_comment"]
-                },
-                {
-                  "properties": {
-                    "pull_request": {
-                      "not": {
-                        "type": "null"
-                      }
-                    }
-                  },
-                  "required": ["pull_request"]
                 },
                 {
                   "properties": {

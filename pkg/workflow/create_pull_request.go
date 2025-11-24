@@ -163,22 +163,8 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		// Parse labels using shared helper
 		pullRequestsConfig.Labels = parseLabelsFromConfig(configMap)
 
-		// Parse reviewers (supports both string and array)
-		if reviewers, exists := configMap["reviewers"]; exists {
-			if reviewerStr, ok := reviewers.(string); ok {
-				// Single string format
-				pullRequestsConfig.Reviewers = []string{reviewerStr}
-			} else if reviewersArray, ok := reviewers.([]any); ok {
-				// Array format
-				var reviewerStrings []string
-				for _, reviewer := range reviewersArray {
-					if reviewerStr, ok := reviewer.(string); ok {
-						reviewerStrings = append(reviewerStrings, reviewerStr)
-					}
-				}
-				pullRequestsConfig.Reviewers = reviewerStrings
-			}
-		}
+		// Parse reviewers using shared helper
+		pullRequestsConfig.Reviewers = parseParticipantsFromConfig(configMap, "reviewers")
 
 		// Parse draft
 		if draft, exists := configMap["draft"]; exists {

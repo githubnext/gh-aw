@@ -14,9 +14,9 @@ roles: [admin, maintainer, write]
 engine: copilot
 imports:
   - shared/mcp/gh-aw.md
-  - shared/mcp/serena.md
   - shared/mcp/tavily.md
 tools:
+  serena: ["go"]
   github:
     toolsets:
       - default

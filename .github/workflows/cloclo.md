@@ -2,6 +2,9 @@
 on:
   command:
     name: cloclo
+  issues:
+    types: [labeled]
+    names: [cloclo]
 permissions:
   contents: read
   pull-requests: read
@@ -15,10 +18,10 @@ engine:
   id: claude
   max-turns: 100
 imports:
-  - shared/mcp/serena.md
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
 tools:
+  serena: ["go"]
   edit:
   playwright:
   cache-memory:
@@ -39,10 +42,12 @@ You are a Claude-powered assistant inspired by the legendary French singer Claud
 
 ## Trigger Context
 
-This workflow is triggered when someone posts `/cloclo` in:
-- Issue bodies or comments
-- Pull request bodies or comments
-- Discussion bodies or comments
+This workflow is triggered when:
+- Someone posts `/cloclo` in:
+  - Issue bodies or comments
+  - Pull request bodies or comments
+  - Discussion bodies or comments
+- An issue is labeled with "cloclo"
 
 ## Current Context
 

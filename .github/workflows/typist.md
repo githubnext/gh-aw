@@ -14,7 +14,6 @@ permissions:
 engine: claude
 
 imports:
-  - shared/mcp/serena.md
   - shared/reporting.md
 
 safe-outputs:
@@ -23,6 +22,7 @@ safe-outputs:
     max: 1
 
 tools:
+  serena: ["go"]
   github:
     toolsets: [default]
   edit:

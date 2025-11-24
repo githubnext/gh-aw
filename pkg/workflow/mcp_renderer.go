@@ -133,6 +133,43 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          ]\n")
 }
 
+// RenderSerenaMCP generates Serena MCP server configuration
+func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any) {
+	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
+
+	if r.options.Format == "toml" {
+		r.renderSerenaTOML(yaml, serenaTool)
+		return
+	}
+
+	// JSON format
+	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+}
+
+// renderSerenaTOML generates Serena MCP configuration in TOML format
+func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
+	customArgs := getSerenaCustomArgs(serenaTool)
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.serena]\n")
+	yaml.WriteString("          command = \"uvx\"\n")
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"--from\",\n")
+	yaml.WriteString("            \"git+https://github.com/oraios/serena\",\n")
+	yaml.WriteString("            \"serena\",\n")
+	yaml.WriteString("            \"start-mcp-server\",\n")
+	yaml.WriteString("            \"--context\",\n")
+	yaml.WriteString("            \"codex\",\n")
+	yaml.WriteString("            \"--project\",\n")
+	yaml.WriteString("            \"${{ github.workspace }}\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "            ")
+
+	yaml.WriteString("\n")
+	yaml.WriteString("          ]\n")
+}
+
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
 func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder) {
 	mcpRendererLog.Printf("Rendering Safe Outputs MCP: format=%s", r.options.Format)
@@ -303,6 +340,7 @@ func HandleCustomMCPToolInSwitch(
 type MCPToolRenderers struct {
 	RenderGitHub           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData)
 	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
+	RenderSerena           func(yaml *strings.Builder, serenaTool any, isLast bool)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
@@ -539,6 +577,9 @@ func RenderJSONMCPConfig(
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			options.Renderers.RenderPlaywright(yaml, playwrightTool, isLast)
+		case "serena":
+			serenaTool := tools["serena"]
+			options.Renderers.RenderSerena(yaml, serenaTool, isLast)
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(yaml, isLast, workflowData)
 		case "agentic-workflows":

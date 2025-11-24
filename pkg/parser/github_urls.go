@@ -111,7 +111,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 			// Pattern: /owner/repo/pull/123
 			if len(pathParts) >= 4 {
 				urlLog.Print("Parsing pull request URL")
-				prNumber, err := strconv.ParseInt(pathParts[3], 10, 64)
+				prNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("invalid PR number: %s", pathParts[3])
 				}
@@ -127,7 +127,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 		case "issues":
 			// Pattern: /owner/repo/issues/123
 			if len(pathParts) >= 4 {
-				issueNumber, err := strconv.ParseInt(pathParts[3], 10, 64)
+				issueNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("invalid issue number: %s", pathParts[3])
 				}
@@ -284,6 +284,14 @@ func ParsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 	// Only accept github.com host for PR URLs
 	if components.Host != "github.com" {
 		return "", "", 0, fmt.Errorf("URL must be a GitHub URL")
+	}
+
+	// Validate that Number fits in int range (important for 32-bit systems)
+	// Note: PR numbers are parsed with ParseInt(..., 10, 32) so they should always fit
+	const maxInt = int(^uint(0) >> 1)
+	const minInt = -maxInt - 1
+	if components.Number > int64(maxInt) || components.Number < int64(minInt) {
+		return "", "", 0, fmt.Errorf("PR number %d is out of range for int type", components.Number)
 	}
 
 	return components.Owner, components.Repo, int(components.Number), nil

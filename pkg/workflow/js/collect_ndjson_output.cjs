@@ -5,6 +5,9 @@ async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
   const maxBodyLength = 65000;
+  // Maximum length for GitHub usernames (39 characters)
+  // Reference: https://github.com/dead-claudia/github-limits
+  const MAX_GITHUB_USERNAME_LENGTH = 39;
   function getMaxAllowedForType(itemType, config) {
     const itemConfig = config?.[itemType];
     if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -23,6 +26,8 @@ async function main() {
         return 1;
       case "add_labels":
         return 5;
+      case "add_reviewer":
+        return 3;
       case "assign_milestone":
         return 1;
       case "assign_to_agent":
@@ -34,6 +39,10 @@ async function main() {
       case "create_discussion":
         return 1;
       case "close_discussion":
+        return 1;
+      case "close_issue":
+        return 1;
+      case "close_pull_request":
         return 1;
       case "missing_tool":
         return 20;
@@ -457,6 +466,23 @@ async function main() {
           }
           item.labels = item.labels.map(label => sanitizeContent(label, 128));
           break;
+        case "add_reviewer":
+          if (!item.reviewers || !Array.isArray(item.reviewers)) {
+            errors.push(`Line ${i + 1}: add_reviewer requires a 'reviewers' array field`);
+            continue;
+          }
+          if (item.reviewers.some(reviewer => typeof reviewer !== "string")) {
+            errors.push(`Line ${i + 1}: add_reviewer reviewers array must contain only strings`);
+            continue;
+          }
+          const reviewerPRNumberValidation = validateIssueOrPRNumber(item.pull_request_number, "add_reviewer 'pull_request_number'", i + 1);
+          if (!reviewerPRNumberValidation.isValid) {
+            if (reviewerPRNumberValidation.error) errors.push(reviewerPRNumberValidation.error);
+            continue;
+          }
+          // Sanitize reviewer usernames (limit to MAX_GITHUB_USERNAME_LENGTH)
+          item.reviewers = item.reviewers.map(reviewer => sanitizeContent(reviewer, MAX_GITHUB_USERNAME_LENGTH));
+          break;
         case "update_issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
           if (!hasValidField) {
@@ -631,6 +657,38 @@ async function main() {
           );
           if (!discussionNumberValidation.isValid) {
             if (discussionNumberValidation.error) errors.push(discussionNumberValidation.error);
+            continue;
+          }
+          break;
+        case "close_issue":
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: close_issue requires a 'body' string field`);
+            continue;
+          }
+          item.body = sanitizeContent(item.body, maxBodyLength);
+
+          // Validate optional issue_number field
+          const issueNumberValidation = validateOptionalPositiveInteger(item.issue_number, "close_issue 'issue_number'", i + 1);
+          if (!issueNumberValidation.isValid) {
+            if (issueNumberValidation.error) errors.push(issueNumberValidation.error);
+            continue;
+          }
+          break;
+        case "close_pull_request":
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: close_pull_request requires a 'body' string field`);
+            continue;
+          }
+          item.body = sanitizeContent(item.body, maxBodyLength);
+
+          // Validate optional pull_request_number field
+          const prNumberValidation = validateOptionalPositiveInteger(
+            item.pull_request_number,
+            "close_pull_request 'pull_request_number'",
+            i + 1
+          );
+          if (!prNumberValidation.isValid) {
+            if (prNumberValidation.error) errors.push(prNumberValidation.error);
             continue;
           }
           break;

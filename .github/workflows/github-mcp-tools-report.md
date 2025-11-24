@@ -127,12 +127,13 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
    - Ensure all tools within each toolset remain in alphabetical order
 
 3. **Create Pull Request with Changes**:
-   - If you updated the JSON file, the `safe-outputs.create-pull-request` configuration will automatically create a PR
-   - The PR will include:
-     - Updated `pkg/workflow/data/github_toolsets_permissions.json`
-     - Automatic review assignment to `copilot`
-     - Labels: `documentation`, `automation`
-     - Title prefix: `[mcp-tools]`
+   - **CRITICAL**: If you updated the JSON file, you MUST create a pull request with your changes:
+     1. Create a local branch with a descriptive name (e.g., `update-github-mcp-tools-mapping`)
+     2. Add and commit the updated `pkg/workflow/data/github_toolsets_permissions.json` file
+     3. **Use the create-pull-request tool from safe-outputs** to create the PR with:
+        - A clear title describing the changes (e.g., "Update GitHub MCP toolsets mapping with latest tools")
+        - A detailed body explaining what was added, removed, or moved between toolsets
+        - The configured title prefix `[mcp-tools]`, labels, and reviewers will be applied automatically
    - **IMPORTANT**: After creating the PR, continue with the documentation update in Phase 3
 
 ### Phase 3: Tool Documentation
@@ -381,7 +382,7 @@ Your output MUST:
    - Edit `pkg/workflow/data/github_toolsets_permissions.json`
    - Add missing tools, remove extra entries, fix moved tools
    - Preserve JSON structure and alphabetical ordering
-   - **The safe-outputs configuration will automatically create a PR with these changes**
+   - **Create a pull request using the create-pull-request tool from safe-outputs** with your changes (branch, commit, then call the tool)
 7. Compare current tools with previous tools (if available) and identify:
    - New tools added
    - Removed tools
@@ -458,7 +459,10 @@ Begin your tool discovery now. Follow these steps:
    - users
    - search
 4. **Compare with JSON mapping**: For each toolset, compare MCP server tools with JSON mapping to identify discrepancies
-5. **Update JSON mapping if needed**: If discrepancies are found, edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
+5. **Update JSON mapping if needed**: If discrepancies are found:
+   - Edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
+   - Create a branch and commit your changes
+   - **Use the create-pull-request tool from safe-outputs** to create a PR with your updates
 6. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
 7. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
 8. **Analyze and recommend default toolsets**: 

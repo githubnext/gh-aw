@@ -10,8 +10,10 @@ import (
 )
 
 // TestCheckoutRuntimeOrderInCustomSteps verifies that when custom steps contain
-// a checkout step, runtime setup steps are inserted AFTER the checkout step,
-// not before it. This ensures that checkout is always the first step.
+// a checkout step, the temp directory is created first, then the checkout step
+// runs, and runtime setup steps are inserted AFTER the checkout step. This ensures
+// that the temp directory is available to all steps, checkout happens before
+// runtime setup, and runtime tools are available to subsequent custom steps.
 func TestCheckoutRuntimeOrderInCustomSteps(t *testing.T) {
 	workflowContent := `---
 on: push
@@ -114,30 +116,40 @@ steps:
 
 	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
 
-	if len(stepNames) < 3 {
-		t.Fatalf("Expected at least 3 steps, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 4 {
+		t.Fatalf("Expected at least 4 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
 	// Verify the order:
-	// 1. First step should be "Checkout code" (from custom steps)
-	// 2. Second step should be "Setup Node.js" (runtime setup, inserted after checkout)
-	// 3. Third step should be "Use Node" (from custom steps)
+	// 1. First step should be "Create gh-aw temp directory" (before all steps, including custom steps)
+	// 2. Second step should be "Checkout code" (from custom steps)
+	// 3. Third step should be "Setup Node.js" (runtime setup, inserted after checkout)
+	// 4. Fourth step should be "Use Node" (from custom steps)
 
-	if stepNames[0] != "Checkout code" {
-		t.Errorf("First step should be 'Checkout code', got '%s'", stepNames[0])
+	if stepNames[0] != "Create gh-aw temp directory" {
+		t.Errorf("First step should be 'Create gh-aw temp directory', got '%s'", stepNames[0])
 	}
 
-	if stepNames[1] != "Setup Node.js" {
-		t.Errorf("Second step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[1])
+	if stepNames[1] != "Checkout code" {
+		t.Errorf("Second step should be 'Checkout code', got '%s'", stepNames[1])
 	}
 
-	if stepNames[2] != "Use Node" {
-		t.Errorf("Third step should be 'Use Node', got '%s'", stepNames[2])
+	if stepNames[2] != "Setup Node.js" {
+		t.Errorf("Third step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[2])
 	}
 
-	// Additional check: verify Setup Node.js appears AFTER Checkout code
+	if stepNames[3] != "Use Node" {
+		t.Errorf("Fourth step should be 'Use Node', got '%s'", stepNames[3])
+	}
+
+	// Additional check: verify temp directory creation is first
+	tempDirIndex := strings.Index(agentJobSection, "Create gh-aw temp directory")
 	checkoutIndex := strings.Index(agentJobSection, "Checkout code")
 	setupNodeIndex := strings.Index(agentJobSection, "Setup Node.js")
+
+	if tempDirIndex == -1 {
+		t.Fatal("Could not find 'Create gh-aw temp directory' step in agent job")
+	}
 
 	if checkoutIndex == -1 {
 		t.Fatal("Could not find 'Checkout code' step in agent job")
@@ -147,12 +159,16 @@ steps:
 		t.Fatal("Could not find 'Setup Node.js' step in agent job")
 	}
 
+	if tempDirIndex > checkoutIndex {
+		t.Error("Create gh-aw temp directory appears after Checkout code, should be before")
+	}
+
 	if setupNodeIndex < checkoutIndex {
 		t.Error("Setup Node.js appears before Checkout code, should be after")
 	}
 
 	t.Logf("Step order is correct:")
-	for i, name := range stepNames[:3] {
+	for i, name := range stepNames[:4] {
 		t.Logf("  %d. %s", i+1, name)
 	}
 }
