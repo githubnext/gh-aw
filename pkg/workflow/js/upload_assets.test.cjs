@@ -196,4 +196,238 @@ describe("upload_assets.cjs", () => {
       expect(branchNameCall[1]).toBe("assets/my-branch");
     });
   });
+
+  describe("branch prefix validation", () => {
+    it("should allow creating orphaned branch with 'assets/' prefix when branch doesn't exist", async () => {
+      // Clean up any leftover test.png from previous runs
+      const targetFile = "test.png";
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+
+      // Set up environment with valid assets/ prefix
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+
+      // Create a temp directory for the asset
+      const assetDir = "/tmp/gh-aw/safeoutputs/assets";
+      if (!fs.existsSync(assetDir)) {
+        fs.mkdirSync(assetDir, { recursive: true });
+      }
+
+      // Create a temp file for the asset
+      const assetPath = path.join(assetDir, "test.png");
+      fs.writeFileSync(assetPath, "fake png data");
+
+      // Calculate the SHA of the file
+      const crypto = require("crypto");
+      const fileContent = fs.readFileSync(assetPath);
+      const actualSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+
+      // Set up agent output with a valid upload-asset item
+      const agentOutput = {
+        items: [
+          {
+            type: "upload_asset",
+            fileName: "test.png",
+            sha: actualSha,
+            size: fileContent.length,
+            targetFileName: "test.png",
+            url: "https://example.com/test.png",
+          },
+        ],
+      };
+      setAgentOutput(agentOutput);
+
+      // Mock git commands to succeed
+      let orphanBranchCreated = false;
+      mockExec.exec.mockImplementation(async (command, args) => {
+        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
+
+        // Track if orphan branch was created
+        if (fullCommand.includes("checkout --orphan")) {
+          orphanBranchCreated = true;
+        }
+
+        // Mock git rev-parse to fail (branch doesn't exist yet)
+        if (fullCommand.includes("rev-parse")) {
+          throw new Error("Branch does not exist");
+        }
+
+        return 0;
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify orphan branch was created
+      expect(orphanBranchCreated).toBe(true);
+
+      // Verify no error was set
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // Cleanup
+      if (fs.existsSync(assetPath)) {
+        fs.unlinkSync(assetPath);
+      }
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+    });
+
+    it("should fail when trying to create orphaned branch without 'assets/' prefix", async () => {
+      // Set up environment with non-assets prefix
+      process.env.GH_AW_ASSETS_BRANCH = "custom/branch-name";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+
+      // Create a temp directory for the asset
+      const assetDir = "/tmp/gh-aw/safeoutputs/assets";
+      if (!fs.existsSync(assetDir)) {
+        fs.mkdirSync(assetDir, { recursive: true });
+      }
+
+      // Create a temp file for the asset
+      const assetPath = path.join(assetDir, "test.png");
+      fs.writeFileSync(assetPath, "fake png data");
+
+      // Calculate the SHA of the file
+      const crypto = require("crypto");
+      const fileContent = fs.readFileSync(assetPath);
+      const actualSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+
+      // Set up agent output with a valid upload-asset item
+      const agentOutput = {
+        items: [
+          {
+            type: "upload_asset",
+            fileName: "test.png",
+            sha: actualSha,
+            size: fileContent.length,
+            targetFileName: "test.png",
+            url: "https://example.com/test.png",
+          },
+        ],
+      };
+      setAgentOutput(agentOutput);
+
+      // Mock git commands
+      let orphanBranchCreated = false;
+      mockExec.exec.mockImplementation(async (command, args) => {
+        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
+
+        // Track if orphan branch was attempted
+        if (fullCommand.includes("checkout --orphan")) {
+          orphanBranchCreated = true;
+        }
+
+        // Mock git rev-parse to fail (branch doesn't exist)
+        if (fullCommand.includes("rev-parse")) {
+          throw new Error("Branch does not exist");
+        }
+
+        return 0;
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify orphan branch was NOT created
+      expect(orphanBranchCreated).toBe(false);
+
+      // Verify error was set with appropriate message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not start with the required 'assets/' prefix"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("custom/branch-name"));
+
+      // Cleanup
+      if (fs.existsSync(assetPath)) {
+        fs.unlinkSync(assetPath);
+      }
+    });
+
+    it("should allow using existing branch regardless of prefix", async () => {
+      // Clean up any leftover test.png from previous runs
+      const targetFile = "test.png";
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+
+      // Set up environment with non-assets prefix but existing branch
+      process.env.GH_AW_ASSETS_BRANCH = "custom/existing-branch";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+
+      // Create a temp directory for the asset
+      const assetDir = "/tmp/gh-aw/safeoutputs/assets";
+      if (!fs.existsSync(assetDir)) {
+        fs.mkdirSync(assetDir, { recursive: true });
+      }
+
+      // Create a temp file for the asset
+      const assetPath = path.join(assetDir, "test.png");
+      fs.writeFileSync(assetPath, "fake png data");
+
+      // Calculate the SHA of the file
+      const crypto = require("crypto");
+      const fileContent = fs.readFileSync(assetPath);
+      const actualSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+
+      // Set up agent output with a valid upload-asset item
+      const agentOutput = {
+        items: [
+          {
+            type: "upload_asset",
+            fileName: "test.png",
+            sha: actualSha,
+            size: fileContent.length,
+            targetFileName: "test.png",
+            url: "https://example.com/test.png",
+          },
+        ],
+      };
+      setAgentOutput(agentOutput);
+
+      // Mock git commands to succeed (branch exists)
+      let orphanBranchCreated = false;
+      let existingBranchCheckedOut = false;
+      mockExec.exec.mockImplementation(async (command, args) => {
+        const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
+
+        // Track if orphan branch was attempted
+        if (fullCommand.includes("checkout --orphan")) {
+          orphanBranchCreated = true;
+        }
+
+        // Track if existing branch was checked out
+        if (fullCommand.includes("checkout -B")) {
+          existingBranchCheckedOut = true;
+        }
+
+        // Mock git rev-parse to succeed (branch exists)
+        if (fullCommand.includes("rev-parse")) {
+          return 0; // Success - branch exists
+        }
+
+        return 0;
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify orphan branch was NOT created
+      expect(orphanBranchCreated).toBe(false);
+
+      // Verify existing branch was checked out
+      expect(existingBranchCheckedOut).toBe(true);
+
+      // Verify no error was set
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // Cleanup
+      if (fs.existsSync(assetPath)) {
+        fs.unlinkSync(assetPath);
+      }
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+    });
+  });
 });

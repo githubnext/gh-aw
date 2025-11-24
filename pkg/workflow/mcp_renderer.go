@@ -42,10 +42,11 @@ func NewMCPConfigRenderer(opts MCPRendererOptions) *MCPConfigRendererUnified {
 func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, toolsets=%v, format=%s",
-		githubType, readOnly, toolsets, r.options.Format)
+	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t, toolsets=%v, format=%s",
+		githubType, readOnly, lockdown, toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
 		r.renderGitHubTOML(yaml, githubTool, workflowData)
@@ -66,6 +67,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
+			Lockdown:           lockdown,
 			Toolsets:           toolsets,
 			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
@@ -79,6 +81,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
+			Lockdown:           lockdown,
 			Toolsets:           toolsets,
 			DockerImageVersion: githubDockerImageVersion,
 			CustomArgs:         customArgs,
@@ -223,6 +226,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	lockdown := getGitHubLockdown(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("          \n")
@@ -282,6 +286,11 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		if readOnly {
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+		}
+
+		if lockdown {
+			yaml.WriteString("            \"-e\",\n")
+			yaml.WriteString("            \"GITHUB_LOCKDOWN_MODE=1\",\n")
 		}
 
 		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
@@ -365,6 +374,8 @@ type JSONMCPConfigOptions struct {
 type GitHubMCPDockerOptions struct {
 	// ReadOnly enables read-only mode for GitHub API operations
 	ReadOnly bool
+	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
+	Lockdown bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
@@ -402,6 +413,11 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	if options.ReadOnly {
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+	}
+
+	if options.Lockdown {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=1\",\n")
 	}
 
 	// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
@@ -452,6 +468,8 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 type GitHubMCPRemoteOptions struct {
 	// ReadOnly enables read-only mode for GitHub API operations
 	ReadOnly bool
+	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
+	Lockdown bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// AuthorizationValue is the value for the Authorization header
@@ -485,6 +503,11 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add X-MCP-Readonly header if read-only mode is enabled
 	if options.ReadOnly {
 		headers["X-MCP-Readonly"] = "true"
+	}
+
+	// Add X-MCP-Lockdown header if lockdown mode is enabled
+	if options.Lockdown {
+		headers["X-MCP-Lockdown"] = "true"
 	}
 
 	// Add X-MCP-Toolsets header if toolsets are configured

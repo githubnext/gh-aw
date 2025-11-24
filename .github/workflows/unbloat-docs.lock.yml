@@ -1501,7 +1501,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.21.0
+          docker pull ghcr.io/github/github-mcp-server:v0.22.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2209,7 +2209,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.21.0"
+                  "ghcr.io/github/github-mcp-server:v0.22.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
@@ -6620,6 +6620,14 @@ jobs:
                   await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
                   core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
                 } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
                   core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
                   await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
                   await exec.exec(`git rm -rf .`);
