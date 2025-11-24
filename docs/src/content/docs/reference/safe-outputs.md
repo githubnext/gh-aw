@@ -388,7 +388,7 @@ The default `GITHUB_TOKEN` **lacks permissions** to assign agents. You must use 
      assign-to-agent:
    ```
 
-3. **Fine-grained PAT** with Write access for Issues, Pull requests, Contents, and Actions.
+3. Use a **Fine-grained PAT** with Write access for Issues, Pull requests, Contents, and Actions.
 
 :::caution
 Fine-grained and classic PATs may fail with "Resource not accessible" errors depending on organization settings. GitHub App tokens provide the most reliable access.
