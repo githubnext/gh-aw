@@ -64,8 +64,15 @@ safe-outputs:
 ```
 
 **Required Permissions:**
+
+The PAT needs permissions **only on target repositories** where you want to create resources, not on the source repository where the workflow runs.
+
 - Repository access to target repos (public or private)
 - `contents: write`, `issues: write`, `pull-requests: write` (depending on operations)
+
+:::tip[Security Best Practice]
+If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories.
+:::
 
 ### GitHub App Installation Token
 
@@ -124,10 +131,10 @@ Agent generates multiple tracking issues with different `target-repo` values (up
 
 ## Cross-Repository Safe Outputs
 
-Most safe output types support `target-repo` for cross-repository operations:
+Most safe output types support the `target-repo` parameter for cross-repository operations. **Without `target-repo`, these safe outputs operate on the repository where the workflow is running.**
 
-| Safe Output | Cross-Repo | Example |
-|-------------|------------|---------|
+| Safe Output | Cross-Repo Support | Example Use Case |
+|-------------|-------------------|------------------|
 | `create-issue` | ✅ | Create tracking issues in central repo |
 | `add-comment` | ✅ | Comment on issues in other repos |
 | `update-issue` | ✅ | Update issue status across repos |
@@ -203,7 +210,6 @@ Explore detailed MultiRepoOps examples:
 
 - **[Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/)** - Sync code changes from main repo to sub-repositories
 - **[Cross-Repo Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/)** - Hub-and-spoke tracking architecture
-- **[Organization-Wide Updates](/gh-aw/examples/multi-repo/org-wide-updates/)** - Coordinate dependency updates and policy enforcement
 
 ## Best Practices
 

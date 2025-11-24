@@ -39,22 +39,6 @@ Centralize issue tracking across multiple component repositories by creating tra
 - Cross-project initiatives
 - Upstream dependency tracking
 
-### [Organization-Wide Updates](/gh-aw/examples/multi-repo/org-wide-updates/)
-
-Coordinate dependency updates, security patches, and policy enforcement across all repositories in an organization.
-
-**Key Features:**
-- Dependency update coordination
-- Security patch rollout
-- Policy compliance auditing
-- Configuration standardization
-
-**Use Cases:**
-- Critical security patches
-- Breaking change migration
-- License compliance
-- Workflow template deployment
-
 ## Getting Started
 
 All multi-repo workflows require proper authentication:
@@ -70,14 +54,21 @@ gh secret set CROSS_REPO_PAT --body "ghp_your_token_here"
 ```
 
 **Required Permissions:**
-- `repo` (for private repositories)
-- `contents: write` (for creating commits)
-- `issues: write` (for creating issues)
-- `pull-requests: write` (for creating PRs)
+
+The PAT needs permissions **only on target repositories** where you want to create resources, not on the source repository where the workflow runs.
+
+- `repo` (for private target repositories)
+- `contents: write` (for creating commits in target repos)
+- `issues: write` (for creating issues in target repos)
+- `pull-requests: write` (for creating PRs in target repos)
+
+:::tip
+**Security Best Practice**: If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories. Use separate tokens for different operations when possible.
+:::
 
 ### GitHub App Configuration
 
-For enhanced security, use GitHub Apps:
+For enhanced security, use GitHub Apps for automatic token minting and revocation:
 
 ```yaml wrap
 safe-outputs:
@@ -86,7 +77,13 @@ safe-outputs:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: "my-org"
     repositories: ["repo1", "repo2", "repo3"]
+  create-issue:
+    target-repo: "my-org/repo1"
 ```
+
+**Benefits**: GitHub App tokens are minted on-demand, automatically revoked after job completion, and provide better security than long-lived PATs.
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#github-app-token-app) for complete GitHub App configuration.
 
 ## Common Patterns
 
@@ -123,10 +120,10 @@ Control Workflow ──> Repo 1 (tracking issue)
 
 ## Cross-Repository Safe Outputs
 
-Most safe output types support `target-repo` for cross-repository operations:
+Most safe output types support the `target-repo` parameter for cross-repository operations. **Without `target-repo`, these safe outputs operate on the repository where the workflow is running.**
 
-| Safe Output | Cross-Repo | Example |
-|-------------|-----------|---------|
+| Safe Output | Cross-Repo Support | Example Use Case |
+|-------------|-------------------|------------------|
 | `create-issue` | ✅ | Create tracking issues in central repo |
 | `add-comment` | ✅ | Comment on issues in other repos |
 | `update-issue` | ✅ | Update issue status across repos |
@@ -135,6 +132,18 @@ Most safe output types support `target-repo` for cross-repository operations:
 | `create-discussion` | ✅ | Create discussions in any repo |
 | `create-agent-task` | ✅ | Create tasks in target repos |
 | `update-release` | ✅ | Update release notes across repos |
+
+**Configuration Example:**
+
+```yaml wrap
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  create-issue:
+    target-repo: "org/tracking-repo"  # Cross-repo: creates in tracking-repo
+    title-prefix: "[component] "
+  add-comment:
+    # No target-repo: operates on current repository
+```
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete configuration options.
 
