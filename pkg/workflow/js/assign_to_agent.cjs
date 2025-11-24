@@ -181,7 +181,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   `;
 
   try {
-    // TODO: Use another token here (to assign bots)
+    // Uses GH_TOKEN which is set to GH_AW_AGENT_TOKEN (or fallback) by the job
+    // This token needs: Read metadata, Write actions/contents/issues/pull-requests
     const response = await github.graphql(mutation);
 
     if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
