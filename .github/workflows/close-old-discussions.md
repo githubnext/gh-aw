@@ -3,7 +3,7 @@ description: Automatically closes discussions created by github-actions bot that
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 6 * * 0"  # Weekly on Sundays at 6 AM UTC
+    - cron: "0 6 */2 * *"  # Every 2 days at 6 AM UTC
 permissions:
   contents: read
   actions: read
@@ -16,7 +16,7 @@ tools:
     toolsets: [default, discussions]
 safe-outputs:
   close-discussion:
-    max: 10
+    max: 100
 timeout-minutes: 10
 strict: true
 ---
