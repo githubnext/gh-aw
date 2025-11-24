@@ -287,8 +287,7 @@
 #
 # - This workflow runs every 4 hours automatically (or manually with custom parameters)
 # - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-# - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped)
-# - All unassigned issues are routed to the project board with differentiation via Status field
+# - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped); routed issues are differentiated via the Status field
 # - Custom fields are created automatically if they don't exist
 # - User projects must exist before workflow runs (cannot auto-create)
 # ```
@@ -319,11 +318,8 @@ name: "AI Triage Campaign"
         required: false
 
 permissions:
-  actions: write
-  contents: write
-  issues: write
-  pull-requests: write
-  repository-projects: write
+  contents: read
+  issues: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
@@ -431,11 +427,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: write
-      contents: write
-      issues: write
-      pull-requests: write
-      repository-projects: write
+      contents: read
+      issues: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -531,7 +524,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_to_agent":{"default_agent":"copilot","max":10},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":20}}
+          {"assign_to_agent":{"default_agent":"copilot"},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":20}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Assign a GitHub Copilot agent to an issue or project item. The agent will be notified and can start working on the issue.","inputSchema":{"additionalProperties":false,"properties":{"agent":{"description":"Agent name or slug (defaults to 'copilot' if not provided)","type":"string"},"issue_number":{"description":"Issue number to assign agent to","type":["number","string"]}},"required":["issue_number"],"type":"object"},"name":"assign_to_agent"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -1513,8 +1506,7 @@ jobs:
           
           - This workflow runs every 4 hours automatically (or manually with custom parameters)
           - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-          - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped)
-          - All unassigned issues are routed to the project board with differentiation via Status field
+          - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped); routed issues are differentiated via the Status field
           - Custom fields are created automatically if they don't exist
           - User projects must exist before workflow runs (cannot auto-create)
           
@@ -4215,8 +4207,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
-          GH_AW_AGENT_MAX_COUNT: 10
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_AGENT_MAX_COUNT: 1
+          GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4273,9 +4265,7 @@ jobs:
               }
             }
             const AGENT_LOGIN_NAMES = {
-              copilot: "copilot-swe-agent",
-              claude: "claude-swe-agent",
-              codex: "codex-swe-agent",
+              copilot: "copilot-swe-agent"
             };
             async function getAvailableAgentLogins(owner, repo) {
               const query = `
@@ -4333,9 +4323,7 @@ jobs:
                     return actor.id;
                   }
                 }
-                const available = actors
-                  .filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login))
-                  .map(a => a.login);
+                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
                 core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
                 if (available.length > 0) {
                   core.info(`Available assignable coding agents: ${available.join(", ")}`);
@@ -4425,7 +4413,7 @@ jobs:
                       details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
                     }
                     const serialized = JSON.stringify(details, (_k, v) => v, 2);
-                    if (serialized && serialized !== '{}' ) {
+                    if (serialized && serialized !== "{}") {
                       core.debug(`Raw GraphQL error details: ${serialized}`);
                       core.error("Raw GraphQL error details (for troubleshooting):");
                       for (const line of serialized.split(/\n/)) {
@@ -4641,14 +4629,18 @@ jobs:
                   summaryContent += "```\n\n";
                   summaryContent += "**Token capability note:**\n";
                   summaryContent += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-                  summaryContent += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+                  summaryContent +=
+                    "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
                   summaryContent += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
                   summaryContent += "**Recommended remediation paths:**\n";
-                  summaryContent += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+                  summaryContent +=
+                    "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
                   summaryContent += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
                   summaryContent += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-                  summaryContent += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-                  summaryContent += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+                  summaryContent +=
+                    "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+                  summaryContent +=
+                    "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
                 }
               }
               await core.summary.addRaw(summaryContent).write();
