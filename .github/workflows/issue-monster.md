@@ -21,8 +21,8 @@ tools:
 
 safe-outputs:
   app:
-    app-id: ${{ vars.ORG_APP_ID }}
-    private-key: ${{ secrets.ORG_APP_PRIVATE_KEY }}
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
   assign-to-agent:
   add-comment:
 ---
