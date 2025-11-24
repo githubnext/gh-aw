@@ -152,12 +152,58 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
+    // Debug: surface the raw GraphQL error structure for troubleshooting fine-grained permission issues
+    try {
+      core.debug(`Raw GraphQL error message: ${errorMessage}`);
+      if (error && typeof error === "object") {
+        // Common GraphQL error shapes: error.errors (array), error.data, error.response
+        const details = {};
+        if (error.errors) details.errors = error.errors;
+        // Some libraries wrap the payload under 'response' or 'response.data'
+        if (error.response) details.response = error.response;
+        if (error.data) details.data = error.data;
+        // If GitHub returns an array of errors with 'type'/'message'
+        if (Array.isArray(error.errors)) {
+          details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+        }
+        const serialized = JSON.stringify(details, (_k, v) => v, 2);
+        if (serialized && serialized !== '{}' ) {
+          core.debug(`Raw GraphQL error details: ${serialized}`);
+          // Also emit non-debug version so users without ACTIONS_STEP_DEBUG can see it
+          core.error("Raw GraphQL error details (for troubleshooting):");
+          // Split large JSON for readability
+          for (const line of serialized.split(/\n/)) {
+            if (line.trim()) core.error(line);
+          }
+        }
+      }
+    } catch (loggingErr) {
+      // Never fail assignment because of debug logging
+      core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
+    }
+
     // Check for permission-related errors
     if (
       errorMessage.includes("Resource not accessible by personal access token") ||
       errorMessage.includes("Resource not accessible by integration") ||
       errorMessage.includes("Insufficient permissions to assign")
     ) {
+      // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
+      core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
+      try {
+        // Fallback does not preserve removals; we only add the agent if not already assigned
+        const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
+        const fallbackResp = await github.graphql(fallbackMutation);
+        if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+          core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+          return true;
+        } else {
+          core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
+        }
+      } catch (fallbackError) {
+        const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
+      }
       core.error(`Failed to assign ${agentName}: Insufficient permissions`);
       core.error("");
       core.error("Assigning Copilot agents requires:");
@@ -167,8 +213,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       core.error("     - issues: write");
       core.error("     - pull-requests: write");
       core.error("");
-      core.error("  2. GitHub Actions GITHUB_TOKEN (not a PAT):");
-      core.error("     github-token: ${{ secrets.GITHUB_TOKEN }}");
+      core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+      core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
       core.error("");
       core.error("  3. Repository settings:");
       core.error("     - Actions must have write permissions");
@@ -373,16 +419,16 @@ async function main() {
       summaryContent += "  issues: write\n";
       summaryContent += "  pull-requests: write\n";
       summaryContent += "```\n\n";
-      summaryContent += "**Token requirements:**\n";
-      summaryContent += "- ✅ **GitHub Actions GITHUB_TOKEN** with all permissions above\n";
-      summaryContent += "- ❌ **Personal Access Tokens (PATs)** are NOT supported\n\n";
-      summaryContent += "Ensure your workflow uses:\n";
-      summaryContent += "```yaml\n";
-      summaryContent += "safe-outputs:\n";
-      summaryContent += "  github-token: ${{ secrets.GITHUB_TOKEN }}\n";
-      summaryContent += "```\n\n";
-      summaryContent +=
-        "📖 [Learn more about Copilot agent permissions](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr)\n";
+      summaryContent += "**Token capability note:**\n";
+      summaryContent += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+      summaryContent += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+      summaryContent += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+      summaryContent += "**Recommended remediation paths:**\n";
+      summaryContent += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+      summaryContent += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+      summaryContent += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+      summaryContent += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+      summaryContent += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
     }
   }
 

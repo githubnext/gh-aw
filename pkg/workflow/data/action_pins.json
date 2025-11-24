@@ -60,6 +60,11 @@
       "version": "v5",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
+    "actions/create-github-app-token@v1": {
+      "repo": "actions/create-github-app-token",
+      "version": "v1",
+      "sha": "d72941d797fd3113feb6b93fd0dec494b13a2547"
+    },
     "astral-sh/setup-uv@v5": {
       "repo": "astral-sh/setup-uv",
       "version": "v5",
