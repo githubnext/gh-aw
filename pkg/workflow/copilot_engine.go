@@ -111,6 +111,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	if isFirewallEnabled(workflowData) {
 		// Simplified args for firewall mode
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+
+		// Always add workspace directory to --add-dir so Copilot CLI can access it
+		// This allows Copilot CLI to discover agent files and access the workspace
+		copilotArgs = append(copilotArgs, "--add-dir", "${GITHUB_WORKSPACE}")
+		copilotLog.Print("Added workspace directory to --add-dir")
+
 		copilotLog.Print("Using firewall mode with simplified arguments")
 	} else {
 		// Original args for non-firewall mode
@@ -211,9 +217,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Get allowed domains (copilot defaults + network permissions) with specific ordering
 		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
-		// Build AWF arguments: standard flags + custom args from config
+		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
+
+		// Add mount arguments for required paths
+		// Always mount /tmp for temporary files and cache
+		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
+
+		// Always mount the workspace directory so Copilot CLI can access it
+		awfArgs = append(awfArgs, "--mount", "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro")
+		copilotLog.Print("Added workspace mount to AWF")
+
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 
@@ -222,11 +237,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfArgs = append(awfArgs, firewallConfig.Args...)
 		}
 
-		// Properly escape shell arguments using shell helper functions
-		// The copilot command is wrapped as a single string argument to AWF using shellEscapeCommandString
+		// Build the full AWF command with proper argument separation
+		// AWF v0.2.0 uses -- to separate AWF args from the actual command
+		// The command arguments should be passed as individual shell arguments, not as a single string
 		command = fmt.Sprintf(`set -o pipefail
 sudo -E awf %s \
-  %s \
+  -- %s \
   2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
@@ -236,7 +252,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$COPILOT_LOGS_DIR"/* %s || true
   sudo rmdir "$COPILOT_LOGS_DIR" || true
-fi`, shellJoinArgs(awfArgs), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+fi`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
