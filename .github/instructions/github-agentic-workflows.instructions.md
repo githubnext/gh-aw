@@ -112,7 +112,10 @@ The YAML frontmatter supports these fields:
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-- **`strict:`** - Enable enhanced validation for production workflows (boolean)
+- **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
+  - When omitted, workflows enforce strict mode security constraints
+  - Set to `false` to explicitly disable strict mode for development/testing
+  - Strict mode enforces: no write permissions, explicit network config, pinned actions to SHAs, no wildcard domains
 - **`features:`** - Feature flags for experimental features (object)
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
