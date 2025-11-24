@@ -316,6 +316,7 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
+strict: false
 ---
 
 # Normal Workflow

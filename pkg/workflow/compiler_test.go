@@ -24,6 +24,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -110,6 +111,7 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+strict: false
 ---`,
 			expectError:      true,
 			expectedErrorMsg: "no markdown content found",
@@ -127,6 +129,7 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+strict: false
 ---
 
 
@@ -147,6 +150,7 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+strict: false
 ---
    	   
 `,
@@ -175,6 +179,7 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -199,6 +204,7 @@ tools:
   github:
     allowed: [add_issue_comment]
 engine: claude
+strict: false
 ---
 
 Brief content`,
@@ -1002,6 +1008,7 @@ Second include file with bash tools.
 	mainContent := fmt.Sprintf(`---
 on: push
 engine: claude
+strict: false
 tools:
   bash: ["pwd"] # Additional command in main file
 ---
@@ -1022,6 +1029,7 @@ More content.
 	simpleContent := `---
 on: push
 engine: claude
+strict: false
 tools:
   bash: ["pwd", "ls", "cat"]
 ---
@@ -1814,6 +1822,7 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 engine: claude
+strict: false
 tools:
   bash: ["echo 'hello'"]
 ---
@@ -2118,6 +2127,7 @@ func TestNetworkPermissionsDefaultBehavior(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -2152,6 +2162,7 @@ This is a test workflow without network permissions.
 		testContent := `---
 on: push
 engine: claude
+strict: false
 network: defaults
 ---
 
@@ -2187,6 +2198,7 @@ This is a test workflow with explicit defaults network permissions.
 		testContent := `---
 on: push
 engine: claude
+strict: false
 network: {}
 ---
 
@@ -2269,6 +2281,7 @@ This is a test workflow with explicit network permissions.
 		testContent := `---
 on: push
 engine: codex
+strict: false
 network:
   allowed: ["example.com"]
 ---
@@ -2447,6 +2460,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     toolsets: [issues]
@@ -3345,6 +3359,7 @@ tools:
   github:
     allowed: [list_issues
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3366,6 +3381,7 @@ permissions:
 invalid: yaml: syntax
   more: bad
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3384,6 +3400,7 @@ permissions:
 contents: read
   issues: write
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3406,6 +3423,7 @@ tools:
   github:
     allowed: ["list_issues]
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3427,6 +3445,7 @@ permissions:
 permissions:
   issues: write
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3446,6 +3465,7 @@ permissions:
   issues: yes_please
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3464,6 +3484,7 @@ permissions
   contents: read
   issues: write
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3482,6 +3503,7 @@ tools:
   github:
     allowed: ["list_issues" "create_issue"]
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3510,6 +3532,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3534,6 +3557,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3550,6 +3574,7 @@ Invalid YAML with malformed nested structure.`,
 on: push
 permissions: {contents: read, issues: write
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3566,6 +3591,7 @@ Invalid YAML with unclosed flow mapping.`,
 on: push
 message: "invalid escape sequence \x in middle"
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -3757,6 +3783,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
   path: node_modules
@@ -3790,6 +3817,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 cache:
   - key: node-modules-${{ hashFiles('package-lock.json') }}
     path: node_modules
@@ -3835,6 +3863,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 cache:
   key: full-cache-${{ github.sha }}
   path: dist
@@ -3938,6 +3967,7 @@ post-steps:
       name: test-artifact
       path: test-file.txt
 engine: claude
+strict: false
 ---
 
 # Test Post Steps Workflow
@@ -4019,6 +4049,7 @@ post-steps:
   - name: Only Post Step
     run: echo "This runs after AI only"
 engine: claude
+strict: false
 ---
 
 # Test Post Steps Only Workflow
@@ -4083,6 +4114,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -4193,6 +4225,7 @@ tools:
   github:
     toolsets: [repos, issues]
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -4357,6 +4390,7 @@ permissions:
   pull-requests: read
 %s
 engine: claude
+strict: false
 ---
 
 # Test Steps Indentation
@@ -4446,6 +4480,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4470,6 +4505,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4496,6 +4532,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4520,6 +4557,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4545,6 +4583,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4573,6 +4612,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4603,6 +4643,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			shouldNotContain: []string{
 				"stop-after:",
@@ -4712,6 +4753,7 @@ permissions:
   pull-requests: read
 %s
 engine: claude
+strict: false
 ---
 
 # Test Edge Cases
@@ -5459,6 +5501,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 tools:
   github:
     allowed: [list_commits]
@@ -5481,6 +5524,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 tools:
   github:
     allowed: [list_commits]
@@ -5499,6 +5543,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 tools:
   github:
     allowed: [list_commits]
@@ -5774,6 +5819,7 @@ post-steps:
       echo "multiline"
       echo "script"
 engine: claude
+strict: false
 ---
 
 # Test Post Steps Indentation
@@ -5864,6 +5910,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 ---
 
 # Test Prompt Upload

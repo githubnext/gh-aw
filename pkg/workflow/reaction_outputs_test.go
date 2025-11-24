@@ -26,6 +26,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 tools:
   github:
     allowed: [get_issue]
@@ -105,6 +106,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+strict: false
 ---
 
 # Test Workflow

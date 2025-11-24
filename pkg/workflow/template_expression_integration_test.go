@@ -27,6 +27,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Issue and PR Analyzer
@@ -144,6 +145,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Already Wrapped
@@ -204,6 +206,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Mixed Template Test

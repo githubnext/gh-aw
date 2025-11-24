@@ -26,6 +26,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: ["bug", "enhancement"]
@@ -126,6 +127,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: codex
+strict: false
 safe-outputs:
   add-labels:
     allowed: ["bug", "enhancement"]
@@ -250,6 +252,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: copilot
+strict: false
 ---
 
 # Test Engine Output Cleanup

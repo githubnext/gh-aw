@@ -28,6 +28,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -47,6 +48,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -68,6 +70,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -87,6 +90,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -106,6 +110,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -125,6 +130,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -144,6 +150,7 @@ permissions:
   contents: read
   pull-requests: read
 engine: codex
+strict: false
 ---
 
 # Test Workflow
@@ -240,6 +247,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -310,6 +318,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow

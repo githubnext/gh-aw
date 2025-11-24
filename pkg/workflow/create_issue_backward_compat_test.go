@@ -25,6 +25,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   create-issue:
     title-prefix: "[legacy] "
@@ -96,6 +97,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   create-issue:
 ---

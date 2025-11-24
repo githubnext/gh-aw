@@ -204,6 +204,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-issue:
     title-prefix: "[bot] "
@@ -222,6 +223,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-discussion:
     title-prefix: "[report] "
@@ -240,6 +242,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   update-issue:
     status:
@@ -258,6 +261,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   add-comment:
     max: 3
@@ -275,6 +279,7 @@ on: push
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[auto] "
@@ -362,6 +367,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-issue:
     assignees: [copilot]
@@ -378,6 +384,7 @@ on: push
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-pull-request:
 ---
@@ -393,6 +400,7 @@ on: issues
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   add-comment:
 ---

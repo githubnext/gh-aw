@@ -24,6 +24,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   create-issue:
 ---

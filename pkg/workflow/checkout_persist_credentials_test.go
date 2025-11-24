@@ -29,6 +29,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---`,
 			description: "Main job checkout step should include persist-credentials: false",
 		},
@@ -47,6 +48,7 @@ safe-outputs:
   create-issue:
     assignees: [user1]
 engine: claude
+strict: false
 ---`,
 			description: "Create issue job checkout should include persist-credentials: false",
 		},
@@ -64,6 +66,7 @@ permissions:
 safe-outputs:
   create-pull-request:
 engine: claude
+strict: false
 ---`,
 			description: "Create pull request job checkout should include persist-credentials: false",
 		},
@@ -81,6 +84,7 @@ permissions:
 safe-outputs:
   push-to-pull-request-branch:
 engine: claude
+strict: false
 ---`,
 			description: "Push to PR branch job checkout should include persist-credentials: false",
 		},
@@ -97,6 +101,7 @@ permissions:
 safe-outputs:
   upload-assets:
 engine: claude
+strict: false
 ---`,
 			description: "Upload assets job checkout should include persist-credentials: false",
 		},
@@ -114,6 +119,7 @@ permissions:
 safe-outputs:
   create-agent-task:
 engine: claude
+strict: false
 ---`,
 			description: "Create agent task job checkout should include persist-credentials: false",
 		},

@@ -316,6 +316,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow

@@ -29,6 +29,7 @@ on: issues
 permissions:
   issues: write
 engine: claude
+strict: false
 tools:
   github:
     mode: remote
@@ -46,6 +47,7 @@ on: issues
 permissions:
   issues: write
 engine: claude
+strict: false
 tools:
   github:
     mode: remote
@@ -64,6 +66,7 @@ on: issues
 permissions:
   issues: read
 engine: claude
+strict: false
 tools:
   github:
     mode: remote
@@ -82,6 +85,7 @@ on: issues
 permissions:
   issues: write
 engine: claude
+strict: false
 tools:
   github:
     toolsets: [issues]
@@ -98,6 +102,7 @@ on: issues
 permissions:
   issues: write
 engine: copilot
+strict: false
 tools:
   github:
     mode: remote
@@ -115,6 +120,7 @@ on: issues
 permissions:
   issues: read
 engine: copilot
+strict: false
 tools:
   github:
     mode: remote
@@ -133,6 +139,7 @@ on: issues
 permissions:
   issues: write
 engine: codex
+strict: false
 tools:
   github:
     mode: remote
@@ -151,6 +158,7 @@ on: issues
 permissions:
   issues: write
 engine: codex
+strict: false
 tools:
   github:
     mode: remote
@@ -170,6 +178,7 @@ on: issues
 permissions:
   issues: read
 engine: codex
+strict: false
 tools:
   github:
     mode: remote
