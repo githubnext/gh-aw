@@ -19,63 +19,131 @@ safe-outputs:
     max: 100
 timeout-minutes: 10
 strict: true
+steps:
+  - name: Fetch open discussions
+    id: fetch-discussions
+    run: |
+      # Use GraphQL to fetch all open discussions in one query
+      # Filter to only get discussions created by github-actions[bot]
+      # Calculate cutoff date (7 days ago)
+      CUTOFF_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+      
+      # Fetch discussions with pagination
+      DISCUSSIONS_FILE="/tmp/gh-aw/discussions.json"
+      echo '[]' > "$DISCUSSIONS_FILE"
+      
+      CURSOR=""
+      HAS_NEXT_PAGE=true
+      
+      while [ "$HAS_NEXT_PAGE" = "true" ]; do
+        if [ -z "$CURSOR" ]; then
+          CURSOR_ARG=""
+        else
+          CURSOR_ARG=", after: \"$CURSOR\""
+        fi
+        
+        RESULT=$(gh api graphql -f query="
+          query {
+            repository(owner: \"${{ github.repository_owner }}\", name: \"${{ github.event.repository.name }}\") {
+              discussions(first: 100, states: OPEN${CURSOR_ARG}) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  number
+                  title
+                  createdAt
+                  author {
+                    login
+                  }
+                }
+              }
+            }
+          }
+        ")
+        
+        # Extract discussions created by github-actions[bot]
+        echo "$RESULT" | jq -r --arg cutoff "$CUTOFF_DATE" '
+          .data.repository.discussions.nodes 
+          | map(select(
+              .author.login == "github-actions[bot]" and 
+              .createdAt < $cutoff
+            ))
+          | map({number, title, createdAt, author: .author.login})
+        ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json
+        
+        # Merge with existing discussions
+        jq -s 'add | unique_by(.number)' "$DISCUSSIONS_FILE" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json
+        mv /tmp/gh-aw/merged.json "$DISCUSSIONS_FILE"
+        
+        # Check if there are more pages
+        HAS_NEXT_PAGE=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')
+        CURSOR=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.endCursor')
+        
+        # Safety check - break after 10 pages (1000 discussions)
+        PAGE_COUNT=$((PAGE_COUNT + 1))
+        if [ $PAGE_COUNT -ge 10 ]; then
+          echo "Reached pagination limit (10 pages)"
+          break
+        fi
+      done
+      
+      # Output summary for logging
+      DISCUSSION_COUNT=$(jq 'length' "$DISCUSSIONS_FILE")
+      echo "Found $DISCUSSION_COUNT discussions to close"
+      
+      # Output the filtered data for the agent
+      jq -c '.[] | {number, title, createdAt}' "$DISCUSSIONS_FILE" > /tmp/gh-aw/filtered-discussions.jsonl
+    env:
+      GH_TOKEN: ${{ github.token }}
 ---
 
 # Close Old Discussions Created by GitHub Actions Bot
 
 This workflow automatically closes discussions that were created by the `github-actions[bot]` user and are older than 1 week.
 
-## Task Requirements
+**Pre-filtered Discussion Data**: The workflow has already downloaded and filtered discussions using GitHub GraphQL API. The filtered data is available in `/tmp/gh-aw/filtered-discussions.jsonl` with only discussions that:
+- Were created by `github-actions[bot]`
+- Are older than 7 days (1 week)
 
-1. **List all open discussions** in the repository `${{ github.repository }}`
-2. **Filter discussions** to find those that:
-   - Were created by the user `github-actions[bot]`
-   - Were created more than 7 days ago (1 week threshold)
-3. **Close each matching discussion** with:
-   - A comment explaining the closure: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
-   - Resolution reason: "OUTDATED"
+## Task
 
-## Implementation Instructions
+Read the pre-filtered discussion data from `/tmp/gh-aw/filtered-discussions.jsonl` and generate `close_discussion` outputs for each discussion.
 
-### Step 1: List Open Discussions
+**Important**: Do NOT call the GitHub API to list discussions - the data has already been fetched and filtered in the custom step above.
 
-Use the GitHub API to list all open discussions in the repository. You can use the `github` tool with the discussions toolset.
+### Instructions
 
-### Step 2: Filter Discussions
-
-For each discussion:
-- Check if the author login is exactly `github-actions[bot]`
-- Calculate the age by comparing the discussion's `createdAt` date with the current date
-- Only include discussions that are more than 7 days old (created before 1 week ago)
-
-### Step 3: Close Matching Discussions
-
-For each discussion that matches the criteria, output a `close_discussion` item with:
-- **discussion_number**: The discussion number to close
-- **body**: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
-- **reason**: "OUTDATED"
+1. **Read the filtered data**: Load `/tmp/gh-aw/filtered-discussions.jsonl`
+2. **Generate close outputs**: For each discussion in the file, create a `close_discussion` output:
+   - **discussion_number**: The discussion number from the data
+   - **body**: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
+   - **reason**: "OUTDATED"
 
 Output format (JSONL):
 ```jsonl
 {"type":"close_discussion","discussion_number":123,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
 ```
 
-## Important Notes
+### Example
 
-- **Maximum closures**: The workflow is configured to close up to 10 discussions per run
-- **User filter**: Only close discussions created by `github-actions[bot]`, not by human users
-- **Age threshold**: Only close discussions older than 7 days (1 week)
-- **Be selective**: If there are no matching discussions, report that no action was needed
-- **Safe outputs**: Use the `close_discussion` safe output type which will be processed by the automated system
+If `/tmp/gh-aw/filtered-discussions.jsonl` contains:
+```jsonl
+{"number":1234,"title":"Test Discussion","createdAt":"2025-11-10T00:00:00Z"}
+{"number":1235,"title":"Another Discussion","createdAt":"2025-11-11T00:00:00Z"}
+```
 
-## Success Criteria
+You should output:
+```jsonl
+{"type":"close_discussion","discussion_number":1234,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+{"type":"close_discussion","discussion_number":1235,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+```
 
-A successful run will:
-- ✅ List all open discussions from the repository
-- ✅ Correctly identify discussions created by `github-actions[bot]`
-- ✅ Accurately calculate discussion age (older than 1 week)
-- ✅ Generate appropriate `close_discussion` outputs for matching discussions
-- ✅ Respect the maximum of 10 closures per run
-- ✅ Provide clear logging of actions taken
+## Notes
 
-Begin the task now. List discussions, filter by author and age, and generate close_discussion outputs for matching items.
+- Maximum closures: Up to 100 discussions per run (configured via safe-outputs max)
+- Data is pre-filtered: No need to check author or age - all discussions in the file match criteria
+- If the file is empty or doesn't exist: Report that no discussions need to be closed
+
+Begin the task now. Read the filtered data and generate close_discussion outputs.
