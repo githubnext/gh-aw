@@ -63,8 +63,23 @@ func (c *ActionCache) Load() error {
 }
 
 // Save saves the cache to disk with sorted entries
+// If the cache is empty, the file is not created or is deleted if it exists
 func (c *ActionCache) Save() error {
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
+
+	// If cache is empty, skip saving and delete the file if it exists
+	if len(c.Entries) == 0 {
+		actionCacheLog.Print("Cache is empty, skipping file creation")
+		// Remove the file if it exists
+		if _, err := os.Stat(c.path); err == nil {
+			actionCacheLog.Printf("Removing existing empty cache file: %s", c.path)
+			if err := os.Remove(c.path); err != nil {
+				actionCacheLog.Printf("Failed to remove empty cache file: %v", err)
+				return err
+			}
+		}
+		return nil
+	}
 
 	// Ensure directory exists
 	dir := filepath.Dir(c.path)

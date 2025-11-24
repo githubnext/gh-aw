@@ -199,3 +199,54 @@ func indexOf(s, substr string) int {
 	}
 	return -1
 }
+
+func TestActionCacheEmptySaveDoesNotCreateFile(t *testing.T) {
+	// Create temporary directory for testing
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create empty cache
+	cache := NewActionCache(tmpDir)
+
+	// Save empty cache
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save empty cache: %v", err)
+	}
+
+	// Verify file does NOT exist
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Error("Empty cache should not create a file")
+	}
+}
+
+func TestActionCacheEmptySaveDeletesExistingFile(t *testing.T) {
+	// Create temporary directory for testing
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create cache with entries and save
+	cache := NewActionCache(tmpDir)
+	cache.Set("actions/checkout", "v5", "abc123")
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Verify file exists
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+		t.Fatal("Cache file should exist after saving with entries")
+	}
+
+	// Clear cache and save again
+	cache.Entries = make(map[string]ActionCacheEntry)
+	err = cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save empty cache: %v", err)
+	}
+
+	// Verify file is now deleted
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Error("Empty cache should delete existing file")
+	}
+}

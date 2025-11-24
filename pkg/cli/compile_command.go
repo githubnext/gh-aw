@@ -417,18 +417,27 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
 		}
 
+		// Get the action cache once for use in multiple places
+		actionCache := compiler.GetSharedActionCache()
+		hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+
 		// Ensure .gitattributes marks .lock.yml files as generated
-		compileLog.Printf("Updating .gitattributes")
-		if err := ensureGitAttributes(); err != nil {
-			compileLog.Printf("Failed to update .gitattributes: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+		// Only update if we successfully compiled workflows or have action cache entries
+		if compiledCount > 0 || hasActionCacheEntries {
+			compileLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", compiledCount, hasActionCacheEntries)
+			if err := ensureGitAttributes(); err != nil {
+				compileLog.Printf("Failed to update .gitattributes: %v", err)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+				}
+			} else {
+				compileLog.Printf("Successfully updated .gitattributes")
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+				}
 			}
 		} else {
-			compileLog.Printf("Successfully updated .gitattributes")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
-			}
+			compileLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 		}
 
 		// Generate Dependabot manifests if requested
@@ -467,7 +476,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 
 		// Save the action cache after all compilations
-		actionCache := compiler.GetSharedActionCache()
 		if actionCache != nil {
 			if err := actionCache.Save(); err != nil {
 				compileLog.Printf("Failed to save action cache: %v", err)
@@ -651,13 +659,23 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	}
 
+	// Get the action cache once for use in multiple places
+	actionCache := compiler.GetSharedActionCache()
+	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+
 	// Ensure .gitattributes marks .lock.yml files as generated
-	if err := ensureGitAttributes(); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+	// Only update if we successfully compiled workflows or have action cache entries
+	if successCount > 0 || hasActionCacheEntries {
+		compileLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", successCount, hasActionCacheEntries)
+		if err := ensureGitAttributes(); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+			}
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 		}
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+	} else {
+		compileLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 	}
 
 	// Generate Dependabot manifests if requested
@@ -693,7 +711,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	}
 
 	// Save the action cache after all compilations
-	actionCache := compiler.GetSharedActionCache()
 	if actionCache != nil {
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
