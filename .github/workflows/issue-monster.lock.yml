@@ -4425,7 +4425,7 @@ jobs:
               }
             }
             const AGENT_LOGIN_NAMES = {
-              copilot: "copilot-swe-agent"
+              copilot: "copilot-swe-agent",
             };
             async function getAvailableAgentLogins(owner, repo) {
               const query = `
