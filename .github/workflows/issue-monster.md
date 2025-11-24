@@ -2,8 +2,6 @@
 name: Issue Monster
 description: The Cookie Monster of issues - hungrily consumes issues one by one, assigning them to agents for resolution
 on:
-  schedule:
-    - cron: "0 * * * *"  # Every hour
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[issue-monster]"'
 

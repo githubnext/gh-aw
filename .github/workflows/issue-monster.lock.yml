@@ -164,8 +164,6 @@
 
 name: "Issue Monster"
 "on":
-  schedule:
-  - cron: "0 * * * *"
   # skip-if-match: is:pr is:open in:title "[issue-monster]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch: null
 
