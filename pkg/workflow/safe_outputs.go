@@ -41,6 +41,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
+		safeOutputs.AssignToAgent != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
@@ -90,6 +91,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Creating an Agent Task")
+		written = true
+	}
+	if safeOutputs.AssignToAgent != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Assigning Agents to Issues")
 		written = true
 	}
 	if safeOutputs.CreatePullRequests != nil {
@@ -179,6 +187,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Creating an Agent Task**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString(fmt.Sprintf("          To create a GitHub Copilot agent task, use the create-agent-task tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.AssignToAgent != nil {
+		yaml.WriteString("          **Assigning Agents to Issues**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To assign a GitHub Copilot agent to an issue, use the assign-to-agent tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -495,6 +510,63 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				} else if milestone == nil {
 					// Handle null case: create empty config (allows any milestones)
 					config.AssignMilestone = &AssignMilestoneConfig{}
+				}
+			}
+
+			// Handle assign-to-agent
+			if assignToAgent, exists := outputMap["assign-to-agent"]; exists {
+				if agentMap, ok := assignToAgent.(map[string]any); ok {
+					agentConfig := &AssignToAgentConfig{}
+
+					// Parse default-agent (optional)
+					if defaultAgent, exists := agentMap["default-agent"]; exists {
+						if defaultAgentStr, ok := defaultAgent.(string); ok {
+							agentConfig.DefaultAgent = defaultAgentStr
+						}
+					}
+
+					// Parse max (optional)
+					if maxCount, exists := agentMap["max"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							agentConfig.Max = maxCountInt
+						}
+					}
+
+					// Parse github-token
+					if githubToken, exists := agentMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							agentConfig.GitHubToken = githubTokenStr
+						}
+					}
+
+					// Parse target-repo
+					if targetRepo, exists := agentMap["target-repo"]; exists {
+						if targetRepoStr, ok := targetRepo.(string); ok {
+							agentConfig.TargetRepoSlug = targetRepoStr
+						}
+					}
+
+					config.AssignToAgent = agentConfig
+				} else if assignToAgent == nil {
+					// Handle null case: create empty config
+					config.AssignToAgent = &AssignToAgentConfig{}
 				}
 			}
 
@@ -1061,6 +1133,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["assign_milestone"] = assignMilestoneConfig
 		}
+		if data.SafeOutputs.AssignToAgent != nil {
+			assignToAgentConfig := map[string]any{}
+			if data.SafeOutputs.AssignToAgent.Max > 0 {
+				assignToAgentConfig["max"] = data.SafeOutputs.AssignToAgent.Max
+			}
+			if data.SafeOutputs.AssignToAgent.DefaultAgent != "" {
+				assignToAgentConfig["default_agent"] = data.SafeOutputs.AssignToAgent.DefaultAgent
+			}
+			safeOutputsConfig["assign_to_agent"] = assignToAgentConfig
+		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
 			// Always include max (use configured value or default)
@@ -1239,6 +1321,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.AssignMilestone != nil {
 		enabledTools["assign_milestone"] = true
+	}
+	if data.SafeOutputs.AssignToAgent != nil {
+		enabledTools["assign_to_agent"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true

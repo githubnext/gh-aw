@@ -310,6 +310,25 @@
     }
   },
   {
+    "name": "assign_to_agent",
+    "description": "Assign a GitHub Copilot agent to an issue or project item. The agent will be notified and can start working on the issue.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["issue_number"],
+      "properties": {
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to assign agent to"
+        },
+        "agent": {
+          "type": "string",
+          "description": "Agent name or slug (defaults to 'copilot' if not provided)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_issue",
     "description": "Update a GitHub issue",
     "inputSchema": {
