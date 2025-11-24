@@ -316,6 +316,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test Workflow
@@ -332,6 +333,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 engine:
   id: claude
   version: beta
@@ -352,6 +354,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 engine:
   id: codex
   model: gpt-4o

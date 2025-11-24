@@ -9,6 +9,7 @@ tools:
       go:
         go-mod-file: "backend/go.mod"
         gopls-version: "latest"
+strict: false
 ---
 
 # Test Serena Custom Go.mod Path

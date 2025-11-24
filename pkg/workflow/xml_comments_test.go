@@ -316,6 +316,7 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
+strict: false
 ---
 
 # Normal Workflow
@@ -338,6 +339,7 @@ This is a normal-sized workflow that should compile successfully.`
 		"    types: [opened]\n" +
 		"permissions:\n" +
 		"  issues: write\n" +
+		"strict: false\n" +
 		"tools:\n" +
 		"  github:\n" +
 		"    toolsets: [issues]\n" +

@@ -27,6 +27,7 @@ on:
 permissions:
   contents: read
 engine: copilot
+strict: false
 ---`,
 			wantEnvironmentInJob: true,
 			wantEnvironmentValue: "production",
@@ -40,6 +41,7 @@ on:
 permissions:
   contents: read
 engine: copilot
+strict: false
 ---`,
 			wantEnvironmentInJob: false,
 			wantEnvironmentValue: "",
@@ -56,6 +58,7 @@ permissions:
   contents: read
   issues: write
 engine: copilot
+strict: false
 ---`,
 			wantEnvironmentInJob: true,
 			wantEnvironmentValue: "staging",

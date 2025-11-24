@@ -22,6 +22,7 @@ permissions:
   pull-requests: write
   issues: read
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
 ---
@@ -69,6 +70,7 @@ This workflow tests the create-pull-request-review-comment configuration parsing
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
     max: 5
@@ -113,6 +115,7 @@ This workflow tests custom configuration values.
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment: null
 ---
@@ -155,6 +158,7 @@ This workflow tests null configuration.
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
     max: 5
@@ -195,6 +199,7 @@ This workflow tests target configuration.
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
     max: 2
@@ -234,6 +239,7 @@ func TestPRReviewCommentJobGeneration(t *testing.T) {
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
     max: 3
@@ -320,6 +326,7 @@ This workflow tests job generation for PR review comments.
 		testContent := `---
 on: pull_request
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request-review-comment:
     max: 3

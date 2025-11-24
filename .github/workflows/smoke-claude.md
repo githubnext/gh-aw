@@ -16,6 +16,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 15
+strict: false
 imports:
   - shared/mcp-pagination.md
 network:
@@ -37,7 +38,6 @@ safe-outputs:
     staged: true
     add-comment:
 timeout-minutes: 10
-strict: false
 ---
 
 # Smoke Test: Claude Engine Validation

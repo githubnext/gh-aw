@@ -683,16 +683,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// This ensures that strict mode from one workflow doesn't affect other workflows
 	initialStrictMode := c.strictMode
 
-	// Check if strict mode is enabled in frontmatter
-	// If strict is true in frontmatter, enable strict mode for this workflow
-	// This allows declarative strict mode control per workflow
-	// Note: CLI --strict flag is already set in c.strictMode and takes precedence
-	// Frontmatter can enable strict mode, but cannot disable it if CLI flag is set
+	// Check strict mode in frontmatter
+	// Priority: CLI flag > frontmatter > schema default (true)
 	if !c.strictMode {
+		// CLI flag not set, check frontmatter
 		if strictValue, exists := result.Frontmatter["strict"]; exists {
-			if strictBool, ok := strictValue.(bool); ok && strictBool {
-				c.strictMode = true
+			// Frontmatter explicitly sets strict mode
+			if strictBool, ok := strictValue.(bool); ok {
+				c.strictMode = strictBool
 			}
+		} else {
+			// Neither CLI nor frontmatter set - use schema default (true)
+			c.strictMode = true
 		}
 	}
 
@@ -810,10 +812,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForNetwork := c.strictMode
 	if !c.strictMode {
+		// CLI flag not set, check frontmatter
 		if strictValue, exists := result.Frontmatter["strict"]; exists {
-			if strictBool, ok := strictValue.(bool); ok && strictBool {
-				c.strictMode = true
+			// Frontmatter explicitly sets strict mode
+			if strictBool, ok := strictValue.(bool); ok {
+				c.strictMode = strictBool
 			}
+		} else {
+			// Neither CLI nor frontmatter set - use schema default (true)
+			c.strictMode = true
 		}
 	}
 

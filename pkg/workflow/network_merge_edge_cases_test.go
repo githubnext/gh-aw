@@ -37,6 +37,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+strict: false
 network:
   allowed:
     - github.com
@@ -91,6 +92,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+strict: false
 network:
   allowed:
     - github.com

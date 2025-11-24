@@ -88,6 +88,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+strict: false
 safe-outputs:
   create-issue:
 ---

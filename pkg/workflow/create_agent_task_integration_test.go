@@ -23,6 +23,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   create-agent-task:
     base: main
@@ -115,6 +116,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   create-agent-task:
     base: develop

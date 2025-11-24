@@ -8,6 +8,7 @@ engine: codex
 safe-outputs:
   assign-milestone:
     max: 2
+strict: false
 ---
 
 # Test Codex Assign Milestone

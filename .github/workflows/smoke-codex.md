@@ -13,6 +13,7 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
+strict: false
 network:
   allowed:
     - defaults
@@ -31,7 +32,6 @@ safe-outputs:
     staged: true
     add-comment:
 timeout-minutes: 10
-strict: false
 ---
 
 # Smoke Test: Codex Engine Validation
