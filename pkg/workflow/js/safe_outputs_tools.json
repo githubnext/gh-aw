@@ -12,7 +12,7 @@
         },
         "body": {
           "type": "string",
-          "description": "Issue body/description"
+          "description": "Issue body/description (the title acts as the h1 header, so do not duplicate it in the body)"
         },
         "labels": {
           "type": "array",
@@ -57,7 +57,7 @@
         },
         "body": {
           "type": "string",
-          "description": "Discussion body/content"
+          "description": "Discussion body/content (the title acts as the h1 header, so do not duplicate it in the body)"
         },
         "category": {
           "type": "string",
