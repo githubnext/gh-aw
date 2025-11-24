@@ -425,7 +425,7 @@ safe-outputs:
     target-repo: "org/other-repo"
 ```
 
-Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr)
+Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/)
 
 ## Cross-Repository Operations
 
