@@ -30,6 +30,7 @@ func TestCompileWithInvalidContainerImage(t *testing.T) {
 	// Create a workflow with an invalid container image
 	workflowContent := `---
 on: push
+strict: false
 engine: claude
 mcp-servers:
   test-tool:
@@ -81,6 +82,7 @@ func TestCompileWithInvalidContainerValidationDisabled(t *testing.T) {
 	// Create a workflow with an invalid container image
 	workflowContent := `---
 on: push
+strict: false
 engine: claude
 mcp-servers:
   test-tool:

@@ -124,6 +124,7 @@ func TestMCPEnvVarsAlphabeticallySorted(t *testing.T) {
 	workflowContent := `---
 on:
   workflow_dispatch:
+strict: false
 permissions:
   contents: read
   issues: read

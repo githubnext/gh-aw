@@ -1729,6 +1729,7 @@ on:
   workflow_dispatch:
 
 timeout-minutes: 15
+strict: false
 
 permissions:
   contents: read
@@ -2237,6 +2238,7 @@ This is a test workflow with empty network permissions (deny all).
 	t.Run("network with allowed domains should enforce restrictions", func(t *testing.T) {
 		testContent := `---
 on: push
+strict: false
 engine:
   id: claude
 network:
@@ -2331,6 +2333,7 @@ func TestMCPImageField(t *testing.T) {
 			name: "simple container field",
 			frontmatter: `---
 on: push
+strict: false
 mcp-servers:
   notionApi:
     container: mcp/notion
@@ -2346,6 +2349,7 @@ mcp-servers:
 			name: "container with environment variables",
 			frontmatter: `---
 on: push
+strict: false
 mcp-servers:
   notionApi:
     container: mcp/notion:v1.2.3
@@ -2365,6 +2369,7 @@ mcp-servers:
 			name: "multiple MCP servers with container fields",
 			frontmatter: `---
 on: push
+strict: false
 mcp-servers:
   notionApi:
     container: mcp/notion
