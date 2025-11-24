@@ -358,7 +358,7 @@ safe-outputs:
 
 **Token Requirements:**
 
-The default `GITHUB_TOKEN` lacks permissions to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
+The GitHub Action lacks permissions to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
 
 - **Read** access to metadata
 - **Write** access to actions, contents, issues, and pull requests
@@ -366,7 +366,6 @@ The default `GITHUB_TOKEN` lacks permissions to assign agents. Create a fine-gra
 ```yaml wrap
 safe-outputs:
   assign-to-agent:
-    # Uses secrets.GH_AW_AGENT_TOKEN automatically
 ```
 
 Alternatively, use a GitHub App installation token or override with `github-token`:
@@ -394,16 +393,6 @@ safe-outputs:
 **Repository Settings:**
 
 Ensure Copilot is enabled for your repository. Check organization settings if bot assignments are restricted.
-
-**Cross-Repository:**
-
-Requires `target-repo` and a token (PAT or GitHub App) with access to the target repository:
-```yaml wrap
-safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
-  assign-to-agent:
-    target-repo: "org/other-repo"
-```
 
 Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/)
 
