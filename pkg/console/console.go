@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/mattn/go-isatty"
 )
+
+var consoleLog = logger.New("console:console")
 
 // ErrorPosition represents a position in a source file
 type ErrorPosition struct {
@@ -95,6 +98,7 @@ func ToRelativePath(path string) string {
 
 // FormatError formats a CompilerError with Rust-like rendering
 func FormatError(err CompilerError) string {
+	consoleLog.Printf("Formatting error: type=%s, file=%s, line=%d", err.Type, err.Position.File, err.Position.Line)
 	var output strings.Builder
 
 	// Get style based on error type
@@ -269,9 +273,11 @@ type TableConfig struct {
 // RenderTable renders a formatted table using lipgloss
 func RenderTable(config TableConfig) string {
 	if len(config.Headers) == 0 {
+		consoleLog.Print("No headers provided for table rendering")
 		return ""
 	}
 
+	consoleLog.Printf("Rendering table: title=%s, columns=%d, rows=%d", config.Title, len(config.Headers), len(config.Rows))
 	var output strings.Builder
 
 	// Title

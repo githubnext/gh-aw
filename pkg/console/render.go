@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var renderLog = logger.New("console:render")
 
 // RenderStruct renders a Go struct to console output using reflection and struct tags.
 // It supports:
@@ -20,8 +24,10 @@ import (
 // - `console:"omitempty"` - Skips zero values
 // - `console:"-"` - Skips the field entirely
 func RenderStruct(v any) string {
+	renderLog.Printf("Rendering struct: type=%T", v)
 	var output strings.Builder
 	renderValue(reflect.ValueOf(v), "", &output, 0)
+	renderLog.Printf("Struct rendering complete: output_size=%d bytes", output.Len())
 	return output.String()
 }
 
@@ -48,6 +54,7 @@ func renderValue(val reflect.Value, title string, output *strings.Builder, depth
 // renderStruct renders a struct as markdown-style headers with key-value pairs
 func renderStruct(val reflect.Value, title string, output *strings.Builder, depth int) {
 	typ := val.Type()
+	renderLog.Printf("Rendering struct: type=%s, title=%s, depth=%d, fields=%d", typ.Name(), title, depth, val.NumField())
 
 	// Print title without FormatInfoMessage styling
 	if title != "" {

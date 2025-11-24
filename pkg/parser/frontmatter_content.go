@@ -23,10 +23,12 @@ type FrontmatterResult struct {
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
+	log.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
 	lines := strings.Split(content, "\n")
 
 	// Check if file starts with frontmatter delimiter
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		log.Print("No frontmatter delimiter found, returning content as markdown")
 		// No frontmatter, return entire content as markdown
 		return &FrontmatterResult{
 			Frontmatter:      make(map[string]any),
@@ -71,6 +73,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 	markdown := strings.Join(markdownLines, "\n")
 
+	log.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
@@ -82,6 +85,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 // ExtractMarkdownSection extracts a specific section from markdown content
 // Supports H1-H3 headers and proper nesting (matches bash implementation)
 func ExtractMarkdownSection(content, sectionName string) (string, error) {
+	log.Printf("Extracting markdown section: section=%s, content_size=%d bytes", sectionName, len(content))
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var sectionContent bytes.Buffer
 	inSection := false
@@ -116,10 +120,13 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	}
 
 	if !inSection {
+		log.Printf("Section not found: %s", sectionName)
 		return "", fmt.Errorf("section '%s' not found", sectionName)
 	}
 
-	return strings.TrimSpace(sectionContent.String()), nil
+	extractedContent := strings.TrimSpace(sectionContent.String())
+	log.Printf("Successfully extracted section: size=%d bytes", len(extractedContent))
+	return extractedContent, nil
 }
 
 // ExtractFrontmatterString extracts only the YAML frontmatter as a string

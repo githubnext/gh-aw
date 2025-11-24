@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var toolGraphLog = logger.New("cli:tool_graph")
 
 // ToolTransition represents an edge in the tool graph
 type ToolTransition struct {
@@ -37,6 +40,8 @@ func (g *ToolGraph) AddSequence(tools []string) {
 		return
 	}
 
+	toolGraphLog.Printf("Adding tool sequence: length=%d, tools=%v", len(tools), tools)
+
 	// Add all tools to the set
 	for _, tool := range tools {
 		g.Tools[tool] = true
@@ -57,9 +62,11 @@ func (g *ToolGraph) AddSequence(tools []string) {
 // GenerateMermaidGraph generates a Mermaid state diagram from the tool graph
 func (g *ToolGraph) GenerateMermaidGraph() string {
 	if len(g.Tools) == 0 {
+		toolGraphLog.Print("No tool calls found for Mermaid graph generation")
 		return console.FormatInfoMessage("No tool calls found")
 	}
 
+	toolGraphLog.Printf("Generating Mermaid graph: tools=%d, transitions=%d", len(g.Tools), len(g.Transitions))
 	var sb strings.Builder
 	sb.WriteString("```mermaid\n")
 	sb.WriteString("stateDiagram-v2\n")
@@ -198,9 +205,11 @@ func (g *ToolGraph) GetSummary() string {
 // generateToolGraph analyzes processed runs and generates a tool sequence graph
 func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {
+		toolGraphLog.Print("No processed runs to generate tool graph")
 		return
 	}
 
+	toolGraphLog.Printf("Generating tool graph from %d processed runs", len(processedRuns))
 	graph := NewToolGraph()
 	for _, run := range processedRuns {
 		sequences := extractToolSequencesFromRun(run, verbose)
