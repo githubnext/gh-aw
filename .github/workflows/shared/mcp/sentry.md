@@ -2,7 +2,7 @@
 mcp-servers:
   sentry:
     command: "npx"
-    args: ["@sentry/mcp-server@latest"]
+    args: ["@sentry/mcp-server@0.23.0"]
     allowed:
       - whoami
       - find_organizations
