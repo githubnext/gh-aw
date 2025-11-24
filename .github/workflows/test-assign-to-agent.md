@@ -36,7 +36,7 @@ github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 safe-outputs:
   assign-to-agent:
     max: 5
-    default-agent: copilot
+    name: copilot
 ---
 
 # Assign to Agent Test Workflow

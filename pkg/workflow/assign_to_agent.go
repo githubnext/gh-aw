@@ -7,7 +7,7 @@ import (
 // AssignToAgentConfig holds configuration for assigning agents to issues from agent output
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	DefaultAgent         string `yaml:"default-agent,omitempty"` // Default agent to assign (e.g., "copilot")
+	DefaultAgent         string `yaml:"name,omitempty"` // Default agent to assign (e.g., "copilot")
 	Target               string `yaml:"target,omitempty"`        // Target for agent assignment: "triggering" (default) or explicit issue number
 	TargetRepoSlug       string `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository assignments
 }
