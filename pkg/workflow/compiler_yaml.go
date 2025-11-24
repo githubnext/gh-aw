@@ -118,8 +118,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Original Prompt:\n")
 		yaml.WriteString("# ```markdown\n")
+		// Remove XML comments from markdown content before displaying in comment
+		cleanedMarkdownForComment := removeXMLComments(data.MarkdownContent)
 		// Split markdown content into lines and prefix each with "# "
-		markdownLines := strings.Split(strings.TrimSpace(data.MarkdownContent), "\n")
+		markdownLines := strings.Split(strings.TrimSpace(cleanedMarkdownForComment), "\n")
 		for _, line := range markdownLines {
 			// Preserve empty lines but prefix them with "#"
 			if strings.TrimSpace(line) == "" {

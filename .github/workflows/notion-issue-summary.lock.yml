@@ -39,32 +39,6 @@
 #
 # Original Prompt:
 # ```markdown
-# <!--
-# ## Notion Integration
-#
-# This shared configuration provides Notion MCP server integration with read-only tools and a custom safe-job for adding comments to Notion pages.
-#
-# ### Configuration
-#
-# - `NOTION_API_TOKEN` secret must be set in the repository settings with a Notion integration token that has access to the relevant pages/databases.
-# - `NOTION_PAGE_ID` environment variable must be set in the workflow or repository settings to specify the target Notion page for adding comments.
-#
-# ### Available Notion MCP Tools (Read-Only)
-#
-# - `search_pages`: Search for Notion pages
-# - `get_page`: Get details of a specific page
-# - `get_database`: Get database schema
-# - `query_database`: Query database content
-#
-# ### Safe Job: notion-add-comment
-#
-# The `notion_add_comment` safe-job allows the agentic workflow to add comments to Notion pages through the Notion API.
-# Requires the **insert comment** access on the token.
-#
-# **Required Inputs:**
-# - `comment`: The comment text to add
-# -->
-#
 # # Issue Summary to Notion
 #
 # Analyze the issue #${{ github.event.inputs.issue-number }} and create a brief summary, then add it as a comment to the Notion page.
