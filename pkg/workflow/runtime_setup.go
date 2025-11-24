@@ -482,6 +482,9 @@ func GenerateSerenaLanguageServiceSteps(tools map[string]any) []GitHubActionStep
 		}
 	}
 
+	// Sort languages alphabetically to ensure deterministic order
+	sort.Strings(languages)
+
 	runtimeSetupLog.Printf("Found %d Serena languages to install: %v", len(languages), languages)
 
 	// Generate installation steps for each language service
