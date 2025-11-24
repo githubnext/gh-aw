@@ -1839,6 +1839,11 @@
                   "type": "boolean",
                   "description": "Enable read-only mode to restrict GitHub MCP server to read-only operations only"
                 },
+                "lockdown": {
+                  "type": "boolean",
+                  "description": "Enable lockdown mode to limit content surfaced from public repositories (only items authored by users with push access). Default: false",
+                  "default": false
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."

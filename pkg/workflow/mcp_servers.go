@@ -292,6 +292,19 @@ func getGitHubReadOnly(githubTool any) bool {
 	return true // default to read-only for security
 }
 
+// getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
+// Defaults to false (lockdown disabled)
+func getGitHubLockdown(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if lockdownSetting, exists := toolConfig["lockdown"]; exists {
+			if boolValue, ok := lockdownSetting.(bool); ok {
+				return boolValue
+			}
+		}
+	}
+	return false // default to lockdown disabled
+}
+
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
 // Defaults to "default" for recommended toolset
 func getGitHubToolsets(githubTool any) string {
