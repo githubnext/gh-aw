@@ -980,6 +980,9 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 
 	// Save the action cache after all compilations
 	actionCache := compiler.GetSharedActionCache()
+	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+	successCount := stats.Total - stats.Errors
+
 	if actionCache != nil {
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
@@ -995,10 +998,15 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
-	if err := ensureGitAttributes(); err != nil {
-		if verbose {
-			fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+	// Only update if we successfully compiled workflows or have action cache entries
+	if successCount > 0 || hasActionCacheEntries {
+		if err := ensureGitAttributes(); err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+			}
 		}
+	} else {
+		compileLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 	}
 
 	return stats, nil
@@ -1033,6 +1041,9 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 
 	// Save the action cache after compilations
 	actionCache := compiler.GetSharedActionCache()
+	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+	successCount := stats.Total - stats.Errors
+
 	if actionCache != nil {
 		if err := actionCache.Save(); err != nil {
 			compileLog.Printf("Failed to save action cache: %v", err)
@@ -1045,10 +1056,15 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
-	if err := ensureGitAttributes(); err != nil {
-		if verbose {
-			fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+	// Only update if we successfully compiled workflows or have action cache entries
+	if successCount > 0 || hasActionCacheEntries {
+		if err := ensureGitAttributes(); err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+			}
 		}
+	} else {
+		compileLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 	}
 
 	// Print summary instead of just "Recompiled"
