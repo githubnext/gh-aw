@@ -55,10 +55,10 @@ For complete documentation, examples, and guides, see the [Documentation](https:
 
 We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
 
-- ** Report bugs and request features** by filing issues in this repository
-- ** Improve documentation** by contributing to our docs
-- ** Contribute code** by following our [Development Guide](DEVGUIDE.md)
-- ** Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
+- **Report bugs and request features** by filing issues in this repository
+- **Improve documentation** by contributing to our docs
+- **Contribute code** by following our [Development Guide](DEVGUIDE.md)
+- **Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 
 For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
