@@ -3130,6 +3130,38 @@
             }
           ]
         },
+        "assign-to-agent": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration uses default agent (copilot)"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for assigning GitHub Copilot agents to issues from agentic workflow output",
+              "properties": {
+                "default-agent": {
+                  "type": "string",
+                  "description": "Default agent name to assign (default: 'copilot')"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of agent assignments (default: 1)",
+                  "minimum": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "update-issue": {
           "oneOf": [
             {
