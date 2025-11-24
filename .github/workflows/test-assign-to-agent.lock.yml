@@ -3799,9 +3799,7 @@ jobs:
               }
             }
             const AGENT_LOGIN_NAMES = {
-              copilot: "copilot-swe-agent",
-              claude: "claude-swe-agent",
-              codex: "codex-swe-agent",
+              copilot: "copilot-swe-agent"
             };
             async function getAvailableAgentLogins(owner, repo) {
               const query = `

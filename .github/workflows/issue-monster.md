@@ -20,12 +20,11 @@ tools:
     toolsets: [default, pull_requests]
 
 safe-outputs:
+  app:
+    app-id: ${{ vars.ORG_APP_ID }}
+    private-key: ${{ secrets.ORG_APP_PRIVATE_KEY }}
   assign-to-agent:
-    max: 1
-    name: copilot
   add-comment:
-    max: 1
-    target: triggering
 ---
 
 # Issue Monster 🍪
