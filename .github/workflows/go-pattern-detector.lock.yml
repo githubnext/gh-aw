@@ -4130,23 +4130,42 @@ jobs:
               return "";
             }
             const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#temp:([0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return crypto.randomBytes(6).toString("hex");
             }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
             function replaceTemporaryIdReferences(text, tempIdMap) {
-              return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
-                const issueNumber = tempIdMap.get(tempId.toLowerCase());
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
                   return `#${issueNumber}`;
                 }
                 return match;
               });
             }
-            function isTemporaryId(parent) {
-              if (typeof parent === "string") {
-                return /^[0-9a-f]{12}$/i.test(parent);
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
               }
-              return false;
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
             }
             async function main() {
               core.setOutput("issue_number", "");
@@ -4214,7 +4233,7 @@ jobs:
                 let effectiveParentIssueNumber;
                 if (createIssueItem.parent !== undefined) {
                   if (isTemporaryId(createIssueItem.parent)) {
-                    const resolvedParent = temporaryIdMap.get(String(createIssueItem.parent).toLowerCase());
+                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
                     if (resolvedParent !== undefined) {
                       effectiveParentIssueNumber = resolvedParent;
                       core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
@@ -4304,7 +4323,7 @@ jobs:
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
                   createdIssues.push(issue);
-                  temporaryIdMap.set(temporaryId.toLowerCase(), issue.number);
+                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
                   core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
                   core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
                   if (effectiveParentIssueNumber) {

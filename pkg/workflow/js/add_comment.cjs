@@ -5,43 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
-
-/**
- * Replace temporary ID references in text with actual issue numbers
- * Format: #temp:XXXXXXXXXXXX -> #123
- * @param {string} text - The text to process
- * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
- * @returns {string} Text with temporary IDs replaced with issue numbers
- */
-function replaceTemporaryIdReferences(text, tempIdMap) {
-  // Match #temp:XXXXXXXXXXXX format (12 hex chars)
-  return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
-    const issueNumber = tempIdMap.get(tempId.toLowerCase());
-    if (issueNumber !== undefined) {
-      return `#${issueNumber}`;
-    }
-    // Return original if not found
-    return match;
-  });
-}
-
-/**
- * Load the temporary ID map from environment variable
- * @returns {Map<string, number>} Map of temporary_id to issue number
- */
-function loadTemporaryIdMap() {
-  const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
-  if (!mapJson || mapJson === "{}") {
-    return new Map();
-  }
-  try {
-    const mapObject = JSON.parse(mapJson);
-    return new Map(Object.entries(mapObject).map(([k, v]) => [k.toLowerCase(), Number(v)]));
-  } catch (error) {
-    core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
-    return new Map();
-  }
-}
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 
 /**
  * Comment on a GitHub Discussion using GraphQL

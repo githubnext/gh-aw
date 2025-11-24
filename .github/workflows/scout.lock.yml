@@ -1293,9 +1293,23 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#temp:([0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
             function replaceTemporaryIdReferences(text, tempIdMap) {
-              return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
-                const issueNumber = tempIdMap.get(tempId.toLowerCase());
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
                   return `#${issueNumber}`;
                 }
@@ -1309,9 +1323,11 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [k.toLowerCase(), Number(v)]));
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
               } catch (error) {
-                core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
                 return new Map();
               }
             }

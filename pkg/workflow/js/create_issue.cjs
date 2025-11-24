@@ -6,47 +6,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const crypto = require("crypto");
-
-/**
- * Generate a random 12-character hex string for temporary issue IDs
- * @returns {string} A 12-character hex string
- */
-function generateTemporaryId() {
-  return crypto.randomBytes(6).toString("hex");
-}
-
-/**
- * Replace temporary ID references in text with actual issue numbers
- * Format: #temp:XXXXXXXXXXXX -> #123
- * @param {string} text - The text to process
- * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
- * @returns {string} Text with temporary IDs replaced with issue numbers
- */
-function replaceTemporaryIdReferences(text, tempIdMap) {
-  // Match #temp:XXXXXXXXXXXX format (12 hex chars)
-  return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
-    const issueNumber = tempIdMap.get(tempId.toLowerCase());
-    if (issueNumber !== undefined) {
-      return `#${issueNumber}`;
-    }
-    // Return original if not found (it may be created later)
-    return match;
-  });
-}
-
-/**
- * Check if a parent reference is a temporary ID
- * @param {any} parent - The parent value (number, string, or undefined)
- * @returns {boolean} True if the parent is a temporary ID reference
- */
-function isTemporaryId(parent) {
-  if (typeof parent === "string") {
-    // Check for 12-character hex string
-    return /^[0-9a-f]{12}$/i.test(parent);
-  }
-  return false;
-}
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -131,7 +91,7 @@ async function main() {
     if (createIssueItem.parent !== undefined) {
       if (isTemporaryId(createIssueItem.parent)) {
         // It's a temporary ID, look it up in the map
-        const resolvedParent = temporaryIdMap.get(String(createIssueItem.parent).toLowerCase());
+        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
         if (resolvedParent !== undefined) {
           effectiveParentIssueNumber = resolvedParent;
           core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
@@ -231,7 +191,7 @@ async function main() {
       createdIssues.push(issue);
 
       // Store the mapping of temporary_id -> issue_number
-      temporaryIdMap.set(temporaryId.toLowerCase(), issue.number);
+      temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
       core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
 
       // Debug logging for sub-issue linking
