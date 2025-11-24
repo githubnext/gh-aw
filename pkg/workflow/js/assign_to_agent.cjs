@@ -8,7 +8,7 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
  * Map agent names to their GitHub bot login names
  */
 const AGENT_LOGIN_NAMES = {
-  copilot: "copilot-swe-agent"
+  copilot: "copilot-swe-agent",
 };
 
 /**
