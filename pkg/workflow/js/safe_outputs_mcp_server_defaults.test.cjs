@@ -4,7 +4,7 @@ import path from "path";
 import { spawn } from "child_process";
 
 // Test defaults for safe outputs MCP server
-describe("safe_outputs_mcp_server.cjs defaults handling", () => {
+describe.sequential("safe_outputs_mcp_server.cjs defaults handling", () => {
   let originalEnv;
   let tempConfigFile;
   let tempOutputDir;
@@ -348,7 +348,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 });
 
 // Test that add_labels tool description is patched with allowed labels
-describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
+describe.sequential("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
   it("should patch add_labels tool description with allowed labels from config", async () => {
     const config = {
       add_labels: {
@@ -568,7 +568,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
 });
 
 // Test that update_issue tool description is patched with allowed operations
-describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
+describe.sequential("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
   it("should patch update_issue tool description with allowed operations when some are restricted", async () => {
     const config = {
       update_issue: {
@@ -793,11 +793,6 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        child.kill();
-        reject(new Error("Test timeout"));
-      }, 5000);
-
       const child = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
@@ -806,6 +801,11 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
+
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
 
       let receivedMessages = [];
 
@@ -883,7 +883,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
 });
 
 // Test that upload_asset tool description is patched with constraints from environment
-describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
+describe.sequential("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
   it("should patch upload_asset tool description with max size and allowed extensions", async () => {
     const config = {
       upload_asset: {},
@@ -1101,7 +1101,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
 });
 
 // Test that create_pull_request and push_to_pull_request_branch tools have optional branch parameter
-describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
+describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () => {
   it("should have optional branch parameter for create_pull_request", async () => {
     const config = {
       create_pull_request: {},
@@ -1314,7 +1314,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
 });
 
 // Test that tool call responses include the isError field
-describe("safe_outputs_mcp_server.cjs tool call response format", () => {
+describe.sequential("safe_outputs_mcp_server.cjs tool call response format", () => {
   it("should include isError field in tool call responses", async () => {
     const config = {
       create_issue: {},

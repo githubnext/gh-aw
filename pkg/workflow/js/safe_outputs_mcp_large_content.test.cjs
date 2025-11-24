@@ -4,7 +4,7 @@ import path from "path";
 import { spawn } from "child_process";
 import crypto from "crypto";
 
-describe("safe_outputs_mcp_server.cjs large content handling", () => {
+describe.sequential("safe_outputs_mcp_server.cjs large content handling", () => {
   let originalEnv;
   let tempOutputDir;
   let tempConfigFile;
@@ -417,15 +417,15 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        child.kill();
-        reject(new Error("Test timeout"));
-      }, 10000);
-
       const child = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env },
       });
+
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 10000);
 
       let stderr = "";
       let stdout = "";

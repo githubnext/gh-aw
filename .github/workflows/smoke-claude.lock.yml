@@ -966,9 +966,6 @@ jobs:
             const path = require("path");
             const crypto = require("crypto");
             const { execSync } = require("child_process");
-            const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-            const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -983,6 +980,165 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
+                }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
+              }
+            }
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safeoutputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const filename = `${hash}.json`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              const description = generateCompactSchema(content);
+              return {
+                filename: filename,
+                description: description,
+              };
+            }
+            function getCurrentBranch() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                return branch;
+              } catch (error) {
+              }
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                return ghRefName;
+              }
+              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+            }
+            function getBaseBranch() {
+              return process.env.GH_AW_BASE_BRANCH || "main";
+            }
+            function generateGitPatch(branchName) {
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
+              const githubSha = process.env.GITHUB_SHA;
+              const patchDir = path.dirname(patchPath);
+              if (!fs.existsSync(patchDir)) {
+                fs.mkdirSync(patchDir, { recursive: true });
+              }
+              let patchGenerated = false;
+              let errorMessage = null;
+              try {
+                if (branchName) {
+                  try {
+                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
+                    let baseRef;
+                    try {
+                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
+                      baseRef = `origin/${branchName}`;
+                    } catch {
+                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
+                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
+                    }
+                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
+                    if (commitCount > 0) {
+                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
+                        cwd,
+                        encoding: "utf8",
+                      });
+                      if (patchContent && patchContent.trim()) {
+                        fs.writeFileSync(patchPath, patchContent, "utf8");
+                        patchGenerated = true;
+                      }
+                    }
+                  } catch (branchError) {
+                  }
+                }
+                if (!patchGenerated) {
+                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+                  if (!githubSha) {
+                    errorMessage = "GITHUB_SHA environment variable is not set";
+                  } else if (currentHead === githubSha) {
+                  } else {
+                    try {
+                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
+                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
+                      if (commitCount > 0) {
+                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
+                          cwd,
+                          encoding: "utf8",
+                        });
+                        if (patchContent && patchContent.trim()) {
+                          fs.writeFileSync(patchPath, patchContent, "utf8");
+                          patchGenerated = true;
+                        }
+                      }
+                    } catch {
+                    }
+                  }
+                }
+              } catch (error) {
+                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
+              }
+              if (patchGenerated && fs.existsSync(patchPath)) {
+                const patchContent = fs.readFileSync(patchPath, "utf8");
+                const patchSize = Buffer.byteLength(patchContent, "utf8");
+                const patchLines = patchContent.split("\n").length;
+                if (!patchContent.trim()) {
+                  return {
+                    success: false,
+                    error: "No changes to commit - patch is empty",
+                    patchPath: patchPath,
+                    patchSize: 0,
+                    patchLines: 0,
+                  };
+                }
+                return {
+                  success: true,
+                  patchPath: patchPath,
+                  patchSize: patchSize,
+                  patchLines: patchLines,
+                };
+              }
+              return {
+                success: false,
+                error: errorMessage || "No changes to commit - no commits found",
+                patchPath: patchPath,
+              };
+            }
+            const encoder = new TextEncoder();
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
+            const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
             debug(`Reading config from file: ${configPath}`);
@@ -1082,51 +1238,6 @@ jobs:
                 error,
               };
               writeMessage(res);
-            }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function generateCompactSchema(content) {
-              try {
-                const parsed = JSON.parse(content);
-                if (Array.isArray(parsed)) {
-                  if (parsed.length === 0) {
-                    return "[]";
-                  }
-                  const firstItem = parsed[0];
-                  if (typeof firstItem === "object" && firstItem !== null) {
-                    const keys = Object.keys(firstItem);
-                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
-                  }
-                  return `[${typeof firstItem}] (${parsed.length} items)`;
-                } else if (typeof parsed === "object" && parsed !== null) {
-                  const keys = Object.keys(parsed);
-                  if (keys.length > 10) {
-                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
-                  }
-                  return `{${keys.join(", ")}}`;
-                }
-                return `${typeof parsed}`;
-              } catch {
-                return "text content";
-              }
-            }
-            function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safeoutputs";
-              if (!fs.existsSync(logsDir)) {
-                fs.mkdirSync(logsDir, { recursive: true });
-              }
-              const hash = crypto.createHash("sha256").update(content).digest("hex");
-              const filename = `${hash}.json`;
-              const filepath = path.join(logsDir, filename);
-              fs.writeFileSync(filepath, content, "utf8");
-              debug(`Wrote large content (${content.length} chars) to ${filepath}`);
-              const description = generateCompactSchema(content);
-              return {
-                filename: filename,
-                description: description,
-              };
             }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
@@ -1247,156 +1358,6 @@ jobs:
                 ],
               };
             };
-            function getCurrentBranch() {
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-                  encoding: "utf8",
-                  cwd: cwd,
-                }).trim();
-                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
-                return branch;
-              } catch (error) {
-                debug(`Failed to get branch from git: ${error instanceof Error ? error.message : String(error)}`);
-              }
-              const ghHeadRef = process.env.GITHUB_HEAD_REF;
-              const ghRefName = process.env.GITHUB_REF_NAME;
-              if (ghHeadRef) {
-                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
-                return ghHeadRef;
-              }
-              if (ghRefName) {
-                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
-                return ghRefName;
-              }
-              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
-            }
-            function getBaseBranch() {
-              return process.env.GH_AW_BASE_BRANCH || "main";
-            }
-            function generateGitPatch(branchName) {
-              const patchPath = "/tmp/gh-aw/aw.patch";
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
-              const githubSha = process.env.GITHUB_SHA;
-              debug(`Generating git patch for branch: ${branchName}`);
-              debug(`Working directory: ${cwd}`);
-              debug(`Default branch: ${defaultBranch}`);
-              debug(`GITHUB_SHA: ${githubSha}`);
-              const patchDir = path.dirname(patchPath);
-              if (!fs.existsSync(patchDir)) {
-                fs.mkdirSync(patchDir, { recursive: true });
-              }
-              let patchGenerated = false;
-              let errorMessage = null;
-              try {
-                if (branchName) {
-                  debug(`Strategy 1: Using named branch: ${branchName}`);
-                  try {
-                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
-                    debug(`Branch ${branchName} exists locally`);
-                    let baseRef;
-                    try {
-                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
-                      baseRef = `origin/${branchName}`;
-                      debug(`Using origin/${branchName} as base for patch generation`);
-                    } catch {
-                      debug(`origin/${branchName} does not exist, using merge-base with default branch`);
-                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
-                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
-                      debug(`Using merge-base as base: ${baseRef}`);
-                    }
-                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
-                    debug(`Number of commits in patch: ${commitCount}`);
-                    if (commitCount > 0) {
-                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
-                        cwd,
-                        encoding: "utf8",
-                      });
-                      if (patchContent && patchContent.trim()) {
-                        fs.writeFileSync(patchPath, patchContent, "utf8");
-                        debug(`Patch file created from branch: ${branchName} (base: ${baseRef})`);
-                        patchGenerated = true;
-                      } else {
-                        debug(`No patch content generated (empty diff)`);
-                      }
-                    } else {
-                      debug(`No commits found between ${baseRef} and ${branchName}`);
-                    }
-                  } catch (branchError) {
-                    debug(`Branch ${branchName} does not exist locally: ${branchError instanceof Error ? branchError.message : String(branchError)}`);
-                  }
-                }
-                if (!patchGenerated) {
-                  debug(`Strategy 2: Checking for commits on current HEAD`);
-                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
-                  debug(`Current HEAD: ${currentHead}`);
-                  debug(`Checkout SHA (GITHUB_SHA): ${githubSha}`);
-                  if (!githubSha) {
-                    errorMessage = "GITHUB_SHA environment variable is not set";
-                    debug(`ERROR: ${errorMessage}`);
-                  } else if (currentHead === githubSha) {
-                    debug("No commits have been made since checkout (HEAD == GITHUB_SHA)");
-                  } else {
-                    try {
-                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
-                      debug("GITHUB_SHA is an ancestor of HEAD - commits were added");
-                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
-                      debug(`Number of commits added since checkout: ${commitCount}`);
-                      if (commitCount > 0) {
-                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
-                          cwd,
-                          encoding: "utf8",
-                        });
-                        if (patchContent && patchContent.trim()) {
-                          fs.writeFileSync(patchPath, patchContent, "utf8");
-                          debug(`Patch file created from commits on HEAD (base: ${githubSha})`);
-                          patchGenerated = true;
-                        } else {
-                          debug(`No patch content generated (empty diff)`);
-                        }
-                      } else {
-                        debug(`No commits found between GITHUB_SHA and HEAD`);
-                      }
-                    } catch {
-                      debug("GITHUB_SHA is not an ancestor of HEAD - repository state has diverged");
-                    }
-                  }
-                }
-              } catch (error) {
-                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
-                debug(`ERROR: ${errorMessage}`);
-              }
-              if (patchGenerated && fs.existsSync(patchPath)) {
-                const patchContent = fs.readFileSync(patchPath, "utf8");
-                const patchSize = Buffer.byteLength(patchContent, "utf8");
-                const patchLines = patchContent.split("\n").length;
-                if (!patchContent.trim()) {
-                  debug("Patch file is empty - no changes to commit");
-                  return {
-                    success: false,
-                    error: "No changes to commit - patch is empty",
-                    patchPath: patchPath,
-                    patchSize: 0,
-                    patchLines: 0,
-                  };
-                }
-                debug(`Patch file created: ${patchPath}`);
-                debug(`Patch size: ${patchSize} bytes`);
-                debug(`Patch lines: ${patchLines}`);
-                return {
-                  success: true,
-                  patchPath: patchPath,
-                  patchSize: patchSize,
-                  patchLines: patchLines,
-                };
-              }
-              return {
-                success: false,
-                error: errorMessage || "No changes to commit - no commits found",
-                patchPath: patchPath,
-              };
-            }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
               const baseBranch = getBaseBranch();
