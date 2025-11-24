@@ -103,7 +103,17 @@ async function main() {
       await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
       core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
     } catch (originError) {
-      // Give an error if branch doesn't exist on origin
+      // Validate that branch starts with "assets/" prefix before creating orphaned branch
+      if (!normalizedBranchName.startsWith("assets/")) {
+        core.setFailed(
+          `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+            `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+            `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+        );
+        return;
+      }
+
+      // Branch doesn't exist on origin and has valid prefix, create orphaned branch
       core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
       await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
       await exec.exec(`git rm -rf .`);
