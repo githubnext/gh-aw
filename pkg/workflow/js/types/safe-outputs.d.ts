@@ -22,8 +22,10 @@ interface CreateIssueItem extends BaseSafeOutputItem {
   body: string;
   /** Optional labels to add to the issue */
   labels?: string[];
-  /** Optional parent issue number to link as sub-issue */
-  parent?: number;
+  /** Optional parent issue number or temporary_id to link as sub-issue */
+  parent?: number | string;
+  /** Optional temporary identifier for this issue that can be referenced by other issues */
+  temporary_id?: string;
 }
 
 /**

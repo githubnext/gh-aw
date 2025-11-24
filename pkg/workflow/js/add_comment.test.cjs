@@ -750,4 +750,107 @@ describe("add_comment.cjs", () => {
     delete process.env.GITHUB_AW_COMMENT_DISCUSSION;
     delete global.github.graphql;
   });
+
+  it("should replace temporary ID references in comment body using the temporary ID map", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "This comment references issue #temp:aabbccdd1122 which was created earlier.",
+        },
+      ],
+    });
+
+    // Set up the temporary ID map from the create_issue job
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aabbccdd1122: 456 });
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: {
+        id: 99999,
+        html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999",
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // The comment body should have the temporary ID replaced
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("#456"),
+      })
+    );
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.not.stringContaining("#temp:aabbccdd1122"),
+      })
+    );
+
+    // Clean up
+    delete process.env.GH_AW_TEMPORARY_ID_MAP;
+  });
+
+  it("should load temporary ID map and log the count", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment",
+        },
+      ],
+    });
+
+    // Set up the temporary ID map
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ abc123: 100, def456: 200 });
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: {
+        id: 99999,
+        html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999",
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Should log that the map was loaded with 2 entries
+    expect(mockCore.info).toHaveBeenCalledWith("Loaded temporary ID map with 2 entries");
+
+    // Clean up
+    delete process.env.GH_AW_TEMPORARY_ID_MAP;
+  });
+
+  it("should handle empty temporary ID map gracefully", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Comment with #temp:000000000000 that won't be resolved",
+        },
+      ],
+    });
+
+    // Empty or missing temporary ID map
+    process.env.GH_AW_TEMPORARY_ID_MAP = "{}";
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: {
+        id: 99999,
+        html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999",
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // The unresolved reference should remain in the body
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("#temp:000000000000"),
+      })
+    );
+
+    // Clean up
+    delete process.env.GH_AW_TEMPORARY_ID_MAP;
+  });
 });

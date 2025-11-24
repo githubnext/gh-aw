@@ -622,7 +622,7 @@ jobs:
           {"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Issue body/description (the title acts as the h1 header, so do not duplicate it in the body)","type":"string"},"labels":{"description":"Issue labels","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number to create this issue as a sub-issue of","type":"number"},"title":{"description":"Issue title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a new GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Issue body/description (the title acts as the h1 header, so do not duplicate it in the body)","type":"string"},"labels":{"description":"Issue labels","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number to create this issue as a sub-issue of. Can be a real issue number or a temporary_id from a previously created issue in this workflow.","type":["number","string"]},"temporary_id":{"description":"A temporary identifier (12 character hex string) for this issue that can be referenced by other issues in the same workflow run. Useful when creating a parent issue first, then sub-issues that reference it. Use '#temp:ID' format in body text to reference other issues by their temporary_id.","type":"string"},"title":{"description":"Issue title","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -5057,6 +5057,7 @@ jobs:
     outputs:
       issue_number: ${{ steps.create_issue.outputs.issue_number }}
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -5176,9 +5177,29 @@ jobs:
               }
               return "";
             }
+            const crypto = require("crypto");
+            function generateTemporaryId() {
+              return crypto.randomBytes(6).toString("hex");
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
+                const issueNumber = tempIdMap.get(tempId.toLowerCase());
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function isTemporaryId(parent) {
+              if (typeof parent === "string") {
+                return /^[0-9a-f]{12}$/i.test(parent);
+              }
+              return false;
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
+              core.setOutput("temporary_id_map", "{}");
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const result = loadAgentOutput();
               if (!result.success) {
@@ -5198,11 +5219,17 @@ jobs:
                   renderItem: (item, index) => {
                     let content = `### Issue ${index + 1}\n`;
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.temporary_id) {
+                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+                    }
                     if (item.body) {
                       content += `**Body:**\n${item.body}\n\n`;
                     }
                     if (item.labels && item.labels.length > 0) {
                       content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    if (item.parent) {
+                      content += `**Parent:** ${item.parent}\n\n`;
                     }
                     return content;
                   },
@@ -5210,6 +5237,7 @@ jobs:
                 return;
               }
               const parentIssueNumber = context.payload?.issue?.number;
+              const temporaryIdMap = new Map();
               const triggeringIssueNumber =
                 context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
               const triggeringPRNumber =
@@ -5225,12 +5253,35 @@ jobs:
               const createdIssues = [];
               for (let i = 0; i < createIssueItems.length; i++) {
                 const createIssueItem = createIssueItems[i];
+                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+                let effectiveParentIssueNumber;
+                if (createIssueItem.parent !== undefined) {
+                  if (isTemporaryId(createIssueItem.parent)) {
+                    const resolvedParent = temporaryIdMap.get(String(createIssueItem.parent).toLowerCase());
+                    if (resolvedParent !== undefined) {
+                      effectiveParentIssueNumber = resolvedParent;
+                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
+                    } else {
+                      core.warning(
+                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
+                      );
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  } else {
+                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
+                    if (isNaN(effectiveParentIssueNumber)) {
+                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  }
+                } else {
+                  effectiveParentIssueNumber = parentIssueNumber;
+                }
                 core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
                   core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
@@ -5248,7 +5299,8 @@ jobs:
                   .map(label => (label.length > 64 ? label.substring(0, 64) : label))
                   .filter((label, index, arr) => arr.indexOf(label) === index);
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
+                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap);
+                let bodyLines = processedBody.split("\n");
                 if (!title) {
                   title = createIssueItem.body || "Agent Output";
                 }
@@ -5300,6 +5352,8 @@ jobs:
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
                   createdIssues.push(issue);
+                  temporaryIdMap.set(temporaryId.toLowerCase(), issue.number);
+                  core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
                   core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
                   if (effectiveParentIssueNumber) {
                     core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
@@ -5391,6 +5445,9 @@ jobs:
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
+              const tempIdMapObject = Object.fromEntries(temporaryIdMap);
+              core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
+              core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
             (async () => {

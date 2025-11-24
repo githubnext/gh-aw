@@ -102,8 +102,9 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
-		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
+		"issue_number":     "${{ steps.create_issue.outputs.issue_number }}",
+		"issue_url":        "${{ steps.create_issue.outputs.issue_url }}",
+		"temporary_id_map": "${{ steps.create_issue.outputs.temporary_id_map }}",
 	}
 
 	// Use the shared builder function to create the job

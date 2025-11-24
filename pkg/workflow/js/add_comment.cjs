@@ -7,6 +7,43 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 /**
+ * Replace temporary ID references in text with actual issue numbers
+ * Format: #temp:XXXXXXXXXXXX -> #123
+ * @param {string} text - The text to process
+ * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
+ * @returns {string} Text with temporary IDs replaced with issue numbers
+ */
+function replaceTemporaryIdReferences(text, tempIdMap) {
+  // Match #temp:XXXXXXXXXXXX format (12 hex chars)
+  return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
+    const issueNumber = tempIdMap.get(tempId.toLowerCase());
+    if (issueNumber !== undefined) {
+      return `#${issueNumber}`;
+    }
+    // Return original if not found
+    return match;
+  });
+}
+
+/**
+ * Load the temporary ID map from environment variable
+ * @returns {Map<string, number>} Map of temporary_id to issue number
+ */
+function loadTemporaryIdMap() {
+  const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+  if (!mapJson || mapJson === "{}") {
+    return new Map();
+  }
+  try {
+    const mapObject = JSON.parse(mapJson);
+    return new Map(Object.entries(mapObject).map(([k, v]) => [k.toLowerCase(), Number(v)]));
+  } catch (error) {
+    core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+    return new Map();
+  }
+}
+
+/**
  * Comment on a GitHub Discussion using GraphQL
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -87,6 +124,12 @@ async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+
+  // Load the temporary ID map from create_issue job
+  const temporaryIdMap = loadTemporaryIdMap();
+  if (temporaryIdMap.size > 0) {
+    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+  }
 
   const result = loadAgentOutput();
   if (!result.success) {
@@ -257,8 +300,8 @@ async function main() {
       continue;
     }
 
-    // Extract body from the JSON item
-    let body = commentItem.body.trim();
+    // Extract body from the JSON item and replace temporary ID references
+    let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
 
     // Append references to created issues, discussions, and pull requests if they exist
     const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;

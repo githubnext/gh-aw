@@ -446,6 +446,28 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(/#temp:([0-9a-f]{12})/gi, (match, tempId) => {
+                const issueNumber = tempIdMap.get(tempId.toLowerCase());
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [k.toLowerCase(), Number(v)]));
+              } catch (error) {
+                core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                return new Map();
+              }
+            }
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
                 `
@@ -506,6 +528,10 @@ jobs:
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
@@ -643,7 +669,7 @@ jobs:
                   core.info("Could not determine issue, pull request, or discussion number");
                   continue;
                 }
-                let body = commentItem.body.trim();
+                let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
                 const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
                 const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
                 const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
