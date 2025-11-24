@@ -8,9 +8,7 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
  * Map agent names to their GitHub bot login names
  */
 const AGENT_LOGIN_NAMES = {
-  copilot: "copilot-swe-agent",
-  claude: "claude-swe-agent",
-  codex: "codex-swe-agent",
+  copilot: "copilot-swe-agent"
 };
 
 /**
@@ -52,7 +50,7 @@ async function getAvailableAgentLogins(owner, repo) {
  * Find an agent in repository's suggested actors using GraphQL
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} agentName - Agent name (copilot, claude, codex)
+ * @param {string} agentName - Agent name (copilot)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
 async function findAgent(owner, repo, agentName) {
@@ -183,6 +181,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
   `;
 
   try {
+    // Uses GH_TOKEN which is set to GH_AW_AGENT_TOKEN (or fallback) by the job
+    // This token needs: Read metadata, Write actions/contents/issues/pull-requests
     const response = await github.graphql(mutation);
 
     if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {

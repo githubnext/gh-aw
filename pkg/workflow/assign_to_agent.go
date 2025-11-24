@@ -38,7 +38,8 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxCount))
 
-	// Pass the GitHub token as GH_TOKEN for gh CLI (falls back to GITHUB_TOKEN)
+	// Pass the GitHub token for GraphQL agent assignment mutation
+	// Prioritize GH_AW_AGENT_TOKEN since it needs specific permissions (actions, contents, issues, pull-requests write)
 	var tokenValue string
 	if data.SafeOutputs.AssignToAgent.GitHubToken != "" {
 		tokenValue = data.SafeOutputs.AssignToAgent.GitHubToken
@@ -47,7 +48,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	} else if data.GitHubToken != "" {
 		tokenValue = data.GitHubToken
 	} else {
-		tokenValue = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+		tokenValue = "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", tokenValue))
 
