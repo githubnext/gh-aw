@@ -1,4 +1,4 @@
-# ✨ GitHub Agentic Workflows
+# GitHub Agentic Workflows
 
 Write agentic workflows in natural language markdown, and run them safely in GitHub Actions. From [GitHub Next](https://githubnext.com/) and [Microsoft Research](https://www.microsoft.com/en-us/research/group/research-software-engineering-rise/).
 
@@ -12,15 +12,15 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 > **Custom Agent**: Use the custom agent at `.github/agents/create-agentic-workflow.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/create-agentic-workflow.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/create-agentic-workflow.md)
 -->
 
-## 🚀 Quick Start
+## Quick Start
 
 Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
 
-## 📖 Overview
+## Overview
 
 Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://githubnext.github.io/gh-aw/introduction/how-it-works/).
 
-## 🔧 How It Works
+## How It Works
 
 GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's a simple example:
 
@@ -47,26 +47,26 @@ The AI agent reads your repository context, understands the issue content, and t
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
-## 📖 Documentation
+## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
 
-- **🐛 Report bugs and request features** by filing issues in this repository
-- **📖 Improve documentation** by contributing to our docs
-- **🔧 Contribute code** by following our [Development Guide](DEVGUIDE.md)
-- **💡 Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
+- ** Report bugs and request features** by filing issues in this repository
+- ** Improve documentation** by contributing to our docs
+- ** Contribute code** by following our [Development Guide](DEVGUIDE.md)
+- ** Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 
 For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 💬 Share Feedback
+## Share Feedback
 
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
 and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
 
-## 🧪 Labs
+## Labs
 
 See the [Labs](https://githubnext.github.io/gh-aw/labs/) page for experimental agentic workflows used by the team to learn, build, and use agentic workflows.
