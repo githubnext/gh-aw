@@ -1042,6 +1042,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Setup Python environment for trending
         run: "# Create working directory structure\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Cache memory: /tmp/gh-aw/cache-memory/\"\n"
       - name: Install Python scientific libraries
@@ -1065,10 +1069,6 @@ jobs:
             /tmp/gh-aw/python/data/*
           retention-days: 30
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

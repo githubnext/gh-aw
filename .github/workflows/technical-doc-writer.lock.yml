@@ -1030,6 +1030,10 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'docs/package-lock.json'
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Install dependencies
         run: npm ci
         working-directory: ./docs
@@ -1039,10 +1043,6 @@ jobs:
         run: npm run build
         working-directory: ./docs
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

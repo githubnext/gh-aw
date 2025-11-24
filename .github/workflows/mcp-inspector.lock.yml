@@ -811,6 +811,10 @@ jobs:
         uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
       - name: Install Go language service (gopls)
         run: go install golang.org/x/tools/gopls@latest
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Install dependencies
         run: make deps-dev
       - name: Install binary as 'gh-aw'
@@ -822,10 +826,6 @@ jobs:
       - name: Install Markitdown MCP
         run: pip install markitdown-mcp
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

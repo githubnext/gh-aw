@@ -242,16 +242,16 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - env:
           GH_TOKEN: ${{ github.token }}
         id: fetch-discussions
         name: Fetch open discussions
         run: "# Use GraphQL to fetch all open discussions in one query\n# Filter to only get discussions created by github-actions[bot]\n# Calculate cutoff date (7 days ago)\nCUTOFF_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)\n\n# Fetch discussions with pagination\nDISCUSSIONS_FILE=\"/tmp/gh-aw/discussions.json\"\necho '[]' > \"$DISCUSSIONS_FILE\"\n\nCURSOR=\"\"\nHAS_NEXT_PAGE=true\n\nwhile [ \"$HAS_NEXT_PAGE\" = \"true\" ]; do\n  if [ -z \"$CURSOR\" ]; then\n    CURSOR_ARG=\"\"\n  else\n    CURSOR_ARG=\", after: \\\"$CURSOR\\\"\"\n  fi\n  \n  RESULT=$(gh api graphql -f query=\"\n    query {\n      repository(owner: \\\"${{ github.repository_owner }}\\\", name: \\\"${{ github.event.repository.name }}\\\") {\n        discussions(first: 100, states: OPEN${CURSOR_ARG}) {\n          pageInfo {\n            hasNextPage\n            endCursor\n          }\n          nodes {\n            number\n            title\n            createdAt\n            author {\n              login\n            }\n          }\n        }\n      }\n    }\n  \")\n  \n  # Extract discussions created by github-actions[bot]\n  echo \"$RESULT\" | jq -r --arg cutoff \"$CUTOFF_DATE\" '\n    .data.repository.discussions.nodes \n    | map(select(\n        .author.login == \"github-actions[bot]\" and \n        .createdAt < $cutoff\n      ))\n    | map({number, title, createdAt, author: .author.login})\n  ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json\n  \n  # Merge with existing discussions\n  jq -s 'add | unique_by(.number)' \"$DISCUSSIONS_FILE\" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json\n  mv /tmp/gh-aw/merged.json \"$DISCUSSIONS_FILE\"\n  \n  # Check if there are more pages\n  HAS_NEXT_PAGE=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')\n  CURSOR=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.endCursor')\n  \n  # Safety check - break after 10 pages (1000 discussions)\n  PAGE_COUNT=$((PAGE_COUNT + 1))\n  if [ $PAGE_COUNT -ge 10 ]; then\n    echo \"Reached pagination limit (10 pages)\"\n    break\n  fi\ndone\n\n# Output summary for logging\nDISCUSSION_COUNT=$(jq 'length' \"$DISCUSSIONS_FILE\")\necho \"Found $DISCUSSION_COUNT discussions to close\"\n\n# Output the filtered data for the agent\njq -c '.[] | {number, title, createdAt}' \"$DISCUSSIONS_FILE\" > /tmp/gh-aw/filtered-discussions.jsonl\n"
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

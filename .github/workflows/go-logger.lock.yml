@@ -460,6 +460,10 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'pkg/workflow/js/package-lock.json'
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
@@ -469,10 +473,6 @@ jobs:
         run: npm ci
         working-directory: ./pkg/workflow/js
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

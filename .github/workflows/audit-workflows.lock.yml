@@ -948,6 +948,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
@@ -990,10 +994,6 @@ jobs:
         name: Download logs from last 24 hours
         run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
 
-      - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |
