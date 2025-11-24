@@ -72,8 +72,10 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 // If the top-level workflow has an app configured, it takes precedence
 // Otherwise, the first app configuration found in included configs is used
 func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) (*GitHubAppConfig, error) {
+	log.Printf("Merging app configuration: included_configs=%d", len(includedConfigs))
 	// If top-level workflow already has app configured, use it (no merge needed)
 	if topSafeOutputs != nil && topSafeOutputs.App != nil {
+		log.Print("Using top-level app configuration")
 		return topSafeOutputs.App, nil
 	}
 
@@ -96,12 +98,14 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 
 				// Return first valid app configuration found
 				if appConfig.AppID != "" && appConfig.PrivateKey != "" {
+					log.Print("Found valid app configuration in included config")
 					return appConfig, nil
 				}
 			}
 		}
 	}
 
+	log.Print("No app configuration found in included configs")
 	return nil, nil
 }
 
@@ -112,6 +116,7 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 // buildGitHubAppTokenMintStep generates the step to mint a GitHub App installation access token
 // Permissions are automatically computed from the safe output job requirements
 func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions) []string {
+	log.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
 
 	steps = append(steps, "      - name: Generate GitHub App token\n")
