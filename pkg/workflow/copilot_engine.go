@@ -226,7 +226,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
 
 		// Always mount the workspace directory so Copilot CLI can access it
-		awfArgs = append(awfArgs, "--mount", "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro")
+		// Use double quotes to allow shell variable expansion
+		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:ro\"")
 		copilotLog.Print("Added workspace mount to AWF")
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
