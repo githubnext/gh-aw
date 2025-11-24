@@ -9,12 +9,12 @@ import (
 
 func TestGitHubLockdownIntegration(t *testing.T) {
 	tests := []struct {
-		name         string
-		workflow     string
-		engine       string
-		expected     []string
-		notExpected  []string
-		description  string
+		name        string
+		workflow    string
+		engine      string
+		expected    []string
+		notExpected []string
+		description string
 	}{
 		{
 			name:   "copilot engine with lockdown enabled in local mode",
