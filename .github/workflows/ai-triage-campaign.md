@@ -283,7 +283,6 @@ For each issue, provide:
 
 - This workflow runs every 4 hours automatically (or manually with custom parameters)
 - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-- **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped)
-- All unassigned issues are routed to the project board with differentiation via Status field
+- **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped); routed issues are differentiated via the Status field
 - Custom fields are created automatically if they don't exist
 - User projects must exist before workflow runs (cannot auto-create)
