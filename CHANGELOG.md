@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.30.5 - 2025-11-24
+
+### Bug Fixes
+
+#### Add built-in Serena MCP support with language service integration and Go configuration options
+
+#### Refactor safe output validation: centralize config defaults and eliminate duplicated validation code
+
+#### Extract duplicate safe-output validation logic into shared helpers
+
+Extracted ~120 lines of identical validation logic from `add_labels.cjs` and `add_reviewer.cjs` into a new `safe_output_helpers.cjs` module. The new module provides three reusable functions: `parseAllowedItems()`, `parseMaxCount()`, and `resolveTarget()`, reducing code duplication and improving maintainability.
+
+#### Refactor safe_outputs_mcp_server.cjs: Extract utility functions with bundling and size logging
+
+Extracted 7 utility functions from the monolithic safe_outputs_mcp_server.cjs file into separate, well-tested modules with automatic bundling. Added 50 comprehensive unit tests, detailed size logging during bundling, and fixed MCP server script generation bug. All functionality preserved with no breaking changes.
+
+#### Refactor patch generation from workflow step to MCP server
+
+Moves git patch generation from a dedicated workflow step to the safe-outputs MCP server, where it executes when `create_pull_request` or `push_to_pull_request_branch` tools are called. This provides immediate error feedback when no changes exist, rather than discovering it later in processing jobs.
+
+
 ## v0.30.4 - 2025-11-22
 
 Maintenance release with dependency updates and minor improvements.
