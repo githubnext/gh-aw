@@ -8,6 +8,7 @@ engine: copilot
 safe-outputs:
   assign-milestone:
     max: 2
+strict: false
 ---
 
 # Test Copilot Assign Milestone

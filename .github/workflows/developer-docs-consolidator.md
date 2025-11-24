@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
 
 engine: claude
+strict: false
 
 network:
   allowed:

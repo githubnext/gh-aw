@@ -9,6 +9,7 @@ safe-outputs:
   assign-milestone:
     allowed: [v1.0, v2.0, Sprint 1]
     max: 3
+strict: false
 ---
 
 # Test Assign Milestone with Allowed List

@@ -15,6 +15,7 @@ tools:
       typescript:
       python:
         version: "3.12"
+strict: false
 ---
 
 # Test Serena Long Syntax

@@ -13,6 +13,7 @@ safe-outputs:
     required-category: "Ideas"
     max: 1
 timeout-minutes: 5
+strict: false
 ---
 
 # Test Close Discussion

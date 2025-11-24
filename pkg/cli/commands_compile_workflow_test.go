@@ -64,6 +64,7 @@ permissions:
   contents: write
   issues: read
   pull-requests: read
+strict: false
 ---
 
 # Verbose Test Workflow
