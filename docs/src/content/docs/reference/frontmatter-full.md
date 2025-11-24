@@ -1064,6 +1064,11 @@ tools:
     # (optional)
     read-only: true
 
+    # Enable lockdown mode to limit content surfaced from public repositories (only
+    # items authored by users with push access). Default: false
+    # (optional)
+    lockdown: true
+
     # Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote'
     # type, defaults to GH_AW_GITHUB_TOKEN if not specified.
     # (optional)
@@ -1872,6 +1877,33 @@ safe-outputs:
 
     # Target repository in format 'owner/repo' for cross-repository milestone
     # assignment. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null configuration uses default agent (copilot)
+  assign-to-agent: null
+
+  # Option 2: Configuration for assigning GitHub Copilot agents to issues from
+  # agentic workflow output
+  assign-to-agent:
+    # Default agent name to assign (default: 'copilot')
+    # (optional)
+    name: "My Workflow"
+
+    # Optional maximum number of agent assignments (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository agent assignment.
+    # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
 
