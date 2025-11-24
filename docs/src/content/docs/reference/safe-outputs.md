@@ -39,6 +39,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
+| **Assign to Agent** | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
 | **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
 | **Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
@@ -343,6 +344,57 @@ safe-outputs:
     base: main                # base branch (defaults to current)
     target-repo: "owner/repo" # cross-repository
 ```
+
+### Assign to Agent (`assign-to-agent:`)
+
+Assigns the GitHub Copilot coding agent to issues. The generated job automatically receives the necessary workflow permissions, you only need to provide a token with agent assignment scope.
+
+```yaml wrap
+safe-outputs:
+  assign-to-agent:
+    name: "copilot"
+    target-repo: "owner/repo" # for cross-repository only
+```
+
+**Token Requirements:**
+
+The GitHub Action lacks permissions to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
+
+- **Read** access to metadata
+- **Write** access to actions, contents, issues, and pull requests
+
+```yaml wrap
+safe-outputs:
+  assign-to-agent:
+```
+
+Alternatively, use a GitHub App installation token or override with `github-token`:
+
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  assign-to-agent:
+```
+
+**Agent Output Format:**
+```json
+{
+  "type": "assign_to_agent",
+  "issue_number": 123,
+  "agent": "copilot"
+}
+```
+
+**Supported Agents:**
+- `copilot` - GitHub Copilot coding agent (`copilot-swe-agent`)
+
+**Repository Settings:**
+
+Ensure Copilot is enabled for your repository. Check organization settings if bot assignments are restricted.
+
+Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/)
 
 ## Cross-Repository Operations
 
