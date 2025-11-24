@@ -518,8 +518,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if agentMap, ok := assignToAgent.(map[string]any); ok {
 					agentConfig := &AssignToAgentConfig{}
 
-					// Parse default-agent (optional)
-					if defaultAgent, exists := agentMap["default-agent"]; exists {
+					// Parse name (optional)
+					if defaultAgent, exists := agentMap["name"]; exists {
 						if defaultAgentStr, ok := defaultAgent.(string); ok {
 							agentConfig.DefaultAgent = defaultAgentStr
 						}

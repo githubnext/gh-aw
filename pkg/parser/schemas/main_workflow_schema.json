@@ -3135,7 +3135,7 @@
               "type": "object",
               "description": "Configuration for assigning GitHub Copilot agents to issues from agentic workflow output",
               "properties": {
-                "default-agent": {
+                "name": {
                   "type": "string",
                   "description": "Default agent name to assign (default: 'copilot')"
                 },

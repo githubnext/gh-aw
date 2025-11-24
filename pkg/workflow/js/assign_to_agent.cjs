@@ -86,9 +86,7 @@ async function findAgent(owner, repo, agentName) {
       }
     }
 
-    const available = actors
-      .filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login))
-      .map(a => a.login);
+    const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
 
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
     if (available.length > 0) {
@@ -210,7 +208,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
           details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
         }
         const serialized = JSON.stringify(details, (_k, v) => v, 2);
-        if (serialized && serialized !== '{}' ) {
+        if (serialized && serialized !== "{}") {
           core.debug(`Raw GraphQL error details: ${serialized}`);
           // Also emit non-debug version so users without ACTIONS_STEP_DEBUG can see it
           core.error("Raw GraphQL error details (for troubleshooting):");
@@ -475,14 +473,18 @@ async function main() {
       summaryContent += "```\n\n";
       summaryContent += "**Token capability note:**\n";
       summaryContent += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-      summaryContent += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+      summaryContent +=
+        "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
       summaryContent += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
       summaryContent += "**Recommended remediation paths:**\n";
-      summaryContent += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+      summaryContent +=
+        "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
       summaryContent += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
       summaryContent += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-      summaryContent += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-      summaryContent += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+      summaryContent +=
+        "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+      summaryContent +=
+        "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
     }
   }
 

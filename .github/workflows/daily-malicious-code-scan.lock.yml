@@ -339,8 +339,8 @@
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/codeql-action/upload-sarif@v3 (901f0fdebfadabaa0664a07bd572cbd2ff90b07e)
-#     https://github.com/github/codeql-action/commit/901f0fdebfadabaa0664a07bd572cbd2ff90b07e
+#   - github/codeql-action/upload-sarif@v3 (5ad83d3202da6e473f763d732b591299ae4e380c)
+#     https://github.com/github/codeql-action/commit/5ad83d3202da6e473f763d732b591299ae4e380c
 
 name: "Daily Malicious Code Scan Agent"
 "on":
@@ -2182,6 +2182,8 @@ jobs:
                     return 3;
                   case "assign_milestone":
                     return 1;
+                  case "assign_to_agent":
+                    return 1;
                   case "update_issue":
                     return 1;
                   case "push_to_pull_request_branch":
@@ -2666,6 +2668,20 @@ jobs:
                       if (!milestoneValidation.isValid) {
                         if (milestoneValidation.error) errors.push(milestoneValidation.error);
                         continue;
+                      }
+                      break;
+                    case "assign_to_agent":
+                      const assignToAgentIssueValidation = validatePositiveInteger(item.issue_number, "assign_to_agent 'issue_number'", i + 1);
+                      if (!assignToAgentIssueValidation.isValid) {
+                        if (assignToAgentIssueValidation.error) errors.push(assignToAgentIssueValidation.error);
+                        continue;
+                      }
+                      if (item.agent !== undefined) {
+                        if (typeof item.agent !== "string") {
+                          errors.push(`Line ${i + 1}: assign_to_agent 'agent' must be a string`);
+                          continue;
+                        }
+                        item.agent = sanitizeContent(item.agent, 128);
                       }
                       break;
                     case "push_to_pull_request_branch":
@@ -4799,7 +4815,7 @@ jobs:
           path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
         if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@901f0fdebfadabaa0664a07bd572cbd2ff90b07e # v3
+        uses: github/codeql-action/upload-sarif@5ad83d3202da6e473f763d732b591299ae4e380c # v3
         with:
           sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
 
