@@ -347,30 +347,18 @@ safe-outputs:
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Assigns GitHub Copilot coding agents to issues. Requires **all four workflow permissions** (`actions: write`, `contents: write`, `issues: write`, `pull-requests: write`) plus a token with sufficient scope.
+Assigns GitHub Copilot coding agents to issues. The generated job automatically receives the necessary workflow permissions. You only need to provide a token with agent assignment scope.
 
 ```yaml wrap
 safe-outputs:
   assign-to-agent:
-    default-agent: "copilot"  # default: "copilot"
-    max: 1                    # max assignments (default: 1)
-    target-repo: "owner/repo" # cross-repository
-```
-
-**Permission Requirements:**
-
-Assigning agents requires **all** of these permissions in the workflow:
-```yaml
-permissions:
-  actions: write
-  contents: write
-  issues: write
-  pull-requests: write
+    name: "copilot"
+    target-repo: "owner/repo" # for cross-repository only
 ```
 
 **Token Requirements:**
 
-The default `GITHUB_TOKEN` **lacks permissions** to assign agents. You must use one of the following token methods:
+The default `GITHUB_TOKEN` **lacks permissions** to assign agents. Provide a token using one of these methods:
 
 1. **GitHub App installation token** (recommended):
    ```yaml wrap
@@ -381,17 +369,21 @@ The default `GITHUB_TOKEN` **lacks permissions** to assign agents. You must use 
      assign-to-agent:
    ```
 
-2. **Classic PAT with `repo` scope**:
+3. **Classic PAT with `repo` scope**:
    ```yaml wrap
    safe-outputs:
      github-token: ${{ secrets.CLASSIC_PAT }}
      assign-to-agent:
    ```
 
-3. Use a **Fine-grained PAT** with Write access for Issues, Pull requests, Contents, and Actions.
+4. **Fine-grained PAT** via `github-token` with Write access for Actions, Contents, Issues, and Pull requests.
+
+:::tip
+Create a dedicated `GH_AW_AGENT_TOKEN` secret for agent operations. This provides clear separation between general workflow tokens and agent-specific permissions.
+:::
 
 :::caution
-Fine-grained and classic PATs may fail with "Resource not accessible" errors depending on organization settings. GitHub App tokens provide the most reliable access.
+Fine-grained and classic PATs may fail with "Resource not accessible" errors depending on organization settings. GitHub App tokens or a dedicated agent token provide the most reliable access.
 :::
 
 **Agent Output Format:**
@@ -405,15 +397,10 @@ Fine-grained and classic PATs may fail with "Resource not accessible" errors dep
 
 **Supported Agents:**
 - `copilot` - GitHub Copilot coding agent (`copilot-swe-agent`)
-- `claude` - Claude coding agent (`claude-swe-agent`)  
-- `codex` - Codex coding agent (`codex-swe-agent`)
 
 **Repository Settings:**
 
-Ensure these settings are configured:
-1. **Actions permissions**: Settings → Actions → General → Workflow permissions → "Read and write permissions"
-2. **Copilot enabled**: Verify Copilot is enabled for your repository
-3. **Organization settings**: Check if your org restricts bot assignments
+Ensure Copilot is enabled for your repository. Check organization settings if bot assignments are restricted.
 
 **Cross-Repository:**
 

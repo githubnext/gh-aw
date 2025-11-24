@@ -50,7 +50,7 @@ async function getAvailableAgentLogins(owner, repo) {
  * Find an agent in repository's suggested actors using GraphQL
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} agentName - Agent name (copilot, claude, codex)
+ * @param {string} agentName - Agent name (copilot)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
 async function findAgent(owner, repo, agentName) {
