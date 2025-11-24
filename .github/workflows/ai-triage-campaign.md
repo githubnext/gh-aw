@@ -17,8 +17,10 @@ on:
         default: '10'
 
 permissions:
-  contents: read
-  issues: read
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
   repository-projects: write
 
 # Important: GITHUB_TOKEN cannot access private user projects or organization projects
@@ -35,6 +37,9 @@ safe-outputs:
   update-project:
     max: 20
     github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
+  assign-to-agent:
+    default-agent: copilot
+    max: 10
   missing-tool:
 ---
 
@@ -43,8 +48,9 @@ You are an AI-focused issue triage bot that identifies issues AI agents can solv
 ## Your Mission
 
 1. **Fetch open issues** - Query for open issues in this repository (max ${{ github.event.inputs.max_issues }} most recent, default: 10)
-2. **Analyze each issue** - Determine if it's well-suited for AI agent resolution
-3. **Route to project board** - Add each issue to project ${{ github.event.inputs.project_url }} with intelligent field assignments
+2. **Filter unassigned issues** - Skip issues that already have assignees (do NOT add them to the project board)
+3. **Analyze unassigned issues** - Determine if each unassigned issue is well-suited for AI agent resolution
+4. **Route to project board** - Add only unassigned issues to project ${{ github.event.inputs.project_url }} with intelligent field assignments
 
 ## AI Agent Suitability Assessment
 
@@ -204,10 +210,20 @@ Example for issue #5:
 ## Assignment Strategy
 
 **Immediately assign @copilot when:**
+- Issue is currently **unassigned** (no existing assignees)
 - AI-Readiness Score ≥ 9
 - Issue has clear acceptance criteria
 - All context is provided
 - No external dependencies
+
+**Action:** Output an `assign_to_agent` safe-output item for these high-readiness issues:
+```json
+{
+  "type": "assign_to_agent",
+  "issue_number": 123,
+  "agent": "copilot"
+}
+```
 
 **For lower scores (5-8):**
 - Route to "AI Agent Potential" board
@@ -243,7 +259,7 @@ For each issue, provide:
    - Priority: [priority + brief reason]
 
 3. **Assignment Decision**
-   - If score ≥ 9: "Assigning to @copilot for immediate work"
+   - If score ≥ 9: "Assigning to @copilot for immediate work" + output assign_to_agent
    - If score 5-8: "Needs [specific clarifications] before assignment"
    - If score < 5: "Requires human review - [specific reasons]"
 
@@ -258,13 +274,16 @@ For each issue, provide:
 ## Workflow Steps
 
 1. **Fetch Issues**: Use GitHub MCP to query up to ${{ github.event.inputs.max_issues }} most recent open issues (default: 10)
-2. **Score Each Issue**: Evaluate AI-readiness based on the criteria above
-3. **Route to Project Board**: For each issue, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add it to the project board with field assignments
+2. **Filter Unassigned**: Skip any issues that already have assignees (human or agent) - do NOT process or add them to the project board
+3. **Score Each Issue**: Evaluate AI-readiness based on the criteria above (only for unassigned issues)
+4. **Route to Project Board**: For each unassigned issue, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add it to the project board with field assignments
+5. **Assign High-Readiness Issues**: For unassigned issues with AI-Readiness Score ≥ 9, output an `assign_to_agent` safe-output item to immediately assign the issue to @copilot
 
 ## Execution Notes
 
 - This workflow runs every 4 hours automatically (or manually with custom parameters)
 - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-- All issues are routed to the project board with differentiation via Status field
+- **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped)
+- All unassigned issues are routed to the project board with differentiation via Status field
 - Custom fields are created automatically if they don't exist
 - User projects must exist before workflow runs (cannot auto-create)

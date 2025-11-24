@@ -39,6 +39,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
+| **Assign to Agent** | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
 | **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
 | **Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
@@ -343,6 +344,88 @@ safe-outputs:
     base: main                # base branch (defaults to current)
     target-repo: "owner/repo" # cross-repository
 ```
+
+### Assign to Agent (`assign-to-agent:`)
+
+Assigns GitHub Copilot coding agents to issues. Requires **all four workflow permissions** (`actions: write`, `contents: write`, `issues: write`, `pull-requests: write`) plus a token with sufficient scope.
+
+```yaml wrap
+safe-outputs:
+  assign-to-agent:
+    default-agent: "copilot"  # default: "copilot"
+    max: 1                    # max assignments (default: 1)
+    target-repo: "owner/repo" # cross-repository
+```
+
+**Permission Requirements:**
+
+Assigning agents requires **all** of these permissions in the workflow:
+```yaml
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+```
+
+**Token Requirements:**
+
+The default `GITHUB_TOKEN` **lacks permissions** to assign agents. You must use one of the following token methods:
+
+1. **GitHub App installation token** (recommended):
+   ```yaml wrap
+   safe-outputs:
+     app:
+       app-id: ${{ vars.APP_ID }}
+       private-key: ${{ secrets.APP_PRIVATE_KEY }}
+     assign-to-agent:
+   ```
+
+2. **Classic PAT with `repo` scope**:
+   ```yaml wrap
+   safe-outputs:
+     github-token: ${{ secrets.CLASSIC_PAT }}
+     assign-to-agent:
+   ```
+
+3. **Fine-grained PAT** with Write access for Issues, Pull requests, Contents, and Actions.
+
+:::caution
+Fine-grained and classic PATs may fail with "Resource not accessible" errors depending on organization settings. GitHub App tokens provide the most reliable access.
+:::
+
+**Agent Output Format:**
+```json
+{
+  "type": "assign_to_agent",
+  "issue_number": 123,
+  "agent": "copilot"
+}
+```
+
+**Supported Agents:**
+- `copilot` - GitHub Copilot coding agent (`copilot-swe-agent`)
+- `claude` - Claude coding agent (`claude-swe-agent`)  
+- `codex` - Codex coding agent (`codex-swe-agent`)
+
+**Repository Settings:**
+
+Ensure these settings are configured:
+1. **Actions permissions**: Settings → Actions → General → Workflow permissions → "Read and write permissions"
+2. **Copilot enabled**: Verify Copilot is enabled for your repository
+3. **Organization settings**: Check if your org restricts bot assignments
+
+**Cross-Repository:**
+
+Requires `target-repo` and a token (PAT or GitHub App) with access to the target repository:
+```yaml wrap
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  assign-to-agent:
+    target-repo: "org/other-repo"
+```
+
+Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr)
 
 ## Cross-Repository Operations
 
