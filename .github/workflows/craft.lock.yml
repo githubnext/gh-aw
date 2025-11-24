@@ -60,7 +60,7 @@
 # - **Issue/Comment**: ${{ github.event.issue.number }}
 # - **Request**: 
 #
-# <!-- ${{ needs.activation.outputs.text }} -->
+#
 #
 # ## Your Mission
 #

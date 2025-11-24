@@ -254,3 +254,109 @@ This is the main workflow content.`
 		t.Errorf("Expected main workflow heading to come before included content, but found at positions %d vs %d", mainIdx, includedIdx)
 	}
 }
+
+// TestImportsXMLCommentsRemoval tests that XML comments are removed from imported markdown
+// in both the Original Prompt comment section and the actual prompt content
+func TestImportsXMLCommentsRemoval(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "imports-xml-comments-test")
+
+	// Create shared directory
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.Mkdir(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create imported file with XML comments
+	importedFile := filepath.Join(sharedDir, "with-comments.md")
+	importedContent := `---
+tools:
+  github:
+    toolsets: [repos]
+---
+
+<!-- This is an XML comment that should be removed -->
+
+This is important imported content.
+
+<!--
+Multi-line XML comment
+that should also be removed
+-->
+
+More imported content here.`
+	if err := os.WriteFile(importedFile, []byte(importedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+tools:
+  github:
+    toolsets: [issues]
+imports:
+  - shared/with-comments.md
+---
+
+# Main Workflow
+
+This is the main workflow content.`
+
+	testFile := filepath.Join(tmpDir, "test-xml-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Verify XML comments are NOT present in Original Prompt section
+	if strings.Contains(lockContent, "<!-- This is an XML comment") {
+		t.Error("XML comment should not appear in Original Prompt comment section")
+	}
+	if strings.Contains(lockContent, "Multi-line XML comment") {
+		t.Error("Multi-line XML comment should not appear in Original Prompt comment section")
+	}
+
+	// Verify XML comments are NOT present in the actual prompt content
+	// The prompt is written after "Create prompt" step
+	promptSectionStart := strings.Index(lockContent, "Create prompt")
+	if promptSectionStart == -1 {
+		t.Fatal("Could not find 'Create prompt' section in lock file")
+	}
+	promptSection := lockContent[promptSectionStart:]
+
+	if strings.Contains(promptSection, "<!-- This is an XML comment") {
+		t.Error("XML comment should not appear in actual prompt content")
+	}
+	if strings.Contains(promptSection, "Multi-line XML comment") {
+		t.Error("Multi-line XML comment should not appear in actual prompt content")
+	}
+
+	// Verify that actual content IS present (not removed along with comments)
+	if !strings.Contains(lockContent, "This is important imported content") {
+		t.Error("Expected imported content to be present in lock file")
+	}
+	if !strings.Contains(lockContent, "More imported content here") {
+		t.Error("Expected imported content to be present in lock file")
+	}
+	if !strings.Contains(lockContent, "# Main Workflow") {
+		t.Error("Expected main workflow heading to be present in lock file")
+	}
+}
