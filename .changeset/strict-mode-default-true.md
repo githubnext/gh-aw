@@ -18,7 +18,7 @@ Change strict mode default from false to true
 
 **Strict mode enforces:**
 1. No write permissions (`contents:write`, `issues:write`, `pull-requests:write`) - use safe-outputs instead
-2. Explicit network configuration (no implicit defaults)
+2. Network configuration - requires network permissions (defaults to 'defaults' mode if not specified)
 3. No wildcard `*` in network.allowed domains
 4. Network configuration required for custom MCP servers with containers
 5. GitHub Actions pinned to commit SHAs (not tags/branches)
@@ -38,9 +38,9 @@ permissions:
 strict: false      # Opt out
 ```
 
-**CLI behavior unchanged:**
-- `gh aw compile` still defaults to non-strict compilation at CLI level
-- Schema default applies when `strict:` not in frontmatter
-- `gh aw compile --strict` still overrides frontmatter settings
+**CLI behavior update:**
+- `gh aw compile` now uses strict mode by default when `strict:` is not specified in frontmatter (due to schema default)
+- `gh aw compile --strict` still overrides frontmatter settings to force strict mode on all workflows
+- To opt out of strict mode, add `strict: false` to your workflow frontmatter
 
 See [Strict Mode Documentation](https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict) for details.

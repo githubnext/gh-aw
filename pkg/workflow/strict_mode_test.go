@@ -593,6 +593,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: copilot
+strict: false
 network:
   allowed:
     - "*"
@@ -674,7 +675,7 @@ network:
 			expectError: false,
 		},
 		{
-			name: "no strict field defaults to non-strict mode",
+			name: "no strict field defaults to strict mode",
 			content: `---
 on: push
 permissions:
@@ -685,7 +686,8 @@ engine: copilot
 ---
 
 # Test Workflow`,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "strict mode: write permission",
 		},
 	}
 
@@ -776,6 +778,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 ---
 
 # Non-Strict Workflow`
