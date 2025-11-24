@@ -65,6 +65,9 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 				if !strings.Contains(output, "github.repository") {
 					t.Error("Expected repository context in output")
 				}
+				if !strings.Contains(output, "github.workspace") {
+					t.Error("Expected workspace context in output")
+				}
 				if !strings.Contains(output, "github.event.issue.number") {
 					t.Error("Expected issue number context in output")
 				}
@@ -164,6 +167,7 @@ func TestGitHubContextTemplateConditionals(t *testing.T) {
 	// Check for all expected conditional blocks
 	expectedConditionals := []string{
 		"{{#if ${{ github.repository }} }}",
+		"{{#if ${{ github.workspace }} }}",
 		"{{#if ${{ github.event.issue.number }} }}",
 		"{{#if ${{ github.event.discussion.number }} }}",
 		"{{#if ${{ github.event.pull_request.number }} }}",
