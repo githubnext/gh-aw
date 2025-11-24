@@ -65,6 +65,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"git-memory":        true,
 		"bash":              true,
 		"edit":              true,
 		"web-fetch":         true,

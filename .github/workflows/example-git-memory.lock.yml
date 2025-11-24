@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Example workflow demonstrating git-memory feature for persistent storage using git branches
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -30,11 +32,18 @@
 #
 # Original Prompt:
 # ```markdown
-# # Test Git Memory
+# # Git Memory Example Workflow
 #
-# This is a test workflow to verify git-memory functionality.
+# This workflow demonstrates the git-memory feature which provides persistent storage using git branches.
 #
-# Create a file called `test.txt` with the current date and time, then verify it persists.
+# ## What to do
+#
+# 1. Check if a file called `counter.txt` exists in the working directory
+# 2. If it exists, read the number, increment it, and write it back
+# 3. If it doesn't exist, create it with the value `1`
+# 4. Create a log entry in `history.log` with the timestamp and counter value
+#
+# This demonstrates that data persists across workflow runs using the git-memory branch.
 # ```
 #
 # Pinned GitHub Actions:
@@ -47,7 +56,7 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Test Git Memory"
+name: "Git Memory Example Workflow"
 "on": workflow_dispatch
 
 permissions:
@@ -56,7 +65,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Git Memory"
+run-name: "Git Memory Example Workflow"
 
 jobs:
   activation:
@@ -72,7 +81,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "test-git-memory.lock.yml"
+          GH_AW_WORKFLOW_FILE: "example-git-memory.lock.yml"
         with:
           script: |
             async function main() {
@@ -177,7 +186,7 @@ jobs:
       - name: Checkout or create git-memory branch (default)
         run: |
           set -e
-          BRANCH="memory/default"
+          BRANCH="memory/example"
           
           # Fetch the branch if it exists remotely
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
@@ -319,11 +328,18 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Test Git Memory
+          # Git Memory Example Workflow
           
-          This is a test workflow to verify git-memory functionality.
+          This workflow demonstrates the git-memory feature which provides persistent storage using git branches.
           
-          Create a file called `test.txt` with the current date and time, then verify it persists.
+          ## What to do
+          
+          1. Check if a file called `counter.txt` exists in the working directory
+          2. If it exists, read the number, increment it, and write it back
+          3. If it doesn't exist, create it with the value `1`
+          4. Create a log entry in `history.log` with the timestamp and counter value
+          
+          This demonstrates that data persists across workflow runs using the git-memory branch.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -384,7 +400,7 @@ jobs:
           
           ## Git Memory Branch Available
           
-          You have access to a persistent git memory branch `memory/default` where you can read and write files to create memories and store information.
+          You have access to a persistent git memory branch `memory/example` where you can read and write files to create memories and store information. Example persistent storage branch
           
           - **Git Storage**: Files are stored in a git branch and persist across workflow runs
           - **Read/Write Access**: You can freely read from and write to any files in the working directory
@@ -533,7 +549,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.358",
-              workflow_name: "Test Git Memory",
+              workflow_name: "Git Memory Example Workflow",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1963,7 +1979,7 @@ jobs:
         if: always()
         run: |
           set -e
-          BRANCH="memory/default"
+          BRANCH="memory/example"
           
           # Checkout the memory branch
           git checkout "$BRANCH"
