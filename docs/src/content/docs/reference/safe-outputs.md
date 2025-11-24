@@ -347,7 +347,7 @@ safe-outputs:
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Assigns GitHub Copilot coding agents to issues. The generated job automatically receives the necessary workflow permissions. You only need to provide a token with agent assignment scope.
+Assigns the GitHub Copilot coding agent to issues. The generated job automatically receives the necessary workflow permissions, you only need to provide a token with agent assignment scope.
 
 ```yaml wrap
 safe-outputs:
@@ -358,33 +358,26 @@ safe-outputs:
 
 **Token Requirements:**
 
-The default `GITHUB_TOKEN` **lacks permissions** to assign agents. Provide a token using one of these methods:
+The default `GITHUB_TOKEN` lacks permissions to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
 
-1. **GitHub App installation token** (recommended):
-   ```yaml wrap
-   safe-outputs:
-     app:
-       app-id: ${{ vars.APP_ID }}
-       private-key: ${{ secrets.APP_PRIVATE_KEY }}
-     assign-to-agent:
-   ```
+- **Read** access to metadata
+- **Write** access to actions, contents, issues, and pull requests
 
-3. **Classic PAT with `repo` scope**:
-   ```yaml wrap
-   safe-outputs:
-     github-token: ${{ secrets.CLASSIC_PAT }}
-     assign-to-agent:
-   ```
+```yaml wrap
+safe-outputs:
+  assign-to-agent:
+    # Uses secrets.GH_AW_AGENT_TOKEN automatically
+```
 
-4. **Fine-grained PAT** via `github-token` with Write access for Actions, Contents, Issues, and Pull requests.
+Alternatively, use a GitHub App installation token or override with `github-token`:
 
-:::tip
-Create a dedicated `GH_AW_AGENT_TOKEN` secret for agent operations. This provides clear separation between general workflow tokens and agent-specific permissions.
-:::
-
-:::caution
-Fine-grained and classic PATs may fail with "Resource not accessible" errors depending on organization settings. GitHub App tokens or a dedicated agent token provide the most reliable access.
-:::
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  assign-to-agent:
+```
 
 **Agent Output Format:**
 ```json
