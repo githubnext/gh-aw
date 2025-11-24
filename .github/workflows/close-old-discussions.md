@@ -34,6 +34,7 @@ steps:
       
       CURSOR=""
       HAS_NEXT_PAGE=true
+      PAGE_COUNT=0
       
       while [ "$HAS_NEXT_PAGE" = "true" ]; do
         if [ -z "$CURSOR" ]; then
@@ -67,6 +68,7 @@ steps:
         echo "$RESULT" | jq -r --arg cutoff "$CUTOFF_DATE" '
           .data.repository.discussions.nodes 
           | map(select(
+              .author != null and 
               .author.login == "github-actions[bot]" and 
               .createdAt < $cutoff
             ))
