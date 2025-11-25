@@ -12,7 +12,8 @@ permissions:
   discussions: read
   repository-projects: read
   security-events: read
-engine: copilot
+engine: claude
+strict: false
 tools:
   github:
     mode: local
