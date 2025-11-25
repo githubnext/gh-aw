@@ -63,14 +63,14 @@ This is a test workflow with edit tool enabled.
 		t.Error("Expected /tmp/gh-aw/ reference in generated workflow")
 	}
 
-	// Test 4: Verify the instruction mentions File Editing Access
-	if !strings.Contains(lockStr, "File Editing Access") {
-		t.Error("Expected 'File Editing Access' header in generated workflow")
+	// Test 4: Verify the instruction mentions file-editing section
+	if !strings.Contains(lockStr, "<file-editing>") {
+		t.Error("Expected '<file-editing>' XML tag in generated workflow")
 	}
 
-	// Test 5: Verify the instruction mentions accessible directories
-	if !strings.Contains(lockStr, "write access") {
-		t.Error("Expected 'write access' reference in generated workflow")
+	// Test 5: Verify the instruction mentions allowed paths
+	if !strings.Contains(lockStr, "<allowed-paths>") {
+		t.Error("Expected '<allowed-paths>' XML tag in generated workflow")
 	}
 
 	t.Logf("Successfully verified edit tool accessibility instructions are included in generated workflow")

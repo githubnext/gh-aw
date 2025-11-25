@@ -59,8 +59,8 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 				if !strings.Contains(output, "Append GitHub context to prompt") {
 					t.Error("Expected GitHub context step to be added")
 				}
-				if !strings.Contains(output, "## GitHub Context") {
-					t.Error("Expected GitHub Context header in output")
+				if !strings.Contains(output, "<github-context>") {
+					t.Error("Expected <github-context> XML tag in output")
 				}
 				if !strings.Contains(output, "github.repository") {
 					t.Error("Expected repository context in output")

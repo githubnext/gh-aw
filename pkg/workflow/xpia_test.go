@@ -81,13 +81,13 @@ func TestXPIAPromptInWorkflow(t *testing.T) {
 		t.Error("Expected XPIA security instructions step in workflow")
 	}
 
-	// Check that important security notice is included
-	if !strings.Contains(output, "IMPORTANT SECURITY NOTICE") {
-		t.Error("Expected security notice in XPIA prompt")
+	// Check that security-guidelines XML tag is included
+	if !strings.Contains(output, "<security-guidelines>") {
+		t.Error("Expected <security-guidelines> XML tag in XPIA prompt")
 	}
 
 	// Check that XPIA warnings are included
-	if !strings.Contains(output, "Cross-Prompt Injection Attacks") {
+	if !strings.Contains(output, "Cross-Prompt Injection Attack") {
 		t.Error("Expected XPIA warning in prompt")
 	}
 }
