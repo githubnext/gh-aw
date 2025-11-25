@@ -66,7 +66,7 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 	for _, chunk := range chunks {
 		// shellcheck disable directive suppresses false positives from markdown backticks
 		yaml.WriteString(indent + shellcheckDisableBackticks)
-		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
+		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
 		}

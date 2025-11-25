@@ -2273,7 +2273,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2306,7 +2306,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2320,7 +2320,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ---
@@ -2340,7 +2340,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2366,7 +2366,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2392,7 +2392,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           

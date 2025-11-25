@@ -21,7 +21,7 @@ func TestAppendPromptStep(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				`cat >> "$GH_AW_PROMPT" << PROMPT_EOF`,
+				`cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'`,
 				"Test prompt content",
 				"PROMPT_EOF",
 			},
@@ -36,7 +36,7 @@ func TestAppendPromptStep(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				`cat >> "$GH_AW_PROMPT" << PROMPT_EOF`,
+				`cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'`,
 				"Conditional prompt content",
 				"PROMPT_EOF",
 			},
@@ -87,7 +87,7 @@ func TestAppendPromptStepWithHeredoc(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				`cat >> "$GH_AW_PROMPT" << PROMPT_EOF`,
+				`cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'`,
 				"Structured content line 1",
 				"Structured content line 2",
 				"PROMPT_EOF",
@@ -115,6 +115,38 @@ func TestAppendPromptStepWithHeredoc(t *testing.T) {
 	}
 }
 
+func TestAppendPromptStepWithHeredoc_ShellSpecialCharacters(t *testing.T) {
+	// Test that shell-unfriendly characters are properly protected by the quoted heredoc
+	// This is critical for preventing shell injection vulnerabilities
+	var yaml strings.Builder
+
+	content := "Use `gh` command and $(command) or ${var} expansion"
+
+	appendPromptStepWithHeredoc(&yaml, "Test shell protection", func(y *strings.Builder) {
+		y.WriteString(content)
+	})
+
+	result := yaml.String()
+
+	// Should use quoted heredoc to prevent shell expansion
+	if !strings.Contains(result, `<< 'PROMPT_EOF'`) {
+		t.Error("Expected quoted heredoc delimiter to prevent shell expansion")
+	}
+
+	// Original content with backticks should be preserved
+	if !strings.Contains(result, "`gh`") {
+		t.Error("Expected backticks to be preserved in output")
+	}
+
+	// Dollar sign expressions should be preserved, not expanded
+	if !strings.Contains(result, "$(command)") {
+		t.Error("Expected $(command) to be preserved in output")
+	}
+	if !strings.Contains(result, "${var}") {
+		t.Error("Expected ${var} to be preserved in output")
+	}
+}
+
 func TestPromptStepRefactoringConsistency(t *testing.T) {
 	// Test that the refactored functions produce the same output as the original implementation
 	// by comparing with a known-good expected structure
@@ -133,7 +165,7 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
-		if !strings.Contains(result, `cat >> "$GH_AW_PROMPT" << PROMPT_EOF`) {
+		if !strings.Contains(result, `cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'`) {
 			t.Error("Expected heredoc start not found")
 		}
 	})
