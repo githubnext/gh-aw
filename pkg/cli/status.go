@@ -20,7 +20,8 @@ func NewStatusCommand() *cobra.Command {
 			}
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonFlag, _ := cmd.Flags().GetBool("json")
-			if err := StatusWorkflows(pattern, verbose, jsonFlag); err != nil {
+			branch, _ := cmd.Flags().GetString("branch")
+			if err := StatusWorkflows(pattern, verbose, jsonFlag, branch); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -28,6 +29,7 @@ func NewStatusCommand() *cobra.Command {
 	}
 
 	cmd.Flags().Bool("json", false, "Output results in JSON format")
+	cmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 
 	return cmd
 }
