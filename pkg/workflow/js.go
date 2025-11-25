@@ -200,6 +200,9 @@ var generateGitPatchJSScript string
 //go:embed js/temporary_id.cjs
 var temporaryIdScript string
 
+//go:embed js/safe_output_list_action.cjs
+var safeOutputListActionScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -211,6 +214,7 @@ func GetJavaScriptSources() map[string]string {
 		"staged_preview.cjs":              stagedPreviewScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,
+		"safe_output_list_action.cjs":     safeOutputListActionScript,
 		"temporary_id.cjs":                temporaryIdScript,
 		"is_truthy.cjs":                   isTruthyScript,
 		"log_parser_bootstrap.cjs":        logParserBootstrapScript,

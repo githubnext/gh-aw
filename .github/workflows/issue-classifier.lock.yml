@@ -1142,59 +1142,48 @@ jobs:
               }
               return { valid: true, value: parsed };
             }
-            async function main() {
+            async function executeListAction(config) {
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
               }
-              const labelsItem = result.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
+              const item = result.items.find(i => i.type === config.itemType);
+              if (!item) {
+                core.warning(`No ${config.itemType.replace("_", "-")} item found in agent output`);
                 return;
               }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
+              core.info(`Found ${config.itemType.replace("_", "-")} item with ${item[config.itemsField]?.length || 0} ${config.pluralNoun}`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
-                  title: "Add Labels",
-                  description: "The following labels would be added if staged mode was disabled:",
-                  items: [labelsItem],
-                  renderItem: item => {
-                    let content = "";
-                    if (item.item_number) {
-                      content += `**Target Issue:** #${item.item_number}\n\n`;
-                    } else {
-                      content += `**Target:** Current issue/PR\n\n`;
-                    }
-                    if (item.labels && item.labels.length > 0) {
-                      content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
-                    }
-                    return content;
-                  },
+                  title: config.stagedPreviewTitle,
+                  description: config.stagedPreviewDescription,
+                  items: [item],
+                  renderItem: config.renderStagedItem,
                 });
                 return;
               }
-              const config = getSafeOutputConfig("add_labels");
-              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
-              if (allowedLabels) {
-                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+              const safeOutputConfig = getSafeOutputConfig(config.configKey);
+              const allowedItems = parseAllowedItems(process.env[config.envAllowedVar]) || safeOutputConfig[config.configAllowedField];
+              if (allowedItems) {
+                core.info(`Allowed ${config.pluralNoun}: ${JSON.stringify(allowedItems)}`);
               } else {
-                core.info("No label restrictions - any labels are allowed");
+                core.info(`No ${config.singularNoun} restrictions - any ${config.pluralNoun} are allowed`);
               }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
+              const maxCountResult = validateMaxCount(process.env[config.envMaxCountVar], safeOutputConfig.max);
               if (!maxCountResult.valid) {
                 core.setFailed(maxCountResult.error);
                 return;
               }
               const maxCount = maxCountResult.value;
               core.info(`Max count: ${maxCount}`);
-              const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
-              core.info(`Labels target configuration: ${labelsTarget}`);
+              const targetConfig = process.env[config.envTargetVar] || "triggering";
+              core.info(`${config.pluralNoun.charAt(0).toUpperCase() + config.pluralNoun.slice(1)} target configuration: ${targetConfig}`);
               const targetResult = resolveTarget({
-                targetConfig: labelsTarget,
-                item: labelsItem,
+                targetConfig,
+                item,
                 context,
-                itemType: "label addition",
-                supportsPR: true,
+                itemType: `${config.singularNoun} addition`,
+                supportsPR: config.supportsPR,
               });
               if (!targetResult.success) {
                 if (targetResult.shouldFail) {
@@ -1206,67 +1195,138 @@ jobs:
               }
               const itemNumber = targetResult.number;
               const contextType = targetResult.contextType;
-              const requestedLabels = labelsItem.labels || [];
-              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-              const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
-              if (!labelsResult.valid) {
-                if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
-                  core.info("No labels to add");
-                  core.setOutput("labels_added", "");
+              const requestedItems = item[config.itemsField] || [];
+              core.info(`Requested ${config.pluralNoun}: ${JSON.stringify(requestedItems)}`);
+              let validationResult;
+              if (config.validateItems) {
+                validationResult = config.validateItems(requestedItems);
+              } else {
+                validationResult = validateListItems(requestedItems, allowedItems, maxCount);
+              }
+              if (!validationResult.valid) {
+                if (validationResult.error && validationResult.error.includes("No valid")) {
+                  core.info(`No ${config.pluralNoun} to add`);
+                  core.setOutput(config.outputField, "");
                   await core.summary
                     .addRaw(
                       `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
+            ## ${config.summaryTitle}
+            No ${config.pluralNoun} were added (no valid ${config.pluralNoun} found in agent output).
             `
                     )
                     .write();
                   return;
                 }
-                core.setFailed(labelsResult.error || "Invalid labels");
+                core.setFailed(validationResult.error || `Invalid ${config.pluralNoun}`);
                 return;
               }
-              const uniqueLabels = labelsResult.value || [];
-              if (uniqueLabels.length === 0) {
-                core.info("No labels to add");
-                core.setOutput("labels_added", "");
+              let uniqueItems = validationResult.value || [];
+              if (!config.validateItems && uniqueItems.length > maxCount) {
+                core.info(`Too many ${config.pluralNoun}, keeping ${maxCount}`);
+                uniqueItems = uniqueItems.slice(0, maxCount);
+              }
+              if (uniqueItems.length === 0) {
+                core.info(`No ${config.pluralNoun} to add`);
+                core.setOutput(config.outputField, "");
                 await core.summary
                   .addRaw(
                     `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
+            ## ${config.summaryTitle}
+            No ${config.pluralNoun} were added (no valid ${config.pluralNoun} found in agent output).
             `
                   )
                   .write();
                 return;
               }
-              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+              core.info(`Adding ${uniqueItems.length} ${config.pluralNoun} to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueItems)}`);
               try {
+                await config.applyAction(uniqueItems, contextType, itemNumber);
+                core.info(`Successfully added ${uniqueItems.length} ${config.pluralNoun} to ${contextType} #${itemNumber}`);
+                core.setOutput(config.outputField, uniqueItems.join("\n"));
+                const summaryContent = config.renderSuccessSummary(uniqueItems, contextType, itemNumber);
+                await core.summary.addRaw(summaryContent).write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to add ${config.pluralNoun}: ${errorMessage}`);
+                core.setFailed(`Failed to add ${config.pluralNoun}: ${errorMessage}`);
+              }
+            }
+            function validateListItems(items, allowedItems, maxCount) {
+              if (!items || !Array.isArray(items)) {
+                return { valid: false, error: "items must be an array" };
+              }
+              let validItems = items;
+              if (allowedItems && allowedItems.length > 0) {
+                validItems = items.filter(item => allowedItems.includes(item));
+              }
+              const uniqueItems = validItems
+                .filter(item => item != null && item !== false && item !== 0)
+                .map(item => String(item).trim())
+                .filter(item => item)
+                .filter((item, index, arr) => arr.indexOf(item) === index);
+              if (uniqueItems.length > maxCount) {
+                return { valid: true, value: uniqueItems.slice(0, maxCount) };
+              }
+              if (uniqueItems.length === 0) {
+                return { valid: false, error: "No valid items found after filtering" };
+              }
+              return { valid: true, value: uniqueItems };
+            }
+            function renderMarkdownList(items) {
+              return items.map(item => `- \`${item}\``).join("\n");
+            }
+            await executeListAction({
+              itemType: "add_labels",
+              singularNoun: "label",
+              pluralNoun: "labels",
+              itemsField: "labels",
+              configKey: "add_labels",
+              configAllowedField: "allowed",
+              envAllowedVar: "GH_AW_LABELS_ALLOWED",
+              envMaxCountVar: "GH_AW_LABELS_MAX_COUNT",
+              envTargetVar: "GH_AW_LABELS_TARGET",
+              targetNumberField: "item_number",
+              supportsPR: true,
+              stagedPreviewTitle: "Add Labels",
+              stagedPreviewDescription: "The following labels would be added if staged mode was disabled:",
+              renderStagedItem: item => {
+                let content = "";
+                if (item.item_number) {
+                  content += `**Target Issue:** #${item.item_number}\n\n`;
+                } else {
+                  content += `**Target:** Current issue/PR\n\n`;
+                }
+                if (item.labels && item.labels.length > 0) {
+                  content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+                }
+                return content;
+              },
+              validateItems: requestedLabels => {
+                const config = getSafeOutputConfig("add_labels");
+                const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
+                const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
+                const maxCount = maxCountResult.valid ? maxCountResult.value : 1;
+                return validateLabels(requestedLabels, allowedLabels, maxCount);
+              },
+              applyAction: async (labels, contextType, itemNumber) => {
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: itemNumber,
-                  labels: uniqueLabels,
+                  labels,
                 });
-                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-                core.setOutput("labels_added", uniqueLabels.join("\n"));
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-                await core.summary
-                  .addRaw(
-                    `
+              },
+              outputField: "labels_added",
+              summaryTitle: "Label Addition",
+              renderSuccessSummary: (labels, contextType, itemNumber) => {
+                const labelsListMarkdown = renderMarkdownList(labels);
+                return `
             ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+            Successfully added ${labels.length} label(s) to ${contextType} #${itemNumber}:
             ${labelsListMarkdown}
-            `
-                  )
-                  .write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to add labels: ${errorMessage}`);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
-            }
-            await main();
+            `;
+              },
+            });
 
   agent:
     needs: activation
