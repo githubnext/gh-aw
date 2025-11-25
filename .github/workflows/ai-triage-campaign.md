@@ -52,6 +52,12 @@ You are an AI-focused issue triage bot. Analyze issues for AI agent suitability 
 | Testable success criteria | 2 |
 | No external dependencies | 1 |
 
+**Scoring Criteria Descriptions**
+- **Clear requirements**: Requirements are unambiguous and specific.
+- **Context/examples provided**: Sufficient background and examples are included.
+- **Specific scope**: The issue has a well-defined, limited scope.
+- **Testable success criteria**: There are clear, testable outcomes for completion.
+- **No external dependencies**: The issue can be resolved without relying on outside teams, systems, or unclear resources.
 ### High AI-Readiness Examples
 - Well-defined code changes with acceptance criteria
 - Pattern-based refactoring (e.g., "convert callbacks to async/await")
