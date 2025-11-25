@@ -18,8 +18,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Automatically triages unlabeled issues by analyzing content and applying appropriate labels
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -45,66 +43,10 @@
 # ```markdown
 # # Issue Triage Agent
 #
-# You are an issue triage agent for the **${{ github.repository }}** repository. Your task is to identify and label open issues that currently have no labels.
-#
-# ## Instructions
-#
-# 1. **List open issues** in this repository that have no labels using the GitHub tools
-# 2. **Analyze each unlabeled issue** by examining its title and body content
-# 3. **Apply appropriate labels** to each issue based on your analysis
-#
-# ## Available Labels
-#
-# Apply one or more of these labels based on the issue content:
-#
-# | Label | Use When |
-# |-------|----------|
-# | `bug` | Something is broken, not working as expected, or behaving incorrectly |
-# | `feature` | A request for new functionality or capabilities |
-# | `enhancement` | An improvement to existing functionality |
-# | `documentation` | Issues related to docs, examples, or README |
-# | `question` | General questions or requests for clarification |
-# | `help-wanted` | Issues that could use community help |
-# | `good-first-issue` | Simple issues suitable for newcomers |
-#
-# ## Classification Guidelines
-#
-# **Bug indicators:**
-# - Error messages, crashes, or exceptions mentioned
-# - "Doesn't work", "broken", "fails", "regression"
-# - Unexpected behavior compared to documentation
-# - Performance issues or degradation
-#
-# **Feature indicators:**
-# - "Would be nice", "please add", "request"
-# - New capability or option suggestions
-# - Integration with other tools/services
-# - Missing functionality
-#
-# **Enhancement indicators:**
-# - Improvements to existing features
-# - Better UX/DX suggestions
-# - Refactoring or optimization requests
-#
-# **Documentation indicators:**
-# - Typos, unclear explanations
-# - Missing examples or guides
-# - Outdated information
-#
-# ## Important Notes
-#
-# - Only process issues that have **zero labels**
-# - If an issue already has labels, skip it
-# - Only apply labels from the allowed list above (they must already exist in the repository)
-# - Focus on the primary classification if multiple could apply
-# - Be conservative - if unsure, prefer `question` or `help-wanted`
-#
-# Repository: ${{ github.repository }}
+# List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have labels.
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
@@ -121,7 +63,6 @@ name: "Issue Triage Agent"
   workflow_dispatch: null
 
 permissions:
-  contents: read
   issues: read
 
 concurrency:
@@ -259,7 +200,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "bug,feature,enhancement,documentation,question,help-wanted,good-first-issue"
-          GH_AW_LABELS_MAX_COUNT: 20
+          GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Issue Triage Agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -665,7 +606,6 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
@@ -676,10 +616,6 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -695,44 +631,6 @@ jobs:
           SERVER_URL="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Checkout PR branch
-        if: |
-          github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
       - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
@@ -764,7 +662,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["bug","feature","enhancement","documentation","question","help-wanted","good-first-issue"],"max":20},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_labels":{"allowed":["bug","feature","enhancement","documentation","question","help-wanted","good-first-issue"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Add labels to a GitHub issue or pull request","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number (optional for current context)","type":"number"},"labels":{"description":"Labels to add","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -1508,61 +1406,7 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Issue Triage Agent
           
-          You are an issue triage agent for the **${GH_AW_EXPR_D892F163}** repository. Your task is to identify and label open issues that currently have no labels.
-          
-          ## Instructions
-          
-          1. **List open issues** in this repository that have no labels using the GitHub tools
-          2. **Analyze each unlabeled issue** by examining its title and body content
-          3. **Apply appropriate labels** to each issue based on your analysis
-          
-          ## Available Labels
-          
-          Apply one or more of these labels based on the issue content:
-          
-          | Label | Use When |
-          |-------|----------|
-          | `bug` | Something is broken, not working as expected, or behaving incorrectly |
-          | `feature` | A request for new functionality or capabilities |
-          | `enhancement` | An improvement to existing functionality |
-          | `documentation` | Issues related to docs, examples, or README |
-          | `question` | General questions or requests for clarification |
-          | `help-wanted` | Issues that could use community help |
-          | `good-first-issue` | Simple issues suitable for newcomers |
-          
-          ## Classification Guidelines
-          
-          **Bug indicators:**
-          - Error messages, crashes, or exceptions mentioned
-          - "Doesn't work", "broken", "fails", "regression"
-          - Unexpected behavior compared to documentation
-          - Performance issues or degradation
-          
-          **Feature indicators:**
-          - "Would be nice", "please add", "request"
-          - New capability or option suggestions
-          - Integration with other tools/services
-          - Missing functionality
-          
-          **Enhancement indicators:**
-          - Improvements to existing features
-          - Better UX/DX suggestions
-          - Refactoring or optimization requests
-          
-          **Documentation indicators:**
-          - Typos, unclear explanations
-          - Missing examples or guides
-          - Outdated information
-          
-          ## Important Notes
-          
-          - Only process issues that have **zero labels**
-          - If an issue already has labels, skip it
-          - Only apply labels from the allowed list above (they must already exist in the repository)
-          - Focus on the primary classification if multiple could apply
-          - Be conservative - if unsure, prefer `question` or `help-wanted`
-          
-          Repository: ${GH_AW_EXPR_D892F163}
+          List open issues in ${GH_AW_EXPR_D892F163} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have labels.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1804,7 +1648,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -4547,7 +4391,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Issue Triage Agent"
-          WORKFLOW_DESCRIPTION: "Automatically triages unlabeled issues by analyzing content and applying appropriate labels"
+          WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
             const fs = require('fs');
