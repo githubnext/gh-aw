@@ -157,15 +157,14 @@ func TestPlaywrightNPXCommandWorks(t *testing.T) {
 
 	outputStr := string(output)
 
-	// Verify that --allowed-hosts is in the help output
+	// Verify that --allowed-hosts is in the help output (this is the flag we use for server host restrictions)
 	if !strings.Contains(outputStr, "--allowed-hosts") {
 		t.Errorf("Expected npx playwright help to mention --allowed-hosts flag\nActual output:\n%s", outputStr)
 	}
 
-	// Verify that the old --allowed-origins is NOT mentioned
-	if strings.Contains(outputStr, "--allowed-origins") {
-		t.Errorf("Did not expect npx playwright help to mention deprecated --allowed-origins flag\nActual output:\n%s", outputStr)
-	}
+	// Note: --allowed-origins was added in v0.0.48 as a separate feature for browser request filtering
+	// It's different from --allowed-hosts which controls which hosts the MCP server serves from
+	// Both flags can now coexist, so we no longer check for its absence
 
 	// Verify that the help output contains the expected option description
 	if !strings.Contains(outputStr, "allowed-hosts") {

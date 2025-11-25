@@ -18,23 +18,23 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Automatically closes discussions created by github-actions bot that are older than 1 week
+# Posts a daily random fact about the gh-aw project to a discussion thread
 #
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
+#   add_comment["add_comment"]
 #   agent["agent"]
-#   close_discussion["close_discussion"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   agent --> add_comment
+#   detection --> add_comment
 #   activation --> agent
-#   agent --> close_discussion
-#   detection --> close_discussion
 #   agent --> conclusion
 #   activation --> conclusion
-#   close_discussion --> conclusion
+#   add_comment --> conclusion
 #   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
@@ -43,54 +43,65 @@
 #
 # Original Prompt:
 # ```markdown
-# # Close Old Discussions Created by GitHub Actions Bot
+# # Daily Fact About gh-aw
 #
-# This workflow automatically closes discussions that were created by the `github-actions[bot]` user and are older than 1 week.
+# Your task is to post a fun, interesting fact about the ${{ github.repository }} project to discussion #4750.
 #
-# **Pre-filtered Discussion Data**: The workflow has already downloaded and filtered discussions using GitHub GraphQL API. The filtered data is available in `/tmp/gh-aw/filtered-discussions.jsonl` with only discussions that:
-# - Were created by `github-actions[bot]`
-# - Are older than 7 days (1 week)
+# ## Data Sources
 #
-# ## Task
+# Mine recent activity from the repository to find interesting facts. Focus on:
 #
-# Read the pre-filtered discussion data from `/tmp/gh-aw/filtered-discussions.jsonl` and generate `close_discussion` outputs for each discussion.
+# 1. **Recent PRs** (merged in the last 1-2 weeks)
+#    - New features added
+#    - Bug fixes
+#    - Refactoring efforts
+#    - Performance improvements
 #
-# **Important**: Do NOT call the GitHub API to list discussions - the data has already been fetched and filtered in the custom step above.
+# 2. **Recent Releases** (if any)
+#    - New version highlights
+#    - Breaking changes
+#    - Notable improvements
 #
-# ### Instructions
+# 3. **Recent Closed Issues** (resolved in the last 1-2 weeks)
+#    - Bugs that were fixed
+#    - Feature requests implemented
+#    - Community contributions
 #
-# 1. **Read the filtered data**: Load `/tmp/gh-aw/filtered-discussions.jsonl`
-# 2. **Generate close outputs**: For each discussion in the file, create a `close_discussion` output:
-#    - **discussion_number**: The discussion number from the data
-#    - **body**: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
-#    - **reason**: "OUTDATED"
+# ## Guidelines
 #
-# Output format (JSONL):
-# ```jsonl
-# {"type":"close_discussion","discussion_number":123,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+# - **Favor recent updates** but include variety - pick something interesting, not just the most recent
+# - **Be specific**: Include PR numbers, issue references, or release tags when relevant
+# - **Keep it short**: One or two sentences for the main fact, optionally with a brief context
+# - **Be engaging**: Use a casual, friendly tone that makes the fact memorable
+# - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
+#
+# ## Output Format
+#
+# Create a single comment with this structure:
+#
+# ```
+# 📊 **Daily gh-aw Fact**
+#
+# [Your interesting fact here, referencing specific PRs, issues, or releases with links]
+#
+# ---
+# *Today's fact brought to you by the Daily Fact Bot 🤖*
 # ```
 #
-# ### Example
+# ## Examples
 #
-# If `/tmp/gh-aw/filtered-discussions.jsonl` contains:
-# ```jsonl
-# {"number":1234,"title":"Test Discussion","createdAt":"2025-11-10T00:00:00Z"}
-# {"number":1235,"title":"Another Discussion","createdAt":"2025-11-11T00:00:00Z"}
-# ```
+# Good facts:
+# - "Did you know? PR #1234 added support for the `playwright` tool, enabling browser automation in agentic workflows! 🎭"
+# - "This week, 5 issues related to MCP server configuration were resolved, making it easier than ever to set up custom tools."
+# - "The latest release v0.45.0 introduced the `cache-memory` feature, allowing agents to persist data across workflow runs! 💾"
+# - "Fun fact: The most active contributor this week fixed 3 bugs related to YAML parsing. Thanks @contributor! 🙌"
 #
-# You should output:
-# ```jsonl
-# {"type":"close_discussion","discussion_number":1234,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
-# {"type":"close_discussion","discussion_number":1235,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
-# ```
+# Bad facts:
+# - "The repository was updated today." (too vague)
+# - "There were some changes." (not specific)
+# - Long paragraphs (keep it brief)
 #
-# ## Notes
-#
-# - Maximum closures: Up to 100 discussions per run (configured via safe-outputs max)
-# - Data is pre-filtered: No need to check author or age - all discussions in the file match criteria
-# - If the file is empty or doesn't exist: Report that no discussions need to be closed
-#
-# Begin the task now. Read the filtered data and generate close_discussion outputs.
+# Now, analyze the recent activity and post one interesting fact to discussion #4750.
 # ```
 #
 # Pinned GitHub Actions:
@@ -105,10 +116,10 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Close Old Discussions Created by GitHub Actions Bot"
+name: "Daily Fact About gh-aw"
 "on":
   schedule:
-  - cron: "0 6 */2 * *"
+  - cron: "0 11 * * 1-5"
   workflow_dispatch: null
 
 permissions:
@@ -121,7 +132,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Close Old Discussions Created by GitHub Actions Bot"
+run-name: "Daily Fact About gh-aw"
 
 jobs:
   activation:
@@ -135,7 +146,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "close-old-discussions.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
         with:
           script: |
             async function main() {
@@ -220,6 +231,459 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
+  add_comment:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      comment_url: ${{ steps.add_comment.outputs.comment_url }}
+    steps:
+      - name: Debug agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+        run: |
+          echo "Output: $AGENT_OUTPUT"
+          echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Add Issue Comment
+        id: add_comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_TARGET: "4750"
+          GITHUB_AW_COMMENT_DISCUSSION: "true"
+          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+          GH_AW_TRACKER_ID: "daily-fact-thread"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function getRepositoryUrl() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${targetRepoSlug}`;
+              } else if (context.payload.repository?.html_url) {
+                return context.payload.repository.html_url;
+              } else {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+              }
+            }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              const discussionId = repository.discussion.id;
+              const discussionUrl = repository.discussion.url;
+              let result;
+              if (replyToId) {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`,
+                  { dId: discussionId, body: message, replyToId }
+                );
+              } else {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`,
+                  { dId: discussionId, body: message }
+                );
+              }
+              const comment = result.addDiscussionComment.comment;
+              return {
+                id: comment.id,
+                html_url: comment.url,
+                discussion_url: discussionUrl,
+              };
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const commentItems = result.items.filter( item => item.type === "add_comment");
+              if (commentItems.length === 0) {
+                core.info("No add-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
+              function getTargetNumber(item) {
+                return item.item_number;
+              }
+              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                  summaryContent += "#### Related Items\n\n";
+                  if (createdIssueUrl && createdIssueNumber) {
+                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  }
+                  if (createdDiscussionUrl && createdDiscussionNumber) {
+                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  }
+                  if (createdPullRequestUrl && createdPullRequestNumber) {
+                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  }
+                  summaryContent += "\n";
+                }
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  const targetNumber = getTargetNumber(item);
+                  if (targetNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    if (isDiscussion) {
+                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+                    } else {
+                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+                    }
+                  } else {
+                    if (isDiscussion) {
+                      summaryContent += `**Target:** Current discussion\n\n`;
+                    } else {
+                      summaryContent += `**Target:** Current issue/PR\n\n`;
+                    }
+                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Comment creation preview written to step summary");
+                return;
+              }
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+                return;
+              }
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const createdComments = [];
+              for (let i = 0; i < commentItems.length; i++) {
+                const commentItem = commentItems[i];
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+                let itemNumber;
+                let commentEndpoint;
+                if (commentTarget === "*") {
+                  const targetNumber = getTargetNumber(commentItem);
+                  if (targetNumber) {
+                    itemNumber = parseInt(targetNumber, 10);
+                    if (isNaN(itemNumber) || itemNumber <= 0) {
+                      core.info(`Invalid target number specified: ${targetNumber}`);
+                      continue;
+                    }
+                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  } else {
+                    core.info(`Target is "*" but no number specified in comment item`);
+                    continue;
+                  }
+                } else if (commentTarget && commentTarget !== "triggering") {
+                  itemNumber = parseInt(commentTarget, 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
+                    continue;
+                  }
+                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                } else {
+                  if (isIssueContext) {
+                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+                    if (context.payload.issue) {
+                      commentEndpoint = "issues";
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else if (isPRContext) {
+                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+                    if (context.payload.pull_request) {
+                      commentEndpoint = "issues"; 
+                    } else {
+                      core.info("Pull request context detected but no pull request found in payload");
+                      continue;
+                    }
+                  } else if (isDiscussionContext) {
+                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+                    if (context.payload.discussion) {
+                      commentEndpoint = "discussions"; 
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  }
+                }
+                if (!itemNumber) {
+                  core.info("Could not determine issue, pull request, or discussion number");
+                  continue;
+                }
+                let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                let hasReferences = false;
+                let referencesSection = "\n\n#### Related Items\n\n";
+                if (createdIssueUrl && createdIssueNumber) {
+                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdDiscussionUrl && createdDiscussionNumber) {
+                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdPullRequestUrl && createdPullRequestNumber) {
+                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  hasReferences = true;
+                }
+                if (hasReferences) {
+                  body += referencesSection;
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                body += getTrackerID("markdown");
+                body += generateFooter(
+                  workflowName,
+                  runUrl,
+                  workflowSource,
+                  workflowSourceURL,
+                  triggeringIssueNumber,
+                  triggeringPRNumber,
+                  triggeringDiscussionNumber
+                );
+                try {
+                  let comment;
+                  if (commentEndpoint === "discussions") {
+                    core.info(`Creating comment on discussion #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    let replyToId;
+                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
+                      replyToId = context.payload.comment.node_id;
+                      core.info(`Creating threaded reply to comment ${replyToId}`);
+                    }
+                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
+                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    comment.discussion_url = comment.discussion_url;
+                  } else {
+                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    const { data: restComment } = await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: itemNumber,
+                      body: body,
+                    });
+                    comment = restComment;
+                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                  }
+                  createdComments.push(comment);
+                  if (i === commentItems.length - 1) {
+                    core.setOutput("comment_id", comment.id);
+                    core.setOutput("comment_url", comment.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdComments.length > 0) {
+                let summaryContent = "\n\n## GitHub Comments\n";
+                for (const comment of createdComments) {
+                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
+              return createdComments;
+            }
+            await main();
+
   agent:
     needs: activation
     runs-on: ubuntu-latest
@@ -246,12 +710,6 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        id: fetch-discussions
-        name: Fetch open discussions
-        run: "# Use GraphQL to fetch all open discussions in one query\n# Filter to only get discussions created by github-actions[bot]\n# Calculate cutoff date (7 days ago)\nCUTOFF_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)\n\n# Fetch discussions with pagination\nDISCUSSIONS_FILE=\"/tmp/gh-aw/discussions.json\"\necho '[]' > \"$DISCUSSIONS_FILE\"\n\nCURSOR=\"\"\nHAS_NEXT_PAGE=true\nPAGE_COUNT=0\n\nwhile [ \"$HAS_NEXT_PAGE\" = \"true\" ]; do\n  if [ -z \"$CURSOR\" ]; then\n    CURSOR_ARG=\"\"\n  else\n    CURSOR_ARG=\", after: \\\"$CURSOR\\\"\"\n  fi\n  \n  RESULT=$(gh api graphql -f query=\"\n    query {\n      repository(owner: \\\"${{ github.repository_owner }}\\\", name: \\\"${{ github.event.repository.name }}\\\") {\n        discussions(first: 100, states: OPEN${CURSOR_ARG}) {\n          pageInfo {\n            hasNextPage\n            endCursor\n          }\n          nodes {\n            number\n            title\n            createdAt\n            author {\n              login\n            }\n          }\n        }\n      }\n    }\n  \")\n  \n  # Extract discussions created by github-actions[bot]\n  echo \"$RESULT\" | jq -r --arg cutoff \"$CUTOFF_DATE\" '\n    .data.repository.discussions.nodes \n    | map(select(\n        .author != null and \n        .author.login == \"github-actions[bot]\" and \n        .createdAt < $cutoff\n      ))\n    | map({number, title, createdAt, author: .author.login})\n  ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json\n  \n  # Merge with existing discussions\n  jq -s 'add | unique_by(.number)' \"$DISCUSSIONS_FILE\" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json\n  mv /tmp/gh-aw/merged.json \"$DISCUSSIONS_FILE\"\n  \n  # Check if there are more pages\n  HAS_NEXT_PAGE=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')\n  CURSOR=$(echo \"$RESULT\" | jq -r '.data.repository.discussions.pageInfo.endCursor')\n  \n  # Safety check - break after 10 pages (1000 discussions)\n  PAGE_COUNT=$((PAGE_COUNT + 1))\n  if [ $PAGE_COUNT -ge 10 ]; then\n    echo \"Reached pagination limit (10 pages)\"\n    break\n  fi\ndone\n\n# Output summary for logging\nDISCUSSION_COUNT=$(jq 'length' \"$DISCUSSIONS_FILE\")\necho \"Found $DISCUSSION_COUNT discussions to close\"\n\n# Output the filtered data for the agent\njq -c '.[] | {number, title, createdAt}' \"$DISCUSSIONS_FILE\" > /tmp/gh-aw/filtered-discussions.jsonl\n"
-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -322,6 +780,14 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+      - name: Install awf binary
+        run: |
+          echo "Installing awf from release: v0.2.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.2.0/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.363
       - name: Downloading container images
@@ -332,10 +798,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"close_discussion":{"max":100},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1,"target":"4750"},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.","type":"string"},"discussion_number":{"description":"Discussion number to close. If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).","type":["number","string"]},"reason":{"description":"Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).","enum":["RESOLVED","DUPLICATE","OUTDATED","ANSWERED"],"type":"string"}},"required":["body"],"type":"object"},"name":"close_discussion"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1073,54 +1539,65 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          # Close Old Discussions Created by GitHub Actions Bot
+          # Daily Fact About gh-aw
           
-          This workflow automatically closes discussions that were created by the `github-actions[bot]` user and are older than 1 week.
+          Your task is to post a fun, interesting fact about the ${GH_AW_EXPR_D892F163} project to discussion #4750.
           
-          **Pre-filtered Discussion Data**: The workflow has already downloaded and filtered discussions using GitHub GraphQL API. The filtered data is available in `/tmp/gh-aw/filtered-discussions.jsonl` with only discussions that:
-          - Were created by `github-actions[bot]`
-          - Are older than 7 days (1 week)
+          ## Data Sources
           
-          ## Task
+          Mine recent activity from the repository to find interesting facts. Focus on:
           
-          Read the pre-filtered discussion data from `/tmp/gh-aw/filtered-discussions.jsonl` and generate `close_discussion` outputs for each discussion.
+          1. **Recent PRs** (merged in the last 1-2 weeks)
+             - New features added
+             - Bug fixes
+             - Refactoring efforts
+             - Performance improvements
           
-          **Important**: Do NOT call the GitHub API to list discussions - the data has already been fetched and filtered in the custom step above.
+          2. **Recent Releases** (if any)
+             - New version highlights
+             - Breaking changes
+             - Notable improvements
           
-          ### Instructions
+          3. **Recent Closed Issues** (resolved in the last 1-2 weeks)
+             - Bugs that were fixed
+             - Feature requests implemented
+             - Community contributions
           
-          1. **Read the filtered data**: Load `/tmp/gh-aw/filtered-discussions.jsonl`
-          2. **Generate close outputs**: For each discussion in the file, create a `close_discussion` output:
-             - **discussion_number**: The discussion number from the data
-             - **body**: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
-             - **reason**: "OUTDATED"
+          ## Guidelines
           
-          Output format (JSONL):
-          ```jsonl
-          {"type":"close_discussion","discussion_number":123,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+          - **Favor recent updates** but include variety - pick something interesting, not just the most recent
+          - **Be specific**: Include PR numbers, issue references, or release tags when relevant
+          - **Keep it short**: One or two sentences for the main fact, optionally with a brief context
+          - **Be engaging**: Use a casual, friendly tone that makes the fact memorable
+          - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
+          
+          ## Output Format
+          
+          Create a single comment with this structure:
+          
+          ```
+          📊 **Daily gh-aw Fact**
+          
+          [Your interesting fact here, referencing specific PRs, issues, or releases with links]
+          
+          ---
+          *Today's fact brought to you by the Daily Fact Bot 🤖*
           ```
           
-          ### Example
+          ## Examples
           
-          If `/tmp/gh-aw/filtered-discussions.jsonl` contains:
-          ```jsonl
-          {"number":1234,"title":"Test Discussion","createdAt":"2025-11-10T00:00:00Z"}
-          {"number":1235,"title":"Another Discussion","createdAt":"2025-11-11T00:00:00Z"}
-          ```
+          Good facts:
+          - "Did you know? PR #1234 added support for the `playwright` tool, enabling browser automation in agentic workflows! 🎭"
+          - "This week, 5 issues related to MCP server configuration were resolved, making it easier than ever to set up custom tools."
+          - "The latest release v0.45.0 introduced the `cache-memory` feature, allowing agents to persist data across workflow runs! 💾"
+          - "Fun fact: The most active contributor this week fixed 3 bugs related to YAML parsing. Thanks @contributor! 🙌"
           
-          You should output:
-          ```jsonl
-          {"type":"close_discussion","discussion_number":1234,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
-          {"type":"close_discussion","discussion_number":1235,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
-          ```
+          Bad facts:
+          - "The repository was updated today." (too vague)
+          - "There were some changes." (not specific)
+          - Long paragraphs (keep it brief)
           
-          ## Notes
-          
-          - Maximum closures: Up to 100 discussions per run (configured via safe-outputs max)
-          - Data is pre-filtered: No need to check author or age - all discussions in the file match criteria
-          - If the file is empty or doesn't exist: Report that no discussions need to be closed
-          
-          Begin the task now. Read the filtered data and generate close_discussion outputs.
+          Now, analyze the recent activity and post one interesting fact to discussion #4750.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1208,6 +1685,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -1311,7 +1789,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.363",
-              workflow_name: "Close Old Discussions Created by GitHub Actions Bot",
+              workflow_name: "Daily Fact About gh-aw",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1325,7 +1803,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -1347,15 +1825,21 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info \
+            -- npx -y @github/copilot@0.0.363 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -1496,7 +1980,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3526,6 +4010,373 @@ jobs:
               };
             }
             main();
+      - name: Agent Firewall logs
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-daily-fact-about-gh-aw/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-daily-fact-about-gh-aw/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-daily-fact-about-gh-aw/ || true
+          fi
+      - name: Upload Firewall Logs
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: squid-logs-daily-fact-about-gh-aw
+          path: /tmp/gh-aw/squid-logs-daily-fact-about-gh-aw/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              const clientIpPort = fields[1];
+
+              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+
+                return null;
+
+              }
+
+              const domain = fields[2];
+
+              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+
+                return null;
+
+              }
+
+              const destIpPort = fields[3];
+
+              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+
+                return null;
+
+              }
+
+              const status = fields[6];
+
+              if (status !== "-" && !/^\d+$/.test(status)) {
+
+                return null;
+
+              }
+
+              const decision = fields[7];
+
+              if (decision !== "-" && !decision.includes(":")) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp: timestamp,
+
+                clientIpPort: clientIpPort,
+
+                domain: domain,
+
+                destIpPort: destIpPort,
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: status,
+
+                decision: decision,
+
+                url: fields[8],
+
+                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+              if (validDeniedRequests > 0) {
+
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of validDeniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n</details>\n\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -3769,352 +4620,13 @@ jobs:
               main();
             }
 
-  close_discussion:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_discussion'))) &&
-      ((github.event.discussion.number) || (github.event.comment.discussion.number))) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-    timeout-minutes: 10
-    outputs:
-      comment_url: ${{ steps.close_discussion.outputs.comment_url }}
-      discussion_number: ${{ steps.close_discussion.outputs.discussion_number }}
-      discussion_url: ${{ steps.close_discussion.outputs.discussion_url }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Close Discussion
-        id: close_discussion
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Close Old Discussions Created by GitHub Actions Bot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
-            function getRepositoryUrl() {
-              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-              if (targetRepoSlug) {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${targetRepoSlug}`;
-              } else if (context.payload.repository?.html_url) {
-                return context.payload.repository.html_url;
-              } else {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-              }
-            }
-            async function getDiscussionDetails(github, owner, repo, discussionNumber) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id
-                      title
-                      category {
-                        name
-                      }
-                      labels(first: 100) {
-                        nodes {
-                          name
-                        }
-                      }
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              return repository.discussion;
-            }
-            async function addDiscussionComment(github, discussionId, message) {
-              const result = await github.graphql(
-                `
-                mutation($dId: ID!, $body: String!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                    comment { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { dId: discussionId, body: message }
-              );
-              return result.addDiscussionComment.comment;
-            }
-            async function closeDiscussion(github, discussionId, reason) {
-              const mutation = reason
-                ? `
-                  mutation($dId: ID!, $reason: DiscussionCloseReason!) {
-                    closeDiscussion(input: { discussionId: $dId, reason: $reason }) {
-                      discussion { 
-                        id
-                        url
-                      }
-                    }
-                  }`
-                : `
-                  mutation($dId: ID!) {
-                    closeDiscussion(input: { discussionId: $dId }) {
-                      discussion { 
-                        id
-                        url
-                      }
-                    }
-                  }`;
-              const variables = reason ? { dId: discussionId, reason } : { dId: discussionId };
-              const result = await github.graphql(mutation, variables);
-              return result.closeDiscussion.discussion;
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const closeDiscussionItems = result.items.filter( item => item.type === "close_discussion");
-              if (closeDiscussionItems.length === 0) {
-                core.info("No close-discussion items found in agent output");
-                return;
-              }
-              core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
-              const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS
-                ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim())
-                : [];
-              const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
-              const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
-              const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
-              core.info(
-                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
-              );
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
-                summaryContent += "The following discussions would be closed if staged mode was disabled:\n\n";
-                for (let i = 0; i < closeDiscussionItems.length; i++) {
-                  const item = closeDiscussionItems[i];
-                  summaryContent += `### Discussion ${i + 1}\n`;
-                  const discussionNumber = item.discussion_number;
-                  if (discussionNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    const discussionUrl = `${repoUrl}/discussions/${discussionNumber}`;
-                    summaryContent += `**Target Discussion:** [#${discussionNumber}](${discussionUrl})\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current discussion\n\n`;
-                  }
-                  if (item.reason) {
-                    summaryContent += `**Reason:** ${item.reason}\n\n`;
-                  }
-                  summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-                  if (requiredLabels.length > 0) {
-                    summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-                  }
-                  if (requiredTitlePrefix) {
-                    summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-                  }
-                  if (requiredCategory) {
-                    summaryContent += `**Required Category:** ${requiredCategory}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Discussion close preview written to step summary");
-                return;
-              }
-              if (target === "triggering" && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in discussion context, skipping discussion close');
-                return;
-              }
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const closedDiscussions = [];
-              for (let i = 0; i < closeDiscussionItems.length; i++) {
-                const item = closeDiscussionItems[i];
-                core.info(`Processing close-discussion item ${i + 1}/${closeDiscussionItems.length}: bodyLength=${item.body.length}`);
-                let discussionNumber;
-                if (target === "*") {
-                  const targetNumber = item.discussion_number;
-                  if (targetNumber) {
-                    discussionNumber = parseInt(targetNumber, 10);
-                    if (isNaN(discussionNumber) || discussionNumber <= 0) {
-                      core.info(`Invalid discussion number specified: ${targetNumber}`);
-                      continue;
-                    }
-                  } else {
-                    core.info(`Target is "*" but no discussion_number specified in close-discussion item`);
-                    continue;
-                  }
-                } else if (target && target !== "triggering") {
-                  discussionNumber = parseInt(target, 10);
-                  if (isNaN(discussionNumber) || discussionNumber <= 0) {
-                    core.info(`Invalid discussion number in target configuration: ${target}`);
-                    continue;
-                  }
-                } else {
-                  if (isDiscussionContext) {
-                    discussionNumber = context.payload.discussion?.number;
-                    if (!discussionNumber) {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  } else {
-                    core.info("Not in discussion context and no explicit target specified");
-                    continue;
-                  }
-                }
-                try {
-                  const discussion = await getDiscussionDetails(github, context.repo.owner, context.repo.repo, discussionNumber);
-                  if (requiredLabels.length > 0) {
-                    const discussionLabels = discussion.labels.nodes.map(l => l.name);
-                    const hasRequiredLabel = requiredLabels.some(required => discussionLabels.includes(required));
-                    if (!hasRequiredLabel) {
-                      core.info(`Discussion #${discussionNumber} does not have required labels: ${requiredLabels.join(", ")}`);
-                      continue;
-                    }
-                  }
-                  if (requiredTitlePrefix && !discussion.title.startsWith(requiredTitlePrefix)) {
-                    core.info(`Discussion #${discussionNumber} does not have required title prefix: ${requiredTitlePrefix}`);
-                    continue;
-                  }
-                  if (requiredCategory && discussion.category.name !== requiredCategory) {
-                    core.info(`Discussion #${discussionNumber} is not in required category: ${requiredCategory}`);
-                    continue;
-                  }
-                  let body = item.body.trim();
-                  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  body += getTrackerID("markdown");
-                  body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
-                  core.info(`Adding comment to discussion #${discussionNumber}`);
-                  core.info(`Comment content length: ${body.length}`);
-                  const comment = await addDiscussionComment(github, discussion.id, body);
-                  core.info("Added discussion comment: " + comment.url);
-                  core.info(`Closing discussion #${discussionNumber} with reason: ${item.reason || "none"}`);
-                  const closedDiscussion = await closeDiscussion(github, discussion.id, item.reason);
-                  core.info("Closed discussion: " + closedDiscussion.url);
-                  closedDiscussions.push({
-                    number: discussionNumber,
-                    url: discussion.url,
-                    comment_url: comment.url,
-                  });
-                  if (i === closeDiscussionItems.length - 1) {
-                    core.setOutput("discussion_number", discussionNumber);
-                    core.setOutput("discussion_url", discussion.url);
-                    core.setOutput("comment_url", comment.url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to close discussion #${discussionNumber}: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (closedDiscussions.length > 0) {
-                let summaryContent = "\n\n## Closed Discussions\n";
-                for (const discussion of closedDiscussions) {
-                  summaryContent += `- Discussion #${discussion.number}: [View Discussion](${discussion.url})\n`;
-                  summaryContent += `  - Comment: [View Comment](${discussion.comment_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
-              return closedDiscussions;
-            }
-            await main();
-
   conclusion:
     needs:
       - agent
       - activation
-      - close_discussion
+      - add_comment
       - missing_tool
-    if: (always()) && (needs.agent.result != 'skipped')
+    if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4152,7 +4664,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Close Old Discussions Created by GitHub Actions Bot"
+          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+          GH_AW_TRACKER_ID: "daily-fact-thread"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4238,7 +4751,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Close Old Discussions Created by GitHub Actions Bot"
+          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+          GH_AW_TRACKER_ID: "daily-fact-thread"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4428,8 +4942,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Close Old Discussions Created by GitHub Actions Bot"
-          WORKFLOW_DESCRIPTION: "Automatically closes discussions created by github-actions bot that are older than 1 week"
+          WORKFLOW_NAME: "Daily Fact About gh-aw"
+          WORKFLOW_DESCRIPTION: "Posts a daily random fact about the gh-aw project to a discussion thread"
         with:
           script: |
             const fs = require('fs');
@@ -4664,7 +5178,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Close Old Discussions Created by GitHub Actions Bot"
+          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+          GH_AW_TRACKER_ID: "daily-fact-thread"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

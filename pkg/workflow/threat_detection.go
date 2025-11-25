@@ -11,7 +11,7 @@ import (
 
 var threatLog = logger.New("workflow:threat_detection")
 
-//go:embed templates/threat_detection.md
+//go:embed prompts/threat_detection.md
 var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output

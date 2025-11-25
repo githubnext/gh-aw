@@ -282,12 +282,15 @@ The workflows must have been added as actions and compiled.
 This command only works with workflows that have workflow_dispatch triggers.
 It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
+By default, workflows are run on the current branch. Use --ref to specify a different branch or tag.
+
 The workflow-id is the basename of the markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'daily-perf-improver') or the full filename (e.g., 'daily-perf-improver.md').
 
 Examples:
   gh aw run daily-perf-improver
   gh aw run daily-perf-improver.md   # Alternative format
+  gh aw run daily-perf-improver --ref main  # Run on specific branch
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
@@ -297,6 +300,7 @@ Examples:
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		repoOverride, _ := cmd.Flags().GetString("repo")
+		refOverride, _ := cmd.Flags().GetString("ref")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 
@@ -305,7 +309,7 @@ Examples:
 			os.Exit(1)
 		}
 
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, verboseFlag); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -472,6 +476,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
 
