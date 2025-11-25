@@ -76,7 +76,7 @@ Apply one or more of these labels based on the issue content:
 
 - Only process issues that have **zero labels**
 - If an issue already has labels, skip it
-- Create any labels that don't exist before applying them
+- Only apply labels from the allowed list above (they must already exist in the repository)
 - Focus on the primary classification if multiple could apply
 - Be conservative - if unsure, prefer `question` or `help-wanted`
 
