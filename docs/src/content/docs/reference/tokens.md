@@ -48,13 +48,34 @@ safe-outputs:
 
 ## gh-aw GitHub Token (`GH_AW_GITHUB_TOKEN`)
 
-The `GH_AW_GITHUB_TOKEN` is a Personal Access Token (PAT) that provides enhanced capabilities for gh-aw operations.
+The `GH_AW_GITHUB_TOKEN` is a Personal Access Token (PAT) that provides enhanced capabilities for gh-aw operations beyond what the default `GITHUB_TOKEN` offers.
 
 ### When Required
 
-- Cross-repository operations (e.g., `target-repo:` in safe outputs)
-- GitHub tools remote mode
-- Any operation that exceeds default `GITHUB_TOKEN` capabilities
+- **Cross-repository operations**: Using `target-repo:` in safe outputs to create issues, PRs, or comments in other repositories
+- **GitHub tools remote mode**: The hosted GitHub MCP server requires a PAT (default `GITHUB_TOKEN` not supported)
+- **Codex engine**: Required for GitHub API operations via the Codex engine
+- **Any operation that exceeds default `GITHUB_TOKEN` capabilities**
+
+### Creating the Token
+
+1. Visit <https://github.com/settings/personal-access-tokens/new>
+2. Choose **Fine-grained personal access token** for better security
+3. Set an expiration period appropriate for your use case
+4. Under "Repository access", select the repositories you need access to
+5. Configure the required permissions based on your workflow needs
+
+### Required Permissions
+
+The permissions you need depend on your workflow operations:
+
+| Operation | Required Permissions |
+|-----------|---------------------|
+| Create/update issues | `Issues: Read and write` |
+| Create/update PRs | `Pull requests: Read and write`, `Contents: Read and write` |
+| Add comments | `Issues: Read and write` or `Pull requests: Read and write` |
+| Cross-repo operations | Access to target repositories |
+| GitHub tools (remote mode) | Permissions matching your toolset configuration |
 
 ### Setup
 
