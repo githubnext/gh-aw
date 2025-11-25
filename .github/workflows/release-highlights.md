@@ -5,12 +5,6 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag to update (leave empty for latest release)"
-        required: false
-        type: string
 permissions:
   contents: read
   pull-requests: read
@@ -74,22 +68,13 @@ steps:
       # Use the release ID from the release job
       echo "Release ID from release job: ${{ needs.release.outputs.release_id }}"
       
-      # Determine which release to analyze
-      if [ "${{ github.event_name }}" = "push" ]; then
-        if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
-          echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
-          exit 1
-        fi
-        RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-        echo "Processing release from push event: $RELEASE_TAG"
-      elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
-        RELEASE_TAG="${{ github.event.inputs.release_tag }}"
-        echo "Processing release from workflow input: $RELEASE_TAG"
-      else
-        # Get latest release tag
-        RELEASE_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-        echo "Processing latest release: $RELEASE_TAG"
+      # Get the release tag from the push event
+      if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
+        echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
+        exit 1
       fi
+      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+      echo "Processing release: $RELEASE_TAG"
       
       echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
       
