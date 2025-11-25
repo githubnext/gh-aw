@@ -18,11 +18,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint
+# Structural analysis of GitHub MCP tool responses with schema evaluation and usefulness ratings for agentic work
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/gh-aw.md
+#     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
 # Job Dependency Graph:
@@ -48,6 +48,254 @@
 #
 # Original Prompt:
 # ```markdown
+# # Python Data Visualization Guide
+#
+# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+#
+# ## Installed Libraries
+#
+# - **NumPy**: Array processing and numerical operations
+# - **Pandas**: Data manipulation and analysis
+# - **Matplotlib**: Chart generation and plotting
+# - **Seaborn**: Statistical data visualization
+# - **SciPy**: Scientific computing utilities
+#
+# ## Directory Structure
+#
+# ```
+# /tmp/gh-aw/python/
+# ├── data/          # Store all data files here (CSV, JSON, etc.)
+# ├── charts/        # Generated chart images (PNG)
+# ├── artifacts/     # Additional output files
+# └── *.py           # Python scripts
+# ```
+#
+# ## Data Separation Requirement
+#
+# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+#
+# ### ❌ PROHIBITED - Inline Data
+# ```python
+# # DO NOT do this
+# data = [10, 20, 30, 40, 50]
+# labels = ['A', 'B', 'C', 'D', 'E']
+# ```
+#
+# ### ✅ REQUIRED - External Data Files
+# ```python
+# # Always load data from external files
+# import pandas as pd
+#
+# # Load data from CSV
+# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+#
+# # Or from JSON
+# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
+# ```
+#
+# ## Chart Generation Best Practices
+#
+# ### High-Quality Chart Settings
+#
+# ```python
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set style for better aesthetics
+# sns.set_style("whitegrid")
+# sns.set_palette("husl")
+#
+# # Create figure with high DPI
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+#
+# # Your plotting code here
+# # ...
+#
+# # Save with high quality
+# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
+#             dpi=300, 
+#             bbox_inches='tight',
+#             facecolor='white',
+#             edgecolor='none')
+# ```
+#
+# ### Chart Quality Guidelines
+#
+# - **DPI**: Use 300 or higher for publication quality
+# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
+# - **Labels**: Always include clear axis labels and titles
+# - **Legend**: Add legends when plotting multiple series
+# - **Grid**: Enable grid lines for easier reading
+# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+#
+# ## Including Images in Reports
+#
+# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+#
+# ### Step 1: Generate and Upload Chart
+# ```python
+# # Generate your chart
+# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+# ```
+#
+# ### Step 2: Upload as Asset
+# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+#
+# ### Step 3: Include in Markdown Report
+# When creating your discussion or issue, include the image using markdown:
+#
+# ```markdown
+# ## Visualization Results
+#
+# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+#
+# The chart above shows...
+# ```
+#
+# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
+#
+# ## Cache Memory Integration
+#
+# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
+#
+# **Helper Functions to Cache:**
+# - Data loading utilities: `data_loader.py`
+# - Chart styling functions: `chart_utils.py`
+# - Common data transformations: `transforms.py`
+#
+# **Check Cache Before Creating:**
+# ```bash
+# # Check if helper exists in cache
+# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
+#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
+#   echo "Using cached data_loader.py"
+# fi
+# ```
+#
+# **Save to Cache for Future Runs:**
+# ```bash
+# # Save useful helpers to cache
+# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
+# echo "Saved data_loader.py to cache for future runs"
+# ```
+#
+# ## Complete Example Workflow
+#
+# ```python
+# #!/usr/bin/env python3
+# """
+# Example data visualization script
+# Generates a bar chart from external data
+# """
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set style
+# sns.set_style("whitegrid")
+# sns.set_palette("husl")
+#
+# # Load data from external file (NEVER inline)
+# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+#
+# # Process data
+# summary = data.groupby('category')['value'].sum()
+#
+# # Create chart
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+# summary.plot(kind='bar', ax=ax)
+#
+# # Customize
+# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Category', fontsize=12)
+# ax.set_ylabel('Value', fontsize=12)
+# ax.grid(True, alpha=0.3)
+#
+# # Save chart
+# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
+#             dpi=300,
+#             bbox_inches='tight',
+#             facecolor='white')
+#
+# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+# ```
+#
+# ## Error Handling
+#
+# **Check File Existence:**
+# ```python
+# import os
+#
+# data_file = '/tmp/gh-aw/python/data/data.csv'
+# if not os.path.exists(data_file):
+#     raise FileNotFoundError(f"Data file not found: {data_file}")
+# ```
+#
+# **Validate Data:**
+# ```python
+# # Check for required columns
+# required_cols = ['category', 'value']
+# missing = set(required_cols) - set(data.columns)
+# if missing:
+#     raise ValueError(f"Missing columns: {missing}")
+# ```
+#
+# ## Artifact Upload
+#
+# Charts and source files are automatically uploaded as artifacts:
+#
+# **Charts Artifact:**
+# - Name: `data-charts`
+# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
+# - Retention: 30 days
+#
+# **Source and Data Artifact:**
+# - Name: `python-source-and-data`
+# - Contents: Python scripts and data files
+# - Retention: 30 days
+#
+# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+#
+# ## Tips for Success
+#
+# 1. **Always Separate Data**: Store data in files, never inline in code
+# 2. **Use Cache Memory**: Store reusable helpers for faster execution
+# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
+# 4. **Clear Documentation**: Add docstrings and comments
+# 5. **Error Handling**: Validate data and check file existence
+# 6. **Type Hints**: Use type annotations for better code quality
+# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
+# 8. **Reproducibility**: Set random seeds when needed
+#
+# ## Common Data Sources
+#
+# Based on common use cases:
+#
+# **Repository Statistics:**
+# ```python
+# # Collect via GitHub API, save to data.csv
+# # Then load and visualize
+# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
+# ```
+#
+# **Workflow Metrics:**
+# ```python
+# # Collect via GitHub Actions API, save to data.json
+# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
+# ```
+#
+# **Sample Data Generation:**
+# ```python
+# # Generate with NumPy, save to file first
+# import numpy as np
+# data = np.random.randn(100, 2)
+# df = pd.DataFrame(data, columns=['x', 'y'])
+# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
+#
+# # Then load it back (demonstrating the pattern)
+# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
+# ```
+#
 # ## Report Formatting
 #
 # Structure your report with an overview followed by detailed content:
@@ -125,347 +373,336 @@
 #
 # **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
 #
-# # Static Analysis Report
+# # GitHub MCP Structural Analysis
 #
-# You are the Static Analysis Report Agent - an expert system that scans agentic workflows for security vulnerabilities and code quality issues using multiple static analysis tools: zizmor, poutine, and actionlint.
+# You are the GitHub MCP Structural Analyzer - an agent that performs quantitative analysis of the response sizes AND qualitative analysis of the structure/schema of GitHub MCP tool responses to evaluate their usefulness for agentic work.
 #
 # ## Mission
 #
-# Daily scan all agentic workflow files with static analysis tools to identify security issues, code quality problems, cluster findings by type, and provide actionable fix suggestions.
+# Analyze each GitHub MCP tool response for:
+# 1. **Size**: Response size in tokens
+# 2. **Structure**: Schema and data organization
+# 3. **Usefulness**: Rating for agentic workflows (1-5 scale)
 #
-# ## Current Context
+# Track trends over 30 days, generate visualizations, and create a daily discussion report.
+#
+# ## Context
 #
 # - **Repository**: ${{ github.repository }}
+# - **Run ID**: ${{ github.run_id }}
+# - **Analysis Date**: Current date
 #
 # ## Analysis Process
 #
-# ### Phase 0: Setup
+# ### Phase 1: Load Historical Data
 #
-# - DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
-# - Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up.
-# - Run the `status` tool of `gh-aw` MCP server to verify configuration.
+# 1. Check for existing trending data at `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`
+# 2. If exists, load the historical data (keep last 30 days)
+# 3. If not exists, start fresh
 #
-# ### Phase 1: Compile Workflows with Static Analysis Tools
+# ### Phase 2: Tool Response Analysis
 #
-# The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
+# **IMPORTANT**: Keep your context small. Call each tool with minimal parameters to analyze responses, not to gather extensive data.
 #
-# 1. **Compile All Workflows with Static Analysis**:
-#    Use the `compile` tool from the gh-aw MCP server with all static analysis flags:
-#    - Workflow name: (leave empty to compile all workflows)
-#    - Set `zizmor: true` to run zizmor security scanner
-#    - Set `poutine: true` to run poutine security scanner  
-#    - Set `actionlint: true` to run actionlint linter
+# For each GitHub MCP toolset, systematically test representative tools:
 #
-#    This will compile all workflow files and run all three static analysis tools on each generated `.lock.yml` file.
+# #### Toolsets to Test
 #
-# 2. **Verify Compilation**:
-#    - Check that workflows were compiled successfully
-#    - Note which workflows have findings from each tool
-#    - Identify total number of issues by tool and severity
+# Test ONE representative tool from each toolset with minimal parameters:
 #
-# ### Phase 2: Analyze and Cluster Findings
+# 1. **context**: `get_me` - Get current user info
+# 2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
+# 3. **issues**: `list_issues` - List issues with perPage=1
+# 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
+# 5. **actions**: `list_workflows` - List workflows with perPage=1
+# 6. **code_security**: `list_code_scanning_alerts` - List alerts with minimal params
+# 7. **discussions**: `list_discussions` (if available)
+# 8. **labels**: `get_label` - Get a single label
+# 9. **users**: `get_user` (if available)
+# 10. **search**: Search with minimal query
 #
-# Review the output from all three tools and cluster findings:
+# #### For Each Tool Call, Analyze:
 #
-# #### 2.1 Parse Tool Outputs
+# **A. Size Metrics**
+# - Estimate response size in tokens (1 token ≈ 4 characters)
 #
-# **Zizmor Output**:
-# - Extract security findings from zizmor
-# - Parse finding details:
-#   - Ident (identifier/rule code)
-#   - Description
-#   - Severity (Low, Medium, High, Critical)
-#   - Affected file and location
-#   - Reference URL for more information
+# **B. Structure Analysis**
+# Identify the response schema:
+# - **Data type**: object, array, primitive
+# - **Nesting depth**: How deeply nested is the data?
+# - **Key fields**: What are the main fields returned?
+# - **Field types**: strings, numbers, booleans, arrays, objects
+# - **Pagination**: Does it support pagination?
+# - **Relationships**: Does it include related entities (e.g., user info embedded in issue)?
 #
-# **Poutine Output**:
-# - Extract supply chain security findings
-# - Parse finding details:
-#   - Rule ID
-#   - Description
-#   - Severity
-#   - Affected workflow and location
-#   - Recommendations
+# **C. Usefulness Rating for Agentic Work (1-5 scale)**
 #
-# **Actionlint Output**:
-# - Extract linting issues
-# - Parse finding details:
-#   - Error/warning message
-#   - Rule name
-#   - Location (file, line, column)
-#   - Suggestions for fixes
+# Rate each tool's response on how useful it is for autonomous agents:
 #
-# #### 2.2 Cluster by Issue Type and Tool
-# Group findings by:
-# - Tool (zizmor, poutine, actionlint)
-# - Issue identifier/rule code
-# - Severity level
-# - Count occurrences of each issue type
-# - Identify most common issues per tool
-# - List all affected workflows for each issue type
+# | Rating | Description |
+# |--------|-------------|
+# | **5** | Excellent - Complete, actionable data with clear structure |
+# | **4** | Good - Most needed data present, minor gaps |
+# | **3** | Adequate - Usable but requires additional calls |
+# | **2** | Limited - Missing key data, hard to parse |
+# | **1** | Poor - Minimal value for agentic tasks |
 #
-# #### 2.3 Prioritize Issues
-# Prioritize based on:
-# - Severity level (Critical > High > Medium > Low)
-# - Tool type (security issues > code quality)
-# - Number of occurrences
-# - Impact on security posture and maintainability
+# **Rating Criteria:**
+# - **Completeness**: Does response contain all needed info?
+# - **Actionability**: Can agent act on this data directly?
+# - **Clarity**: Is the structure intuitive and consistent?
+# - **Efficiency**: Is context usage optimized (no bloat)?
+# - **Relationships**: Are related entities included or linkable?
 #
-# ### Phase 3: Store Analysis in Cache Memory
+# Record: `{tool_name, toolset, tokens, schema_type, nesting_depth, key_fields, usefulness_rating, notes, timestamp}`
 #
-# Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:
+# ### Phase 3: Save Data
 #
-# 1. **Create Security Scan Index**:
-#    - Save scan results to `/tmp/gh-aw/cache-memory/security-scans/<date>.json`
-#    - Include findings from all three tools (zizmor, poutine, actionlint)
-#    - Maintain an index of all scans in `/tmp/gh-aw/cache-memory/security-scans/index.json`
+# Append today's measurements to `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`:
 #
-# 2. **Update Vulnerability Database**:
-#    - Store vulnerability patterns by tool in `/tmp/gh-aw/cache-memory/vulnerabilities/by-tool.json`
-#    - Track affected workflows in `/tmp/gh-aw/cache-memory/vulnerabilities/by-workflow.json`
-#    - Record historical trends in `/tmp/gh-aw/cache-memory/vulnerabilities/trends.json`
+# ```json
+# {"date": "2024-01-15", "tool": "get_me", "toolset": "context", "tokens": 150, "schema_type": "object", "nesting_depth": 2, "key_fields": ["login", "id", "name", "email"], "usefulness_rating": 5, "notes": "Complete user profile, immediately actionable"}
+# {"date": "2024-01-15", "tool": "list_issues", "toolset": "issues", "tokens": 500, "schema_type": "array", "nesting_depth": 3, "key_fields": ["number", "title", "state", "labels", "assignees"], "usefulness_rating": 4, "notes": "Good issue data but user details minimal"}
+# ```
 #
-# 3. **Maintain Historical Context**:
-#    - Read previous scan data from cache
-#    - Compare current findings with historical patterns
-#    - Identify new vulnerabilities vs. recurring issues
-#    - Track improvement or regression over time
+# Prune data older than 30 days.
 #
-# ### Phase 4: Generate Fix Suggestions
+# ### Phase 4: Generate Visualization
 #
-# **Select one issue type** (preferably the most common or highest severity) and generate detailed fix suggestions:
+# Create a Python script at `/tmp/gh-aw/python/analyze_mcp.py`:
 #
-# 1. **Analyze the Issue**:
-#    - Review the zizmor documentation link for the issue
-#    - Understand the root cause and security impact
-#    - Identify common patterns in affected workflows
+# ```python
+# #!/usr/bin/env python3
+# """MCP Tool Structural Analysis"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import json
+# import os
+# from datetime import datetime, timedelta
 #
-# 2. **Create Fix Template**:
-#    Generate a prompt template that can be used by a Copilot agent to fix this issue type. The prompt should:
-#    - Clearly describe the security vulnerability
-#    - Explain why it's a problem
-#    - Provide step-by-step fix instructions
-#    - Include code examples (before/after)
-#    - Reference the zizmor documentation
-#    - Be generic enough to apply to multiple workflows
+# # Configuration
+# CACHE_FILE = '/tmp/gh-aw/cache-memory/mcp_analysis.jsonl'
+# CHARTS_DIR = '/tmp/gh-aw/python/charts'
+# DATA_DIR = '/tmp/gh-aw/python/data'
 #
-# 3. **Format as Copilot Agent Prompt**:
-#    ```markdown
-#    ## Fix Prompt for [Issue Type]
+# os.makedirs(CHARTS_DIR, exist_ok=True)
+# os.makedirs(DATA_DIR, exist_ok=True)
 #
-#    **Issue**: [Brief description]
-#    **Severity**: [Level]
-#    **Affected Workflows**: [Count]
+# # Load data
+# if os.path.exists(CACHE_FILE):
+#     df = pd.read_json(CACHE_FILE, lines=True)
+#     df['date'] = pd.to_datetime(df['date'])
+# else:
+#     print("No historical data found")
+#     exit(1)
 #
-#    **Prompt to Copilot Agent**:
-#    ```
-#    You are fixing a security vulnerability identified by zizmor.
+# # Save data copy
+# df.to_csv(f'{DATA_DIR}/mcp_analysis.csv', index=False)
 #
-#    **Vulnerability**: [Description]
-#    **Rule**: [Ident] - [URL]
+# # Set style
+# sns.set_style("whitegrid")
+# custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#DDA0DD", "#F0E68C"]
+# sns.set_palette(custom_colors)
 #
-#    **Current Issue**:
-#    [Explain what's wrong]
+# # Chart 1: Response Size by Toolset (Bar Chart)
+# fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+# toolset_avg = df.groupby('toolset')['tokens'].mean().sort_values(ascending=False)
+# toolset_avg.plot(kind='bar', ax=ax, color=custom_colors)
+# ax.set_title('Average Response Size by Toolset', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Toolset', fontsize=12)
+# ax.set_ylabel('Tokens', fontsize=12)
+# ax.grid(True, alpha=0.3)
+# plt.xticks(rotation=45, ha='right')
+# plt.tight_layout()
+# plt.savefig(f'{CHARTS_DIR}/toolset_sizes.png', dpi=300, bbox_inches='tight', facecolor='white')
+# plt.close()
 #
-#    **Required Fix**:
-#    [Step-by-step fix instructions]
+# # Chart 2: Usefulness Rating by Toolset (Bar Chart)
+# fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+# latest_date = df['date'].max()
+# latest_data = df[df['date'] == latest_date]
+# usefulness_by_toolset = latest_data.groupby('toolset')['usefulness_rating'].mean().sort_values(ascending=False)
+# colors = ['#2ECC71' if x >= 4 else '#F39C12' if x >= 3 else '#E74C3C' for x in usefulness_by_toolset.values]
+# usefulness_by_toolset.plot(kind='bar', ax=ax, color=colors)
+# ax.set_title('Usefulness Rating by Toolset (5=Excellent, 1=Poor)', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Toolset', fontsize=12)
+# ax.set_ylabel('Rating', fontsize=12)
+# ax.set_ylim(0, 5.5)
+# ax.axhline(y=4, color='green', linestyle='--', alpha=0.5, label='Good threshold')
+# ax.axhline(y=3, color='orange', linestyle='--', alpha=0.5, label='Adequate threshold')
+# ax.grid(True, alpha=0.3)
+# plt.xticks(rotation=45, ha='right')
+# plt.legend()
+# plt.tight_layout()
+# plt.savefig(f'{CHARTS_DIR}/usefulness_ratings.png', dpi=300, bbox_inches='tight', facecolor='white')
+# plt.close()
 #
-#    **Example**:
-#    Before:
-#    ```yaml
-#    [Bad example]
-#    ```
+# # Chart 3: Daily Trends (Line Chart)
+# fig, ax = plt.subplots(figsize=(14, 7), dpi=300)
+# daily_total = df.groupby('date')['tokens'].sum()
+# ax.plot(daily_total.index, daily_total.values, marker='o', linewidth=2, color='#4ECDC4')
+# ax.fill_between(daily_total.index, daily_total.values, alpha=0.2, color='#4ECDC4')
+# ax.set_title('Daily Total Token Usage Trend', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Date', fontsize=12)
+# ax.set_ylabel('Total Tokens', fontsize=12)
+# ax.grid(True, alpha=0.3)
+# plt.xticks(rotation=45)
+# plt.tight_layout()
+# plt.savefig(f'{CHARTS_DIR}/daily_trend.png', dpi=300, bbox_inches='tight', facecolor='white')
+# plt.close()
 #
-#    After:
-#    ```yaml
-#    [Fixed example]
-#    ```
+# # Chart 4: Size vs Usefulness Scatter
+# fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+# scatter = ax.scatter(latest_data['tokens'], latest_data['usefulness_rating'], 
+#                      c=range(len(latest_data)), cmap='viridis', s=150, alpha=0.7)
+# for i, row in latest_data.iterrows():
+#     ax.annotate(row['tool'], (row['tokens'], row['usefulness_rating']), 
+#                 xytext=(5, 5), textcoords='offset points', fontsize=9)
+# ax.set_title('Token Size vs Usefulness Rating', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Tokens', fontsize=12)
+# ax.set_ylabel('Usefulness Rating', fontsize=12)
+# ax.set_ylim(0, 5.5)
+# ax.grid(True, alpha=0.3)
+# plt.tight_layout()
+# plt.savefig(f'{CHARTS_DIR}/size_vs_usefulness.png', dpi=300, bbox_inches='tight', facecolor='white')
+# plt.close()
 #
-#    Please apply this fix to all affected workflows: [List of workflow files]
-#    ```
-#    ```
+# print("✅ Charts generated successfully")
+# print(f"  - toolset_sizes.png")
+# print(f"  - usefulness_ratings.png")
+# print(f"  - daily_trend.png")
+# print(f"  - size_vs_usefulness.png")
+# ```
 #
-# ### Phase 5: Create Discussion Report
+# Run the script: `python3 /tmp/gh-aw/python/analyze_mcp.py`
 #
-# **ALWAYS create a comprehensive discussion report** with your static analysis findings, regardless of whether issues were found or not.
+# ### Phase 5: Generate Report
 #
-# Create a discussion with:
-# - **Summary**: Overview of static analysis findings from all three tools
-# - **Statistics**: Total findings by tool, by severity, by type
-# - **Clustered Findings**: Issues grouped by tool and type with counts
-# - **Affected Workflows**: Which workflows have issues
-# - **Fix Suggestion**: Detailed fix prompt for one issue type
-# - **Recommendations**: Prioritized actions to improve security and code quality
-# - **Historical Trends**: Comparison with previous scans
+# Create a discussion with the following structure:
 #
-# **Discussion Template**:
+# **Title**: `MCP Structural Analysis - {date}`
+#
+# **Content**:
+#
+# Brief overview with key findings (tools analyzed, best/worst usefulness ratings, schema patterns).
+#
 # ```markdown
-# # 🔍 Static Analysis Report - [DATE]
-#
-# ## Analysis Summary
-#
-# - **Tools Used**: zizmor, poutine, actionlint
-# - **Total Findings**: [NUMBER]
-# - **Workflows Scanned**: [NUMBER]
-# - **Workflows Affected**: [NUMBER]
-#
-# ### Findings by Tool
-#
-# | Tool | Total | Critical | High | Medium | Low |
-# |------|-------|----------|------|--------|-----|
-# | zizmor (security) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
-# | poutine (supply chain) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
-# | actionlint (linting) | [NUM] | - | - | - | - |
-#
-# ## Clustered Findings by Tool and Type
-#
-# ### Zizmor Security Findings
-#
-# [Group findings by their identifier/rule code]
-#
-# | Issue Type | Severity | Count | Affected Workflows |
-# |------------|----------|-------|-------------------|
-# | [ident]    | [level]  | [num] | [workflow names]  |
-#
-# ### Poutine Supply Chain Findings
-#
-# | Issue Type | Severity | Count | Affected Workflows |
-# |------------|----------|-------|-------------------|
-# | [rule_id]  | [level]  | [num] | [workflow names]  |
-#
-# ### Actionlint Linting Issues
-#
-# | Issue Type | Count | Affected Workflows |
-# |------------|-------|-------------------|
-# | [rule]     | [num] | [workflow names]  |
-#
-# ## Top Priority Issues
-#
-# ### 1. [Most Common/Severe Issue]
-# - **Tool**: [zizmor/poutine/actionlint]
-# - **Count**: [NUMBER]
-# - **Severity**: [LEVEL]
-# - **Affected**: [WORKFLOW NAMES]
-# - **Description**: [WHAT IT IS]
-# - **Impact**: [WHY IT MATTERS]
-# - **Reference**: [URL]
-#
-# ## Fix Suggestion for [Selected Issue Type]
-#
-# **Issue**: [Brief description]
-# **Severity**: [Level]
-# **Affected Workflows**: [Count] workflows
-#
-# **Prompt to Copilot Agent**:
-# ```
-# [Detailed fix prompt as generated in Phase 4]
-# ```
-#
-# ## All Findings Details
-#
 # <details>
-# <summary>Detailed Findings by Workflow</summary>
+# <summary><b>Full Structural Analysis Report</b></summary>
 #
-# ### [Workflow Name 1]
+# ## Executive Summary
 #
-# #### [Issue Type]
-# - **Severity**: [LEVEL]
-# - **Location**: Line [NUM], Column [NUM]
-# - **Description**: [DETAILED DESCRIPTION]
-# - **Reference**: [URL]
+# | Metric | Value |
+# |--------|-------|
+# | Tools Analyzed | {count} |
+# | Total Tokens (Today) | {sum} |
+# | Average Usefulness Rating | {avg}/5 |
+# | Best Rated Tool | {tool}: {rating}/5 |
+# | Worst Rated Tool | {tool}: {rating}/5 |
 #
-# [Repeat for all workflows and their findings]
+# ## Usefulness Ratings for Agentic Work
 #
-# </details>
+# | Tool | Toolset | Rating | Assessment |
+# |------|---------|--------|------------|
+# | ... | ... | ⭐⭐⭐⭐⭐ | Excellent for autonomous agents |
+# | ... | ... | ⭐⭐⭐⭐ | Good, minor improvements possible |
+# | ... | ... | ⭐⭐⭐ | Adequate, requires supplementary calls |
+# | ... | ... | ⭐⭐ | Limited usefulness |
+# | ... | ... | ⭐ | Poor for agentic tasks |
 #
-# ## Historical Trends
+# ## Schema Analysis
 #
-# [Compare with previous scans if available from cache memory]
+# | Tool | Type | Depth | Key Fields | Notes |
+# |------|------|-------|------------|-------|
+# | ... | object | 2 | login, id, name | Clean structure |
+# | ... | array | 3 | number, title, labels | Nested user data |
 #
-# - **Previous Scan**: [DATE]
-# - **Total Findings Then**: [NUMBER]
-# - **Total Findings Now**: [NUMBER]
-# - **Change**: [+/-NUMBER] ([+/-PERCENTAGE]%)
+# ## Response Size Analysis
 #
-# ### New Issues
-# [List any new issue types that weren't present before]
+# | Toolset | Avg Tokens | Tools Tested |
+# |---------|------------|--------------|
+# | ... | ... | ... |
 #
-# ### Resolved Issues
-# [List any issue types that are no longer present]
+# ## Tool-by-Tool Analysis
+#
+# | Tool | Toolset | Tokens | Schema | Rating | Notes |
+# |------|---------|--------|--------|--------|-------|
+# | ... | ... | ... | ... | ... | ... |
+#
+# ## 30-Day Trend Summary
+#
+# | Metric | Value |
+# |--------|-------|
+# | Data Points | {count} |
+# | Average Daily Tokens | {avg} |
+# | Average Rating Trend | {improving/declining/stable} |
 #
 # ## Recommendations
 #
-# 1. **Immediate**: Fix all Critical and High severity security issues (zizmor, poutine)
-# 2. **Short-term**: Address Medium severity issues and critical linting problems (actionlint)
-# 3. **Long-term**: Establish automated static analysis in CI/CD
-# 4. **Prevention**: Update workflow templates to avoid common patterns
+# Based on the analysis:
+# - **High-value tools** (rating 4-5): {list}
+# - **Tools needing improvement**: {list}
+# - **Context-efficient tools** (low tokens, high rating): {list}
+# - **Context-heavy tools** (high tokens): {list}
 #
-# ## Next Steps
+# ## Visualizations
 #
-# - [ ] Apply suggested fixes for [selected issue type]
-# - [ ] Review and fix Critical severity security issues
-# - [ ] Address supply chain security findings
-# - [ ] Fix actionlint errors in workflows
-# - [ ] Update workflow creation guidelines
-# - [ ] Consider adding all three tools to pre-commit hooks
+# ### Response Size by Toolset
+# ![Toolset Sizes](toolset_sizes.png)
+#
+# ### Usefulness Ratings
+# ![Usefulness Ratings](usefulness_ratings.png)
+#
+# ### Daily Token Trend
+# ![Daily Trend](daily_trend.png)
+#
+# ### Size vs Usefulness
+# ![Size vs Usefulness](size_vs_usefulness.png)
+#
+# </details>
 # ```
 #
-# ## Important Guidelines
+# ## Guidelines
 #
-# ### Security and Safety
-# - **Never execute untrusted code** from workflow files
-# - **Validate all data** before using it in analysis
-# - **Sanitize file paths** when reading workflow files
-# - **Check file permissions** before writing to cache memory
+# ### Context Efficiency
+# - **CRITICAL**: Keep your context small
+# - Call each tool only ONCE with minimal parameters
+# - Don't expand nested data structures unnecessarily
+# - Focus on analyzing structure, not gathering extensive data
 #
-# ### Analysis Quality
-# - **Be thorough**: Understand the security implications of each finding
-# - **Be specific**: Provide exact workflow names, line numbers, and error details
-# - **Be actionable**: Focus on issues that can be fixed
-# - **Be accurate**: Verify findings before reporting
+# ### Schema Analysis
+# - Identify response data types accurately
+# - Note nesting depth (shallow is better for agents)
+# - List key fields that provide value
+# - Note any redundant or bloated fields
 #
-# ### Resource Efficiency
-# - **Use cache memory** to avoid redundant scanning
-# - **Batch operations** when processing multiple workflows
-# - **Focus on actionable insights** rather than exhaustive reporting
-# - **Respect timeouts** and complete analysis within time limits
+# ### Usefulness Rating Criteria
+# Apply consistent ratings:
+# - **5**: All needed data, clear structure, immediately actionable
+# - **4**: Good data, minor gaps, mostly actionable
+# - **3**: Usable but needs supplementary calls
+# - **2**: Missing key data or confusing structure
+# - **1**: Minimal value, better alternatives exist
 #
-# ### Cache Memory Structure
-#
-# Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
-#
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── security-scans/
-# │   ├── index.json              # Master index of all scans
-# │   ├── 2024-01-15.json         # Daily scan summaries (all tools)
-# │   └── 2024-01-16.json
-# ├── vulnerabilities/
-# │   ├── by-tool.json            # Vulnerabilities grouped by tool
-# │   ├── by-workflow.json        # Vulnerabilities grouped by workflow
-# │   └── trends.json             # Historical trend data
-# └── fix-templates/
-#     └── [tool]-[issue-type].md  # Fix templates for each issue type
-# ```
-#
-# ## Output Requirements
-#
-# Your output must be well-structured and actionable. **You must create a discussion** for every scan with the findings from all three tools.
-#
-# Update cache memory with today's scan data for future reference and trend analysis.
+# ### Report Quality
+# - Start with brief overview
+# - Use collapsible details for full report
+# - Include star ratings (⭐) for visual clarity
+# - Provide actionable recommendations
 #
 # ## Success Criteria
 #
-# A successful static analysis scan:
-# - ✅ Compiles all workflows with zizmor, poutine, and actionlint enabled
-# - ✅ Clusters findings by tool and issue type
-# - ✅ Generates a detailed fix prompt for at least one issue type
-# - ✅ Updates cache memory with findings from all tools
-# - ✅ Creates a comprehensive discussion report with findings
-# - ✅ Provides actionable recommendations
-# - ✅ Maintains historical context for trend analysis
-#
-# Begin your static analysis scan now. Use the MCP server to compile workflows with all three tools (zizmor, poutine, actionlint), analyze the findings, cluster them, generate fix suggestions, and create a discussion with your complete analysis.
+# A successful analysis:
+# - ✅ Tests representative tools from each available toolset
+# - ✅ Records response sizes in tokens
+# - ✅ Analyzes schema structure (type, depth, fields)
+# - ✅ Rates usefulness for agentic work (1-5 scale)
+# - ✅ Appends data to cache-memory for trending
+# - ✅ Generates Python visualizations
+# - ✅ Creates a discussion with statistics, ratings, and charts
+# - ✅ Provides recommendations for tool selection
+# - ✅ Maintains 30-day rolling window of data
 # ```
 #
 # Pinned GitHub Actions:
@@ -477,29 +714,30 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Static Analysis Report"
+name: "GitHub MCP Structural Analysis"
 "on":
   schedule:
-  - cron: "0 9 * * *"
+  - cron: "0 11 * * 1-5"
   workflow_dispatch: null
 
 permissions:
   actions: read
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
+  repository-projects: read
+  security-events: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Static Analysis Report"
+run-name: "GitHub MCP Structural Analysis"
 
 jobs:
   activation:
@@ -513,7 +751,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "static-analysis-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "github-mcp-structural-analysis.lock.yml"
         with:
           script: |
             async function main() {
@@ -604,10 +842,13 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
+      repository-projects: read
+      security-events: read
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -623,19 +864,28 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+      - name: Setup Python environment
+        run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
+      - name: Install Python scientific libraries
+        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - if: always()
+        name: Upload generated charts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - name: Install binary as 'gh-aw'
-        run: make build
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
+          if-no-files-found: warn
+          name: data-charts
+          path: /tmp/gh-aw/python/charts/*.png
+          retention-days: 30
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: python-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -706,138 +956,37 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.51
-      - name: Generate Claude Settings
+      - name: Install awf binary
         run: |
-          mkdir -p /tmp/gh-aw/.claude
-          cat > /tmp/gh-aw/.claude/settings.json << 'EOF'
-          {
-            "hooks": {
-              "PreToolUse": [
-                {
-                  "matcher": "WebFetch|WebSearch",
-                  "hooks": [
-                    {
-                      "type": "command",
-                      "command": ".claude/hooks/network_permissions.py"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-          EOF
-      - name: Generate Network Permissions Hook
-        run: |
-          mkdir -p .claude/hooks
-          cat > .claude/hooks/network_permissions.py << 'EOF'
-          #!/usr/bin/env python3
-          """
-          Network permissions validator for Claude Code engine.
-          Generated by gh-aw from workflow-level network configuration.
-          """
-          
-          import json
-          import sys
-          import urllib.parse
-          import re
-          
-          # Domain allow-list (populated during generation)
-          # JSON string is safely parsed using json.loads() to eliminate quoting vulnerabilities
-          ALLOWED_DOMAINS = json.loads('''["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]''')
-          
-          def extract_domain(url_or_query):
-              """Extract domain from URL or search query."""
-              if not url_or_query:
-                  return None
-              
-              if url_or_query.startswith(('http://', 'https://')):
-                  return urllib.parse.urlparse(url_or_query).netloc.lower()
-              
-              # Check for domain patterns in search queries
-              match = re.search(r'site:([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', url_or_query)
-              if match:
-                  return match.group(1).lower()
-              
-              return None
-          
-          def is_domain_allowed(domain):
-              """Check if domain is allowed."""
-              if not domain:
-                  # If no domain detected, allow only if not under deny-all policy
-                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
-              
-              # Empty allowed domains means deny all
-              if not ALLOWED_DOMAINS:
-                  return False
-              
-              for pattern in ALLOWED_DOMAINS:
-                  regex = pattern.replace('.', r'\.').replace('*', '.*')
-                  if re.match(f'^{regex}$', domain):
-                      return True
-              return False
-          
-          # Main logic
-          try:
-              data = json.load(sys.stdin)
-              tool_name = data.get('tool_name', '')
-              tool_input = data.get('tool_input', {})
-              
-              if tool_name not in ['WebFetch', 'WebSearch']:
-                  sys.exit(0)  # Allow other tools
-              
-              target = tool_input.get('url') or tool_input.get('query', '')
-              domain = extract_domain(target)
-              
-              # For WebSearch, apply domain restrictions consistently
-              # If no domain detected in search query, check if restrictions are in place
-              if tool_name == 'WebSearch' and not domain:
-                  # Since this hook is only generated when network permissions are configured,
-                  # empty ALLOWED_DOMAINS means deny-all policy
-                  if not ALLOWED_DOMAINS:  # Empty list means deny all
-                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
-                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
-                      sys.exit(2)  # Block under deny-all policy
-                  else:
-                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
-                      print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-                      sys.exit(2)  # Block general searches when domain allowlist is configured
-              
-              if not is_domain_allowed(domain):
-                  print(f"Network access blocked for domain: {domain}", file=sys.stderr)
-                  print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-                  sys.exit(2)  # Block with feedback to Claude
-              
-              sys.exit(0)  # Allow
-              
-          except Exception as e:
-              print(f"Network validation error: {e}", file=sys.stderr)
-              sys.exit(2)  # Block on errors
-          
-          EOF
-          chmod +x .claude/hooks/network_permissions.py
+          echo "Installing awf from release: v0.2.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.2.0/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot@0.0.363
       - name: Downloading container images
         run: |
           set -e
@@ -1531,14 +1680,12 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
+          mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765"
-              },
               "github": {
+                "type": "local",
                 "command": "docker",
                 "args": [
                   "run",
@@ -1549,28 +1696,38 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default,actions",
+                  "GITHUB_TOOLSETS=all",
                   "ghcr.io/github/github-mcp-server:v0.22.0"
                 ],
+                "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
               "safeoutputs": {
+                "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
+                "tools": ["*"],
                 "env": {
-                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
-                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
               }
             }
           }
           EOF
+          echo "-------START MCP CONFIG-----------"
+          cat /home/runner/.copilot/mcp-config.json
+          echo "-------END MCP CONFIG-----------"
+          echo "-------/home/runner/.copilot-----------"
+          find /home/runner/.copilot
+          echo "HOME: $HOME"
+          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1579,7 +1736,253 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          # Python Data Visualization Guide
           
+          Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+          
+          ## Installed Libraries
+          
+          - **NumPy**: Array processing and numerical operations
+          - **Pandas**: Data manipulation and analysis
+          - **Matplotlib**: Chart generation and plotting
+          - **Seaborn**: Statistical data visualization
+          - **SciPy**: Scientific computing utilities
+          
+          ## Directory Structure
+          
+          ```
+          /tmp/gh-aw/python/
+          ├── data/          # Store all data files here (CSV, JSON, etc.)
+          ├── charts/        # Generated chart images (PNG)
+          ├── artifacts/     # Additional output files
+          └── *.py           # Python scripts
+          ```
+          
+          ## Data Separation Requirement
+          
+          **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+          
+          ### ❌ PROHIBITED - Inline Data
+          ```python
+          # DO NOT do this
+          data = [10, 20, 30, 40, 50]
+          labels = ['A', 'B', 'C', 'D', 'E']
+          ```
+          
+          ### ✅ REQUIRED - External Data Files
+          ```python
+          # Always load data from external files
+          import pandas as pd
+          
+          # Load data from CSV
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Or from JSON
+          data = pd.read_json('/tmp/gh-aw/python/data/data.json')
+          ```
+          
+          ## Chart Generation Best Practices
+          
+          ### High-Quality Chart Settings
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style for better aesthetics
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Create figure with high DPI
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          
+          # Your plotting code here
+          # ...
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
+                      dpi=300, 
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ### Chart Quality Guidelines
+          
+          - **DPI**: Use 300 or higher for publication quality
+          - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
+          - **Labels**: Always include clear axis labels and titles
+          - **Legend**: Add legends when plotting multiple series
+          - **Grid**: Enable grid lines for easier reading
+          - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+          
+          ## Including Images in Reports
+          
+          When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+          
+          ### Step 1: Generate and Upload Chart
+          ```python
+          # Generate your chart
+          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+          ```
+          
+          ### Step 2: Upload as Asset
+          Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+          
+          ### Step 3: Include in Markdown Report
+          When creating your discussion or issue, include the image using markdown:
+          
+          ```markdown
+          ## Visualization Results
+          
+          ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+          
+          The chart above shows...
+          ```
+          
+          **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
+          
+          ## Cache Memory Integration
+          
+          The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
+          
+          **Helper Functions to Cache:**
+          - Data loading utilities: `data_loader.py`
+          - Chart styling functions: `chart_utils.py`
+          - Common data transformations: `transforms.py`
+          
+          **Check Cache Before Creating:**
+          ```bash
+          # Check if helper exists in cache
+          if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
+            cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
+            echo "Using cached data_loader.py"
+          fi
+          ```
+          
+          **Save to Cache for Future Runs:**
+          ```bash
+          # Save useful helpers to cache
+          cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
+          echo "Saved data_loader.py to cache for future runs"
+          ```
+          
+          ## Complete Example Workflow
+          
+          ```python
+          #!/usr/bin/env python3
+          """
+          Example data visualization script
+          Generates a bar chart from external data
+          """
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Load data from external file (NEVER inline)
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Process data
+          summary = data.groupby('category')['value'].sum()
+          
+          # Create chart
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          summary.plot(kind='bar', ax=ax)
+          
+          # Customize
+          ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Category', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.grid(True, alpha=0.3)
+          
+          # Save chart
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white')
+          
+          print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+          ```
+          
+          ## Error Handling
+          
+          **Check File Existence:**
+          ```python
+          import os
+          
+          data_file = '/tmp/gh-aw/python/data/data.csv'
+          if not os.path.exists(data_file):
+              raise FileNotFoundError(f"Data file not found: {data_file}")
+          ```
+          
+          **Validate Data:**
+          ```python
+          # Check for required columns
+          required_cols = ['category', 'value']
+          missing = set(required_cols) - set(data.columns)
+          if missing:
+              raise ValueError(f"Missing columns: {missing}")
+          ```
+          
+          ## Artifact Upload
+          
+          Charts and source files are automatically uploaded as artifacts:
+          
+          **Charts Artifact:**
+          - Name: `data-charts`
+          - Contents: PNG files from `/tmp/gh-aw/python/charts/`
+          - Retention: 30 days
+          
+          **Source and Data Artifact:**
+          - Name: `python-source-and-data`
+          - Contents: Python scripts and data files
+          - Retention: 30 days
+          
+          Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+          
+          ## Tips for Success
+          
+          1. **Always Separate Data**: Store data in files, never inline in code
+          2. **Use Cache Memory**: Store reusable helpers for faster execution
+          3. **High Quality Charts**: Use DPI 300+ and proper sizing
+          4. **Clear Documentation**: Add docstrings and comments
+          5. **Error Handling**: Validate data and check file existence
+          6. **Type Hints**: Use type annotations for better code quality
+          7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
+          8. **Reproducibility**: Set random seeds when needed
+          
+          ## Common Data Sources
+          
+          Based on common use cases:
+          
+          **Repository Statistics:**
+          ```python
+          # Collect via GitHub API, save to data.csv
+          # Then load and visualize
+          data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
+          ```
+          
+          **Workflow Metrics:**
+          ```python
+          # Collect via GitHub Actions API, save to data.json
+          data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
+          ```
+          
+          **Sample Data Generation:**
+          ```python
+          # Generate with NumPy, save to file first
+          import numpy as np
+          data = np.random.randn(100, 2)
+          df = pd.DataFrame(data, columns=['x', 'y'])
+          df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
+          
+          # Then load it back (demonstrating the pattern)
+          data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
+          ```
           
           ## Report Formatting
           
@@ -1658,347 +2061,342 @@ jobs:
           
           **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
           
-          # Static Analysis Report
+          # GitHub MCP Structural Analysis
           
-          You are the Static Analysis Report Agent - an expert system that scans agentic workflows for security vulnerabilities and code quality issues using multiple static analysis tools: zizmor, poutine, and actionlint.
+          You are the GitHub MCP Structural Analyzer - an agent that performs quantitative analysis of the response sizes AND qualitative analysis of the structure/schema of GitHub MCP tool responses to evaluate their usefulness for agentic work.
           
           ## Mission
           
-          Daily scan all agentic workflow files with static analysis tools to identify security issues, code quality problems, cluster findings by type, and provide actionable fix suggestions.
+          Analyze each GitHub MCP tool response for:
+          1. **Size**: Response size in tokens
+          2. **Structure**: Schema and data organization
+          3. **Usefulness**: Rating for agentic workflows (1-5 scale)
           
-          ## Current Context
+          Track trends over 30 days, generate visualizations, and create a daily discussion report.
+          
+          ## Context
           
           - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
+          - **Analysis Date**: Current date
           
           ## Analysis Process
           
-          ### Phase 0: Setup
+          ### Phase 1: Load Historical Data
           
-          - DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
-          - Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up.
-          - Run the `status` tool of `gh-aw` MCP server to verify configuration.
+          1. Check for existing trending data at `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`
+          2. If exists, load the historical data (keep last 30 days)
+          3. If not exists, start fresh
           
-          ### Phase 1: Compile Workflows with Static Analysis Tools
+          ### Phase 2: Tool Response Analysis
           
-          The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
+          **IMPORTANT**: Keep your context small. Call each tool with minimal parameters to analyze responses, not to gather extensive data.
           
-          1. **Compile All Workflows with Static Analysis**:
-             Use the `compile` tool from the gh-aw MCP server with all static analysis flags:
-             - Workflow name: (leave empty to compile all workflows)
-             - Set `zizmor: true` to run zizmor security scanner
-             - Set `poutine: true` to run poutine security scanner  
-             - Set `actionlint: true` to run actionlint linter
-             
-             This will compile all workflow files and run all three static analysis tools on each generated `.lock.yml` file.
+          For each GitHub MCP toolset, systematically test representative tools:
           
-          2. **Verify Compilation**:
-             - Check that workflows were compiled successfully
-             - Note which workflows have findings from each tool
-             - Identify total number of issues by tool and severity
+          #### Toolsets to Test
           
-          ### Phase 2: Analyze and Cluster Findings
+          Test ONE representative tool from each toolset with minimal parameters:
           
-          Review the output from all three tools and cluster findings:
+          1. **context**: `get_me` - Get current user info
+          2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
+          3. **issues**: `list_issues` - List issues with perPage=1
+          4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
+          5. **actions**: `list_workflows` - List workflows with perPage=1
+          6. **code_security**: `list_code_scanning_alerts` - List alerts with minimal params
+          7. **discussions**: `list_discussions` (if available)
+          8. **labels**: `get_label` - Get a single label
+          9. **users**: `get_user` (if available)
+          10. **search**: Search with minimal query
           
-          #### 2.1 Parse Tool Outputs
+          #### For Each Tool Call, Analyze:
           
-          **Zizmor Output**:
-          - Extract security findings from zizmor
-          - Parse finding details:
-            - Ident (identifier/rule code)
-            - Description
-            - Severity (Low, Medium, High, Critical)
-            - Affected file and location
-            - Reference URL for more information
+          **A. Size Metrics**
+          - Estimate response size in tokens (1 token ≈ 4 characters)
           
-          **Poutine Output**:
-          - Extract supply chain security findings
-          - Parse finding details:
-            - Rule ID
-            - Description
-            - Severity
-            - Affected workflow and location
-            - Recommendations
+          **B. Structure Analysis**
+          Identify the response schema:
+          - **Data type**: object, array, primitive
+          - **Nesting depth**: How deeply nested is the data?
+          - **Key fields**: What are the main fields returned?
+          - **Field types**: strings, numbers, booleans, arrays, objects
+          - **Pagination**: Does it support pagination?
+          - **Relationships**: Does it include related entities (e.g., user info embedded in issue)?
           
-          **Actionlint Output**:
-          - Extract linting issues
-          - Parse finding details:
-            - Error/warning message
-            - Rule name
-            - Location (file, line, column)
-            - Suggestions for fixes
+          **C. Usefulness Rating for Agentic Work (1-5 scale)**
           
-          #### 2.2 Cluster by Issue Type and Tool
-          Group findings by:
-          - Tool (zizmor, poutine, actionlint)
-          - Issue identifier/rule code
-          - Severity level
-          - Count occurrences of each issue type
-          - Identify most common issues per tool
-          - List all affected workflows for each issue type
+          Rate each tool's response on how useful it is for autonomous agents:
           
-          #### 2.3 Prioritize Issues
-          Prioritize based on:
-          - Severity level (Critical > High > Medium > Low)
-          - Tool type (security issues > code quality)
-          - Number of occurrences
-          - Impact on security posture and maintainability
+          | Rating | Description |
+          |--------|-------------|
+          | **5** | Excellent - Complete, actionable data with clear structure |
+          | **4** | Good - Most needed data present, minor gaps |
+          | **3** | Adequate - Usable but requires additional calls |
+          | **2** | Limited - Missing key data, hard to parse |
+          | **1** | Poor - Minimal value for agentic tasks |
           
-          ### Phase 3: Store Analysis in Cache Memory
+          **Rating Criteria:**
+          - **Completeness**: Does response contain all needed info?
+          - **Actionability**: Can agent act on this data directly?
+          - **Clarity**: Is the structure intuitive and consistent?
+          - **Efficiency**: Is context usage optimized (no bloat)?
+          - **Relationships**: Are related entities included or linkable?
           
-          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:
+          Record: `{tool_name, toolset, tokens, schema_type, nesting_depth, key_fields, usefulness_rating, notes, timestamp}`
           
-          1. **Create Security Scan Index**:
-             - Save scan results to `/tmp/gh-aw/cache-memory/security-scans/<date>.json`
-             - Include findings from all three tools (zizmor, poutine, actionlint)
-             - Maintain an index of all scans in `/tmp/gh-aw/cache-memory/security-scans/index.json`
+          ### Phase 3: Save Data
           
-          2. **Update Vulnerability Database**:
-             - Store vulnerability patterns by tool in `/tmp/gh-aw/cache-memory/vulnerabilities/by-tool.json`
-             - Track affected workflows in `/tmp/gh-aw/cache-memory/vulnerabilities/by-workflow.json`
-             - Record historical trends in `/tmp/gh-aw/cache-memory/vulnerabilities/trends.json`
+          Append today's measurements to `/tmp/gh-aw/cache-memory/mcp_analysis.jsonl`:
           
-          3. **Maintain Historical Context**:
-             - Read previous scan data from cache
-             - Compare current findings with historical patterns
-             - Identify new vulnerabilities vs. recurring issues
-             - Track improvement or regression over time
+          ```json
+          {"date": "2024-01-15", "tool": "get_me", "toolset": "context", "tokens": 150, "schema_type": "object", "nesting_depth": 2, "key_fields": ["login", "id", "name", "email"], "usefulness_rating": 5, "notes": "Complete user profile, immediately actionable"}
+          {"date": "2024-01-15", "tool": "list_issues", "toolset": "issues", "tokens": 500, "schema_type": "array", "nesting_depth": 3, "key_fields": ["number", "title", "state", "labels", "assignees"], "usefulness_rating": 4, "notes": "Good issue data but user details minimal"}
+          ```
           
-          ### Phase 4: Generate Fix Suggestions
+          Prune data older than 30 days.
           
-          **Select one issue type** (preferably the most common or highest severity) and generate detailed fix suggestions:
+          ### Phase 4: Generate Visualization
           
-          1. **Analyze the Issue**:
-             - Review the zizmor documentation link for the issue
-             - Understand the root cause and security impact
-             - Identify common patterns in affected workflows
+          Create a Python script at `/tmp/gh-aw/python/analyze_mcp.py`:
           
-          2. **Create Fix Template**:
-             Generate a prompt template that can be used by a Copilot agent to fix this issue type. The prompt should:
-             - Clearly describe the security vulnerability
-             - Explain why it's a problem
-             - Provide step-by-step fix instructions
-             - Include code examples (before/after)
-             - Reference the zizmor documentation
-             - Be generic enough to apply to multiple workflows
+          ```python
+          #!/usr/bin/env python3
+          """MCP Tool Structural Analysis"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import json
+          import os
+          from datetime import datetime, timedelta
           
-          3. **Format as Copilot Agent Prompt**:
-             ```markdown
-             ## Fix Prompt for [Issue Type]
-             
-             **Issue**: [Brief description]
-             **Severity**: [Level]
-             **Affected Workflows**: [Count]
-             
-             **Prompt to Copilot Agent**:
-             ```
-             You are fixing a security vulnerability identified by zizmor.
-             
-             **Vulnerability**: [Description]
-             **Rule**: [Ident] - [URL]
-             
-             **Current Issue**:
-             [Explain what's wrong]
-             
-             **Required Fix**:
-             [Step-by-step fix instructions]
-             
-             **Example**:
-             Before:
-             ```yaml
-             [Bad example]
-             ```
-             
-             After:
-             ```yaml
-             [Fixed example]
-             ```
-             
-             Please apply this fix to all affected workflows: [List of workflow files]
-             ```
-             ```
+          # Configuration
+          CACHE_FILE = '/tmp/gh-aw/cache-memory/mcp_analysis.jsonl'
+          CHARTS_DIR = '/tmp/gh-aw/python/charts'
+          DATA_DIR = '/tmp/gh-aw/python/data'
           
-          ### Phase 5: Create Discussion Report
+          os.makedirs(CHARTS_DIR, exist_ok=True)
+          os.makedirs(DATA_DIR, exist_ok=True)
           
-          **ALWAYS create a comprehensive discussion report** with your static analysis findings, regardless of whether issues were found or not.
+          # Load data
+          if os.path.exists(CACHE_FILE):
+              df = pd.read_json(CACHE_FILE, lines=True)
+              df['date'] = pd.to_datetime(df['date'])
+          else:
+              print("No historical data found")
+              exit(1)
           
-          Create a discussion with:
-          - **Summary**: Overview of static analysis findings from all three tools
-          - **Statistics**: Total findings by tool, by severity, by type
-          - **Clustered Findings**: Issues grouped by tool and type with counts
-          - **Affected Workflows**: Which workflows have issues
-          - **Fix Suggestion**: Detailed fix prompt for one issue type
-          - **Recommendations**: Prioritized actions to improve security and code quality
-          - **Historical Trends**: Comparison with previous scans
+          # Save data copy
+          df.to_csv(f'{DATA_DIR}/mcp_analysis.csv', index=False)
           
-          **Discussion Template**:
+          # Set style
+          sns.set_style("whitegrid")
+          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#DDA0DD", "#F0E68C"]
+          sns.set_palette(custom_colors)
+          
+          # Chart 1: Response Size by Toolset (Bar Chart)
+          fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+          toolset_avg = df.groupby('toolset')['tokens'].mean().sort_values(ascending=False)
+          toolset_avg.plot(kind='bar', ax=ax, color=custom_colors)
+          ax.set_title('Average Response Size by Toolset', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Toolset', fontsize=12)
+          ax.set_ylabel('Tokens', fontsize=12)
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45, ha='right')
+          plt.tight_layout()
+          plt.savefig(f'{CHARTS_DIR}/toolset_sizes.png', dpi=300, bbox_inches='tight', facecolor='white')
+          plt.close()
+          
+          # Chart 2: Usefulness Rating by Toolset (Bar Chart)
+          fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+          latest_date = df['date'].max()
+          latest_data = df[df['date'] == latest_date]
+          usefulness_by_toolset = latest_data.groupby('toolset')['usefulness_rating'].mean().sort_values(ascending=False)
+          colors = ['#2ECC71' if x >= 4 else '#F39C12' if x >= 3 else '#E74C3C' for x in usefulness_by_toolset.values]
+          usefulness_by_toolset.plot(kind='bar', ax=ax, color=colors)
+          ax.set_title('Usefulness Rating by Toolset (5=Excellent, 1=Poor)', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Toolset', fontsize=12)
+          ax.set_ylabel('Rating', fontsize=12)
+          ax.set_ylim(0, 5.5)
+          ax.axhline(y=4, color='green', linestyle='--', alpha=0.5, label='Good threshold')
+          ax.axhline(y=3, color='orange', linestyle='--', alpha=0.5, label='Adequate threshold')
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45, ha='right')
+          plt.legend()
+          plt.tight_layout()
+          plt.savefig(f'{CHARTS_DIR}/usefulness_ratings.png', dpi=300, bbox_inches='tight', facecolor='white')
+          plt.close()
+          
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          # Chart 3: Daily Trends (Line Chart)
+          fig, ax = plt.subplots(figsize=(14, 7), dpi=300)
+          daily_total = df.groupby('date')['tokens'].sum()
+          ax.plot(daily_total.index, daily_total.values, marker='o', linewidth=2, color='#4ECDC4')
+          ax.fill_between(daily_total.index, daily_total.values, alpha=0.2, color='#4ECDC4')
+          ax.set_title('Daily Total Token Usage Trend', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Date', fontsize=12)
+          ax.set_ylabel('Total Tokens', fontsize=12)
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45)
+          plt.tight_layout()
+          plt.savefig(f'{CHARTS_DIR}/daily_trend.png', dpi=300, bbox_inches='tight', facecolor='white')
+          plt.close()
+          
+          # Chart 4: Size vs Usefulness Scatter
+          fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+          scatter = ax.scatter(latest_data['tokens'], latest_data['usefulness_rating'], 
+                               c=range(len(latest_data)), cmap='viridis', s=150, alpha=0.7)
+          for i, row in latest_data.iterrows():
+              ax.annotate(row['tool'], (row['tokens'], row['usefulness_rating']), 
+                          xytext=(5, 5), textcoords='offset points', fontsize=9)
+          ax.set_title('Token Size vs Usefulness Rating', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Tokens', fontsize=12)
+          ax.set_ylabel('Usefulness Rating', fontsize=12)
+          ax.set_ylim(0, 5.5)
+          ax.grid(True, alpha=0.3)
+          plt.tight_layout()
+          plt.savefig(f'{CHARTS_DIR}/size_vs_usefulness.png', dpi=300, bbox_inches='tight', facecolor='white')
+          plt.close()
+          
+          print("✅ Charts generated successfully")
+          print(f"  - toolset_sizes.png")
+          print(f"  - usefulness_ratings.png")
+          print(f"  - daily_trend.png")
+          print(f"  - size_vs_usefulness.png")
+          ```
+          
+          Run the script: `python3 /tmp/gh-aw/python/analyze_mcp.py`
+          
+          ### Phase 5: Generate Report
+          
+          Create a discussion with the following structure:
+          
+          **Title**: `MCP Structural Analysis - {date}`
+          
+          **Content**:
+          
+          Brief overview with key findings (tools analyzed, best/worst usefulness ratings, schema patterns).
+          
           ```markdown
-          # 🔍 Static Analysis Report - [DATE]
-          
-          ## Analysis Summary
-          
-          - **Tools Used**: zizmor, poutine, actionlint
-          - **Total Findings**: [NUMBER]
-          - **Workflows Scanned**: [NUMBER]
-          - **Workflows Affected**: [NUMBER]
-          
-          ### Findings by Tool
-          
-          | Tool | Total | Critical | High | Medium | Low |
-          |------|-------|----------|------|--------|-----|
-          | zizmor (security) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
-          | poutine (supply chain) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
-          | actionlint (linting) | [NUM] | - | - | - | - |
-          
-          ## Clustered Findings by Tool and Type
-          
-          ### Zizmor Security Findings
-          
-          [Group findings by their identifier/rule code]
-          
-          | Issue Type | Severity | Count | Affected Workflows |
-          |------------|----------|-------|-------------------|
-          | [ident]    | [level]  | [num] | [workflow names]  |
-          
-          ### Poutine Supply Chain Findings
-          
-          | Issue Type | Severity | Count | Affected Workflows |
-          |------------|----------|-------|-------------------|
-          | [rule_id]  | [level]  | [num] | [workflow names]  |
-          
-          ### Actionlint Linting Issues
-          
-          | Issue Type | Count | Affected Workflows |
-          |------------|-------|-------------------|
-          | [rule]     | [num] | [workflow names]  |
-          
-          ## Top Priority Issues
-          
-          ### 1. [Most Common/Severe Issue]
-          - **Tool**: [zizmor/poutine/actionlint]
-          - **Count**: [NUMBER]
-          - **Severity**: [LEVEL]
-          - **Affected**: [WORKFLOW NAMES]
-          - **Description**: [WHAT IT IS]
-          - **Impact**: [WHY IT MATTERS]
-          - **Reference**: [URL]
-          
-          ## Fix Suggestion for [Selected Issue Type]
-          
-          **Issue**: [Brief description]
-          **Severity**: [Level]
-          **Affected Workflows**: [Count] workflows
-          
-          **Prompt to Copilot Agent**:
-          ```
-          [Detailed fix prompt as generated in Phase 4]
-          ```
-          
-          ## All Findings Details
-          
           <details>
-          <summary>Detailed Findings by Workflow</summary>
+          <summary><b>Full Structural Analysis Report</b></summary>
           
-          ### [Workflow Name 1]
+          ## Executive Summary
           
-          #### [Issue Type]
-          - **Severity**: [LEVEL]
-          - **Location**: Line [NUM], Column [NUM]
-          - **Description**: [DETAILED DESCRIPTION]
-          - **Reference**: [URL]
+          | Metric | Value |
+          |--------|-------|
+          | Tools Analyzed | {count} |
+          | Total Tokens (Today) | {sum} |
+          | Average Usefulness Rating | {avg}/5 |
+          | Best Rated Tool | {tool}: {rating}/5 |
+          | Worst Rated Tool | {tool}: {rating}/5 |
           
-          [Repeat for all workflows and their findings]
+          ## Usefulness Ratings for Agentic Work
           
-          </details>
+          | Tool | Toolset | Rating | Assessment |
+          |------|---------|--------|------------|
+          | ... | ... | ⭐⭐⭐⭐⭐ | Excellent for autonomous agents |
+          | ... | ... | ⭐⭐⭐⭐ | Good, minor improvements possible |
+          | ... | ... | ⭐⭐⭐ | Adequate, requires supplementary calls |
+          | ... | ... | ⭐⭐ | Limited usefulness |
+          | ... | ... | ⭐ | Poor for agentic tasks |
           
-          ## Historical Trends
+          ## Schema Analysis
           
-          [Compare with previous scans if available from cache memory]
+          | Tool | Type | Depth | Key Fields | Notes |
+          |------|------|-------|------------|-------|
+          | ... | object | 2 | login, id, name | Clean structure |
+          | ... | array | 3 | number, title, labels | Nested user data |
           
-          - **Previous Scan**: [DATE]
-          - **Total Findings Then**: [NUMBER]
-          - **Total Findings Now**: [NUMBER]
-          - **Change**: [+/-NUMBER] ([+/-PERCENTAGE]%)
+          ## Response Size Analysis
           
-          ### New Issues
-          [List any new issue types that weren't present before]
+          | Toolset | Avg Tokens | Tools Tested |
+          |---------|------------|--------------|
+          | ... | ... | ... |
           
-          ### Resolved Issues
-          [List any issue types that are no longer present]
+          ## Tool-by-Tool Analysis
+          
+          | Tool | Toolset | Tokens | Schema | Rating | Notes |
+          |------|---------|--------|--------|--------|-------|
+          | ... | ... | ... | ... | ... | ... |
+          
+          ## 30-Day Trend Summary
+          
+          | Metric | Value |
+          |--------|-------|
+          | Data Points | {count} |
+          | Average Daily Tokens | {avg} |
+          | Average Rating Trend | {improving/declining/stable} |
           
           ## Recommendations
           
-          1. **Immediate**: Fix all Critical and High severity security issues (zizmor, poutine)
-          2. **Short-term**: Address Medium severity issues and critical linting problems (actionlint)
-          3. **Long-term**: Establish automated static analysis in CI/CD
-          4. **Prevention**: Update workflow templates to avoid common patterns
+          Based on the analysis:
+          - **High-value tools** (rating 4-5): {list}
+          - **Tools needing improvement**: {list}
+          - **Context-efficient tools** (low tokens, high rating): {list}
+          - **Context-heavy tools** (high tokens): {list}
           
-          ## Next Steps
+          ## Visualizations
           
-          - [ ] Apply suggested fixes for [selected issue type]
-          - [ ] Review and fix Critical severity security issues
-          - [ ] Address supply chain security findings
-          - [ ] Fix actionlint errors in workflows
-          - [ ] Update workflow creation guidelines
-          - [ ] Consider adding all three tools to pre-commit hooks
+          ### Response Size by Toolset
+          ![Toolset Sizes](toolset_sizes.png)
+          
+          ### Usefulness Ratings
+          ![Usefulness Ratings](usefulness_ratings.png)
+          
+          ### Daily Token Trend
+          ![Daily Trend](daily_trend.png)
+          
+          ### Size vs Usefulness
+          ![Size vs Usefulness](size_vs_usefulness.png)
+          
+          </details>
           ```
           
-          ## Important Guidelines
+          ## Guidelines
           
-          ### Security and Safety
-          - **Never execute untrusted code** from workflow files
-          - **Validate all data** before using it in analysis
-          - **Sanitize file paths** when reading workflow files
-          - **Check file permissions** before writing to cache memory
+          ### Context Efficiency
+          - **CRITICAL**: Keep your context small
+          - Call each tool only ONCE with minimal parameters
+          - Don't expand nested data structures unnecessarily
+          - Focus on analyzing structure, not gathering extensive data
           
-          ### Analysis Quality
-          - **Be thorough**: Understand the security implications of each finding
-          - **Be specific**: Provide exact workflow names, line numbers, and error details
-          - **Be actionable**: Focus on issues that can be fixed
-          - **Be accurate**: Verify findings before reporting
+          ### Schema Analysis
+          - Identify response data types accurately
+          - Note nesting depth (shallow is better for agents)
+          - List key fields that provide value
+          - Note any redundant or bloated fields
           
-          ### Resource Efficiency
-          - **Use cache memory** to avoid redundant scanning
-          - **Batch operations** when processing multiple workflows
-          - **Focus on actionable insights** rather than exhaustive reporting
-          - **Respect timeouts** and complete analysis within time limits
+          ### Usefulness Rating Criteria
+          Apply consistent ratings:
+          - **5**: All needed data, clear structure, immediately actionable
+          - **4**: Good data, minor gaps, mostly actionable
+          - **3**: Usable but needs supplementary calls
+          - **2**: Missing key data or confusing structure
+          - **1**: Minimal value, better alternatives exist
           
-          ### Cache Memory Structure
-          
-          Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
-          
-          ```
-          /tmp/gh-aw/cache-memory/
-          ├── security-scans/
-          │   ├── index.json              # Master index of all scans
-          │   ├── 2024-01-15.json         # Daily scan summaries (all tools)
-          │   └── 2024-01-16.json
-          ├── vulnerabilities/
-          │   ├── by-tool.json            # Vulnerabilities grouped by tool
-          │   ├── by-workflow.json        # Vulnerabilities grouped by workflow
-          │   └── trends.json             # Historical trend data
-          └── fix-templates/
-              └── [tool]-[issue-type].md  # Fix templates for each issue type
-          ```
-          
-          ## Output Requirements
-          
-          Your output must be well-structured and actionable. **You must create a discussion** for every scan with the findings from all three tools.
-          
-          Update cache memory with today's scan data for future reference and trend analysis.
+          ### Report Quality
+          - Start with brief overview
+          - Use collapsible details for full report
+          - Include star ratings (⭐) for visual clarity
+          - Provide actionable recommendations
           
           ## Success Criteria
           
-          A successful static analysis scan:
-          - ✅ Compiles all workflows with zizmor, poutine, and actionlint enabled
-          - ✅ Clusters findings by tool and issue type
-          - ✅ Generates a detailed fix prompt for at least one issue type
-          - ✅ Updates cache memory with findings from all tools
-          - ✅ Creates a comprehensive discussion report with findings
-          - ✅ Provides actionable recommendations
-          - ✅ Maintains historical context for trend analysis
-          
-          Begin your static analysis scan now. Use the MCP server to compile workflows with all three tools (zizmor, poutine, actionlint), analyze the findings, cluster them, generate fix suggestions, and create a discussion with your complete analysis.
+          A successful analysis:
+          - ✅ Tests representative tools from each available toolset
+          - ✅ Records response sizes in tokens
+          - ✅ Analyzes schema structure (type, depth, fields)
+          - ✅ Rates usefulness for agentic work (1-5 scale)
+          - ✅ Appends data to cache-memory for trending
+          - ✅ Generates Python visualizations
+          - ✅ Creates a discussion with statistics, ratings, and charts
+          - ✅ Provides recommendations for tool selection
+          - ✅ Maintains 30-day rolling window of data
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -2112,6 +2510,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -2210,13 +2609,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "2.0.51",
-              workflow_name: "Static Analysis Report",
-              experimental: true,
+              agent_version: "0.0.363",
+              workflow_name: "GitHub MCP Structural Analysis",
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -2229,7 +2628,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -2246,99 +2645,36 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code CLI
+      - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Allowed tools (sorted):
-        # - Edit(/tmp/gh-aw/cache-memory/*)
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - LS
-        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
-        # - NotebookRead
-        # - Read
-        # - Read(/tmp/gh-aw/cache-memory/*)
-        # - Task
-        # - TodoWrite
-        # - Write
-        # - Write(/tmp/gh-aw/cache-memory/*)
-        # - mcp__github__download_workflow_run_artifact
-        # - mcp__github__get_code_scanning_alert
-        # - mcp__github__get_commit
-        # - mcp__github__get_dependabot_alert
-        # - mcp__github__get_discussion
-        # - mcp__github__get_discussion_comments
-        # - mcp__github__get_file_contents
-        # - mcp__github__get_job_logs
-        # - mcp__github__get_label
-        # - mcp__github__get_latest_release
-        # - mcp__github__get_me
-        # - mcp__github__get_notification_details
-        # - mcp__github__get_pull_request
-        # - mcp__github__get_pull_request_comments
-        # - mcp__github__get_pull_request_diff
-        # - mcp__github__get_pull_request_files
-        # - mcp__github__get_pull_request_review_comments
-        # - mcp__github__get_pull_request_reviews
-        # - mcp__github__get_pull_request_status
-        # - mcp__github__get_release_by_tag
-        # - mcp__github__get_secret_scanning_alert
-        # - mcp__github__get_tag
-        # - mcp__github__get_workflow_run
-        # - mcp__github__get_workflow_run_logs
-        # - mcp__github__get_workflow_run_usage
-        # - mcp__github__issue_read
-        # - mcp__github__list_branches
-        # - mcp__github__list_code_scanning_alerts
-        # - mcp__github__list_commits
-        # - mcp__github__list_dependabot_alerts
-        # - mcp__github__list_discussion_categories
-        # - mcp__github__list_discussions
-        # - mcp__github__list_issue_types
-        # - mcp__github__list_issues
-        # - mcp__github__list_label
-        # - mcp__github__list_notifications
-        # - mcp__github__list_pull_requests
-        # - mcp__github__list_releases
-        # - mcp__github__list_secret_scanning_alerts
-        # - mcp__github__list_starred_repositories
-        # - mcp__github__list_tags
-        # - mcp__github__list_workflow_jobs
-        # - mcp__github__list_workflow_run_artifacts
-        # - mcp__github__list_workflow_runs
-        # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
-        # - mcp__github__search_code
-        # - mcp__github__search_issues
-        # - mcp__github__search_orgs
-        # - mcp__github__search_pull_requests
-        # - mcp__github__search_repositories
-        # - mcp__github__search_users
-        timeout-minutes: 30
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info \
+            -- npx -y @github/copilot@0.0.363 --add-dir /tmp/gh-aw/ --log-level all --add-dir '${GITHUB_WORKSPACE}' --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "300000"
-          BASH_DEFAULT_TIMEOUT_MS: "300000"
-          BASH_MAX_TIMEOUT_MS: "300000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_TOOL_TIMEOUT: "300"
-      - name: Clean up network proxy hook files
-        if: always()
-        run: |
-          rm -rf .claude/hooks/network_permissions.py || true
-          rm -rf .claude/hooks || true
-          rm -rf .claude || true
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2450,9 +2786,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
@@ -2467,7 +2803,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3485,6 +3821,13 @@ jobs:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/.copilot/logs/
+          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -3496,7 +3839,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
             function runLogParser(options) {
@@ -3991,88 +4334,872 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseClaudeLog,
-                parserName: "Claude",
-                supportsDirectories: false,
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
               });
             }
-            function parseClaudeLog(logContent) {
-              try {
-                const logEntries = parseLogEntries(logContent);
-                if (!logEntries) {
-                  return {
-                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
-                    mcpFailures: [],
-                    maxTurnsHit: false,
-                  };
+            function extractPremiumRequestCount(logContent) {
+              const patterns = [
+                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
+                /(\d+)\s+premium\s+requests?\s+consumed/i,
+                /consumed\s+(\d+)\s+premium\s+requests?/i,
+              ];
+              for (const pattern of patterns) {
+                const match = logContent.match(pattern);
+                if (match && match[1]) {
+                  const count = parseInt(match[1], 10);
+                  if (!isNaN(count) && count > 0) {
+                    return count;
+                  }
                 }
-                const mcpFailures = [];
+              }
+              return 1;
+            }
+            function parseCopilotLog(logContent) {
+              try {
+                let logEntries;
+                try {
+                  logEntries = JSON.parse(logContent);
+                  if (!Array.isArray(logEntries)) {
+                    throw new Error("Not a JSON array");
+                  }
+                } catch (jsonArrayError) {
+                  const debugLogEntries = parseDebugLogFormat(logContent);
+                  if (debugLogEntries && debugLogEntries.length > 0) {
+                    logEntries = debugLogEntries;
+                  } else {
+                    logEntries = parseLogEntries(logContent);
+                  }
+                }
+                if (!logEntries) {
+                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
+                }
                 const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
-                  formatInitCallback: initEntry => {
-                    const result = formatInitializationSummary(initEntry, {
-                      includeSlashCommands: true,
-                      mcpFailureCallback: server => {
-                        const errorDetails = [];
-                        if (server.error) {
-                          errorDetails.push(`**Error:** ${server.error}`);
+                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+                  formatInitCallback: initEntry =>
+                    formatInitializationSummary(initEntry, {
+                      includeSlashCommands: false,
+                      modelInfoCallback: entry => {
+                        if (!entry.model_info) return "";
+                        const modelInfo = entry.model_info;
+                        let markdown = "";
+                        if (modelInfo.name) {
+                          markdown += `**Model Name:** ${modelInfo.name}`;
+                          if (modelInfo.vendor) {
+                            markdown += ` (${modelInfo.vendor})`;
+                          }
+                          markdown += "\n\n";
                         }
-                        if (server.stderr) {
-                          const maxStderrLength = 500;
-                          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
-                          errorDetails.push(`**Stderr:** \`${stderr}\``);
+                        if (modelInfo.billing) {
+                          const billing = modelInfo.billing;
+                          if (billing.is_premium === true) {
+                            markdown += `**Premium Model:** Yes`;
+                            if (billing.multiplier && billing.multiplier !== 1) {
+                              markdown += ` (${billing.multiplier}x cost multiplier)`;
+                            }
+                            markdown += "\n";
+                            if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                              markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                            }
+                            markdown += "\n";
+                          } else if (billing.is_premium === false) {
+                            markdown += `**Premium Model:** No\n\n`;
+                          }
                         }
-                        if (server.exitCode !== undefined && server.exitCode !== null) {
-                          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
-                        }
-                        if (server.command) {
-                          errorDetails.push(`**Command:** \`${server.command}\``);
-                        }
-                        if (server.message) {
-                          errorDetails.push(`**Message:** ${server.message}`);
-                        }
-                        if (server.reason) {
-                          errorDetails.push(`**Reason:** ${server.reason}`);
-                        }
-                        if (errorDetails.length > 0) {
-                          return errorDetails.map(detail => `  - ${detail}\n`).join("");
-                        }
-                        return "";
+                        return markdown;
                       },
-                    });
-                    if (result.mcpFailures) {
-                      mcpFailures.push(...result.mcpFailures);
-                    }
-                    return result;
-                  },
+                    }),
                 });
                 let markdown = conversationResult.markdown;
                 const lastEntry = logEntries[logEntries.length - 1];
-                markdown += generateInformationSection(lastEntry);
-                let maxTurnsHit = false;
-                const maxTurns = process.env.GH_AW_MAX_TURNS;
-                if (maxTurns && lastEntry && lastEntry.num_turns) {
-                  const configuredMaxTurns = parseInt(maxTurns, 10);
-                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
-                    maxTurnsHit = true;
-                  }
-                }
-                return { markdown, mcpFailures, maxTurnsHit };
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                markdown += generateInformationSection(lastEntry, {
+                  additionalInfoCallback: entry => {
+                    const isPremiumModel =
+                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    if (isPremiumModel) {
+                      const premiumRequestCount = extractPremiumRequestCount(logContent);
+                      return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
+                    }
+                    return "";
+                  },
+                });
+                return markdown;
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                return {
-                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
-                  mcpFailures: [],
-                  maxTurnsHit: false,
-                };
+                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
               }
+            }
+            function scanForToolErrors(logContent) {
+              const toolErrors = new Map();
+              const lines = logContent.split("\n");
+              const recentToolCalls = [];
+              const MAX_RECENT_TOOLS = 10;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
+                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+                    const nextLine = lines[j];
+                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
+                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
+                    if (idMatch) {
+                      const toolId = idMatch[1];
+                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
+                        const nameLine = lines[k];
+                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
+                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
+                          const toolName = funcNameMatch[1];
+                          recentToolCalls.unshift({ id: toolId, name: toolName });
+                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
+                            recentToolCalls.pop();
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
+                if (errorMatch) {
+                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
+                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
+                  if (toolNameMatch) {
+                    const toolName = toolNameMatch[1];
+                    toolErrors.set(toolName, true);
+                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
+                    if (matchingTool) {
+                      toolErrors.set(matchingTool.id, true);
+                    }
+                  } else if (toolIdMatch) {
+                    toolErrors.set(toolIdMatch[1], true);
+                  } else if (recentToolCalls.length > 0) {
+                    const lastTool = recentToolCalls[0];
+                    toolErrors.set(lastTool.id, true);
+                    toolErrors.set(lastTool.name, true);
+                  }
+                }
+              }
+              return toolErrors;
+            }
+            function parseDebugLogFormat(logContent) {
+              const entries = [];
+              const lines = logContent.split("\n");
+              const toolErrors = scanForToolErrors(logContent);
+              let model = "unknown";
+              let sessionId = null;
+              let modelInfo = null;
+              let tools = [];
+              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
+              if (modelMatch) {
+                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+              }
+              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
+              if (gotModelInfoIndex !== -1) {
+                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
+                if (jsonStart !== -1) {
+                  let braceCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let jsonEnd = -1;
+                  for (let i = jsonStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "{") {
+                      braceCount++;
+                    } else if (char === "}") {
+                      braceCount--;
+                      if (braceCount === 0) {
+                        jsonEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (jsonEnd !== -1) {
+                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
+                    try {
+                      modelInfo = JSON.parse(modelInfoJson);
+                    } catch (e) {
+                    }
+                  }
+                }
+              }
+              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
+              if (toolsIndex !== -1) {
+                const afterToolsLine = logContent.indexOf("\n", toolsIndex);
+                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
+                if (toolsStart !== -1) {
+                  toolsStart = logContent.indexOf("[", toolsStart + 7); 
+                }
+                if (toolsStart !== -1) {
+                  let bracketCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let toolsEnd = -1;
+                  for (let i = toolsStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "[") {
+                      bracketCount++;
+                    } else if (char === "]") {
+                      bracketCount--;
+                      if (bracketCount === 0) {
+                        toolsEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (toolsEnd !== -1) {
+                    let toolsJson = logContent.substring(toolsStart, toolsEnd);
+                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
+                    try {
+                      const toolsArray = JSON.parse(toolsJson);
+                      if (Array.isArray(toolsArray)) {
+                        tools = toolsArray
+                          .map(tool => {
+                            if (tool.type === "function" && tool.function && tool.function.name) {
+                              let name = tool.function.name;
+                              if (name.startsWith("github-")) {
+                                name = "mcp__github__" + name.substring(7);
+                              } else if (name.startsWith("safe_outputs-")) {
+                                name = name; 
+                              }
+                              return name;
+                            }
+                            return null;
+                          })
+                          .filter(name => name !== null);
+                      }
+                    } catch (e) {
+                    }
+                  }
+                }
+              }
+              let inDataBlock = false;
+              let currentJsonLines = [];
+              let turnCount = 0;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes("[DEBUG] data:")) {
+                  inDataBlock = true;
+                  currentJsonLines = [];
+                  continue;
+                }
+                if (inDataBlock) {
+                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
+                  if (hasTimestamp) {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
+                    if (!isJsonContent) {
+                      if (currentJsonLines.length > 0) {
+                        try {
+                          const jsonStr = currentJsonLines.join("\n");
+                          const jsonData = JSON.parse(jsonStr);
+                          if (jsonData.model) {
+                            model = jsonData.model;
+                          }
+                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                            for (const choice of jsonData.choices) {
+                              if (choice.message) {
+                                const message = choice.message;
+                                const content = [];
+                                const toolResults = []; 
+                                if (message.content && message.content.trim()) {
+                                  content.push({
+                                    type: "text",
+                                    text: message.content,
+                                  });
+                                }
+                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                  for (const toolCall of message.tool_calls) {
+                                    if (toolCall.function) {
+                                      let toolName = toolCall.function.name;
+                                      const originalToolName = toolName; 
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                                      let args = {};
+                                      if (toolName.startsWith("github-")) {
+                                        toolName = "mcp__github__" + toolName.substring(7);
+                                      } else if (toolName === "bash") {
+                                        toolName = "Bash";
+                                      }
+                                      try {
+                                        args = JSON.parse(toolCall.function.arguments);
+                                      } catch (e) {
+                                        args = {};
+                                      }
+                                      content.push({
+                                        type: "tool_use",
+                                        id: toolId,
+                                        name: toolName,
+                                        input: args,
+                                      });
+                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
+                                      toolResults.push({
+                                        type: "tool_result",
+                                        tool_use_id: toolId,
+                                        content: hasError ? "Permission denied or tool execution failed" : "", 
+                                        is_error: hasError, 
+                                      });
+                                    }
+                                  }
+                                }
+                                if (content.length > 0) {
+                                  entries.push({
+                                    type: "assistant",
+                                    message: { content },
+                                  });
+                                  turnCount++;
+                                  if (toolResults.length > 0) {
+                                    entries.push({
+                                      type: "user",
+                                      message: { content: toolResults },
+                                    });
+                                  }
+                                }
+                              }
+                            }
+                            if (jsonData.usage) {
+                              if (!entries._accumulatedUsage) {
+                                entries._accumulatedUsage = {
+                                  input_tokens: 0,
+                                  output_tokens: 0,
+                                };
+                              }
+                              if (jsonData.usage.prompt_tokens) {
+                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                              }
+                              if (jsonData.usage.completion_tokens) {
+                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                              }
+                              entries._lastResult = {
+                                type: "result",
+                                num_turns: turnCount,
+                                usage: entries._accumulatedUsage,
+                              };
+                            }
+                          }
+                        } catch (e) {
+                        }
+                      }
+                      inDataBlock = false;
+                      currentJsonLines = [];
+                      continue; 
+                    } else if (hasTimestamp && isJsonContent) {
+                      currentJsonLines.push(cleanLine);
+                    }
+                  } else {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    currentJsonLines.push(cleanLine);
+                  }
+                }
+              }
+              if (inDataBlock && currentJsonLines.length > 0) {
+                try {
+                  const jsonStr = currentJsonLines.join("\n");
+                  const jsonData = JSON.parse(jsonStr);
+                  if (jsonData.model) {
+                    model = jsonData.model;
+                  }
+                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                    for (const choice of jsonData.choices) {
+                      if (choice.message) {
+                        const message = choice.message;
+                        const content = [];
+                        const toolResults = []; 
+                        if (message.content && message.content.trim()) {
+                          content.push({
+                            type: "text",
+                            text: message.content,
+                          });
+                        }
+                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                          for (const toolCall of message.tool_calls) {
+                            if (toolCall.function) {
+                              let toolName = toolCall.function.name;
+                              const originalToolName = toolName;
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                              let args = {};
+                              if (toolName.startsWith("github-")) {
+                                toolName = "mcp__github__" + toolName.substring(7);
+                              } else if (toolName === "bash") {
+                                toolName = "Bash";
+                              }
+                              try {
+                                args = JSON.parse(toolCall.function.arguments);
+                              } catch (e) {
+                                args = {};
+                              }
+                              content.push({
+                                type: "tool_use",
+                                id: toolId,
+                                name: toolName,
+                                input: args,
+                              });
+                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
+                              toolResults.push({
+                                type: "tool_result",
+                                tool_use_id: toolId,
+                                content: hasError ? "Permission denied or tool execution failed" : "",
+                                is_error: hasError,
+                              });
+                            }
+                          }
+                        }
+                        if (content.length > 0) {
+                          entries.push({
+                            type: "assistant",
+                            message: { content },
+                          });
+                          turnCount++;
+                          if (toolResults.length > 0) {
+                            entries.push({
+                              type: "user",
+                              message: { content: toolResults },
+                            });
+                          }
+                        }
+                      }
+                    }
+                    if (jsonData.usage) {
+                      if (!entries._accumulatedUsage) {
+                        entries._accumulatedUsage = {
+                          input_tokens: 0,
+                          output_tokens: 0,
+                        };
+                      }
+                      if (jsonData.usage.prompt_tokens) {
+                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                      }
+                      if (jsonData.usage.completion_tokens) {
+                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                      }
+                      entries._lastResult = {
+                        type: "result",
+                        num_turns: turnCount,
+                        usage: entries._accumulatedUsage,
+                      };
+                    }
+                  }
+                } catch (e) {
+                }
+              }
+              if (entries.length > 0) {
+                const initEntry = {
+                  type: "system",
+                  subtype: "init",
+                  session_id: sessionId,
+                  model: model,
+                  tools: tools, 
+                };
+                if (modelInfo) {
+                  initEntry.model_info = modelInfo;
+                }
+                entries.unshift(initEntry);
+                if (entries._lastResult) {
+                  entries.push(entries._lastResult);
+                  delete entries._lastResult;
+                }
+              }
+              return entries;
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
-                parseClaudeLog,
+                parseCopilotLog,
+                extractPremiumRequestCount,
               };
             }
             main();
+      - name: Agent Firewall logs
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-github-mcp-structural-analysis/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-github-mcp-structural-analysis/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-github-mcp-structural-analysis/ || true
+          fi
+      - name: Upload Firewall Logs
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: squid-logs-github-mcp-structural-analysis
+          path: /tmp/gh-aw/squid-logs-github-mcp-structural-analysis/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              const clientIpPort = fields[1];
+
+              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+
+                return null;
+
+              }
+
+              const domain = fields[2];
+
+              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+
+                return null;
+
+              }
+
+              const destIpPort = fields[3];
+
+              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+
+                return null;
+
+              }
+
+              const status = fields[6];
+
+              if (status !== "-" && !/^\d+$/.test(status)) {
+
+                return null;
+
+              }
+
+              const decision = fields[7];
+
+              if (decision !== "-" && !decision.includes(":")) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp: timestamp,
+
+                clientIpPort: clientIpPort,
+
+                domain: domain,
+
+                destIpPort: destIpPort,
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: status,
+
+                decision: decision,
+
+                url: fields[8],
+
+                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+              if (validDeniedRequests > 0) {
+
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of validDeniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n</details>\n\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -4084,8 +5211,8 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -4360,7 +5487,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Static Analysis Report"
+          GH_AW_WORKFLOW_NAME: "GitHub MCP Structural Analysis"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4446,7 +5573,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Static Analysis Report"
+          GH_AW_WORKFLOW_NAME: "GitHub MCP Structural Analysis"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4631,8 +5758,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_CATEGORY: "security"
-          GH_AW_WORKFLOW_NAME: "Static Analysis Report"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[mcp-analysis] "
+          GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_WORKFLOW_NAME: "GitHub MCP Structural Analysis"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4877,7 +6005,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -4908,8 +6036,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Static Analysis Report"
-          WORKFLOW_DESCRIPTION: "Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint"
+          WORKFLOW_NAME: "GitHub MCP Structural Analysis"
+          WORKFLOW_DESCRIPTION: "Structural analysis of GitHub MCP tool responses with schema evaluation and usefulness ratings for agentic work"
         with:
           script: |
             const fs = require('fs');
@@ -5015,65 +6143,57 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.51
-      - name: Execute Claude Code CLI
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot@0.0.363
+      - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell(cat)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(jq)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(wc)
         timeout-minutes: 20
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/.copilot/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "60000"
-          BASH_DEFAULT_TIMEOUT_MS: "60000"
-          BASH_MAX_TIMEOUT_MS: "60000"
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -5152,7 +6272,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Static Analysis Report"
+          GH_AW_WORKFLOW_NAME: "GitHub MCP Structural Analysis"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

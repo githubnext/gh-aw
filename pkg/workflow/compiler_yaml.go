@@ -746,9 +746,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
 
-	// NOTE: Safe outputs instructions are now provided via the safe-outputs MCP server
-	// and do not need to be added to the prompt. The agent will discover available
-	// tools through the MCP server's tool discovery mechanism.
+	// Add safe outputs instructions to prompt when safe-outputs are configured
+	// This tells agents to use the safeoutputs MCP server instead of gh CLI
+	c.generateSafeOutputsPromptStep(yaml, HasSafeOutputsEnabled(data.SafeOutputs))
 
 	// Add GitHub context prompt as separate step if GitHub tool is enabled
 	c.generateGitHubContextPromptStep(yaml, data)

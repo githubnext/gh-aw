@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed sh/pr_context_prompt.md
+//go:embed prompts/pr_context_prompt.md
 var prContextPromptText string
 
 //go:embed sh/print_prompt_summary.sh
@@ -24,20 +24,23 @@ var createCacheMemoryDirScript string
 //go:embed sh/create_gh_aw_tmp_dir.sh
 var createGhAwTmpDirScript string
 
-//go:embed sh/xpia_prompt.md
+//go:embed prompts/xpia_prompt.md
 var xpiaPromptText string
 
-//go:embed sh/temp_folder_prompt.md
+//go:embed prompts/temp_folder_prompt.md
 var tempFolderPromptText string
 
-//go:embed sh/github_context_prompt.md
+//go:embed prompts/github_context_prompt.md
 var githubContextPromptText string
 
-//go:embed sh/playwright_prompt.md
+//go:embed prompts/playwright_prompt.md
 var playwrightPromptText string
 
-//go:embed sh/edit_tool_prompt.md
+//go:embed prompts/edit_tool_prompt.md
 var editToolPromptText string
+
+//go:embed prompts/safe_outputs_prompt.md
+var safeOutputsPromptText string
 
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
