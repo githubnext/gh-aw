@@ -30,7 +30,7 @@ const DefaultClaudeCodeVersion Version = "2.0.51"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
-const DefaultCopilotVersion Version = "0.0.363"
+const DefaultCopilotVersion Version = "0.0.358"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.63.0"
