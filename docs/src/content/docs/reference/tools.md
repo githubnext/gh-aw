@@ -126,6 +126,16 @@ tools:
     read-only: true
 ```
 
+**Lockdown Mode**: Limit content from public repositories to items authored by users with push access. Private repositories and collaborator-owned content remain unaffected:
+
+```yaml wrap
+tools:
+  github:
+    lockdown: true
+```
+
+Lockdown mode filters issue comments, sub-issues, and PR content to prevent exposure of potentially untrusted content from public repositories. Useful for security-sensitive workflows processing public repository data.
+
 ## Playwright Tool (`playwright:`)
 
 Enables browser automation using containerized Playwright with domain-based access control:
