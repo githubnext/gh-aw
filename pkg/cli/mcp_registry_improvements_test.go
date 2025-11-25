@@ -33,7 +33,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 			name:          "404 Not Found",
 			statusCode:    404,
 			responseBody:  "Not found",
-			expectedError: "verify the registry URL is correct",
+			expectedError: "verify the URL is correct",
 		},
 		{
 			name:          "429 Rate Limited",
