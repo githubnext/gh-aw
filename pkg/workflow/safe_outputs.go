@@ -166,7 +166,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString(fmt.Sprintf("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **%s** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n", constants.SafeOutputsMCPServerID))
+	yaml.WriteString(fmt.Sprintf("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **%s** tools, do NOT attempt to use gh, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n", constants.SafeOutputsMCPServerID))
 	yaml.WriteString("          \n")
 
 	if safeOutputs.AddComments != nil {
