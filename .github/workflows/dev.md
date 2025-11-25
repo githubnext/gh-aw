@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 name: Dev
 description: Test workflow for development and experimentation purposes
+# Using experimental Claude engine for testing
 engine: claude
 permissions:
   contents: read
