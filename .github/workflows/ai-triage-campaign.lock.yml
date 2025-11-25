@@ -4036,16 +4036,18 @@ jobs:
                 }
               `;
               try {
-                const { getOctokit } = require("@actions/github");
                 const mutationToken = process.env.GH_AW_AGENT_TOKEN;
                 if (!mutationToken) {
                   core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
                 core.info("Using GH_AW_AGENT_TOKEN for mutation");
-                const mutationClient = getOctokit(mutationToken);
                 core.debug(`GraphQL mutation: ${mutation}`);
-                const response = await mutationClient.graphql(mutation);
+                const response = await github.graphql(mutation, {
+                  headers: {
+                    authorization: `token ${mutationToken}`,
+                  },
+                });
                 if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
@@ -4089,9 +4091,12 @@ jobs:
                       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
                       core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
-                      const fallbackClient = getOctokit(fallbackToken);
                       core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
-                      const fallbackResp = await fallbackClient.graphql(fallbackMutation);
+                      const fallbackResp = await github.graphql(fallbackMutation, {
+                        headers: {
+                          authorization: `token ${fallbackToken}`,
+                        },
+                      });
                       if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
                         core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
                         return true;
