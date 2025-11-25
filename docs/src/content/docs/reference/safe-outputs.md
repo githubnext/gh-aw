@@ -382,10 +382,12 @@ safe-outputs:
 
 **Token Requirements:**
 
-The default `GITHUB_TOKEN` lacks permission to assign agents. Create a fine-grained personal access token with these permissions and store it as the `COPILOT_GITHUB_TOKEN` secret:
+The default `GITHUB_TOKEN` lacks permission to assign agents. The `replaceActorsForAssignable` mutation requires elevated permissions. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
 
-- **Read** access to metadata
+- **Read** access to metadata (granted by default)
 - **Write** access to actions, contents, issues, and pull requests
+
+Without this token, agent assignment will fail with a clear error message
 
 ```yaml wrap
 safe-outputs:
