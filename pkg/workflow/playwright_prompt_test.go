@@ -58,13 +58,9 @@ This is a test workflow with playwright enabled.
 		t.Error("Expected playwright output directory path /tmp/gh-aw/mcp-logs/playwright/ in generated workflow")
 	}
 
-	// Test 3: Verify the instruction mentions Playwright and output-dir
-	if !strings.Contains(lockStr, "Playwright Output Directory") {
-		t.Error("Expected 'Playwright Output Directory' header in generated workflow")
-	}
-
-	if !strings.Contains(lockStr, "--output-dir") {
-		t.Error("Expected '--output-dir' reference in generated workflow")
+	// Test 3: Verify the instruction contains playwright-output XML tag
+	if !strings.Contains(lockStr, "<playwright-output>") {
+		t.Error("Expected '<playwright-output>' XML tag in generated workflow")
 	}
 
 	t.Logf("Successfully verified playwright output directory instructions are included in generated workflow")
