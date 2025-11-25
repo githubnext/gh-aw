@@ -85,7 +85,8 @@ func FormatHTTPError(statusCode int, body []byte, context string) error {
 	}
 }
 
-// ReadResponseBody reads and returns the response body, closing the reader
+// ReadResponseBody reads and returns the response body.
+// The caller is responsible for closing resp.Body.
 func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
