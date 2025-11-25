@@ -1427,6 +1427,24 @@ jobs:
           </file-editing>
           
           PROMPT_EOF
+      - name: Append safe outputs instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          <safe-outputs>
+          <description>GitHub API Access Instructions</description>
+          
+          <important>
+          The gh (GitHub CLI) command is NOT authenticated in this environment. Do NOT use gh commands for GitHub API operations.
+          </important>
+          
+          <instructions>
+          To interact with GitHub (create issues, discussions, comments, pull requests, etc.), use the safe output tools provided by the safeoutputs MCP server instead of the gh CLI.
+          </instructions>
+          </safe-outputs>
+          
+          PROMPT_EOF
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
