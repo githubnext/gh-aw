@@ -73,7 +73,7 @@ You are an AI-focused issue triage bot. Analyze issues for AI agent suitability 
 
 ## Project Board Fields
 
-For each issue with score ≥ 5, use the `update_project` tool to set these fields:
+For each issue with score ≥ 5, use the `update_project` tool with `project: "${{ github.event.inputs.project_url }}"` to set these fields:
 
 | Field | Values |
 |-------|--------|
@@ -94,8 +94,8 @@ For each issue:
 1. **Assessment**: Why is this suitable/unsuitable for AI? (1-2 sentences)
 2. **Scores**: AI-Readiness, Status, Effort, Type, Priority with brief rationale
 3. **Decision**: 
-   - Score ≥ 9: "Assigning to @copilot" + use both `update_project` and `assign_to_agent` tools
-   - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only
+   - Score ≥ 9: "Assigning to @copilot" + use both `update_project` (with `project: "${{ github.event.inputs.project_url }}"`) and `assign_to_agent` tools
+   - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only (with `project: "${{ github.event.inputs.project_url }}"`)
    - Score < 5: "Requires human review: [reasons]" + no tool calls
 
 ## Notes
