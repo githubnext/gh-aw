@@ -1687,7 +1687,6 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           ## Report Formatting
           
@@ -2230,7 +2229,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           6. ✅ A formatted discussion is created with actionable findings
           7. ✅ Recommendations are prioritized by impact and effort
@@ -2242,7 +2240,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Security and XPIA Protection
           
@@ -2272,7 +2269,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Temporary Files
           
@@ -2283,7 +2279,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## File Editing Access
           
@@ -2299,7 +2294,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           
           ---
@@ -2317,7 +2311,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## GitHub Context
           

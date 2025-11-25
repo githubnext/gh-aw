@@ -39,11 +39,6 @@ var playwrightPromptText string
 //go:embed sh/edit_tool_prompt.md
 var editToolPromptText string
 
-// shellcheckDisableBackticks is a comment directive that suppresses shellcheck SC2006 and SC2287
-// warnings for heredoc blocks containing markdown with backticks. These warnings are false positives
-// since the backticks are part of the documentation text, not command substitution.
-const shellcheckDisableBackticks = "# shellcheck disable=SC2006,SC2287\n"
-
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")
@@ -65,8 +60,6 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 	// Write each chunk as a separate heredoc
 	// Use quoted heredoc and envsubst for safe environment variable substitution
 	for _, chunk := range chunks {
-		// shellcheck disable directive suppresses false positives from markdown backticks
-		yaml.WriteString(indent + shellcheckDisableBackticks)
 		yaml.WriteString(indent + "cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)

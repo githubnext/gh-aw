@@ -682,8 +682,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if len(chunks) > 0 {
 		// Use quoted heredoc marker to prevent shell variable expansion
 		// Pipe through envsubst to substitute environment variables
-		// shellcheck disable directive suppresses false positives from markdown backticks
-		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
@@ -706,8 +704,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        run: |\n")
 		// Use quoted heredoc marker to prevent shell variable expansion
 		// Pipe through envsubst to substitute environment variables
-		// shellcheck disable directive suppresses false positives from markdown backticks
-		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
@@ -741,8 +737,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		// shellcheck disable directive suppresses false positives from markdown backticks
-		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))

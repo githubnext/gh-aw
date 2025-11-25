@@ -1072,7 +1072,6 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Close Old Discussions Created by GitHub Actions Bot
           
@@ -1128,7 +1127,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Security and XPIA Protection
           
@@ -1158,7 +1156,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Temporary Files
           
@@ -1169,7 +1166,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           
           ---
@@ -1187,7 +1183,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## GitHub Context
           

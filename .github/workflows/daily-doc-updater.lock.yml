@@ -1294,7 +1294,6 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Daily Documentation Updater
           
@@ -1462,7 +1461,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Security and XPIA Protection
           
@@ -1492,7 +1490,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## Temporary Files
           
@@ -1503,7 +1500,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## File Editing Access
           
@@ -1519,7 +1515,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           
           ---
@@ -1545,7 +1540,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           
           ---
@@ -1572,7 +1566,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           ## GitHub Context
           
@@ -4754,7 +4747,6 @@ jobs:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
-          # shellcheck disable=SC2086
           gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
             -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 
