@@ -184,14 +184,16 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     // SECURITY: Use GH_AW_AGENT_TOKEN environment variable for the mutation
     // This is more privileged than the github-token parameter (GITHUB_TOKEN) used for read operations
     // The mutation requires: Write actions/contents/issues/pull-requests
-    const { Octokit } = require("@octokit/rest");
+    const { getOctokit } = require("@actions/github");
     const mutationToken = process.env.GH_AW_AGENT_TOKEN;
     if (!mutationToken) {
       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
       return false;
     }
+    core.info("Using GH_AW_AGENT_TOKEN for mutation");
 
-    const mutationClient = new Octokit({ auth: mutationToken });
+    const mutationClient = getOctokit(mutationToken);
+    core.debug(`GraphQL mutation: ${mutation}`);
     const response = await mutationClient.graphql(mutation);
 
     if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
@@ -244,12 +246,14 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       try {
         // SECURITY: Use same GH_AW_AGENT_TOKEN environment variable for fallback mutation
         const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
-        const { Octokit } = require("@octokit/rest");
+        const { getOctokit } = require("@actions/github");
         const fallbackToken = process.env.GH_AW_AGENT_TOKEN;
         if (!fallbackToken) {
           core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
         } else {
-          const fallbackClient = new Octokit({ auth: fallbackToken });
+          core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
+          const fallbackClient = getOctokit(fallbackToken);
+          core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
           const fallbackResp = await fallbackClient.graphql(fallbackMutation);
           if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
             core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
