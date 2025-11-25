@@ -719,3 +719,227 @@ This workflow uses only imported safe-outputs configuration.
 	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported")
 	assert.Equal(t, "ubuntu-22.04", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
 }
+
+// TestSafeOutputsImportJobsFromSharedWorkflow tests that safe-outputs.jobs can be imported from shared workflows
+func TestSafeOutputsImportJobsFromSharedWorkflow(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with safe-outputs.jobs configuration
+	sharedWorkflow := `---
+safe-outputs:
+  jobs:
+    my-custom-job:
+      name: "My Custom Job"
+      runs-on: ubuntu-latest
+      permissions:
+        contents: read
+        issues: write
+      steps:
+        - name: Run custom action
+          run: echo "Hello from custom job"
+---
+
+# Shared Safe Jobs Configuration
+
+This shared workflow provides custom safe-job definitions.
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-safe-jobs.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that imports the safe-jobs configuration
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-safe-jobs.md
+---
+
+# Main Workflow
+
+This workflow imports safe-jobs from a shared workflow.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify that jobs were imported
+	require.NotNil(t, workflowData.SafeOutputs.Jobs, "Jobs should be imported")
+	require.Contains(t, workflowData.SafeOutputs.Jobs, "my-custom-job", "my-custom-job should be present")
+
+	// Verify job configuration
+	job := workflowData.SafeOutputs.Jobs["my-custom-job"]
+	assert.Equal(t, "My Custom Job", job.Name, "Job name should match")
+	assert.Equal(t, "ubuntu-latest", job.RunsOn, "Job runs-on should match")
+	assert.Len(t, job.Steps, 1, "Job should have 1 step")
+	assert.Contains(t, job.Permissions, "contents", "Job should have contents permission")
+	assert.Contains(t, job.Permissions, "issues", "Job should have issues permission")
+}
+
+// TestSafeOutputsImportJobsWithMainWorkflowJobs tests importing jobs when main workflow also has jobs
+func TestSafeOutputsImportJobsWithMainWorkflowJobs(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with safe-outputs.jobs configuration
+	sharedWorkflow := `---
+safe-outputs:
+  jobs:
+    imported-job:
+      name: "Imported Job"
+      runs-on: ubuntu-latest
+      steps:
+        - name: Imported step
+          run: echo "Imported"
+---
+
+# Shared Safe Jobs Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-jobs.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that has its own jobs AND imports jobs
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-jobs.md
+safe-outputs:
+  jobs:
+    main-job:
+      name: "Main Job"
+      runs-on: ubuntu-latest
+      steps:
+        - name: Main step
+          run: echo "Main"
+---
+
+# Main Workflow with Jobs
+
+This workflow has its own jobs and imports more jobs.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify that both main and imported jobs are present
+	require.NotNil(t, workflowData.SafeOutputs.Jobs, "Jobs should not be nil")
+	require.Contains(t, workflowData.SafeOutputs.Jobs, "main-job", "main-job should be present")
+	require.Contains(t, workflowData.SafeOutputs.Jobs, "imported-job", "imported-job should be imported")
+
+	// Verify both job configurations
+	mainJob := workflowData.SafeOutputs.Jobs["main-job"]
+	assert.Equal(t, "Main Job", mainJob.Name, "Main job name should match")
+
+	importedJob := workflowData.SafeOutputs.Jobs["imported-job"]
+	assert.Equal(t, "Imported Job", importedJob.Name, "Imported job name should match")
+}
+
+// TestSafeOutputsImportJobsConflict tests that a conflict error is returned when the same job name is defined in both main and imported workflow
+func TestSafeOutputsImportJobsConflict(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with safe-outputs.jobs configuration
+	sharedWorkflow := `---
+safe-outputs:
+  jobs:
+    duplicate-job:
+      name: "Shared Duplicate Job"
+      runs-on: ubuntu-latest
+      steps:
+        - name: Shared step
+          run: echo "Shared"
+---
+
+# Shared Safe Jobs Configuration with Duplicate
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-duplicate.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that has the same job name (conflict)
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-duplicate.md
+safe-outputs:
+  jobs:
+    duplicate-job:
+      name: "Main Duplicate Job"
+      runs-on: ubuntu-latest
+      steps:
+        - name: Main step
+          run: echo "Main"
+---
+
+# Main Workflow with Duplicate Job Name
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow - should fail with conflict error
+	_, err = compiler.ParseWorkflowFile("main.md")
+	require.Error(t, err, "Expected conflict error")
+	assert.Contains(t, err.Error(), "duplicate-job", "Error should mention the conflicting job name")
+	assert.Contains(t, err.Error(), "conflict", "Error should mention conflict")
+}
