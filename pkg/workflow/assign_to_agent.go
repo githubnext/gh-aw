@@ -50,7 +50,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	} else {
 		tokenValue = "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", tokenValue))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_TOKEN: %s\n", tokenValue))
 
 	// Pass the target configuration
 
@@ -71,16 +71,17 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	// Use the shared builder function to create the job
 	// Note: replaceActorsForAssignable GraphQL mutation requires all four write permissions
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "assign_to_agent",
-		StepName:       "Assign to Agent",
-		StepID:         "assign_to_agent",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getAssignToAgentScript(),
-		Permissions:    NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
-		Outputs:        outputs,
-		Token:          token,
-		Condition:      BuildSafeOutputType("assign_to_agent"),
-		TargetRepoSlug: data.SafeOutputs.AssignToAgent.TargetRepoSlug,
+		JobName:         "assign_to_agent",
+		StepName:        "Assign to Agent",
+		StepID:          "assign_to_agent",
+		MainJobName:     mainJobName,
+		CustomEnvVars:   customEnvVars,
+		Script:          getAssignToAgentScript(),
+		Permissions:     NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
+		Outputs:         outputs,
+		Token:           token,
+		UseCopilotToken: true,
+		Condition:       BuildSafeOutputType("assign_to_agent"),
+		TargetRepoSlug:  data.SafeOutputs.AssignToAgent.TargetRepoSlug,
 	})
 }
