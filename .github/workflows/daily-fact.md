@@ -11,13 +11,13 @@ permissions:
   actions: read
   discussions: read
 tracker-id: daily-fact-thread
-engine: copilot
+engine: codex
+strict: false  # Required: codex engine doesn't support network firewall
 timeout-minutes: 15
 
 network:
   allowed:
     - defaults
-  firewall: true
 
 tools:
   github:

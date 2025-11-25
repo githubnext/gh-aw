@@ -184,17 +184,29 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     // SECURITY: Use GH_AW_AGENT_TOKEN environment variable for the mutation
     // This is more privileged than the github-token parameter (GITHUB_TOKEN) used for read operations
     // The mutation requires: Write actions/contents/issues/pull-requests
-    const { Octokit } = require("@octokit/rest");
     const mutationToken = process.env.GH_AW_AGENT_TOKEN;
     if (!mutationToken) {
       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
       return false;
     }
+    core.info("Using GH_AW_AGENT_TOKEN for mutation");
 
-    const mutationClient = new Octokit({ auth: mutationToken });
-    const response = await mutationClient.graphql(mutation);
+    // Make raw GraphQL request with custom token
+    core.debug(`GraphQL mutation: ${mutation}`);
+    const response = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${mutationToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: mutation }),
+    }).then(res => res.json());
 
-    if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+    if (response.errors && response.errors.length > 0) {
+      throw new Error(response.errors[0].message);
+    }
+
+    if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
       return true;
     } else {
       core.error("Unexpected response from GitHub API");
@@ -244,14 +256,21 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       try {
         // SECURITY: Use same GH_AW_AGENT_TOKEN environment variable for fallback mutation
         const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
-        const { Octokit } = require("@octokit/rest");
         const fallbackToken = process.env.GH_AW_AGENT_TOKEN;
         if (!fallbackToken) {
           core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
         } else {
-          const fallbackClient = new Octokit({ auth: fallbackToken });
-          const fallbackResp = await fallbackClient.graphql(fallbackMutation);
-          if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+          core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
+          core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
+          const fallbackResp = await fetch("https://api.github.com/graphql", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${fallbackToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: fallbackMutation }),
+          }).then(res => res.json());
+          if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
             core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
             return true;
           } else {
