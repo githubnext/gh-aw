@@ -14,6 +14,7 @@ permissions:
 
 tracker-id: daily-doc-updater
 engine: claude
+strict: false
 
 network:
   allowed:

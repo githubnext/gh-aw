@@ -28,6 +28,7 @@ on:
     types: [opened]
 permissions:
   issues: write
+strict: false
 tools:
   github:
     toolsets: [issues]
@@ -51,6 +52,7 @@ on:
     - cron: "0 9 * * 1"
 permissions:
   issues: write
+strict: false
 tools:
   github:
     toolsets: [issues]

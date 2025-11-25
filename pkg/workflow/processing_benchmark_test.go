@@ -19,6 +19,7 @@ on: push
 permissions:
   contents: read
 engine: claude
+strict: false
 tools:
   github:
     allowed: [get_issue, add_issue_comment]
@@ -59,6 +60,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: copilot
+strict: false
 tools:
   github:
     mode: remote
@@ -108,6 +110,7 @@ on: push
 permissions:
   contents: read
 engine: claude
+strict: false
 safe-outputs:
   create-issues:
     title-prefix: "[ai] "
@@ -147,6 +150,7 @@ on: pull_request
 permissions:
   contents: read
 engine: copilot
+strict: false
 safe-outputs:
   create-issues:
     title-prefix: "[ai] "
@@ -201,6 +205,7 @@ on: push
 permissions:
   contents: read
 engine: copilot
+strict: false
 network:
   allowed:
     - defaults
@@ -247,6 +252,7 @@ permissions:
   discussions: write
   deployments: write
 engine: claude
+strict: false
 ---
 
 # Permissions Test
@@ -282,6 +288,7 @@ permissions:
   contents: read
   issues: write
 engine: claude
+strict: false
 ---
 
 # Roles Test

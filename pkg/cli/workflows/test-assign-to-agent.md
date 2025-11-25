@@ -37,6 +37,7 @@ safe-outputs:
   assign-to-agent:
     max: 5
     name: copilot
+strict: false
 ---
 
 # Assign to Agent Test Workflow

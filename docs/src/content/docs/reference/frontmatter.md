@@ -177,10 +177,11 @@ Workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`) au
 
 ### Strict Mode (`strict:`)
 
-Enables enhanced validation for production workflows, enforcing security constraints. When enabled, the compiler rejects workflows that don't meet strict mode requirements.
+Enables enhanced validation for production workflows, enforcing security constraints. Strict mode is **enabled by default** in agentic workflows to promote security best practices.
 
 ```yaml wrap
-strict: true  # Enable (default: false)
+strict: true   # Enable (default)
+strict: false  # Explicitly disable for development/testing
 ```
 
 **Enforcement Areas:**
@@ -199,14 +200,19 @@ Strict mode enforces the following security constraints:
 
 6. **Deprecated Fields**: Refuses use of deprecated frontmatter fields.
 
-**Enabling Strict Mode:**
+**Enabling/Disabling Strict Mode:**
 
-Strict mode can be enabled in two ways:
+Strict mode defaults to `true` and can be controlled in two ways:
 
-- **Frontmatter field**: `strict: true` (per-workflow control)
-- **CLI flag**: `gh aw compile --strict` (applies to all workflows, takes precedence)
+- **Frontmatter field**: `strict: true` or `strict: false` (per-workflow control)
+- **CLI flag**: `gh aw compile --strict` (applies to all workflows, takes precedence over frontmatter)
 
-The CLI flag enables strict mode for all workflows being compiled and cannot be overridden by individual workflow frontmatter. The frontmatter field allows per-workflow strict mode but cannot disable strict mode when the CLI flag is set.
+**Default Behavior:**
+- When `strict:` is **not specified** in frontmatter → defaults to `true`
+- When `strict: false` is explicitly set → strict mode is disabled
+- When `gh aw compile --strict` is used → strict mode is enforced regardless of frontmatter
+
+The CLI flag takes precedence over frontmatter settings. When you explicitly use `--strict`, it enforces strict mode for all workflows, even if individual workflows have `strict: false`. This is useful for CI/CD pipelines that require strict validation.
 
 See [CLI Commands](/gh-aw/setup/cli/#compile) for detailed `--strict` flag documentation and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for security best practices.
 

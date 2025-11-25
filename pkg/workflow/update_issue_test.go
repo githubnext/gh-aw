@@ -22,6 +22,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   update-issue:
 ---
@@ -89,6 +90,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   update-issue:
     max: 3
@@ -161,6 +163,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   update-issue:
     target: "123"

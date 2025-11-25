@@ -14,6 +14,7 @@ permissions:
   actions: read
 
 engine: claude
+strict: false
 
 network:
   allowed:

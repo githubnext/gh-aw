@@ -10,6 +10,7 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
     read-only: false
+strict: false
 ---
 
 # Example: Properly Provisioned Permissions

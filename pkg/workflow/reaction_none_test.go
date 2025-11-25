@@ -26,6 +26,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -112,6 +113,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -200,6 +202,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+strict: false
 safe-outputs:
   add-comment:
 ---

@@ -18,6 +18,7 @@ tracker-id: daily-multi-device-docs-tester
 engine:
   id: claude
   max-turns: 30  # Prevent runaway token usage
+strict: false
 timeout-minutes: 30
 tools:
   playwright:

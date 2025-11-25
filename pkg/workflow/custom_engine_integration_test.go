@@ -25,6 +25,7 @@ func TestCustomEngineWorkflowCompilation(t *testing.T) {
 			name: "custom engine with simple steps",
 			content: `---
 on: push
+strict: false
 permissions:
   contents: read
   issues: write

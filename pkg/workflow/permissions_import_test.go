@@ -118,6 +118,7 @@ permissions:
 		mainWorkflowContent := `---
 on: issues
 engine: copilot
+strict: false
 permissions:
   contents: read
   issues: read
@@ -169,6 +170,7 @@ tools:
 		mainWorkflowContent := `---
 on: issues
 engine: copilot
+strict: false
 permissions:
   contents: read
   issues: read
@@ -222,6 +224,7 @@ permissions:
 		mainWorkflowContent := `---
 on: issues
 engine: copilot
+strict: false
 permissions:
   contents: read
   issues: read
@@ -258,6 +261,7 @@ tools:
 		mainWorkflowContent := `---
 on: issues
 engine: copilot
+strict: false
 permissions:
   contents: read
   issues: read

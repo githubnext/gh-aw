@@ -21,6 +21,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   create-issue:
     title-prefix: "[genai] "
@@ -85,6 +86,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 ---
 
 # Test No Output Configuration
@@ -123,6 +125,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   create-issue:
   create-pull-request:
@@ -207,6 +210,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   create-issue:
     title-prefix: "[genai] "
@@ -289,6 +293,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -335,6 +340,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -381,6 +387,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
     target: "*"
@@ -432,6 +439,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
     max: 3
@@ -491,6 +499,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -583,6 +592,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-comment:
 ---
@@ -651,6 +661,7 @@ permissions:
   pull-requests: write
   issues: read
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -718,6 +729,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -827,6 +839,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -898,6 +911,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -968,6 +982,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement, needs-review]
@@ -1030,6 +1045,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement]
@@ -1132,6 +1148,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     max: 5
@@ -1213,6 +1230,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
 ---
@@ -1298,6 +1316,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
 ---
@@ -1354,6 +1373,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement, needs-review]
@@ -1420,6 +1440,7 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement]
@@ -1466,6 +1487,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement]
@@ -1533,6 +1555,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement]
@@ -1591,6 +1614,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   add-labels:
     allowed: []
@@ -1633,6 +1657,7 @@ permissions:
   issues: write
   pull-requests: read
 engine: claude
+strict: false
 safe-outputs:
   add-labels: {}
 ---
@@ -1673,6 +1698,7 @@ permissions:
   pull-requests: write
   issues: read
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -1719,6 +1745,7 @@ permissions:
   pull-requests: write
   issues: read
 engine: claude
+strict: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "

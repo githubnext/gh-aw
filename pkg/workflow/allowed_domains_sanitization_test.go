@@ -59,6 +59,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 network:
   allowed:
     - example.com
@@ -141,6 +142,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+strict: false
 network:
   allowed:
     - python

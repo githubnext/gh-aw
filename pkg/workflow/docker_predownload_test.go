@@ -84,6 +84,7 @@ Test workflow.`,
 			name: "Custom MCP server with container",
 			frontmatter: `---
 on: issues
+strict: false
 engine: claude
 mcp-servers:
   custom-tool:

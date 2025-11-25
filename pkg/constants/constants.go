@@ -29,7 +29,7 @@ const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 const DefaultClaudeCodeVersion Version = "2.0.50"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion Version = "0.0.358"
+const DefaultCopilotVersion Version = "0.0.363"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.63.0"
@@ -38,7 +38,7 @@ const DefaultCodexVersion Version = "0.63.0"
 const DefaultGitHubMCPServerVersion Version = "v0.22.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.1.1"
+const DefaultFirewallVersion Version = "v0.2.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.47"

@@ -20,6 +20,8 @@ permissions:
   pull-requests: read
   issues: read
 
+strict: false
+
 # AI engine configuration
 engine:
   id: claude

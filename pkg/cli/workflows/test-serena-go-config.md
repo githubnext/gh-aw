@@ -10,6 +10,7 @@ tools:
         version: "1.21"
         go-mod-file: "go.mod"
         gopls-version: "v0.14.2"
+strict: false
 ---
 
 # Test Serena Go Configuration

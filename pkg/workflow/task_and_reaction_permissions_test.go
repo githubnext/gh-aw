@@ -25,6 +25,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+strict: false
 ---
 
 # Test Workflow for Task and Add Reaction

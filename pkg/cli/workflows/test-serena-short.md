@@ -5,6 +5,7 @@ permissions:
   contents: read
 tools:
   serena: ["go", "typescript"]
+strict: false
 ---
 
 # Test Serena Short Syntax

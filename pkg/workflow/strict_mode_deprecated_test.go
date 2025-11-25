@@ -59,6 +59,7 @@ permissions:
   contents: read
 timeout_minutes: 10
 engine: copilot
+strict: false
 ---
 
 # Test Workflow`,
