@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 )
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
@@ -20,57 +19,33 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
-	// Handle case where AddLabels is nil (equivalent to empty configuration)
-	var allowedLabels []string
+	cfg := data.SafeOutputs.AddLabels
+
+	// Determine max count (default is 3)
 	maxCount := 3
-
-	allowedLabels = data.SafeOutputs.AddLabels.Allowed
-	if data.SafeOutputs.AddLabels.Max > 0 {
-		maxCount = data.SafeOutputs.AddLabels.Max
+	if cfg.Max > 0 {
+		maxCount = cfg.Max
 	}
 
-	// Build custom environment variables specific to add-labels
-	var customEnvVars []string
-	// Pass the allowed labels list (empty string if no restrictions)
-	allowedLabelsStr := strings.Join(allowedLabels, ",")
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
-	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_MAX_COUNT: %d\n", maxCount))
-
-	// Pass the target configuration
-	if data.SafeOutputs.AddLabels.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AddLabels.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("add_labels")
-	if data.SafeOutputs.AddLabels.Target == "" {
-		eventCondition := buildOr(
-			BuildPropertyAccess("github.event.issue.number"),
-			BuildPropertyAccess("github.event.pull_request.number"),
-		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+	// Use the shared list-based builder
+	return c.buildListSafeOutputJob(data, ListSafeOutputJobParams{
 		JobName:        "add_labels",
 		StepName:       "Add Labels",
 		StepID:         "add_labels",
 		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
+		EnvPrefix:      "LABELS",
+		AllowedItems:   cfg.Allowed,
+		MaxCount:       maxCount,
+		Target:         cfg.Target,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 		Script:         getAddLabelsScript(),
 		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          data.SafeOutputs.AddLabels.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.AddLabels.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		OutputKey:      "labels_added",
+		// Labels can be added to both issues and PRs
+		TriggeringContextConditions: []ConditionNode{
+			BuildPropertyAccess("github.event.issue.number"),
+			BuildPropertyAccess("github.event.pull_request.number"),
+		},
 	})
 }

@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 )
 
 // AddReviewerConfig holds configuration for adding reviewers to PRs from agent output
@@ -20,58 +19,33 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
-	// Handle case where AddReviewer configuration is provided
-	var allowedReviewers []string
+	cfg := data.SafeOutputs.AddReviewer
+
+	// Determine max count (default is 3)
 	maxCount := 3
-
-	if data.SafeOutputs.AddReviewer != nil {
-		allowedReviewers = data.SafeOutputs.AddReviewer.Reviewers
-		if data.SafeOutputs.AddReviewer.Max > 0 {
-			maxCount = data.SafeOutputs.AddReviewer.Max
-		}
+	if cfg.Max > 0 {
+		maxCount = cfg.Max
 	}
 
-	// Build custom environment variables specific to add-reviewer
-	var customEnvVars []string
-	// Pass the allowed reviewers list (empty string if no restrictions)
-	allowedReviewersStr := strings.Join(allowedReviewers, ",")
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_REVIEWERS_ALLOWED: %q\n", allowedReviewersStr))
-	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_REVIEWERS_MAX_COUNT: %d\n", maxCount))
-
-	// Pass the target configuration
-	if data.SafeOutputs.AddReviewer != nil && data.SafeOutputs.AddReviewer.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_REVIEWERS_TARGET: %q\n", data.SafeOutputs.AddReviewer.Target))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AddReviewer.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"reviewers_added": "${{ steps.add_reviewer.outputs.reviewers_added }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("add_reviewer")
-	if data.SafeOutputs.AddReviewer.Target == "" {
-		// Only run if in PR context when target is not specified
-		prCondition := BuildPropertyAccess("github.event.pull_request.number")
-		jobCondition = buildAnd(jobCondition, prCondition)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+	// Use the shared list-based builder
+	return c.buildListSafeOutputJob(data, ListSafeOutputJobParams{
 		JobName:        "add_reviewer",
 		StepName:       "Add Reviewers",
 		StepID:         "add_reviewer",
 		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
+		EnvPrefix:      "REVIEWERS",
+		AllowedItems:   cfg.Reviewers,
+		MaxCount:       maxCount,
+		Target:         cfg.Target,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 		Script:         getAddReviewerScript(),
 		Permissions:    NewPermissionsContentsReadPRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          data.SafeOutputs.AddReviewer.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.AddReviewer.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		OutputKey:      "reviewers_added",
+		// Reviewers can only be added to PRs
+		TriggeringContextConditions: []ConditionNode{
+			BuildPropertyAccess("github.event.pull_request.number"),
+		},
 	})
 }
 
@@ -101,7 +75,7 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 			// Parse max
 			if max, exists := configMap["max"]; exists {
-				if maxInt, ok := max.(int); ok {
+				if maxInt, ok := parseIntValue(max); ok {
 					addReviewerConfig.Max = maxInt
 				}
 			}
