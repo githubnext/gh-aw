@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -160,7 +161,7 @@ func CheckAndPrepareDockerImages(useZizmor, usePoutine, useActionlint bool) erro
 
 		msg.WriteString("\nRetry in 15-30 seconds.")
 
-		return fmt.Errorf("%s", msg.String())
+		return errors.New(msg.String())
 	}
 
 	return nil

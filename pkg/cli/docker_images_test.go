@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -263,12 +264,8 @@ func TestMockImageAvailability(t *testing.T) {
 // containsAny checks if s contains any of the substrings
 func containsAny(s string, substrings ...string) bool {
 	for _, sub := range substrings {
-		if len(sub) > 0 && len(s) >= len(sub) {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
+		if strings.Contains(s, sub) {
+			return true
 		}
 	}
 	return false
