@@ -88,6 +88,30 @@ safe-outputs:
     target-repo: "owner/repo"        # cross-repository
 ```
 
+#### Temporary IDs for Issue References
+
+When creating multiple issues, use temporary IDs to reference parent issues before they're created. The agent provides a `temporary_id` field with format `aw_` followed by 12 hex characters.
+
+**Agent Output Format:**
+```json
+[
+  {
+    "type": "create_issue",
+    "title": "Parent Issue",
+    "body": "This is the parent issue",
+    "temporary_id": "aw_abc123def456"
+  },
+  {
+    "type": "create_issue",
+    "title": "Sub Issue",
+    "body": "References #aw_abc123def456",
+    "parent": "aw_abc123def456"
+  }
+]
+```
+
+References like `#aw_abc123def456` in issue bodies are automatically replaced with the actual issue number (e.g., `#42`) after the parent issue is created. The `parent` field creates a sub-issue relationship.
+
 ### Close Issue (`close-issue:`)
 
 Closes GitHub issues with an optional comment and state reason. Filters by labels and title prefix control which issues can be closed.
