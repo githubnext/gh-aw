@@ -90,11 +90,6 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected GH_AW_SAFE_OUTPUTS environment variable to be passed to engine")
 	}
 
-	// Verify prompt contains output instructions
-	if !strings.Contains(lockContent, "## Adding Labels to Issues or Pull Requests") {
-		t.Error("Expected output instructions to be injected into prompt")
-	}
-
 	// Verify Claude engine no longer has upload steps (Claude CLI no longer produces output.txt)
 	if strings.Contains(lockContent, "- name: Upload engine output files") {
 		t.Error("Claude workflow should NOT have 'Upload engine output files' step (Claude CLI no longer produces output.txt)")

@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAgentTaskWorkflowCompilation(t *testing.T) {
@@ -161,28 +159,5 @@ Create a GitHub Copilot agent task in another repository.
 	// Verify base branch configuration
 	if !strings.Contains(lockYAML, "GITHUB_AW_AGENT_TASK_BASE") {
 		t.Error("create_agent_task job missing GITHUB_AW_AGENT_TASK_BASE env var")
-	}
-}
-
-func TestAgentTaskPromptSection(t *testing.T) {
-	config := &SafeOutputsConfig{
-		CreateAgentTasks: &CreateAgentTaskConfig{},
-	}
-
-	var builder strings.Builder
-	generateSafeOutputsPromptSection(&builder, config)
-	prompt := builder.String()
-
-	// Verify the prompt includes agent task instructions
-	if !strings.Contains(prompt, "Creating an Agent Task") {
-		t.Error("Prompt section missing 'Creating an Agent Task' header")
-	}
-
-	if !strings.Contains(prompt, "create-agent-task") {
-		t.Error("Prompt section missing create-agent-task tool reference")
-	}
-
-	if !strings.Contains(prompt, constants.SafeOutputsMCPServerID) {
-		t.Error("Prompt section missing safeoutputs MCP reference")
 	}
 }

@@ -750,9 +750,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
 
-	// Add safe outputs prompt as separate step if enabled
-	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
-
 	// Add GitHub context prompt as separate step if GitHub tool is enabled
 	c.generateGitHubContextPromptStep(yaml, data)
 

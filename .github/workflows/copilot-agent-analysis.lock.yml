@@ -2436,24 +2436,6 @@ jobs:
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
-      - name: Append safe outputs instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # shellcheck disable=SC2006,SC2287
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
-          
-          ---
-          
-          ## Reporting Missing Tools or Functionality
-          
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool use the missing-tool tool from safeoutputs.
-          
-          PROMPT_EOF
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
