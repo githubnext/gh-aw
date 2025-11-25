@@ -51,7 +51,7 @@ gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
 1. Per-output `github-token:`
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
-4. `COPILOT_GITHUB_TOKEN` (or legacy: `COPILOT_CLI_TOKEN`, `GH_AW_COPILOT_TOKEN`, `GH_AW_GITHUB_TOKEN`)
+4. `COPILOT_GITHUB_TOKEN` (or legacy: `GH_AW_COPILOT_TOKEN`, `GH_AW_GITHUB_TOKEN`)
 
 Note: `GITHUB_TOKEN` cannot be used for Copilot operations.
 
