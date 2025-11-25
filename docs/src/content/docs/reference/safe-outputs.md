@@ -25,26 +25,26 @@ This declares that the workflow should create at most one new issue.
 
 | Output Type | Key | Description | Max | Cross-Repo |
 |-------------|-----|-------------|-----|-----------|
-| **Create Issue** | `create-issue:` | Create GitHub issues | 1 | ✅ |
-| **Close Issue** | `close-issue:` | Close issues with comment | 1 | ✅ |
-| **Add Comment** | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
-| **Update Issue** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
-| **Update Project** | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
-| **Add Labels** | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
-| **Add Reviewer** | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
-| **Assign Milestone** | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
-| **Create PR** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
-| **Close PR** | `close-pull-request:` | Close pull requests without merging | 10 | ✅ |
-| **PR Review Comments** | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
-| **Create Discussion** | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
-| **Close Discussion** | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
-| **Create Agent Task** | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
-| **Assign to Agent** | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
-| **Push to PR Branch** | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
-| **Update Release** | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
-| **Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
-| **No-Op** | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
-| **Missing Tool** | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
+| [**Create Issue**](#issue-creation-create-issue) | `create-issue:` | Create GitHub issues | 1 | ✅ |
+| [**Close Issue**](#close-issue-close-issue) | `close-issue:` | Close issues with comment | 1 | ✅ |
+| [**Add Comment**](#comment-creation-add-comment) | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
+| [**Update Issue**](#issue-updates-update-issue) | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
+| [**Update Project**](#project-board-updates-update-project) | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
+| [**Add Labels**](#add-labels-add-labels) | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
+| [**Add Reviewer**](#add-reviewer-add-reviewer) | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
+| [**Assign Milestone**](#assign-milestone-assign-milestone) | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
+| [**Create PR**](#pull-request-creation-create-pull-request) | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
+| [**Close PR**](#close-pull-request-close-pull-request) | `close-pull-request:` | Close pull requests without merging | 10 | ✅ |
+| [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
+| [**Create Discussion**](#discussion-creation-create-discussion) | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
+| [**Close Discussion**](#close-discussion-close-discussion) | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
+| [**Create Agent Task**](#agent-task-creation-create-agent-task) | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
+| [**Assign to Agent**](#assign-to-agent-assign-to-agent) | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
+| [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
+| [**Update Release**](#release-updates-update-release) | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
+| [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
+| [**No-Op**](#no-op-logging-noop) | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
+| [**Missing Tool**](#missing-tool-reporting-missing-tool) | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
 
 Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
