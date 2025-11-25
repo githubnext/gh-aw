@@ -12,7 +12,7 @@ permissions:
   discussions: read
 tracker-id: daily-fact-thread
 engine: codex
-strict: false
+strict: false  # Required: codex engine doesn't support network firewall
 timeout-minutes: 15
 
 network:

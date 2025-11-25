@@ -13,7 +13,7 @@ permissions:
   repository-projects: read
   security-events: read
 engine: claude
-strict: false
+strict: false  # Required: imports python-dataviz.md which needs network access, and claude doesn't support firewall
 tools:
   github:
     mode: local
