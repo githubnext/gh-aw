@@ -21,8 +21,8 @@ import (
 var runLog = logger.New("cli:run_command")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, verbose bool) error {
-	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, wait=%v", workflowIdOrName, enable, engineOverride, repoOverride, waitForCompletion)
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, wait=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, waitForCompletion)
 
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
@@ -260,10 +260,26 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		}
 	}
 
-	// Build the gh workflow run command with optional repo override
+	// Build the gh workflow run command with optional repo and ref overrides
 	args := []string{"workflow", "run", lockFileName}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
+	}
+
+	// Determine the ref to use (branch/tag)
+	// If refOverride is specified, use it; otherwise for local workflows, use current branch
+	ref := refOverride
+	if ref == "" && repoOverride == "" {
+		// For local workflows without explicit ref, use the current branch
+		if currentBranch, err := getCurrentBranch(); err == nil {
+			ref = currentBranch
+			runLog.Printf("Using current branch for workflow run: %s", ref)
+		} else if verbose {
+			fmt.Printf("Note: Could not determine current branch: %v\n", err)
+		}
+	}
+	if ref != "" {
+		args = append(args, "--ref", ref)
 	}
 
 	// Record the start time for auto-merge PR filtering
@@ -273,11 +289,15 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	cmd := exec.Command("gh", args...)
 
 	if verbose {
+		var cmdParts []string
+		cmdParts = append(cmdParts, "gh workflow run", lockFileName)
 		if repoOverride != "" {
-			fmt.Printf("Executing: gh workflow run %s --repo %s\n", lockFileName, repoOverride)
-		} else {
-			fmt.Printf("Executing: gh workflow run %s\n", lockFileName)
+			cmdParts = append(cmdParts, "--repo", repoOverride)
 		}
+		if ref != "" {
+			cmdParts = append(cmdParts, "--ref", ref)
+		}
+		fmt.Printf("Executing: %s\n", strings.Join(cmdParts, " "))
 	}
 
 	// Capture both stdout and stderr
@@ -386,7 +406,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, pushSecrets bool, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -433,7 +453,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, pushSecrets, waitForCompletion, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
