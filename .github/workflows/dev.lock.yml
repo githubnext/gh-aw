@@ -3905,13 +3905,15 @@ jobs:
                 }
               `;
               try {
-                const { Octokit } = require("@octokit/rest");
+                const { getOctokit } = require("@actions/github");
                 const mutationToken = process.env.GH_AW_AGENT_TOKEN;
                 if (!mutationToken) {
                   core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
-                const mutationClient = new Octokit({ auth: mutationToken });
+                core.info("Using GH_AW_AGENT_TOKEN for mutation");
+                const mutationClient = getOctokit(mutationToken);
+                core.debug(`GraphQL mutation: ${mutation}`);
                 const response = await mutationClient.graphql(mutation);
                 if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
@@ -3955,7 +3957,9 @@ jobs:
                     if (!fallbackToken) {
                       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
-                      const fallbackClient = new Octokit({ auth: fallbackToken });
+                      core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
+                      const fallbackClient = getOctokit(fallbackToken);
+                      core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
                       const fallbackResp = await fallbackClient.graphql(fallbackMutation);
                       if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
                         core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
