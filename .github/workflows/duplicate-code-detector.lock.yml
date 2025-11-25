@@ -1252,7 +1252,6 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Duplicate Code Detection
           
@@ -1480,7 +1479,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
@@ -1506,7 +1504,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
@@ -1518,7 +1515,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>

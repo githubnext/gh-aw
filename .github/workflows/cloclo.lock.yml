@@ -2560,7 +2560,6 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           
           
@@ -2808,7 +2807,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
@@ -2834,7 +2832,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
@@ -2846,7 +2843,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <playwright-output>
           <path>/tmp/gh-aw/mcp-logs/playwright/</path>
@@ -2858,7 +2854,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <file-editing>
           <description>File Editing Access Permissions</description>
@@ -2874,7 +2869,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           
           ---
@@ -2900,7 +2894,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>
@@ -2937,7 +2930,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # shellcheck disable=SC2006,SC2287
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <branch-context trigger="pull-request-comment">
           <description>This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.</description>
