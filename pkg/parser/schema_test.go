@@ -1660,3 +1660,61 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 		})
 	}
 }
+
+// TestGetSafeOutputTypeKeys tests extracting safe output type keys from the embedded schema
+func TestGetSafeOutputTypeKeys(t *testing.T) {
+	keys, err := GetSafeOutputTypeKeys()
+	if err != nil {
+		t.Fatalf("GetSafeOutputTypeKeys() returned error: %v", err)
+	}
+
+	// Should return multiple keys
+	if len(keys) == 0 {
+		t.Error("GetSafeOutputTypeKeys() returned empty list")
+	}
+
+	// Should include known safe output types
+	expectedKeys := []string{
+		"create-issue",
+		"add-comment",
+		"create-discussion",
+		"create-pull-request",
+		"update-issue",
+	}
+
+	keySet := make(map[string]bool)
+	for _, key := range keys {
+		keySet[key] = true
+	}
+
+	for _, expected := range expectedKeys {
+		if !keySet[expected] {
+			t.Errorf("GetSafeOutputTypeKeys() missing expected key: %s", expected)
+		}
+	}
+
+	// Should NOT include meta-configuration fields
+	metaFields := []string{
+		"allowed-domains",
+		"staged",
+		"env",
+		"github-token",
+		"app",
+		"max-patch-size",
+		"jobs",
+		"runs-on",
+	}
+
+	for _, meta := range metaFields {
+		if keySet[meta] {
+			t.Errorf("GetSafeOutputTypeKeys() should not include meta field: %s", meta)
+		}
+	}
+
+	// Keys should be sorted
+	for i := 1; i < len(keys); i++ {
+		if keys[i-1] > keys[i] {
+			t.Errorf("GetSafeOutputTypeKeys() keys are not sorted: %s > %s", keys[i-1], keys[i])
+		}
+	}
+}

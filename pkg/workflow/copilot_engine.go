@@ -222,6 +222,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Set container working directory to match GITHUB_WORKSPACE
+		// This ensures pwd inside the container matches what the prompt tells the AI
+		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
+		copilotLog.Print("Set container working directory to GITHUB_WORKSPACE")
+
 		// Add mount arguments for required paths
 		// Always mount /tmp for temporary files and cache
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")

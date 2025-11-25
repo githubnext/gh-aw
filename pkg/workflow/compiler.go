@@ -1261,6 +1261,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.SafeOutputs.App = includedApp
 	}
 
+	// Merge safe-outputs types from imports (create-issue, add-comment, etc.)
+	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
+	}
+	workflowData.SafeOutputs = mergedSafeOutputs
+
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
 	if err != nil {

@@ -377,8 +377,8 @@ jobs:
           node-version: '24'
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.2.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.2.0/awf-linux-x64 -o awf
+          echo "Installing awf from release: v0.3.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.3.0/awf-linux-x64 -o awf
           chmod +x awf
           sudo mv awf /usr/local/bin/
           which awf
@@ -1486,7 +1486,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
             -- npx -y @github/copilot@0.0.363 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool tavily --allow-tool 'tavily(*)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -3865,67 +3865,27 @@ jobs:
 
               }
 
-              const clientIpPort = fields[1];
-
-              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
-
-                return null;
-
-              }
-
-              const domain = fields[2];
-
-              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
-
-                return null;
-
-              }
-
-              const destIpPort = fields[3];
-
-              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
-
-                return null;
-
-              }
-
-              const status = fields[6];
-
-              if (status !== "-" && !/^\d+$/.test(status)) {
-
-                return null;
-
-              }
-
-              const decision = fields[7];
-
-              if (decision !== "-" && !decision.includes(":")) {
-
-                return null;
-
-              }
-
               return {
 
-                timestamp: timestamp,
+                timestamp,
 
-                clientIpPort: clientIpPort,
+                clientIpPort: fields[1],
 
-                domain: domain,
+                domain: fields[2],
 
-                destIpPort: destIpPort,
+                destIpPort: fields[3],
 
                 proto: fields[4],
 
                 method: fields[5],
 
-                status: status,
+                status: fields[6],
 
-                decision: decision,
+                decision: fields[7],
 
                 url: fields[8],
 
-                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
 
               };
 
