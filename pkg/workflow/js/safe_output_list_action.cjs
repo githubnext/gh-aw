@@ -31,7 +31,7 @@ const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validat
  * @property {string} outputField - Output field name (e.g., "labels_added", "reviewers_added")
  * @property {string} summaryTitle - Title for success summary (e.g., "Label Addition", "Reviewer Addition")
  * @property {(items: string[], contextType: string, itemNumber: number) => string} renderSuccessSummary - Function to render success summary
- * @property {(items: string[]) => {valid: boolean, value?: string[], error?: string}} [validateItems] - Optional custom validation function
+ * @property {(items: string[]) => {valid: boolean, value?: string[], error?: string}} [validateItems] - Optional custom validation function. When provided, it must handle max count limits internally. The shared helper will NOT apply max count limits when this is set.
  */
 
 /**
@@ -141,7 +141,8 @@ No ${config.pluralNoun} were added (no valid ${config.pluralNoun} found in agent
 
   let uniqueItems = validationResult.value || [];
 
-  // Apply max count limit if not already done by validateItems
+  // Apply max count limit only when using default validation (not custom validateItems).
+  // Custom validators are responsible for handling max count limits internally.
   if (!config.validateItems && uniqueItems.length > maxCount) {
     core.info(`Too many ${config.pluralNoun}, keeping ${maxCount}`);
     uniqueItems = uniqueItems.slice(0, maxCount);
