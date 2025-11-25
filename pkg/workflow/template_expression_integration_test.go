@@ -110,7 +110,7 @@ ${{ needs.activation.outputs.text }}
 
 	// Verify that GitHub expressions in content have been replaced with environment variable references
 	// in the heredoc, but they can still appear in the comment header
-	heredocStart := strings.Index(compiledStr, "cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'")
+	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"")
 	if heredocStart == -1 {
 		t.Error("Could not find prompt heredoc section")
 	} else {
