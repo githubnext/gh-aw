@@ -77,8 +77,8 @@ For each issue with score ≥ 5, use the `update_project` tool to set these fiel
 
 | Field | Values |
 |-------|--------|
-| **AI-Readiness Score** | 1-10 |
-| **Status** | "Ready" (≥8), "Needs Clarification" (5-7), "Human Review" (<5) |
+| **AI-Readiness Score** | 5-10 (issues below 5 are not added to board) |
+| **Status** | "Ready" (≥8), "Needs Clarification" (5-7) |
 | **Effort Estimate** | "Small" (1-2h), "Medium" (3-8h), "Large" (1-3d), "X-Large" (>3d) |
 | **AI Agent Type** | "Code Generation", "Code Refactoring", "Documentation", "Testing", "Bug Fixing", "Mixed" |
 | **Priority** | "Critical", "High", "Medium", "Low" |

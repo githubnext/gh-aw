@@ -67,6 +67,12 @@
 # | Testable success criteria | 2 |
 # | No external dependencies | 1 |
 #
+# **Scoring Criteria Descriptions**
+# - **Clear requirements**: Requirements are unambiguous and specific.
+# - **Context/examples provided**: Sufficient background and examples are included.
+# - **Specific scope**: The issue has a well-defined, limited scope.
+# - **Testable success criteria**: There are clear, testable outcomes for completion.
+# - **No external dependencies**: The issue can be resolved without relying on outside teams, systems, or unclear resources.
 # ### High AI-Readiness Examples
 # - Well-defined code changes with acceptance criteria
 # - Pattern-based refactoring (e.g., "convert callbacks to async/await")
@@ -86,8 +92,8 @@
 #
 # | Field | Values |
 # |-------|--------|
-# | **AI-Readiness Score** | 1-10 |
-# | **Status** | "Ready" (≥8), "Needs Clarification" (5-7), "Human Review" (<5) |
+# | **AI-Readiness Score** | 5-10 (issues below 5 are not added to board) |
+# | **Status** | "Ready" (≥8), "Needs Clarification" (5-7) |
 # | **Effort Estimate** | "Small" (1-2h), "Medium" (3-8h), "Large" (1-3d), "X-Large" (>3d) |
 # | **AI Agent Type** | "Code Generation", "Code Refactoring", "Documentation", "Testing", "Bug Fixing", "Mixed" |
 # | **Priority** | "Critical", "High", "Medium", "Low" |
@@ -1109,6 +1115,12 @@ jobs:
           | Testable success criteria | 2 |
           | No external dependencies | 1 |
           
+          **Scoring Criteria Descriptions**
+          - **Clear requirements**: Requirements are unambiguous and specific.
+          - **Context/examples provided**: Sufficient background and examples are included.
+          - **Specific scope**: The issue has a well-defined, limited scope.
+          - **Testable success criteria**: There are clear, testable outcomes for completion.
+          - **No external dependencies**: The issue can be resolved without relying on outside teams, systems, or unclear resources.
           ### High AI-Readiness Examples
           - Well-defined code changes with acceptance criteria
           - Pattern-based refactoring (e.g., "convert callbacks to async/await")
@@ -1128,8 +1140,8 @@ jobs:
           
           | Field | Values |
           |-------|--------|
-          | **AI-Readiness Score** | 1-10 |
-          | **Status** | "Ready" (≥8), "Needs Clarification" (5-7), "Human Review" (<5) |
+          | **AI-Readiness Score** | 5-10 (issues below 5 are not added to board) |
+          | **Status** | "Ready" (≥8), "Needs Clarification" (5-7) |
           | **Effort Estimate** | "Small" (1-2h), "Medium" (3-8h), "Large" (1-3d), "X-Large" (>3d) |
           | **AI Agent Type** | "Code Generation", "Code Refactoring", "Documentation", "Testing", "Bug Fixing", "Mixed" |
           | **Priority** | "Critical", "High", "Medium", "Low" |
