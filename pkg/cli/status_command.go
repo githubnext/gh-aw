@@ -30,8 +30,8 @@ type WorkflowStatus struct {
 	RunConclusion string `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, branch string) error {
-	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, branch=%s", pattern, jsonOutput, branch)
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) error {
+	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s", pattern, jsonOutput, ref)
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -83,26 +83,26 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, branch strin
 		}
 	}
 
-	// Fetch latest workflow runs for branch if specified
+	// Fetch latest workflow runs for ref if specified
 	var latestRunsByWorkflow map[string]*WorkflowRun
-	if branch != "" {
+	if ref != "" {
 		if verbose && !jsonOutput {
-			fmt.Printf("Fetching latest runs for branch: %s\n", branch)
+			fmt.Printf("Fetching latest runs for ref: %s\n", ref)
 		}
-		latestRunsByWorkflow, err = fetchLatestRunsByBranch(branch, verbose && !jsonOutput)
+		latestRunsByWorkflow, err = fetchLatestRunsByRef(ref, verbose && !jsonOutput)
 		if err != nil {
-			statusLog.Printf("Failed to fetch workflow runs for branch %s: %v", branch, err)
+			statusLog.Printf("Failed to fetch workflow runs for ref %s: %v", ref, err)
 			if verbose && !jsonOutput {
-				fmt.Printf("Verbose: Failed to fetch workflow runs for branch: %v\n", err)
+				fmt.Printf("Verbose: Failed to fetch workflow runs for ref: %v\n", err)
 			}
 			if !jsonOutput {
-				fmt.Printf("Warning: Could not fetch workflow runs for branch '%s': %v\n", branch, err)
+				fmt.Printf("Warning: Could not fetch workflow runs for ref '%s': %v\n", ref, err)
 			}
 			latestRunsByWorkflow = make(map[string]*WorkflowRun)
 		} else {
-			statusLog.Printf("Successfully fetched %d workflow runs for branch %s", len(latestRunsByWorkflow), branch)
+			statusLog.Printf("Successfully fetched %d workflow runs for ref %s", len(latestRunsByWorkflow), ref)
 			if verbose && !jsonOutput {
-				fmt.Printf("Successfully fetched %d workflow runs for branch\n", len(latestRunsByWorkflow))
+				fmt.Printf("Successfully fetched %d workflow runs for ref\n", len(latestRunsByWorkflow))
 			}
 		}
 	}
@@ -164,7 +164,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, branch strin
 				}
 			}
 
-			// Get run status for branch if available
+			// Get run status for ref if available
 			var runStatus, runConclusion string
 			if latestRunsByWorkflow != nil {
 				if run, exists := latestRunsByWorkflow[name]; exists {
@@ -241,7 +241,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, branch strin
 			}
 		}
 
-		// Get run status for branch if available
+		// Get run status for ref if available
 		var runStatus, runConclusion string
 		if latestRunsByWorkflow != nil {
 			if run, exists := latestRunsByWorkflow[name]; exists {
@@ -394,18 +394,18 @@ func extractEngineIDFromFile(filePath string) string {
 	return "copilot" // Default engine
 }
 
-// fetchLatestRunsByBranch fetches the latest workflow run for each workflow from a specific branch
-func fetchLatestRunsByBranch(branch string, verbose bool) (map[string]*WorkflowRun, error) {
-	statusLog.Printf("Fetching latest workflow runs for branch: %s", branch)
+// fetchLatestRunsByRef fetches the latest workflow run for each workflow from a specific ref (branch or tag)
+func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, error) {
+	statusLog.Printf("Fetching latest workflow runs for ref: %s", ref)
 
 	// Start spinner for network operation (only if not in verbose mode)
-	spinner := console.NewSpinner("Fetching workflow runs for branch...")
+	spinner := console.NewSpinner("Fetching workflow runs for ref...")
 	if !verbose {
 		spinner.Start()
 	}
 
-	// Fetch workflow runs for the branch
-	args := []string{"run", "list", "--branch", branch, "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,headBranch", "--limit", "100"}
+	// Fetch workflow runs for the ref (uses --branch flag which also works for tags)
+	args := []string{"run", "list", "--branch", ref, "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,headBranch", "--limit", "100"}
 	cmd := exec.Command("gh", args...)
 	output, err := cmd.Output()
 
@@ -445,6 +445,6 @@ func fetchLatestRunsByBranch(branch string, verbose bool) (map[string]*WorkflowR
 		}
 	}
 
-	statusLog.Printf("Fetched latest runs for %d workflows on branch %s", len(latestRuns), branch)
+	statusLog.Printf("Fetched latest runs for %d workflows on ref %s", len(latestRuns), ref)
 	return latestRuns, nil
 }
