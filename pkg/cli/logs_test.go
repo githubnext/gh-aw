@@ -938,7 +938,7 @@ func TestLogsCommandFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Check that all expected flags are present
-	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "branch", "before-run-id", "after-run-id"}
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "ref", "before-run-id", "after-run-id"}
 
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
@@ -947,18 +947,18 @@ func TestLogsCommandFlags(t *testing.T) {
 		}
 	}
 
-	// Test branch flag specifically
-	branchFlag := cmd.Flags().Lookup("branch")
-	if branchFlag == nil {
-		t.Fatal("Branch flag not found")
+	// Test ref flag specifically
+	refFlag := cmd.Flags().Lookup("ref")
+	if refFlag == nil {
+		t.Fatal("Ref flag not found")
 	}
 
-	if branchFlag.Usage != "Filter runs by branch name (e.g., main, feature-branch)" {
-		t.Errorf("Unexpected branch flag usage text: %s", branchFlag.Usage)
+	if refFlag.Usage != "Filter runs by branch or tag name (e.g., main, v1.0.0)" {
+		t.Errorf("Unexpected ref flag usage text: %s", refFlag.Usage)
 	}
 
-	if branchFlag.DefValue != "" {
-		t.Errorf("Expected branch flag default value to be empty, got: %s", branchFlag.DefValue)
+	if refFlag.DefValue != "" {
+		t.Errorf("Expected ref flag default value to be empty, got: %s", refFlag.DefValue)
 	}
 
 	// Test before-run-id flag
@@ -1193,19 +1193,19 @@ func TestRunIDFilteringLogic(t *testing.T) {
 	}
 }
 
-func TestBranchFilteringWithGitHubCLI(t *testing.T) {
-	// Test that branch filtering is properly added to GitHub CLI args
+func TestRefFilteringWithGitHubCLI(t *testing.T) {
+	// Test that ref filtering is properly added to GitHub CLI args
 	// This is a unit test for the args construction, not a network test
 
-	// Simulate args construction for branch filtering
+	// Simulate args construction for ref filtering
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
-	branch := "feature-branch"
-	if branch != "" {
-		args = append(args, "--branch", branch)
+	ref := "feature-branch"
+	if ref != "" {
+		args = append(args, "--branch", ref)
 	}
 
-	// Verify that the branch filter was added correctly
+	// Verify that the ref filter was added correctly (uses --branch flag under the hood)
 	found := false
 	for i, arg := range args {
 		if arg == "--branch" && i+1 < len(args) && args[i+1] == "feature-branch" {
@@ -1215,7 +1215,7 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 	}
 
 	if !found {
-		t.Errorf("Expected branch filter '--branch feature-branch' not found in args: %v", args)
+		t.Errorf("Expected ref filter '--branch feature-branch' not found in args: %v", args)
 	}
 }
 
