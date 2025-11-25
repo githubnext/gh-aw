@@ -43,7 +43,7 @@
 # ```markdown
 # # Issue Triage Agent
 #
-# List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have labels.
+# List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have any of these labels.
 # ```
 #
 # Pinned GitHub Actions:
@@ -1406,7 +1406,7 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Issue Triage Agent
           
-          List open issues in ${GH_AW_EXPR_D892F163} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have labels.
+          List open issues in ${GH_AW_EXPR_D892F163} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have any of these labels.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
