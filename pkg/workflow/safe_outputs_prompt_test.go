@@ -35,31 +35,6 @@ func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
 	}
 }
 
-func TestGenerateSafeOutputsPromptStep_ListsAvailableTools(t *testing.T) {
-	compiler := &Compiler{}
-	var yaml strings.Builder
-
-	compiler.generateSafeOutputsPromptStep(&yaml, true)
-
-	output := yaml.String()
-	expectedTools := []string{
-		"create_issue",
-		"create_discussion",
-		"add_comment",
-		"create_pull_request",
-		"add_labels",
-		"update_issue",
-		"noop",
-		"missing_tool",
-	}
-
-	for _, tool := range expectedTools {
-		if !strings.Contains(output, tool) {
-			t.Errorf("Expected prompt to mention tool: %s", tool)
-		}
-	}
-}
-
 func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
 	if !strings.Contains(safeOutputsPromptText, "<safe-outputs>") {
 		t.Error("Expected prompt to start with <safe-outputs> XML tag")
@@ -70,7 +45,7 @@ func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
 	if !strings.Contains(safeOutputsPromptText, "<important>") {
 		t.Error("Expected prompt to contain <important> section")
 	}
-	if !strings.Contains(safeOutputsPromptText, "<available-tools>") {
-		t.Error("Expected prompt to contain <available-tools> section")
+	if !strings.Contains(safeOutputsPromptText, "<instructions>") {
+		t.Error("Expected prompt to contain <instructions> section")
 	}
 }
