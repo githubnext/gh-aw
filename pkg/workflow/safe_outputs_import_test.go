@@ -1,0 +1,499 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestSafeOutputsImport tests that safe-output types can be imported from shared workflows
+func TestSafeOutputsImport(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with create-issue configuration
+	sharedWorkflow := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[shared] "
+    labels:
+      - imported
+      - automation
+---
+
+# Shared Create Issue Configuration
+
+This shared workflow provides create-issue configuration.
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-create-issue.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that imports the create-issue configuration
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-create-issue.md
+---
+
+# Main Workflow
+
+This workflow uses the imported create-issue configuration.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues configuration should be imported")
+
+	// Verify create-issue configuration was imported correctly
+	assert.Equal(t, "[shared] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+	assert.Equal(t, []string{"imported", "automation"}, workflowData.SafeOutputs.CreateIssues.Labels)
+}
+
+// TestSafeOutputsImportMultipleTypes tests importing multiple safe-output types from a shared workflow
+func TestSafeOutputsImportMultipleTypes(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with multiple safe-output types
+	sharedWorkflow := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[bug] "
+    labels:
+      - bug
+  add-comment:
+    max: 3
+---
+
+# Shared Safe Outputs
+
+This shared workflow provides multiple safe-output types.
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-outputs.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that imports the safe-outputs
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-outputs.md
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify both types were imported
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be imported")
+	assert.Equal(t, "[bug] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+	assert.Equal(t, []string{"bug"}, workflowData.SafeOutputs.CreateIssues.Labels)
+
+	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported")
+	assert.Equal(t, 3, workflowData.SafeOutputs.AddComments.Max)
+}
+
+// TestSafeOutputsImportConflict tests that a conflict error is returned when the same safe-output type is defined in both main and imported workflow
+func TestSafeOutputsImportConflict(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with create-issue configuration
+	sharedWorkflow := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[shared] "
+---
+
+# Shared Create Issue Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-create-issue.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that also defines create-issue (conflict)
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-create-issue.md
+safe-outputs:
+  create-issue:
+    title-prefix: "[main] "
+---
+
+# Main Workflow with Conflict
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow - should fail with conflict error
+	_, err = compiler.ParseWorkflowFile("main.md")
+	require.Error(t, err, "Expected conflict error")
+	assert.Contains(t, err.Error(), "safe-outputs conflict")
+	assert.Contains(t, err.Error(), "create-issue")
+}
+
+// TestSafeOutputsImportConflictBetweenImports tests that a conflict error is returned when the same safe-output type is defined in multiple imported workflows
+func TestSafeOutputsImportConflictBetweenImports(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create first shared workflow with create-issue
+	sharedWorkflow1 := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[shared1] "
+---
+
+# Shared Create Issue 1
+`
+
+	sharedFile1 := filepath.Join(workflowsDir, "shared-create-issue1.md")
+	err = os.WriteFile(sharedFile1, []byte(sharedWorkflow1), 0644)
+	require.NoError(t, err, "Failed to write shared file 1")
+
+	// Create second shared workflow with create-issue (conflict)
+	sharedWorkflow2 := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[shared2] "
+---
+
+# Shared Create Issue 2
+`
+
+	sharedFile2 := filepath.Join(workflowsDir, "shared-create-issue2.md")
+	err = os.WriteFile(sharedFile2, []byte(sharedWorkflow2), 0644)
+	require.NoError(t, err, "Failed to write shared file 2")
+
+	// Create main workflow that imports both (conflict between imports)
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-create-issue1.md
+  - ./shared-create-issue2.md
+---
+
+# Main Workflow with Import Conflict
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow - should fail with conflict error
+	_, err = compiler.ParseWorkflowFile("main.md")
+	require.Error(t, err, "Expected conflict error")
+	assert.Contains(t, err.Error(), "safe-outputs conflict")
+	assert.Contains(t, err.Error(), "create-issue")
+}
+
+// TestSafeOutputsImportNoConflictDifferentTypes tests that importing different safe-output types does not cause a conflict
+func TestSafeOutputsImportNoConflictDifferentTypes(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with create-discussion configuration
+	sharedWorkflow := `---
+safe-outputs:
+  create-discussion:
+    title-prefix: "[shared] "
+    category: "General"
+---
+
+# Shared Create Discussion Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-create-discussion.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow with create-issue (different type, no conflict)
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-create-discussion.md
+safe-outputs:
+  create-issue:
+    title-prefix: "[main] "
+---
+
+# Main Workflow with Different Types
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow - should succeed
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify both types are present
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present from main")
+	assert.Equal(t, "[main] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+
+	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions, "CreateDiscussions should be imported")
+	assert.Equal(t, "[shared] ", workflowData.SafeOutputs.CreateDiscussions.TitlePrefix)
+	assert.Equal(t, "General", workflowData.SafeOutputs.CreateDiscussions.Category)
+}
+
+// TestSafeOutputsImportFromMultipleWorkflows tests importing different safe-output types from multiple workflows
+func TestSafeOutputsImportFromMultipleWorkflows(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create first shared workflow with create-issue
+	sharedWorkflow1 := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[issue] "
+---
+
+# Shared Create Issue
+`
+
+	sharedFile1 := filepath.Join(workflowsDir, "shared-issue.md")
+	err = os.WriteFile(sharedFile1, []byte(sharedWorkflow1), 0644)
+	require.NoError(t, err, "Failed to write shared file 1")
+
+	// Create second shared workflow with add-comment
+	sharedWorkflow2 := `---
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+# Shared Add Comment
+`
+
+	sharedFile2 := filepath.Join(workflowsDir, "shared-comment.md")
+	err = os.WriteFile(sharedFile2, []byte(sharedWorkflow2), 0644)
+	require.NoError(t, err, "Failed to write shared file 2")
+
+	// Create main workflow that imports both
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-issue.md
+  - ./shared-comment.md
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify both types are present
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be imported from first shared workflow")
+	assert.Equal(t, "[issue] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+
+	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported from second shared workflow")
+	assert.Equal(t, 5, workflowData.SafeOutputs.AddComments.Max)
+}
+
+// TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
+func TestMergeSafeOutputsUnit(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	tests := []struct {
+		name          string
+		topConfig     *SafeOutputsConfig
+		importedJSON  []string
+		expectError   bool
+		errorContains string
+		expectedTypes []string // Types that should be present after merge
+	}{
+		{
+			name:          "empty imports",
+			topConfig:     nil,
+			importedJSON:  []string{},
+			expectError:   false,
+			expectedTypes: []string{},
+		},
+		{
+			name:      "import create-issue to empty config",
+			topConfig: nil,
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[test] "}}`,
+			},
+			expectError:   false,
+			expectedTypes: []string{"create-issue"},
+		},
+		{
+			name: "conflict: create-issue in both",
+			topConfig: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{TitlePrefix: "[top] "},
+			},
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[imported] "}}`,
+			},
+			expectError:   true,
+			errorContains: "safe-outputs conflict",
+		},
+		{
+			name:      "conflict: same type in multiple imports",
+			topConfig: nil,
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[import1] "}}`,
+				`{"create-issue":{"title-prefix":"[import2] "}}`,
+			},
+			expectError:   true,
+			errorContains: "safe-outputs conflict",
+		},
+		{
+			name: "no conflict: different types",
+			topConfig: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{TitlePrefix: "[top] "},
+			},
+			importedJSON: []string{
+				`{"add-comment":{"max":3}}`,
+			},
+			expectError:   false,
+			expectedTypes: []string{"create-issue", "add-comment"},
+		},
+		{
+			name:      "import multiple types from single config",
+			topConfig: nil,
+			importedJSON: []string{
+				`{"create-issue":{"title-prefix":"[test] "},"add-comment":{"max":5}}`,
+			},
+			expectError:   false,
+			expectedTypes: []string{"create-issue", "add-comment"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorContains)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Verify expected types are present
+			for _, expectedType := range tt.expectedTypes {
+				assert.True(t, hasSafeOutputType(result, expectedType), "Expected %s to be present", expectedType)
+			}
+		})
+	}
+}
