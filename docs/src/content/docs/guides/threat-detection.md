@@ -9,12 +9,7 @@ GitHub Agentic Workflows includes automatic threat detection to analyze agent ou
 
 ## How It Works
 
-Threat detection provides an additional security layer that:
-
-1. **Analyzes Agent Output**: Reviews all safe output items (issues, comments, PRs) for malicious content
-2. **Scans Code Changes**: Examines git patches for suspicious patterns, backdoors, and vulnerabilities  
-3. **Uses Workflow Context**: Leverages the workflow source to distinguish legitimate actions from threats
-4. **Runs Automatically**: Executes after the main agentic job completes but before safe outputs are applied
+Threat detection provides an additional security layer by analyzing agent output for malicious content, scanning code changes for suspicious patterns, using workflow context to distinguish legitimate actions from threats, and running automatically after the main job completes but before safe outputs are applied.
 
 **Security Architecture:**
 
@@ -49,11 +44,7 @@ safe-outputs:
   create-pull-request:
 ```
 
-The default configuration uses AI-powered analysis with the Agentic engine to detect:
-
-- **Prompt Injection**: Malicious instructions attempting to manipulate AI behavior
-- **Secret Leaks**: Exposed API keys, tokens, passwords, or credentials
-- **Malicious Patches**: Code changes introducing vulnerabilities, backdoors, or suspicious patterns
+The default configuration uses AI-powered analysis to detect prompt injection (malicious instructions manipulating AI behavior), secret leaks (exposed API keys, tokens, passwords, credentials), and malicious patches (code changes introducing vulnerabilities, backdoors, or suspicious patterns).
 
 ## Configuration Options
 
@@ -89,13 +80,12 @@ safe-outputs:
 
 **Configuration Fields:**
 
-- **`enabled`** (boolean): Enable or disable threat detection. Default: `true` when safe-outputs exist
-- **`prompt`** (string): Additional custom instructions appended to the default threat detection prompt
-- **`engine`** (string | object | false): AI engine configuration for detection
-  - String format: `"copilot"`
-  - Object format: Full engine configuration (same as main workflow engine)
-  - `false`: Disable AI-based detection, run only custom steps
-- **`steps`** (array): Additional GitHub Actions steps to run after AI analysis
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
+| `prompt` | string | Custom instructions appended to default detection prompt |
+| `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
+| `steps` | array | Additional GitHub Actions steps to run after AI analysis |
 
 ## AI-Based Detection (Default)
 
@@ -116,10 +106,7 @@ safe-outputs:
 Analyze code and create pull requests with improvements.
 ```
 
-The AI engine receives the workflow source context and analyzes:
-- Agent output items (issues, comments, PRs)
-- Git patch files with code changes
-- Workflow intent and legitimate use cases
+The AI engine receives the workflow source context and analyzes agent output items (issues, comments, PRs), git patch files with code changes, and workflow intent to distinguish legitimate actions.
 
 **Output Format:**
 
@@ -212,20 +199,9 @@ safe-outputs:
           path: /tmp/gh-aw/threat-detection/
 ```
 
-**Available Artifacts:**
+**Available Artifacts:** Custom steps have access to `/tmp/gh-aw/threat-detection/prompt.txt` (workflow prompt), `agent_output.json` (safe output items), and `aw.patch` (git patch file).
 
-Custom steps have access to these downloaded artifacts:
-
-- `/tmp/gh-aw/threat-detection/prompt.txt` - Workflow prompt
-- `/tmp/gh-aw/threat-detection/agent_output.json` - Safe output items
-- `/tmp/gh-aw/threat-detection/aw.patch` - Git patch file
-
-**Execution Order:**
-
-1. Download artifacts (prompt, output, patch)
-2. Run AI-based analysis (if engine not disabled)
-3. Execute custom steps
-4. Upload detection log artifact
+**Execution Order:** Download artifacts → Run AI analysis (if enabled) → Execute custom steps → Upload detection log.
 
 ## Example: LlamaGuard Integration
 
@@ -243,74 +219,32 @@ safe-outputs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            
-            // Install Ollama
+            // Install and start Ollama service
             await exec.exec('curl', ['-fsSL', 'https://ollama.com/install.sh', '-o', '/tmp/install.sh']);
             await exec.exec('sh', ['/tmp/install.sh']);
-            
-            // Start Ollama service
             exec.exec('ollama', ['serve'], { detached: true });
-            
-            // Wait for service
-            let ready = false;
-            for (let i = 0; i < 30; i++) {
-              try {
-                await exec.exec('curl', ['-f', 'http://localhost:11434/api/version'], { silent: true });
-                ready = true;
-                break;
-              } catch (e) {
-                await new Promise(r => setTimeout(r, 1000));
-              }
-            }
-            
-            if (!ready) {
-              core.setFailed('Ollama service failed to start');
-              return;
-            }
-            
-            // Pull LlamaGuard model
-            await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
-            
-            // Scan agent output
-            const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
-            if (fs.existsSync(outputPath)) {
-              const content = fs.readFileSync(outputPath, 'utf8');
-              
-              const response = await exec.getExecOutput('curl', [
-                '-X', 'POST',
-                'http://localhost:11434/api/chat',
-                '-H', 'Content-Type: application/json',
-                '-d', JSON.stringify({
-                  model: 'llama-guard3:1b',
-                  messages: [{ role: 'user', content }],
-                  stream: false
-                })
-              ]);
-              
-              const result = JSON.parse(response.stdout);
-              const output = result.message?.content || '';
-              
-              // Check if safe
-              const isSafe = output.toLowerCase().trim() === 'safe' || output.includes('s8');
-              
-              if (!isSafe) {
-                core.setFailed(`LlamaGuard detected threat: ${output}`);
-              } else {
-                core.info('✅ Content appears safe');
-              }
-            }
 
-timeout-minutes: 20  # Allow time for model download
+            // Pull model and scan output
+            await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
+            const content = require('fs').readFileSync('/tmp/gh-aw/threat-detection/agent_output.json', 'utf8');
+            const response = await exec.getExecOutput('curl', [
+              '-X', 'POST', 'http://localhost:11434/api/chat',
+              '-H', 'Content-Type: application/json',
+              '-d', JSON.stringify({ model: 'llama-guard3:1b', messages: [{ role: 'user', content }] })
+            ]);
+
+            const result = JSON.parse(response.stdout);
+            const isSafe = result.message?.content.toLowerCase().includes('safe');
+            if (!isSafe) core.setFailed('LlamaGuard detected threat');
+
+timeout-minutes: 20
 ---
 
 # Code Review Agent
-
-Analyze and improve code with LlamaGuard threat scanning.
 ```
 
 :::tip
-For a complete LlamaGuard implementation, see `.github/workflows/shared/ollama-threat-scan.md` in the repository.
+For a complete implementation with error handling and service readiness checks, see `.github/workflows/shared/ollama-threat-scan.md` in the repository.
 :::
 
 ## Combined AI and Custom Detection
@@ -354,78 +288,22 @@ If the detection process itself fails (e.g., network issues, tool errors), the w
 
 ## Best Practices
 
-### When to Use AI Detection
+**Use AI-based detection** for analyzing natural language content, detecting sophisticated prompt injection, understanding context-specific risks, and identifying intent-based threats.
 
-**Use AI-based detection when:**
-- Analyzing natural language content (issues, comments, discussions)
-- Detecting sophisticated prompt injection attempts
-- Understanding context-specific security risks
-- Identifying intent-based threats
+**Add custom steps** for integrating specialized security tools (Semgrep, Snyk, TruffleHog), enforcing organization policies, scanning domain-specific vulnerabilities, and meeting compliance requirements.
 
-### When to Use Custom Steps
+**Performance:** AI analysis typically completes in 10-30 seconds. Custom tools vary (LlamaGuard: 5-15 minutes with model download). Set appropriate `timeout-minutes` and truncate large patches if needed.
 
-**Add custom steps when:**
-- Integrating specialized security tools (Semgrep, Snyk, TruffleHog)
-- Enforcing organization-specific security policies
-- Scanning for domain-specific vulnerabilities
-- Meeting compliance requirements
-
-### Performance Considerations
-
-- **AI Analysis**: Typically completes in 10-30 seconds
-- **Custom Tools**: Varies by tool (LlamaGuard: 5-15 minutes with model download)
-- **Timeout**: Set appropriate `timeout-minutes` for custom tools
-- **Artifact Size**: Large patches may require truncation for analysis
-
-### Security Recommendations
-
-1. **Defense in Depth**: Use both AI and custom detection for critical workflows
-2. **Regular Updates**: Keep custom security tools and models up to date
-3. **Test Thoroughly**: Validate detection with known malicious samples
-4. **Monitor False Positives**: Review blocked outputs to refine detection logic
-5. **Document Rationale**: Comment why specific detection rules exist
+**Security:** Use defense-in-depth with both AI and custom detection for critical workflows. Keep tools updated, validate with known malicious samples, monitor false positives, and document detection rationale.
 
 ## Troubleshooting
 
-### AI Detection Always Fails
-
-**Symptom**: Every workflow execution reports threats
-
-**Solutions**:
-- Review custom prompt for overly strict instructions
-- Check if legitimate workflow patterns trigger detection
-- Adjust prompt to provide better context
-- Use `threat-detection.enabled: false` temporarily to test
-
-### Custom Steps Not Running
-
-**Symptom**: Steps in `threat-detection.steps` don't execute
-
-**Check**:
-- Verify YAML indentation is correct
-- Ensure steps array is properly formatted
-- Review workflow compilation output for errors
-- Check if AI detection failed before custom steps
-
-### Large Patches Cause Timeouts
-
-**Symptom**: Detection times out with large code changes
-
-**Solutions**:
-- Increase `timeout-minutes` in workflow frontmatter
-- Configure `max-patch-size` to limit patch size
-- Truncate content before analysis in custom steps
-- Split large changes into smaller PRs
-
-### False Positives
-
-**Symptom**: Legitimate content flagged as malicious
-
-**Solutions**:
-- Refine custom prompt with specific exclusions
-- Adjust custom detection tool thresholds
-- Add workflow context explaining legitimate patterns
-- Review detection logs to understand trigger patterns
+| Issue | Solution |
+|-------|----------|
+| **AI detection always fails** | Review custom prompt for overly strict instructions, check if legitimate patterns trigger detection, adjust prompt context, or temporarily disable to test |
+| **Custom steps not running** | Verify YAML indentation, ensure steps array is properly formatted, review compilation output, check if AI detection failed first |
+| **Large patches cause timeouts** | Increase `timeout-minutes`, configure `max-patch-size`, truncate content before analysis, or split changes into smaller PRs |
+| **False positives** | Refine prompt with specific exclusions, adjust tool thresholds, add workflow context explaining patterns, review detection logs |
 
 ## Related Documentation
 
