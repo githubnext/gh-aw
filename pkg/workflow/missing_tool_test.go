@@ -1,11 +1,8 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestMissingToolSafeOutput(t *testing.T) {
@@ -180,19 +177,10 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 
 	output := yaml.String()
 
-	// Check that missing-tool is mentioned in the header
-	if !strings.Contains(output, "Reporting Missing Tools or Functionality") {
-		t.Error("Expected 'Reporting Missing Tools or Functionality' in prompt header")
-	}
-
 	// Check that GH_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
+	// This is how safe outputs tools are now discovered (via MCP server tool discovery)
 	if !strings.Contains(output, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
 		t.Error("Expected 'GH_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
-	}
-
-	// Check that the important note about safe-outputs tools is included
-	if !strings.Contains(output, fmt.Sprintf("**IMPORTANT**: To do the actions mentioned in the header of this section, use the **%s** tools", constants.SafeOutputsMCPServerID)) {
-		t.Error("Expected important note about safeoutputs tools")
 	}
 }
 
