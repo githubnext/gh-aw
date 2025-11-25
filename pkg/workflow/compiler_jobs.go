@@ -1017,6 +1017,20 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				}
 			}
 
+			// Extract outputs for custom jobs
+			if outputs, hasOutputs := configMap["outputs"]; hasOutputs {
+				if outputsMap, ok := outputs.(map[string]any); ok {
+					job.Outputs = make(map[string]string)
+					for key, val := range outputsMap {
+						if valStr, ok := val.(string); ok {
+							job.Outputs[key] = valStr
+						} else {
+							compilerJobsLog.Printf("Warning: output '%s' in job '%s' has non-string value (type: %T), ignoring", key, jobName, val)
+						}
+					}
+				}
+			}
+
 			// Check if this is a reusable workflow call
 			if uses, hasUses := configMap["uses"]; hasUses {
 				if usesStr, ok := uses.(string); ok {

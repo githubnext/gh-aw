@@ -18,7 +18,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Automatically generates and prepends a summary of highlights to release notes when a new release is created
+# Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -29,9 +29,11 @@
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
+#   release["release"]
 #   update_release["update_release"]
 #   pre_activation --> activation
 #   activation --> agent
+#   release --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   missing_tool --> conclusion
@@ -39,6 +41,7 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   activation --> release
 #   agent --> update_release
 #   detection --> update_release
 # ```
@@ -48,6 +51,8 @@
 # # Release Highlights Generator
 #
 # Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
+#
+# **Release ID**: ${{ needs.release.outputs.release_id }}
 #
 # ## Data Available
 #
@@ -183,17 +188,11 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Release Highlights Generator"
+name: "Release"
 "on":
-  release:
-    types:
-    - created
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Release tag to update (leave empty for latest release)
-        required: false
-        type: string
+  push:
+    tags:
+    - v*.*.*
 
 permissions:
   actions: read
@@ -202,9 +201,9 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
-run-name: "Release Highlights Generator"
+run-name: "Release"
 
 jobs:
   activation:
@@ -306,15 +305,15 @@ jobs:
             });
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - release
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       issues: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -333,7 +332,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Determine which release to analyze\nif [ \"${{ github.event_name }}\" = \"release\" ]; then\n  RELEASE_TAG=\"${{ github.event.release.tag_name }}\"\n  echo \"Processing release from event: $RELEASE_TAG\"\nelif [ -n \"${{ github.event.inputs.release_tag }}\" ]; then\n  RELEASE_TAG=\"${{ github.event.inputs.release_tag }}\"\n  echo \"Processing release from workflow input: $RELEASE_TAG\"\nelse\n  # Get latest release tag\n  RELEASE_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')\n  echo \"Processing latest release: $RELEASE_TAG\"\nfi\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> $GITHUB_ENV\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> $GITHUB_ENV\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> $GITHUB_ENV\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\"\n"
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID from the release job\necho \"Release ID from release job: ${{ needs.release.outputs.release_id }}\"\n\n# Get the release tag from the push event\nif [[ ! \"$GITHUB_REF\" == refs/tags/* ]]; then\n  echo \"Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF\"\n  exit 1\nfi\nRELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\necho \"Processing release: $RELEASE_TAG\"\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> $GITHUB_ENV\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> $GITHUB_ENV\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> $GITHUB_ENV\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\"\n"
 
       - name: Configure Git credentials
         env:
@@ -1168,6 +1167,8 @@ jobs:
           
           Generate an engaging release highlights summary for **${GH_AW_EXPR_D892F163}** release `${RELEASE_TAG}`.
           
+          **Release ID**: ${GH_AW_EXPR_FDC3B576}
+          
           ## Data Available
           
           All data is pre-fetched in `/tmp/gh-aw/release-data/`:
@@ -1391,6 +1392,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_FDC3B576: ${{ needs.release.outputs.release_id }}
         with:
           script: |
             const fs = require("fs");
@@ -1494,7 +1496,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.363",
-              workflow_name: "Release Highlights Generator",
+              workflow_name: "Release",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3720,16 +3722,16 @@ jobs:
           SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
           if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
             echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-release-highlights-generator/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-release-highlights-generator/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-release-highlights-generator/ || true
+            mkdir -p /tmp/gh-aw/squid-logs-release/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-release/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-release/ || true
           fi
       - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: squid-logs-release-highlights-generator
-          path: /tmp/gh-aw/squid-logs-release-highlights-generator/
+          name: squid-logs-release
+          path: /tmp/gh-aw/squid-logs-release/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
@@ -4327,7 +4329,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Release Highlights Generator"
+          GH_AW_WORKFLOW_NAME: "Release"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4413,7 +4415,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Release Highlights Generator"
+          GH_AW_WORKFLOW_NAME: "Release"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4571,8 +4573,6 @@ jobs:
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -4603,8 +4603,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Release Highlights Generator"
-          WORKFLOW_DESCRIPTION: "Automatically generates and prepends a summary of highlights to release notes when a new release is created"
+          WORKFLOW_NAME: "Release"
+          WORKFLOW_DESCRIPTION: "Build, test, and release gh-aw extension, then generate and prepend release highlights"
         with:
           script: |
             const fs = require('fs');
@@ -4839,7 +4839,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Release Highlights Generator"
+          GH_AW_WORKFLOW_NAME: "Release"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4952,7 +4952,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             function parseRequiredPermissions() {
@@ -5036,6 +5036,38 @@ jobs:
             }
             await main();
 
+  release:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+      packages: write
+
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Release with gh-extension-precompile
+        uses: cli/gh-extension-precompile@v2
+        with:
+          build_script_override: scripts/build-release.sh
+          go_version_file: go.mod
+      - name: Get release ID
+        id: get_release
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          echo "Getting release ID for tag: $RELEASE_TAG"
+          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "✓ Release ID: $RELEASE_ID"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   update_release:
     needs:
       - agent
@@ -5068,7 +5100,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Release Highlights Generator"
+          GH_AW_WORKFLOW_NAME: "Release"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
