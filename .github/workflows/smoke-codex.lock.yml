@@ -1498,7 +1498,7 @@ jobs:
           [mcp_servers.playwright]
           command = "npx"
           args = [
-            "@playwright/mcp@0.0.47",
+            "@playwright/mcp@0.0.48",
             "--output-dir",
             "/tmp/gh-aw/mcp-logs/playwright",
             "--allowed-hosts",
