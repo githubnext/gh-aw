@@ -899,6 +899,10 @@ jobs:
           awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.363
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.22.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1593,13 +1597,20 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
-                  "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "all"
-                },
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=all",
+                  "ghcr.io/github/github-mcp-server:v0.22.0"
+                ],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"

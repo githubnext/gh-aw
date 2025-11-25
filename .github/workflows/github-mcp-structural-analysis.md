@@ -15,7 +15,7 @@ permissions:
 engine: copilot
 tools:
   github:
-    mode: remote
+    mode: local
     read-only: true
     toolsets: [all]
   cache-memory:
