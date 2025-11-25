@@ -27,12 +27,22 @@ function interpolateVariables(content, variables) {
 }
 
 /**
- * Renders a Markdown template by processing {{#if}} conditional blocks
+ * Renders a Markdown template by processing {{#if}} conditional blocks.
+ * When a conditional block is removed (falsy condition) and the template tags
+ * were on their own lines, the empty lines are cleaned up to avoid
+ * leaving excessive blank lines in the output.
  * @param {string} markdown - The markdown content to process
  * @returns {string} - The processed markdown content
  */
 function renderMarkdownTemplate(markdown) {
-  return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+  // First, process conditional blocks with the simple replacement
+  let result = markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+
+  // Clean up multiple consecutive blank lines (more than 2 newlines in a row)
+  // This handles cases where removing conditional blocks leaves too many empty lines
+  result = result.replace(/\n{3,}/g, "\n\n");
+
+  return result;
 }
 
 /**

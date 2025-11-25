@@ -26,7 +26,7 @@ const renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_templa
 // Extract the functions from the script
 const isTruthyMatch = renderTemplateScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/);
 const renderMarkdownTemplateMatch = renderTemplateScript.match(
-  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/
+  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/
 );
 
 if (!isTruthyMatch || !renderMarkdownTemplateMatch) {
@@ -115,14 +115,11 @@ This should be removed.
 ## Section 3
 This is always visible.`;
 
+    // With empty line cleanup, we expect at most 2 consecutive newlines
     const expected = `# Title
-
 
 ## Section 1
 This should be kept.
-
-
-
 
 ## Section 3
 This is always visible.`;
@@ -182,5 +179,50 @@ const x = 1;
 
     const input2 = "{{#if\ttrue\t}}\nKeep\n{{/if}}";
     expect(renderMarkdownTemplate(input2)).toBe("\nKeep\n");
+  });
+
+  it("should clean up multiple consecutive empty lines", () => {
+    // When a false block is removed, it should not leave more than 2 consecutive newlines
+    const input = `# Title
+
+{{#if false}}
+## Hidden Section
+This should be removed.
+{{/if}}
+
+## Visible Section
+This is always visible.`;
+
+    const expected = `# Title
+
+## Visible Section
+This is always visible.`;
+
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should collapse multiple false blocks without excessive empty lines", () => {
+    const input = `Start
+
+{{#if false}}
+Block 1
+{{/if}}
+
+{{#if false}}
+Block 2
+{{/if}}
+
+{{#if false}}
+Block 3
+{{/if}}
+
+End`;
+
+    const output = renderMarkdownTemplate(input);
+    // Should not have more than 2 consecutive newlines anywhere
+    expect(output).not.toMatch(/\n{3,}/);
+    expect(output).toContain("Start");
+    expect(output).toContain("End");
   });
 });

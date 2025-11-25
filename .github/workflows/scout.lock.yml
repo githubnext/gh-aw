@@ -3161,7 +3161,9 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+              let result = markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+              result = result.replace(/\n{3,}/g, "\n\n");
+              return result;
             }
             async function main() {
               try {
