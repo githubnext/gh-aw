@@ -2397,7 +2397,19 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+              let result = markdown.replace(
+                /(\n?)([ \t]*{{#if\s+([^}]+)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
+                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                  if (isTruthy(cond)) {
+                    return leadNL + body;
+                  } else {
+                    return "";
+                  }
+                }
+              );
+              result = result.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+              result = result.replace(/\n{3,}/g, "\n\n");
+              return result;
             }
             async function main() {
               try {
