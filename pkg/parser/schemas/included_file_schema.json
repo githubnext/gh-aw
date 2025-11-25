@@ -277,29 +277,11 @@
           "additionalProperties": false
         },
         "conclusion-steps": {
+          "type": "array",
           "description": "Custom steps to inject into the conclusion job. Steps are executed after artifact download and before comment creation.",
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Named steps as an object (for named imports and complex configurations)",
-              "additionalProperties": true
-            },
-            {
-              "type": "array",
-              "description": "Array of GitHub Actions steps",
-              "items": {
-                "oneOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                ]
-              }
-            }
-          ]
+          "items": {
+            "$ref": "#/$defs/step"
+          }
         }
       },
       "additionalProperties": false

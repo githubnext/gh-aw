@@ -3615,29 +3615,11 @@
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
         },
         "conclusion-steps": {
+          "type": "array",
           "description": "Custom steps to inject into the conclusion job. Steps are executed after artifact download and before comment creation. Can be imported from shared agentic workflows.",
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Named steps as an object (for named imports and complex configurations)",
-              "additionalProperties": true
-            },
-            {
-              "type": "array",
-              "description": "Array of GitHub Actions steps",
-              "items": {
-                "oneOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                ]
-              }
-            }
-          ]
+          "items": {
+            "$ref": "#/properties/githubActionsStep"
+          }
         }
       },
       "additionalProperties": false
