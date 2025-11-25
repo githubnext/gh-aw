@@ -360,7 +360,9 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 	// Track types defined in imported configs for conflict detection
 	importedDefinedTypes := make(map[string]bool)
 
-	// Collect all imported configs (including those with only meta fields)
+	// Collect all imported configs. This includes configs with only meta fields (like allowed-domains,
+	// staged, env, github-token, max-patch-size, runs-on) as well as those defining safe output types.
+	// Meta fields can be imported even when no safe output types are defined.
 	var importedConfigs []map[string]any
 	for _, configJSON := range importedSafeOutputsJSON {
 		if configJSON == "" || configJSON == "{}" {
@@ -373,7 +375,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 			continue
 		}
 
-		// Check for conflicts with top-level config (only for safe output types)
+		// Check for conflicts with top-level config (only for safe output types, not meta fields)
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
@@ -391,7 +393,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 
 	importsLog.Printf("Found %d imported safe-outputs configs with %d types", len(importedConfigs), len(importedDefinedTypes))
 
-	// If no imported configs found, return the original
+	// If no imported configs found (neither safe output types nor meta fields), return the original
 	if len(importedConfigs) == 0 {
 		return topSafeOutputs, nil
 	}
