@@ -2224,8 +2224,8 @@ roles: []
 # tags/branches, (4) MCP Network - requires network configuration for custom MCP
 # servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter
 # fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or
-# globally via CLI flag 'gh aw compile --strict' (CLI flag takes precedence over
-# frontmatter). Defaults to false. See:
+# disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw
+# compile --strict enforces strict mode). Defaults to true. See:
 # https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict
 # (optional)
 strict: true
