@@ -1,9 +1,10 @@
 ---
-name: Release Highlights Generator
-description: Automatically generates and prepends a summary of highlights to release notes when a new release is created
+name: Release
+description: Build, test, and release gh-aw extension, then generate and prepend release highlights
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -15,6 +16,9 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
+roles:
+  - admin
+  - maintainer
 engine: copilot
 timeout-minutes: 20
 network:
@@ -28,16 +32,101 @@ tools:
   edit:
 safe-outputs:
   update-release:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check commit author permissions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: user } = await github.rest.users.getByUsername({
+              username: context.actor
+            });
+            
+            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.actor
+            });
+            
+            if (!['admin', 'maintain'].includes(permission.permission)) {
+              core.setFailed(`User ${context.actor} does not have admin or maintainer permissions. Current permission: ${permission.permission}`);
+            }
+            
+            core.info(`✓ User ${context.actor} has ${permission.permission} permissions`);
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: ./pkg/workflow/js
+
+      - name: Build test
+        run: make build
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          
+      - name: Release with gh-extension-precompile
+        uses: cli/gh-extension-precompile@v2
+        with:
+          go_version_file: go.mod
+          build_script_override: scripts/build-release.sh
+
+      - name: Get release ID
+        id: get_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          echo "Getting release ID for tag: $RELEASE_TAG"
+          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "✓ Release ID: $RELEASE_ID"
 steps:
   - name: Setup environment and fetch release data
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
       
+      # Use the release ID from the release job
+      echo "Release ID from release job: ${{ needs.release.outputs.release_id }}"
+      
       # Determine which release to analyze
-      if [ "${{ github.event_name }}" = "release" ]; then
-        RELEASE_TAG="${{ github.event.release.tag_name }}"
-        echo "Processing release from event: $RELEASE_TAG"
+      if [ "${{ github.event_name }}" = "push" ]; then
+        RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+        echo "Processing release from push event: $RELEASE_TAG"
       elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
         RELEASE_TAG="${{ github.event.inputs.release_tag }}"
         echo "Processing release from workflow input: $RELEASE_TAG"
@@ -101,6 +190,8 @@ steps:
 # Release Highlights Generator
 
 Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
+
+**Release ID**: ${{ needs.release.outputs.release_id }}
 
 ## Data Available
 

@@ -146,6 +146,36 @@ jobs:
 			},
 			shouldError: false,
 		},
+		{
+			name: "job with outputs",
+			frontmatter: `---
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          echo "version=1.0.0" >> $GITHUB_OUTPUT
+          echo "tag=v1.0.0" >> $GITHUB_OUTPUT
+---
+
+# Build workflow
+`,
+			expectedYAML: []string{
+				"build:",
+				"outputs:",
+				"tag: ${{ steps.version.outputs.tag }}",
+				"version: ${{ steps.version.outputs.version }}",
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
