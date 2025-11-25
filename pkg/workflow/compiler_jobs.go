@@ -1024,6 +1024,8 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					for key, val := range outputsMap {
 						if valStr, ok := val.(string); ok {
 							job.Outputs[key] = valStr
+						} else {
+							compilerJobsLog.Printf("Warning: output '%s' in job '%s' has non-string value (type: %T), ignoring", key, jobName, val)
 						}
 					}
 				}

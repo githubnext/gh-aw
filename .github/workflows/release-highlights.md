@@ -125,6 +125,10 @@ steps:
       
       # Determine which release to analyze
       if [ "${{ github.event_name }}" = "push" ]; then
+        if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
+          echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
+          exit 1
+        fi
         RELEASE_TAG="${GITHUB_REF#refs/tags/}"
         echo "Processing release from push event: $RELEASE_TAG"
       elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
