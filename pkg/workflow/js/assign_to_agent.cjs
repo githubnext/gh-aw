@@ -193,11 +193,11 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
 
     // Make raw GraphQL request with custom token
     core.debug(`GraphQL mutation: ${mutation}`);
-    const response = await fetch('https://api.github.com/graphql', {
-      method: 'POST',
+    const response = await fetch("https://api.github.com/graphql", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${mutationToken}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${mutationToken}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ query: mutation }),
     }).then(res => res.json());
@@ -262,11 +262,11 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
         } else {
           core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
           core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
-          const fallbackResp = await fetch('https://api.github.com/graphql', {
-            method: 'POST',
+          const fallbackResp = await fetch("https://api.github.com/graphql", {
+            method: "POST",
             headers: {
-              'Authorization': `Bearer ${fallbackToken}`,
-              'Content-Type': 'application/json',
+              Authorization: `Bearer ${fallbackToken}`,
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({ query: fallbackMutation }),
           }).then(res => res.json());
