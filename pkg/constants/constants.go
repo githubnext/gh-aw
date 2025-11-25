@@ -26,9 +26,10 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.50"
+const DefaultClaudeCodeVersion Version = "2.0.51"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
+// WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
 const DefaultCopilotVersion Version = "0.0.363"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
