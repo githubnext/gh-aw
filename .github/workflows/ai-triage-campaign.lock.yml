@@ -4036,17 +4036,25 @@ jobs:
                 }
               `;
               try {
-                const { getOctokit } = require("@actions/github");
                 const mutationToken = process.env.GH_AW_AGENT_TOKEN;
                 if (!mutationToken) {
                   core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
                 core.info("Using GH_AW_AGENT_TOKEN for mutation");
-                const mutationClient = getOctokit(mutationToken);
                 core.debug(`GraphQL mutation: ${mutation}`);
-                const response = await mutationClient.graphql(mutation);
-                if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                const response = await fetch('https://api.github.com/graphql', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${mutationToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ query: mutation }),
+                }).then(res => res.json());
+                if (response.errors && response.errors.length > 0) {
+                  throw new Error(response.errors[0].message);
+                }
+                if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
                   core.error("Unexpected response from GitHub API");
@@ -4089,10 +4097,16 @@ jobs:
                       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
                       core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
-                      const fallbackClient = getOctokit(fallbackToken);
                       core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
-                      const fallbackResp = await fallbackClient.graphql(fallbackMutation);
-                      if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                      const fallbackResp = await fetch('https://api.github.com/graphql', {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${fallbackToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: fallbackMutation }),
+                      }).then(res => res.json());
+                      if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
                         core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
                         return true;
                       } else {
