@@ -756,13 +756,13 @@ describe("add_comment.cjs", () => {
       items: [
         {
           type: "add_comment",
-          body: "This comment references issue #temp:aabbccdd1122 which was created earlier.",
+          body: "This comment references issue #aw_aabbccdd1122 which was created earlier.",
         },
       ],
     });
 
     // Set up the temporary ID map from the create_issue job
-    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aabbccdd1122: 456 });
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aw_aabbccdd1122: 456 });
 
     mockGithub.rest.issues.createComment.mockResolvedValue({
       data: {
@@ -782,7 +782,7 @@ describe("add_comment.cjs", () => {
     );
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.not.stringContaining("#temp:aabbccdd1122"),
+        body: expect.not.stringContaining("#aw_aabbccdd1122"),
       })
     );
 
@@ -801,7 +801,7 @@ describe("add_comment.cjs", () => {
     });
 
     // Set up the temporary ID map
-    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ abc123: 100, def456: 200 });
+    process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aw_abc123: 100, aw_def456: 200 });
 
     mockGithub.rest.issues.createComment.mockResolvedValue({
       data: {
@@ -825,7 +825,7 @@ describe("add_comment.cjs", () => {
       items: [
         {
           type: "add_comment",
-          body: "Comment with #temp:000000000000 that won't be resolved",
+          body: "Comment with #aw_000000000000 that won't be resolved",
         },
       ],
     });
@@ -846,7 +846,7 @@ describe("add_comment.cjs", () => {
     // The unresolved reference should remain in the body
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("#temp:000000000000"),
+        body: expect.stringContaining("#aw_000000000000"),
       })
     );
 

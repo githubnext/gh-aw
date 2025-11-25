@@ -5,26 +5,26 @@ const crypto = require("crypto");
 
 /**
  * Regex pattern for matching temporary ID references in text
- * Format: #temp:XXXXXXXXXXXX (12 hex characters)
+ * Format: #aw_XXXXXXXXXXXX (aw_ prefix + 12 hex characters)
  */
-const TEMPORARY_ID_PATTERN = /#temp:([0-9a-f]{12})/gi;
+const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
 
 /**
- * Generate a random 12-character hex string for temporary issue IDs
- * @returns {string} A 12-character hex string
+ * Generate a temporary ID with aw_ prefix for temporary issue IDs
+ * @returns {string} A temporary ID in format aw_XXXXXXXXXXXX (12 hex characters)
  */
 function generateTemporaryId() {
-  return crypto.randomBytes(6).toString("hex");
+  return "aw_" + crypto.randomBytes(6).toString("hex");
 }
 
 /**
- * Check if a value is a valid temporary ID (12-character hex string)
+ * Check if a value is a valid temporary ID (aw_ prefix + 12-character hex string)
  * @param {any} value - The value to check
  * @returns {boolean} True if the value is a valid temporary ID
  */
 function isTemporaryId(value) {
   if (typeof value === "string") {
-    return /^[0-9a-f]{12}$/i.test(value);
+    return /^aw_[0-9a-f]{12}$/i.test(value);
   }
   return false;
 }
@@ -40,7 +40,7 @@ function normalizeTemporaryId(tempId) {
 
 /**
  * Replace temporary ID references in text with actual issue numbers
- * Format: #temp:XXXXXXXXXXXX -> #123
+ * Format: #aw_XXXXXXXXXXXX -> #123
  * @param {string} text - The text to process
  * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
  * @returns {string} Text with temporary IDs replaced with issue numbers

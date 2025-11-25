@@ -1012,13 +1012,13 @@ jobs:
               }
             }
             const crypto = require("crypto");
-            const TEMPORARY_ID_PATTERN = /#temp:([0-9a-f]{12})/gi;
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
-              return crypto.randomBytes(6).toString("hex");
+              return "aw_" + crypto.randomBytes(6).toString("hex");
             }
             function isTemporaryId(value) {
               if (typeof value === "string") {
-                return /^[0-9a-f]{12}$/i.test(value);
+                return /^aw_[0-9a-f]{12}$/i.test(value);
               }
               return false;
             }
@@ -5932,13 +5932,13 @@ jobs:
               return "";
             }
             const crypto = require("crypto");
-            const TEMPORARY_ID_PATTERN = /#temp:([0-9a-f]{12})/gi;
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
-              return crypto.randomBytes(6).toString("hex");
+              return "aw_" + crypto.randomBytes(6).toString("hex");
             }
             function isTemporaryId(value) {
               if (typeof value === "string") {
-                return /^[0-9a-f]{12}$/i.test(value);
+                return /^aw_[0-9a-f]{12}$/i.test(value);
               }
               return false;
             }

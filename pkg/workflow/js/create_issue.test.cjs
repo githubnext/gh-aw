@@ -780,7 +780,7 @@ describe("create_issue.cjs", () => {
           type: "create_issue",
           title: "Parent Issue",
           body: "This is a parent issue",
-          temporary_id: "abc123def456",
+          temporary_id: "aw_abc123def456",
         },
       ],
     });
@@ -802,26 +802,26 @@ describe("create_issue.cjs", () => {
     // Get the last call (the one with actual data)
     const lastTempIdMapCall = tempIdMapCalls[tempIdMapCalls.length - 1];
     expect(lastTempIdMapCall).toBeDefined();
-    expect(JSON.parse(lastTempIdMapCall[1])).toEqual({ abc123def456: 100 });
-    expect(mockCore.info).toHaveBeenCalledWith("Stored temporary ID mapping: abc123def456 -> #100");
+    expect(JSON.parse(lastTempIdMapCall[1])).toEqual({ aw_abc123def456: 100 });
+    expect(mockCore.info).toHaveBeenCalledWith("Stored temporary ID mapping: aw_abc123def456 -> #100");
   });
 
   it("should resolve parent temporary_id to issue number when creating sub-issues", async () => {
     // Create both parent and sub-issue in same workflow run
-    // Use valid hex strings (0-9a-f only) for temporary IDs
+    // Use valid aw_ prefixed hex strings for temporary IDs
     setAgentOutput({
       items: [
         {
           type: "create_issue",
           title: "Parent Issue",
           body: "This is a parent issue",
-          temporary_id: "aabbccdd1122", // Valid hex string
+          temporary_id: "aw_aabbccdd1122", // Valid aw_ prefixed hex string
         },
         {
           type: "create_issue",
           title: "Sub Issue",
           body: "This is a sub-issue",
-          parent: "aabbccdd1122", // Reference parent by temporary_id
+          parent: "aw_aabbccdd1122", // Reference parent by temporary_id
         },
       ],
     });
@@ -851,25 +851,25 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should have resolved parent temporary_id to issue #100
-    expect(mockCore.info).toHaveBeenCalledWith("Resolved parent temporary ID 'aabbccdd1122' to issue #100");
+    expect(mockCore.info).toHaveBeenCalledWith("Resolved parent temporary ID 'aw_aabbccdd1122' to issue #100");
 
     // Both issues should be created
     expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
   });
 
-  it("should replace #temp:ID references in issue body with real issue numbers", async () => {
+  it("should replace #aw_ID references in issue body with real issue numbers", async () => {
     setAgentOutput({
       items: [
         {
           type: "create_issue",
           title: "Parent Issue",
           body: "This is a parent issue",
-          temporary_id: "aabbccdd1122",
+          temporary_id: "aw_aabbccdd1122",
         },
         {
           type: "create_issue",
           title: "Sub Issue",
-          body: "This issue references #temp:aabbccdd1122 in the body",
+          body: "This issue references #aw_aabbccdd1122 in the body",
         },
       ],
     });
@@ -894,7 +894,7 @@ describe("create_issue.cjs", () => {
     // The second issue body should have the reference replaced
     const secondCallArgs = mockGithub.rest.issues.create.mock.calls[1][0];
     expect(secondCallArgs.body).toContain("#200");
-    expect(secondCallArgs.body).not.toContain("#temp:aabbccdd1122");
+    expect(secondCallArgs.body).not.toContain("#aw_aabbccdd1122");
   });
 
   it("should generate auto temporary_id when none is provided", async () => {
@@ -929,8 +929,8 @@ describe("create_issue.cjs", () => {
     const tempIdMap = JSON.parse(lastTempIdMapCall[1]);
     const keys = Object.keys(tempIdMap);
     expect(keys.length).toBe(1);
-    // Auto-generated ID should be 12 hex characters
-    expect(keys[0]).toMatch(/^[0-9a-f]{12}$/);
+    // Auto-generated ID should be aw_ prefix + 12 hex characters
+    expect(keys[0]).toMatch(/^aw_[0-9a-f]{12}$/);
     expect(tempIdMap[keys[0]]).toBe(300);
   });
 
@@ -941,7 +941,7 @@ describe("create_issue.cjs", () => {
           type: "create_issue",
           title: "Issue with temp ID",
           body: "Body content",
-          temporary_id: "a1b2c3d4e5f6", // Valid hex string
+          temporary_id: "aw_a1b2c3d4e5f6", // Valid aw_ prefixed hex string
         },
       ],
     });
@@ -953,7 +953,7 @@ describe("create_issue.cjs", () => {
     // Should include temporary_id in preview
     const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🎭 Staged Mode: Create Issues Preview"));
     expect(infoCall).toBeDefined();
-    expect(infoCall[0]).toContain("**Temporary ID:** a1b2c3d4e5f6");
+    expect(infoCall[0]).toContain("**Temporary ID:** aw_a1b2c3d4e5f6");
 
     // Clean up
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
@@ -966,7 +966,7 @@ describe("create_issue.cjs", () => {
           type: "create_issue",
           title: "Sub Issue",
           body: "References non-existent parent",
-          parent: "000000000000", // Valid hex but doesn't exist
+          parent: "aw_000000000000", // Valid aw_ format but doesn't exist
         },
       ],
     });
@@ -983,6 +983,6 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should warn about missing parent
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Parent temporary ID '000000000000' not found"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Parent temporary ID 'aw_000000000000' not found"));
   });
 });
