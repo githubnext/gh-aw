@@ -146,20 +146,22 @@
 #
 # ## Output Format
 #
-# **CRITICAL**: You must call the safe outputs update_release tool to update the release with the generated highlights
-# with the following format:
+# **CRITICAL**: You MUST call the `update_release` tool to update the release with the generated highlights:
 #
-# ```
-# TYPE: update_release
-# TAG: ${RELEASE_TAG}
-# OPERATION: prepend
-# BODY: [Your complete markdown highlights here]
+# ```javascript
+# update_release({
+#   tag: "${RELEASE_TAG}",
+#   operation: "prepend",
+#   body: "## 🌟 Release Highlights\n\n[Your complete markdown highlights here]"
+# })
 # ```
 #
-# **Required Fields:**
-# - `TAG` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
-# - `OPERATION` - Must be `prepend` to add before existing notes
-# - `BODY` - Complete markdown content (include all formatting, emojis, links)
+# **Required Parameters:**
+# - `tag` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
+# - `operation` - Must be `"prepend"` to add before existing notes
+# - `body` - Complete markdown content (include all formatting, emojis, links)
+#
+# **WARNING**: If you don't call the `update_release` tool, the release notes will NOT be updated!
 #
 # **Documentation Base URLs:**
 # - User docs: `https://githubnext.github.io/gh-aw/`
@@ -1263,20 +1265,22 @@ jobs:
           
           ## Output Format
           
-          **CRITICAL**: You must call the safe outputs update_release tool to update the release with the generated highlights
-          with the following format:
+          **CRITICAL**: You MUST call the `update_release` tool to update the release with the generated highlights:
           
-          ```
-          TYPE: update_release
-          TAG: ${RELEASE_TAG}
-          OPERATION: prepend
-          BODY: [Your complete markdown highlights here]
+          ```javascript
+          update_release({
+            tag: "${RELEASE_TAG}",
+            operation: "prepend",
+            body: "## 🌟 Release Highlights\n\n[Your complete markdown highlights here]"
+          })
           ```
           
-          **Required Fields:**
-          - `TAG` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
-          - `OPERATION` - Must be `prepend` to add before existing notes
-          - `BODY` - Complete markdown content (include all formatting, emojis, links)
+          **Required Parameters:**
+          - `tag` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
+          - `operation` - Must be `"prepend"` to add before existing notes
+          - `body` - Complete markdown content (include all formatting, emojis, links)
+          
+          **WARNING**: If you don't call the `update_release` tool, the release notes will NOT be updated!
           
           **Documentation Base URLs:**
           - User docs: `https://githubnext.github.io/gh-aw/`
