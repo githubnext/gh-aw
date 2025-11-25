@@ -133,11 +133,36 @@ func TestProgressFlagSignature(t *testing.T) {
 	// This is a compile-time check more than a runtime check
 
 	// RunWorkflowOnGitHub should NOT accept progress parameter anymore
-	_ = RunWorkflowOnGitHub("test", false, "", "", false, false, false, false)
+	_ = RunWorkflowOnGitHub("test", false, "", "", "", false, false, false, false)
 
 	// RunWorkflowsOnGitHub should NOT accept progress parameter anymore
-	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", false, false, false)
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "", false, false, false)
 
 	// getLatestWorkflowRunWithRetry should NOT accept progress parameter anymore
 	_, _ = getLatestWorkflowRunWithRetry("test.lock.yml", "", false)
+}
+
+// TestRefFlagSignature tests that the ref flag is supported
+func TestRefFlagSignature(t *testing.T) {
+	// Test that RunWorkflowOnGitHub accepts refOverride parameter
+	// This is a compile-time check that ensures the refOverride parameter exists
+	_ = RunWorkflowOnGitHub("test", false, "", "", "main", false, false, false, false)
+
+	// Test that RunWorkflowsOnGitHub accepts refOverride parameter
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "main", false, false, false)
+}
+
+// TestRunWorkflowOnGitHubWithRef tests that the ref parameter is handled correctly
+func TestRunWorkflowOnGitHubWithRef(t *testing.T) {
+	// Test with explicit ref override (should still fail for non-existent workflow, but syntax is valid)
+	err := RunWorkflowOnGitHub("nonexistent-workflow", false, "", "", "main", false, false, false, false)
+	if err == nil {
+		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with ref flag")
+	}
+
+	// Test with ref override and repo override
+	err = RunWorkflowOnGitHub("nonexistent-workflow", false, "", "owner/repo", "feature-branch", false, false, false, false)
+	if err == nil {
+		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow with both ref and repo")
+	}
 }
