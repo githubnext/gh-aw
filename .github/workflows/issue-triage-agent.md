@@ -5,10 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   issues: read
-engine: copilot
 tools:
   github:
-    read-only: true
     toolsets: [issues, labels]
 safe-outputs:
   add-labels:
