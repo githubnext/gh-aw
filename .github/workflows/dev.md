@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 name: Dev
 description: Test workflow for development and experimentation purposes
-engine: copilot
+engine: claude
 permissions:
   contents: read
   issues: read

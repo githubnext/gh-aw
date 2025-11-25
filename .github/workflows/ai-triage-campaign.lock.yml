@@ -4042,7 +4042,7 @@ jobs:
                   core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
-                core.info(`Using GH_AW_AGENT_TOKEN for mutation (token length: ${mutationToken.length})`);
+                core.info("Using GH_AW_AGENT_TOKEN for mutation");
                 const mutationClient = getOctokit(mutationToken);
                 core.debug(`GraphQL mutation: ${mutation}`);
                 const response = await mutationClient.graphql(mutation);
@@ -4088,7 +4088,7 @@ jobs:
                     if (!fallbackToken) {
                       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
-                      core.info(`Using GH_AW_AGENT_TOKEN for fallback mutation (token length: ${fallbackToken.length})`);
+                      core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
                       const fallbackClient = getOctokit(fallbackToken);
                       core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
                       const fallbackResp = await fallbackClient.graphql(fallbackMutation);
