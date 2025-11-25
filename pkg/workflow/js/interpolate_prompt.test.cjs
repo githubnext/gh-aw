@@ -112,7 +112,7 @@ Some other content here.`;
     it("should keep content in truthy blocks", () => {
       const input = "{{#if true}}\nHello\n{{/if}}";
       const output = renderMarkdownTemplate(input);
-      expect(output).toBe("\nHello\n");
+      expect(output).toBe("Hello\n");
     });
 
     it("should remove content in falsy blocks", () => {
@@ -124,7 +124,7 @@ Some other content here.`;
     it("should process multiple blocks", () => {
       const input = "{{#if true}}\nKeep this\n{{/if}}\n{{#if false}}\nRemove this\n{{/if}}";
       const output = renderMarkdownTemplate(input);
-      expect(output).toBe("\nKeep this\n\n");
+      expect(output).toBe("Keep this\n");
     });
 
     it("should handle nested content", () => {
@@ -164,7 +164,7 @@ This is always visible.`;
 
     it("should handle conditionals with various expressions", () => {
       const input1 = "{{#if 1}}\nKeep\n{{/if}}";
-      expect(renderMarkdownTemplate(input1)).toBe("\nKeep\n");
+      expect(renderMarkdownTemplate(input1)).toBe("Keep\n");
 
       const input2 = "{{#if 0}}\nRemove\n{{/if}}";
       expect(renderMarkdownTemplate(input2)).toBe("");
@@ -187,8 +187,7 @@ const x = 1;
 \`\`\`
 {{/if}}`;
 
-      const expected = `
-## Header
+      const expected = `## Header
 - List item 1
 - List item 2
 
@@ -203,10 +202,10 @@ const x = 1;
 
     it("should handle whitespace in conditionals", () => {
       const input1 = "{{#if   true  }}\nKeep\n{{/if}}";
-      expect(renderMarkdownTemplate(input1)).toBe("\nKeep\n");
+      expect(renderMarkdownTemplate(input1)).toBe("Keep\n");
 
       const input2 = "{{#if\ttrue\t}}\nKeep\n{{/if}}";
-      expect(renderMarkdownTemplate(input2)).toBe("\nKeep\n");
+      expect(renderMarkdownTemplate(input2)).toBe("Keep\n");
     });
 
     it("should clean up multiple consecutive empty lines", () => {
@@ -266,7 +265,7 @@ End`;
 
       // Then render template
       result = renderMarkdownTemplate(result);
-      expect(result).toBe("Repo: github/test-repo\n\nShow this\n");
+      expect(result).toBe("Repo: github/test-repo\nShow this\n");
     });
 
     it("should handle template conditionals that depend on interpolated values", () => {
@@ -279,7 +278,7 @@ End`;
 
       // Then render template
       result = renderMarkdownTemplate(result);
-      expect(result).toBe("true\n\nShow this\n");
+      expect(result).toBe("true\nShow this\n");
     });
   });
 

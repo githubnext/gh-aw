@@ -35,11 +35,25 @@ function interpolateVariables(content, variables) {
  * @returns {string} - The processed markdown content
  */
 function renderMarkdownTemplate(markdown) {
-  // First, process conditional blocks with the simple replacement
-  let result = markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+  // First pass: Handle blocks where tags are on their own lines
+  // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
+  let result = markdown.replace(
+    /(\n?)([ \t]*{{#if\s+([^}]+)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
+    (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+      if (isTruthy(cond)) {
+        // Keep body with leading newline if there was one before the opening tag
+        return leadNL + body;
+      } else {
+        // Remove entire block completely - the line containing the template is removed
+        return "";
+      }
+    }
+  );
 
-  // Clean up multiple consecutive blank lines (more than 2 newlines in a row)
-  // This handles cases where removing conditional blocks leaves too many empty lines
+  // Second pass: Handle inline conditionals (tags not on their own lines)
+  result = result.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+
+  // Clean up excessive blank lines (more than one blank line = 2 newlines)
   result = result.replace(/\n{3,}/g, "\n\n");
 
   return result;
