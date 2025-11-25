@@ -102,6 +102,8 @@ describe("create_issue.cjs", () => {
     const scriptPath = path.join(process.cwd(), "create_issue.cjs");
     createIssueScript = fs.readFileSync(scriptPath, "utf8");
     createIssueScript = createIssueScript.replace("export {};", "");
+    // Remove the outer async IIFE wrapper so we can properly await main()
+    createIssueScript = createIssueScript.replace(/\(async \(\) => \{\s*await main\(\);\s*\}\)\(\);?\s*$/, "await main();");
   });
 
   afterEach(() => {
@@ -769,5 +771,218 @@ describe("create_issue.cjs", () => {
 
     // Clean up
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+  });
+
+  it("should generate temporary_id_map output with created issues", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Parent Issue",
+          body: "This is a parent issue",
+          temporary_id: "aw_abc123def456",
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 100,
+      title: "Parent Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/100",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should set the temporary_id_map output - find all calls and get the last non-empty one
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const tempIdMapCalls = setOutputCalls.filter(call => call[0] === "temporary_id_map");
+    // Get the last call (the one with actual data)
+    const lastTempIdMapCall = tempIdMapCalls[tempIdMapCalls.length - 1];
+    expect(lastTempIdMapCall).toBeDefined();
+    expect(JSON.parse(lastTempIdMapCall[1])).toEqual({ aw_abc123def456: 100 });
+    expect(mockCore.info).toHaveBeenCalledWith("Stored temporary ID mapping: aw_abc123def456 -> #100");
+  });
+
+  it("should resolve parent temporary_id to issue number when creating sub-issues", async () => {
+    // Create both parent and sub-issue in same workflow run
+    // Use valid aw_ prefixed hex strings for temporary IDs
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Parent Issue",
+          body: "This is a parent issue",
+          temporary_id: "aw_aabbccdd1122", // Valid aw_ prefixed hex string
+        },
+        {
+          type: "create_issue",
+          title: "Sub Issue",
+          body: "This is a sub-issue",
+          parent: "aw_aabbccdd1122", // Reference parent by temporary_id
+        },
+      ],
+    });
+
+    const parentIssue = {
+      number: 100,
+      title: "Parent Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/100",
+    };
+
+    const subIssue = {
+      number: 101,
+      title: "Sub Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/101",
+    };
+
+    // First call creates parent, second creates sub-issue
+    mockGithub.rest.issues.create.mockResolvedValueOnce({ data: parentIssue }).mockResolvedValueOnce({ data: subIssue });
+
+    // Mock graphql for sub-issue linking
+    mockGithub.graphql.mockResolvedValue({
+      repository: { issue: { id: "test-node-id" } },
+      addSubIssue: { subIssue: { id: "test-child-id", number: 101 } },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should have resolved parent temporary_id to issue #100
+    expect(mockCore.info).toHaveBeenCalledWith("Resolved parent temporary ID 'aw_aabbccdd1122' to issue #100");
+
+    // Both issues should be created
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("should replace #aw_ID references in issue body with real issue numbers", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Parent Issue",
+          body: "This is a parent issue",
+          temporary_id: "aw_aabbccdd1122",
+        },
+        {
+          type: "create_issue",
+          title: "Sub Issue",
+          body: "This issue references #aw_aabbccdd1122 in the body",
+        },
+      ],
+    });
+
+    const parentIssue = {
+      number: 200,
+      title: "Parent Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/200",
+    };
+
+    const subIssue = {
+      number: 201,
+      title: "Sub Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/201",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValueOnce({ data: parentIssue }).mockResolvedValueOnce({ data: subIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // The second issue body should have the reference replaced
+    const secondCallArgs = mockGithub.rest.issues.create.mock.calls[1][0];
+    expect(secondCallArgs.body).toContain("#200");
+    expect(secondCallArgs.body).not.toContain("#aw_aabbccdd1122");
+  });
+
+  it("should generate auto temporary_id when none is provided", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Issue without explicit temporary_id",
+          body: "Body content",
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 300,
+      title: "Issue without explicit temporary_id",
+      html_url: "https://github.com/testowner/testrepo/issues/300",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should output temporary_id_map with auto-generated ID
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    // Find all temporary_id_map calls and get the last one
+    const tempIdMapCalls = setOutputCalls.filter(call => call[0] === "temporary_id_map");
+    const lastTempIdMapCall = tempIdMapCalls[tempIdMapCalls.length - 1];
+    expect(lastTempIdMapCall).toBeDefined();
+
+    const tempIdMap = JSON.parse(lastTempIdMapCall[1]);
+    const keys = Object.keys(tempIdMap);
+    expect(keys.length).toBe(1);
+    // Auto-generated ID should be aw_ prefix + 12 hex characters
+    expect(keys[0]).toMatch(/^aw_[0-9a-f]{12}$/);
+    expect(tempIdMap[keys[0]]).toBe(300);
+  });
+
+  it("should show temporary_id in staged mode preview", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Issue with temp ID",
+          body: "Body content",
+          temporary_id: "aw_a1b2c3d4e5f6", // Valid aw_ prefixed hex string
+        },
+      ],
+    });
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should include temporary_id in preview
+    const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🎭 Staged Mode: Create Issues Preview"));
+    expect(infoCall).toBeDefined();
+    expect(infoCall[0]).toContain("**Temporary ID:** aw_a1b2c3d4e5f6");
+
+    // Clean up
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+  });
+
+  it("should warn when parent temporary_id is not found", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Sub Issue",
+          body: "References non-existent parent",
+          parent: "aw_000000000000", // Valid aw_ format but doesn't exist
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 400,
+      title: "Sub Issue",
+      html_url: "https://github.com/testowner/testrepo/issues/400",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should warn about missing parent
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Parent temporary ID 'aw_000000000000' not found"));
   });
 });

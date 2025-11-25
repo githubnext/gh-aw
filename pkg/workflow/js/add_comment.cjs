@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 
 /**
  * Comment on a GitHub Discussion using GraphQL
@@ -87,6 +88,12 @@ async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+
+  // Load the temporary ID map from create_issue job
+  const temporaryIdMap = loadTemporaryIdMap();
+  if (temporaryIdMap.size > 0) {
+    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+  }
 
   const result = loadAgentOutput();
   if (!result.success) {
@@ -257,8 +264,8 @@ async function main() {
       continue;
     }
 
-    // Extract body from the JSON item
-    let body = commentItem.body.trim();
+    // Extract body from the JSON item and replace temporary ID references
+    let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
 
     // Append references to created issues, discussions, and pull requests if they exist
     const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;

@@ -22,8 +22,12 @@
           "description": "Issue labels"
         },
         "parent": {
-          "type": "number",
-          "description": "Parent issue number to create this issue as a sub-issue of"
+          "type": ["number", "string"],
+          "description": "Parent issue number to create this issue as a sub-issue of. Can be a real issue number or a temporary_id from a previously created issue in this workflow."
+        },
+        "temporary_id": {
+          "type": "string",
+          "description": "A temporary identifier (12 character hex string) for this issue that can be referenced by other issues in the same workflow run. Useful when creating a parent issue first, then sub-issues that reference it. Use '#temp:ID' format in body text to reference other issues by their temporary_id."
         }
       },
       "additionalProperties": false
