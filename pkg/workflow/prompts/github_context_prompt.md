@@ -1,6 +1,5 @@
 <github-context>
 <description>The following GitHub context information is available for this workflow:</description>
-
 {{#if ${{ github.repository }} }}
 <context name="repository">${{ github.repository }}</context>
 {{/if}}
@@ -22,6 +21,5 @@
 {{#if ${{ github.run_id }} }}
 <context name="workflow-run-id">${{ github.run_id }}</context>
 {{/if}}
-
 <instruction>Use this context information to understand the scope of your work.</instruction>
 </github-context>
