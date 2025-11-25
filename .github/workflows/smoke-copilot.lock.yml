@@ -1503,7 +1503,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "npx",
-                "args": ["@playwright/mcp@0.0.47", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"],
+                "args": ["@playwright/mcp@0.0.48", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com"],
                 "tools": ["*"]
               },
               "safeoutputs": {
