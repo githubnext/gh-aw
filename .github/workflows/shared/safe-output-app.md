@@ -5,6 +5,7 @@ safe-outputs:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
+<!--
 # Shared Safe Output App Configuration
 
 This shared workflow provides repository-level GitHub App configuration for safe outputs.
@@ -27,3 +28,4 @@ The configuration will be automatically merged into your workflow's safe-outputs
 - **Easy Updates**: Change credentials in one place
 - **Consistent Usage**: All workflows use the same configuration pattern
 - **Repository-Scoped**: Uses repository-specific variables and secrets
+-->
