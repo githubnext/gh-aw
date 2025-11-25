@@ -193,6 +193,18 @@ Returns JSON array with validation results for each workflow:
 
 Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
+		// Check if any static analysis tools are requested that require Docker images
+		if args.Zizmor || args.Poutine || args.Actionlint {
+			// Check if Docker images are available; if not, start downloading and return retry message
+			if err := CheckAndPrepareDockerImages(args.Zizmor, args.Poutine, args.Actionlint); err != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: err.Error()},
+					},
+				}, nil, nil
+			}
+		}
+
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP
 		cmdArgs := []string{"compile", "--validate", "--json"}
