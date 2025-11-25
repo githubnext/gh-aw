@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.1 - 2025-11-25
+
+### Bug Fixes
+
+#### Changed AWF mount mode from read-only to read-write for workspace directories
+
+#### Fixed typo in `gh aw mcp inspect` command help text (interacts → interact)
+
+#### Optimize prompt files loading
+
+
 ## v0.31.0 - 2025-11-25
 
 ### Features
