@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+  pull_request:
+    types: [labeled]
+    names: ['firewall-escape-test']
 
 permissions:
   contents: read
