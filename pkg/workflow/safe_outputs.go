@@ -400,6 +400,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle link-issues
+			config.LinkIssues = c.parseLinkIssuesConfig(outputMap)
+
 			// Handle staged flag
 			if staged, exists := outputMap["staged"]; exists {
 				if stagedBool, ok := staged.(bool); ok {
@@ -1124,6 +1127,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.NoOp != nil {
 		enabledTools["noop"] = true
+	}
+	if data.SafeOutputs.LinkIssues != nil {
+		enabledTools["link_issues"] = true
 	}
 
 	// Filter tools to only include enabled ones

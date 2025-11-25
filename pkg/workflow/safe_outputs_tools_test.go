@@ -288,6 +288,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"update_release",
 		"missing_tool",
 		"noop",
+		"link_issues",
 	}
 
 	var actualTools []string

@@ -2043,6 +2043,35 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for linking issues with sub-issue or blocking
+  # relationships
+  link-issues:
+    # Maximum number of issue links to create (default: 10)
+    # (optional)
+    max: 1
+
+    # Target issues: 'triggering' (default) or '*' (any issues)
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository issue linking
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable link-issues output with default configuration (max: 10)
+  link-issues: null
+
+  # Option 3: Explicitly disable link-issues output (false)
+  link-issues: true
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for publishing assets to an orphaned git branch
   upload-assets:
     # Branch name (default: 'assets/${{ github.workflow }}')

@@ -251,6 +251,19 @@ interface NoOpItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for linking issues (sub-issue or blocking relationship)
+ */
+interface LinkIssuesItem extends BaseSafeOutputItem {
+  type: "link_issues";
+  /** Parent issue number or URL. For 'sub' relationship, this becomes the parent. For 'blocks' relationship, this is the blocking issue. */
+  parent_issue: number | string;
+  /** Child issue number or URL. For 'sub' relationship, this becomes the sub-issue. For 'blocks' relationship, this is the blocked issue. */
+  child_issue: number | string;
+  /** Type of relationship: 'sub' (child becomes sub-issue of parent) or 'blocks' (parent blocks child). Default is 'sub'. */
+  relationship?: "sub" | "blocks";
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -272,7 +285,8 @@ type SafeOutputItem =
   | AssignMilestoneItem
   | AssignToAgentItem
   | UpdateReleaseItem
-  | NoOpItem;
+  | NoOpItem
+  | LinkIssuesItem;
 
 /**
  * Sanitized safe output items
@@ -304,6 +318,7 @@ export {
   AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,
+  LinkIssuesItem,
   SafeOutputItem,
   SafeOutputItems,
 };

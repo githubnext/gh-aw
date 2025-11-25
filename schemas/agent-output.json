@@ -45,7 +45,8 @@
         {"$ref": "#/$defs/UpdateReleaseOutput"},
         {"$ref": "#/$defs/AssignMilestoneOutput"},
         {"$ref": "#/$defs/AssignToAgentOutput"},
-        {"$ref": "#/$defs/NoOpOutput"}
+        {"$ref": "#/$defs/NoOpOutput"},
+        {"$ref": "#/$defs/LinkIssuesOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -561,6 +562,38 @@
         }
       },
       "required": ["type", "message"],
+      "additionalProperties": false
+    },
+    "LinkIssuesOutput": {
+      "title": "Link Issues Output",
+      "description": "Output for creating relationships between GitHub issues (sub-issue or blocking relationship)",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "link_issues"
+        },
+        "parent_issue": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Parent issue number or URL. For 'sub' relationship, this becomes the parent. For 'blocks' relationship, this is the blocking issue."
+        },
+        "child_issue": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Child issue number or URL. For 'sub' relationship, this becomes the sub-issue. For 'blocks' relationship, this is the blocked issue."
+        },
+        "relationship": {
+          "type": "string",
+          "description": "Type of relationship: 'sub' (child becomes sub-issue of parent) or 'blocks' (parent blocks child)",
+          "enum": ["sub", "blocks"],
+          "default": "sub"
+        }
+      },
+      "required": ["type", "parent_issue", "child_issue"],
       "additionalProperties": false
     }
   }

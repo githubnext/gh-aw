@@ -2398,6 +2398,8 @@ jobs:
                     return 1;
                   case "noop":
                     return 1; 
+                  case "link_issues":
+                    return 10; 
                   default:
                     return 1;
                 }
@@ -3123,6 +3125,30 @@ jobs:
                       item.message = sanitizeContent(item.message, 2048);
                       if (item.ruleIdSuffix) {
                         item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+                      }
+                      break;
+                    case "link_issues":
+                      const parentIssueValidation = validateIssueOrPRNumber(item.parent_issue, "link_issues 'parent_issue'", i + 1);
+                      if (!parentIssueValidation.isValid) {
+                        if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
+                        continue;
+                      }
+                      const childIssueValidation = validateIssueOrPRNumber(item.child_issue, "link_issues 'child_issue'", i + 1);
+                      if (!childIssueValidation.isValid) {
+                        if (childIssueValidation.error) errors.push(childIssueValidation.error);
+                        continue;
+                      }
+                      if (item.relationship !== undefined) {
+                        if (typeof item.relationship !== "string") {
+                          errors.push(`Line ${i + 1}: link_issues 'relationship' must be a string`);
+                          continue;
+                        }
+                        if (item.relationship !== "sub" && item.relationship !== "blocks") {
+                          errors.push(`Line ${i + 1}: link_issues 'relationship' must be 'sub' or 'blocks', got '${item.relationship}'`);
+                          continue;
+                        }
+                      } else {
+                        item.relationship = "sub";
                       }
                       break;
                     default:

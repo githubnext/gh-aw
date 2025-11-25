@@ -533,6 +533,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateProjectJob.Name)
 	}
 
+	// Build link_issues job if safe-outputs.link-issues is configured
+	if data.SafeOutputs.LinkIssues != nil {
+		linkIssuesJob, err := c.buildLinkIssuesJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build link_issues job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			linkIssuesJob.Needs = append(linkIssuesJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			linkIssuesJob.If = AddDetectionSuccessCheck(linkIssuesJob.If)
+		}
+		if err := c.jobManager.AddJob(linkIssuesJob); err != nil {
+			return fmt.Errorf("failed to add link_issues job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, linkIssuesJob.Name)
+	}
+
 	// Note: noop processing is now handled inside the conclusion job, not as a separate job
 
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions

@@ -458,5 +458,29 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "link_issues",
+    "description": "Create a relationship between two GitHub issues. Supports sub-issue relationships (making one issue a child of another) and blocking relationships (marking one issue as blocking another). Both issues must exist.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["parent_issue", "child_issue"],
+      "properties": {
+        "parent_issue": {
+          "type": ["number", "string"],
+          "description": "Parent issue number or URL. For 'sub' relationship, this becomes the parent. For 'blocks' relationship, this is the blocking issue."
+        },
+        "child_issue": {
+          "type": ["number", "string"],
+          "description": "Child issue number or URL. For 'sub' relationship, this becomes the sub-issue. For 'blocks' relationship, this is the blocked issue."
+        },
+        "relationship": {
+          "type": "string",
+          "enum": ["sub", "blocks"],
+          "description": "Type of relationship: 'sub' (child becomes sub-issue of parent, default) or 'blocks' (parent blocks child)."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

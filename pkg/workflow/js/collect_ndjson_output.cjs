@@ -54,6 +54,8 @@ async function main() {
         return 1;
       case "noop":
         return 1; // Default max for noop messages
+      case "link_issues":
+        return 10; // Default max for link_issues
       default:
         return 1;
     }
@@ -807,6 +809,34 @@ async function main() {
           item.message = sanitizeContent(item.message, 2048);
           if (item.ruleIdSuffix) {
             item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+          }
+          break;
+        case "link_issues":
+          // Validate parent_issue (required)
+          const parentIssueValidation = validateIssueOrPRNumber(item.parent_issue, "link_issues 'parent_issue'", i + 1);
+          if (!parentIssueValidation.isValid) {
+            if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
+            continue;
+          }
+          // Validate child_issue (required)
+          const childIssueValidation = validateIssueOrPRNumber(item.child_issue, "link_issues 'child_issue'", i + 1);
+          if (!childIssueValidation.isValid) {
+            if (childIssueValidation.error) errors.push(childIssueValidation.error);
+            continue;
+          }
+          // Validate relationship (optional, defaults to "sub")
+          if (item.relationship !== undefined) {
+            if (typeof item.relationship !== "string") {
+              errors.push(`Line ${i + 1}: link_issues 'relationship' must be a string`);
+              continue;
+            }
+            if (item.relationship !== "sub" && item.relationship !== "blocks") {
+              errors.push(`Line ${i + 1}: link_issues 'relationship' must be 'sub' or 'blocks', got '${item.relationship}'`);
+              continue;
+            }
+          } else {
+            // Default relationship to "sub"
+            item.relationship = "sub";
           }
           break;
         default:

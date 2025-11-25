@@ -279,6 +279,7 @@ type SafeOutputsConfig struct {
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
+	LinkIssues                      *LinkIssuesConfig                      `yaml:"link-issues,omitempty"`       // Link issues with sub-issue or blocking relationships
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
 	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`               // GitHub App credentials for token minting

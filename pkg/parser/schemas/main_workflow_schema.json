@@ -3313,6 +3313,45 @@
             }
           ]
         },
+        "link-issues": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for linking issues with sub-issue or blocking relationships",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issue links to create (default: 10)",
+                  "minimum": 1,
+                  "default": 10
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target issues: 'triggering' (default) or '*' (any issues)",
+                  "default": "triggering"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue linking"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable link-issues output with default configuration (max: 10)"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable link-issues output (false)"
+            }
+          ]
+        },
         "upload-assets": {
           "oneOf": [
             {

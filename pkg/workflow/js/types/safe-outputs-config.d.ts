@@ -170,6 +170,14 @@ interface ThreatDetectionConfig extends SafeOutputConfig {
   steps?: any[];
 }
 
+/**
+ * Configuration for linking issues
+ */
+interface LinkIssuesConfig extends SafeOutputConfig {
+  target?: string;
+  "target-repo"?: string;
+}
+
 // === Safe Job Configuration Interfaces ===
 
 /**
@@ -220,7 +228,8 @@ type SpecificSafeOutputConfig =
   | UpdateReleaseConfig
   | NoOpConfig
   | MissingToolConfig
-  | ThreatDetectionConfig;
+  | ThreatDetectionConfig
+  | LinkIssuesConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
 
@@ -248,6 +257,7 @@ export {
   NoOpConfig,
   MissingToolConfig,
   ThreatDetectionConfig,
+  LinkIssuesConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types
   SafeJobInput,
