@@ -439,10 +439,6 @@ func fetchLatestRunsByBranch(branch string, verbose bool) (map[string]*WorkflowR
 		run := &runs[i]
 		// Extract workflow name from workflowName field
 		workflowName := extractWorkflowNameFromPath(run.WorkflowName)
-		// Also try the path if it looks like a filename
-		if strings.Contains(run.WorkflowName, ".lock.yml") || strings.Contains(run.WorkflowName, ".yml") {
-			workflowName = extractWorkflowNameFromPath(run.WorkflowName)
-		}
 		// Only keep the first (latest) run for each workflow
 		if _, exists := latestRuns[workflowName]; !exists {
 			latestRuns[workflowName] = run
