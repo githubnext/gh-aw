@@ -201,12 +201,25 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	return job, nil
 }
 
-// generateConclusionSteps converts conclusion-steps YAML to formatted step strings
-// The steps are formatted with proper indentation for inclusion in a job
+// Indentation constants for job step formatting
+const (
+	// stepIndent is the indentation for step items (      - name:)
+	stepIndent = "      "
+	// nestedStepIndent is the indentation for nested step properties (        run:)
+	nestedStepIndent = "        "
+)
+
+// generateConclusionSteps converts conclusion-steps YAML to formatted step strings.
+// The steps are formatted with proper indentation for inclusion in a job.
+// This follows the same pattern as generatePostSteps in compiler_yaml.go.
 func (c *Compiler) generateConclusionSteps(conclusionStepsYAML string) []string {
 	var result []string
 
 	// Remove "conclusion-steps:" wrapper line and adjust indentation
+	// The YAML structure is:
+	//   conclusion-steps:
+	//   - name: Step Name    <- this line starts with "- " (no leading spaces in source)
+	//     run: command       <- this line starts with "  " (2 spaces in source)
 	lines := strings.Split(conclusionStepsYAML, "\n")
 	if len(lines) > 1 {
 		for _, line := range lines[1:] {
@@ -216,12 +229,12 @@ func (c *Compiler) generateConclusionSteps(conclusionStepsYAML string) []string 
 			if strings.TrimSpace(trimmed) == "" {
 				continue
 			}
-			// Steps need 6-space indentation (      - name:)
-			// Nested properties need 8-space indentation (        run:)
+			// Lines with 2-space prefix are nested properties under a step item
+			// Lines without prefix are step items themselves (starting with "- ")
 			if strings.HasPrefix(line, "  ") {
-				result = append(result, "        "+line[2:]+"\n")
+				result = append(result, nestedStepIndent+line[2:]+"\n")
 			} else {
-				result = append(result, "      "+line+"\n")
+				result = append(result, stepIndent+line+"\n")
 			}
 		}
 	}

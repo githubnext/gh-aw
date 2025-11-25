@@ -1477,9 +1477,11 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 	return result, nil
 }
 
-// mergeConclusionStepsFromIncludedConfigs merges conclusion-steps from included safe-outputs configurations
+// mergeConclusionStepsFromIncludedConfigs finds conclusion-steps from included safe-outputs configurations.
+// It returns the first conclusion-steps configuration found, not a merged combination of all.
+// The top-level workflow's conclusion-steps takes precedence over included configurations.
 func (c *Compiler) mergeConclusionStepsFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) string {
-	log.Printf("Merging conclusion-steps: included_configs=%d", len(includedConfigs))
+	log.Printf("Looking for conclusion-steps: included_configs=%d", len(includedConfigs))
 	// If top-level workflow already has conclusion-steps configured, use it (no merge needed)
 	if topSafeOutputs != nil && topSafeOutputs.ConclusionSteps != "" {
 		log.Print("Using top-level conclusion-steps configuration")
