@@ -39,18 +39,24 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 
 // resolveIncludePath resolves include path based on workflowspec format or relative path
 func resolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
+	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
+
 	// Check if this is a workflowspec (contains owner/repo/path format)
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 	if isWorkflowSpec(filePath) {
+		remoteLog.Printf("Detected workflowspec format: %s", filePath)
 		// Download from GitHub using workflowspec (with cache support)
 		return downloadIncludeFromWorkflowSpec(filePath, cache)
 	}
 
+	remoteLog.Printf("Using local file resolution for: %s", filePath)
 	// Regular path, resolve relative to base directory
 	fullPath := filepath.Join(baseDir, filePath)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		remoteLog.Printf("Local file not found: %s", fullPath)
 		return "", fmt.Errorf("file not found: %s", fullPath)
 	}
+	remoteLog.Printf("Resolved to local file: %s", fullPath)
 	return fullPath, nil
 }
 
@@ -94,6 +100,8 @@ func isWorkflowSpec(path string) bool {
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec
 // It first checks the cache, and only downloads if not cached
 func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
+	remoteLog.Printf("Downloading from workflowspec: %s", spec)
+
 	// Parse the workflowspec
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 
@@ -111,17 +119,20 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 		ref = parts[1]
 	} else {
 		ref = "main" // default to main branch
+		remoteLog.Print("No ref specified, defaulting to 'main'")
 	}
 
 	// Parse path: owner/repo/path/to/file.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
+		remoteLog.Printf("Invalid workflowspec format: %s", spec)
 		return "", fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
 	}
 
 	owner := slashParts[0]
 	repo := slashParts[1]
 	filePath := strings.Join(slashParts[2:], "/")
+	remoteLog.Printf("Parsed workflowspec: owner=%s, repo=%s, file=%s, ref=%s", owner, repo, filePath, ref)
 
 	// Resolve ref to SHA for cache lookup
 	var sha string
@@ -147,10 +158,12 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	}
 
 	// Download the file content from GitHub
+	remoteLog.Printf("Fetching file from GitHub: %s/%s/%s@%s", owner, repo, filePath, ref)
 	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
+	remoteLog.Printf("Successfully downloaded file: size=%d bytes", len(content))
 
 	// If cache is available and we have a SHA, store in cache
 	if cache != nil && sha != "" {
@@ -159,6 +172,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 			remoteLog.Printf("Failed to cache import: %v", err)
 			// Don't fail the compilation, fall back to temp file
 		} else {
+			remoteLog.Printf("Successfully cached download at: %s", cachedPath)
 			return cachedPath, nil
 		}
 	}

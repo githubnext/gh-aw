@@ -66,6 +66,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
 	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger {
+		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
@@ -73,6 +74,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		if err := c.jobManager.AddJob(preActivationJob); err != nil {
 			return fmt.Errorf("failed to add %s job: %w", constants.PreActivationJobName, err)
 		}
+		compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
 		preActivationJobCreated = true
 	}
 
@@ -81,6 +83,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
+		compilerJobsLog.Print("Building activation job")
 		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
@@ -88,10 +91,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		if err := c.jobManager.AddJob(activationJob); err != nil {
 			return fmt.Errorf("failed to add activation job: %w", err)
 		}
+		compilerJobsLog.Print("Successfully added activation job")
 		activationJobCreated = true
 	}
 
 	// Build main workflow job
+	compilerJobsLog.Print("Building main job")
 	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
@@ -99,6 +104,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if err := c.jobManager.AddJob(mainJob); err != nil {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
+	compilerJobsLog.Printf("Successfully added main job: %s", constants.AgentJobName)
 
 	// Build safe outputs jobs if configured
 	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, markdownPath); err != nil {
@@ -108,11 +114,17 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build safe-jobs if configured
 	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
 	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+	if threatDetectionEnabledForSafeJobs {
+		compilerJobsLog.Print("Building safe-jobs with threat detection enabled")
+	}
 	if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
+	if len(data.Jobs) > 0 {
+		compilerJobsLog.Printf("Building %d custom jobs from frontmatter", len(data.Jobs))
+	}
 	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
@@ -124,6 +136,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 // buildSafeOutputsJobs creates all safe outputs jobs if configured
 func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
 	if data.SafeOutputs == nil {
+		compilerJobsLog.Print("No safe outputs configured, skipping safe outputs jobs")
 		return nil
 	}
 	compilerJobsLog.Print("Building safe outputs jobs")
@@ -133,6 +146,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build threat detection job if enabled
 	if data.SafeOutputs.ThreatDetection != nil {
+		compilerJobsLog.Print("Building threat detection job")
 		detectionJob, err := c.buildThreatDetectionJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build detection job: %w", err)
@@ -140,6 +154,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(detectionJob); err != nil {
 			return fmt.Errorf("failed to add detection job: %w", err)
 		}
+		compilerJobsLog.Printf("Successfully added threat detection job: %s", constants.DetectionJobName)
 		threatDetectionEnabled = true
 	}
 

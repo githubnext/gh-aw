@@ -33,17 +33,21 @@ func validatePathComponents(owner, repo, path, sha string) error {
 	for _, comp := range components {
 		// Check for empty components
 		if comp == "" {
+			importCacheLog.Print("Path validation failed: empty component detected")
 			return fmt.Errorf("empty component in path")
 		}
 		// Check for path traversal attempts
 		if strings.Contains(comp, "..") {
+			importCacheLog.Printf("Path validation failed: path traversal attempt in component: %s", comp)
 			return fmt.Errorf("component contains '..' sequence: %s", comp)
 		}
 		// Check for absolute paths
 		if filepath.IsAbs(comp) {
+			importCacheLog.Printf("Path validation failed: absolute path in component: %s", comp)
 			return fmt.Errorf("component is absolute path: %s", comp)
 		}
 	}
+	importCacheLog.Print("Path validation successful")
 	return nil
 }
 
@@ -87,14 +91,18 @@ func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 // Set stores a new cache entry by saving the content to the cache directory
 // sha parameter should be the resolved commit SHA
 func (c *ImportCache) Set(owner, repo, path, sha string, content []byte) (string, error) {
+	importCacheLog.Printf("Setting cache entry: %s/%s/%s@%s, size=%d bytes", owner, repo, path, sha, len(content))
+
 	// Validate file size (max 10MB)
 	const maxFileSize = 10 * 1024 * 1024
 	if len(content) > maxFileSize {
+		importCacheLog.Printf("Cache set rejected: file size %d exceeds max %d bytes", len(content), maxFileSize)
 		return "", fmt.Errorf("file size (%d bytes) exceeds maximum allowed size (%d bytes)", len(content), maxFileSize)
 	}
 
 	// Validate path components to prevent path traversal
 	if err := validatePathComponents(owner, repo, path, sha); err != nil {
+		importCacheLog.Printf("Cache set rejected: invalid path components: %v", err)
 		return "", fmt.Errorf("invalid path components: %w", err)
 	}
 

@@ -22,14 +22,18 @@ var compileLog = logger.New("cli:compile_command")
 
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
+	compileLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
+
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
+		compileLog.Printf("Workflow compilation failed: %v", err)
 		return err
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
 	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
 	if _, err := os.Stat(lockFile); err != nil {
+		compileLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
 		return nil
 	}
@@ -85,14 +89,18 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 // CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
 // This avoids re-parsing when the workflow data has already been parsed
 func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
+	compileLog.Printf("Compiling from parsed WorkflowData: file=%s", filePath)
+
 	// Compile the workflow using already-parsed data
 	if err := compiler.CompileWorkflowData(workflowData, filePath); err != nil {
+		compileLog.Printf("WorkflowData compilation failed: %v", err)
 		return err
 	}
 
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
 	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
 	if _, err := os.Stat(lockFile); err != nil {
+		compileLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
 		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
 		return nil
 	}
@@ -195,26 +203,33 @@ type ValidationResult struct {
 // validateCompileConfig validates the configuration flags before compilation
 // This is extracted for faster testing without full compilation
 func validateCompileConfig(config CompileConfig) error {
+	compileLog.Printf("Validating compile config: files=%d, dependabot=%v, purge=%v, workflowDir=%s", len(config.MarkdownFiles), config.Dependabot, config.Purge, config.WorkflowDir)
+
 	// Validate dependabot flag usage
 	if config.Dependabot {
 		if len(config.MarkdownFiles) > 0 {
+			compileLog.Print("Config validation failed: dependabot flag with specific files")
 			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
 		}
 		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
+			compileLog.Printf("Config validation failed: dependabot with custom dir: %s", config.WorkflowDir)
 			return fmt.Errorf("--dependabot flag cannot be used with custom --dir")
 		}
 	}
 
 	// Validate purge flag usage
 	if config.Purge && len(config.MarkdownFiles) > 0 {
+		compileLog.Print("Config validation failed: purge flag with specific files")
 		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
 	}
 
 	// Validate workflow directory path
 	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
+		compileLog.Printf("Config validation failed: absolute path in workflowDir: %s", config.WorkflowDir)
 		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)
 	}
 
+	compileLog.Print("Config validation successful")
 	return nil
 }
 

@@ -53,6 +53,8 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 
 // bundleFromSources processes content and recursively bundles its dependencies from the sources map
 func bundleFromSources(content string, currentPath string, sources map[string]string, processed map[string]bool) (string, error) {
+	bundlerLog.Printf("Processing file for bundling: current_path=%s, content_size=%d bytes", currentPath, len(content))
+
 	// Regular expression to match require('./...') or require("./...")
 	// This matches both single-line and multi-line destructuring:
 	// const { x } = require("./file.cjs");
@@ -67,9 +69,12 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 	matches := requireRegex.FindAllStringSubmatchIndex(content, -1)
 
 	if len(matches) == 0 {
+		bundlerLog.Print("No requires found in content")
 		// No requires found, return content as-is
 		return content, nil
 	}
+
+	bundlerLog.Printf("Found %d require statements to process", len(matches))
 
 	var result strings.Builder
 	lastEnd := 0
@@ -109,6 +114,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 
 		// Check if we've already processed this file
 		if processed[fullPath] {
+			bundlerLog.Printf("Skipping already processed file: %s", fullPath)
 			// Skip - already inlined
 			result.WriteString("// Already inlined: " + requirePath + "\n")
 		} else {
@@ -118,6 +124,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 			// Look up the required file in sources
 			requiredContent, ok := sources[fullPath]
 			if !ok {
+				bundlerLog.Printf("Required file not found in sources: %s", fullPath)
 				return "", fmt.Errorf("required file not found in sources: %s", fullPath)
 			}
 
