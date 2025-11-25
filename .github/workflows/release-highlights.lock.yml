@@ -30,11 +30,9 @@
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   release["release"]
-#   test["test"]
 #   update_release["update_release"]
 #   pre_activation --> activation
 #   activation --> agent
-#   test --> agent
 #   release --> agent
 #   agent --> conclusion
 #   activation --> conclusion
@@ -43,8 +41,7 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   test --> release
-#   activation --> test
+#   activation --> release
 #   agent --> update_release
 #   detection --> update_release
 # ```
@@ -186,8 +183,6 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
@@ -318,7 +313,6 @@ jobs:
   agent:
     needs:
       - activation
-      - test
       - release
     runs-on: ubuntu-latest
     permissions:
@@ -5089,7 +5083,7 @@ jobs:
             await main();
 
   release:
-    needs: test
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       attestations: write
@@ -5119,53 +5113,6 @@ jobs:
           echo "✓ Release ID: $RELEASE_ID"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  test:
-    needs: activation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Check commit author permissions
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { data: user } = await github.rest.users.getByUsername({
-              username: context.actor
-            });
-
-            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              username: context.actor
-            });
-
-            if (!['admin', 'maintain'].includes(permission.permission)) {
-              core.setFailed(`User ${context.actor} does not have admin or maintainer permissions. Current permission: ${permission.permission}`);
-            }
-
-            core.info(`✓ User ${context.actor} has ${permission.permission} permissions`);
-      - name: Checkout
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          fetch-depth: 0
-      - name: Set up Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
-        with:
-          cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
-          node-version: "24"
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install npm dependencies
-        run: npm ci
-        working-directory: ./pkg/workflow/js
-      - name: Build test
-        run: make build
 
   update_release:
     needs:

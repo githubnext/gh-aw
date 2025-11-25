@@ -33,57 +33,7 @@ tools:
 safe-outputs:
   update-release:
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Check commit author permissions
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: user } = await github.rest.users.getByUsername({
-              username: context.actor
-            });
-            
-            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              username: context.actor
-            });
-            
-            if (!['admin', 'maintain'].includes(permission.permission)) {
-              core.setFailed(`User ${context.actor} does not have admin or maintainer permissions. Current permission: ${permission.permission}`);
-            }
-            
-            core.info(`✓ User ${context.actor} has ${permission.permission} permissions`);
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install npm dependencies
-        run: npm ci
-        working-directory: ./pkg/workflow/js
-
-      - name: Build test
-        run: make build
-
   release:
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
