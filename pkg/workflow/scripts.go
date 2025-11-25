@@ -123,8 +123,6 @@ func init() {
 	DefaultScriptRegistry.Register("notify_comment_error", notifyCommentErrorScriptSource)
 	DefaultScriptRegistry.Register("noop", noopScriptSource)
 
-	// interpolate_prompt is registered from js.go (uses interpolatePromptScript variable)
-
 	// Log parser scripts
 	DefaultScriptRegistry.Register("parse_claude_log", parseClaudeLogScriptSource)
 	DefaultScriptRegistry.Register("parse_codex_log", parseCodexLogScriptSource)

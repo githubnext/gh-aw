@@ -37,7 +37,7 @@
 //
 // # Benefits
 //
-//   - Eliminates ~20 lines of boilerplate per script
+//   - Eliminates ~15 lines of boilerplate per script (variable pair + getter function)
 //   - Centralizes bundling logic
 //   - Consistent error handling
 //   - Thread-safe lazy initialization
