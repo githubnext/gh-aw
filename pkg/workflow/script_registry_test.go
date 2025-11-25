@@ -109,6 +109,30 @@ func TestScriptRegistry_Overwrite(t *testing.T) {
 	assert.Equal(t, "updated", registry.GetSource("test"))
 }
 
+func TestScriptRegistry_Overwrite_AfterGet(t *testing.T) {
+	registry := NewScriptRegistry()
+
+	// Register initial script
+	registry.Register("test", "console.log('original');")
+
+	// Trigger bundling by calling Get()
+	firstResult := registry.Get("test")
+	assert.NotEmpty(t, firstResult)
+	assert.Contains(t, firstResult, "original")
+
+	// Overwrite with new source
+	registry.Register("test", "console.log('updated');")
+
+	// Verify GetSource returns new source
+	assert.Equal(t, "console.log('updated');", registry.GetSource("test"))
+
+	// Verify Get() returns bundled version of new source
+	secondResult := registry.Get("test")
+	assert.NotEmpty(t, secondResult)
+	assert.Contains(t, secondResult, "updated")
+	assert.NotContains(t, secondResult, "original")
+}
+
 func TestDefaultScriptRegistry_GetScript(t *testing.T) {
 	// Create a fresh registry for this test to avoid interference
 	oldRegistry := DefaultScriptRegistry
