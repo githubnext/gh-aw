@@ -199,7 +199,8 @@ Dependency updates and internal improvements to keep things running smoothly.
 
 ## Output Format
 
-**CRITICAL**: Output using the `update_release` safe output format:
+**CRITICAL**: You must call the safe outputs update_release tool to update the release with the generated highlights
+with the following format:
 
 ```
 TYPE: update_release
@@ -219,26 +220,3 @@ BODY: [Your complete markdown highlights here]
 - Setup: `https://githubnext.github.io/gh-aw/setup/`
 
 Verify paths exist in `docs_files.txt` before linking.
-
-## Example Output
-
-```
-TYPE: update_release
-TAG: v0.30.2
-OPERATION: prepend
-BODY: ## 🌟 Release Highlights
-
-This release improves patch generation reliability and adds comprehensive logging for debugging.
-
-### ✨ What's New
-
-- **Enhanced Patch Generation**: Commits to the current branch during workflow execution are now properly captured, making code-generating workflows more reliable. [Learn more](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
-
-### 🐛 Bug Fixes & Improvements
-
-- Fixed bug where patch generation only captured commits from explicitly named branches
-- Added detailed logging throughout patch generation for easier troubleshooting
-
----
-For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
-```
