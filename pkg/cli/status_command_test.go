@@ -28,7 +28,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
-		err := StatusWorkflows("", false, true)
+		err := StatusWorkflows("", false, true, "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag failed: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
-		err := StatusWorkflows("smoke", false, true)
+		err := StatusWorkflows("smoke", false, true, "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag and pattern failed: %v", err)
 		}
@@ -334,5 +334,114 @@ func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
 	// Verify it's formatted as a table (contains separators)
 	if !strings.Contains(output, "-") {
 		t.Error("Expected table output to contain separator lines")
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithRunStatus tests that RunStatus and RunConclusion are included in JSON output
+func TestWorkflowStatus_JSONMarshalingWithRunStatus(t *testing.T) {
+	// Test that WorkflowStatus with run status can be marshaled to JSON
+	status := WorkflowStatus{
+		Workflow:      "test-workflow",
+		EngineID:      "copilot",
+		Compiled:      "Yes",
+		Status:        "active",
+		TimeRemaining: "N/A",
+		RunStatus:     "completed",
+		RunConclusion: "success",
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON contains run status fields
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	if unmarshaled["run_status"] != "completed" {
+		t.Errorf("Expected run_status='completed', got %v", unmarshaled["run_status"])
+	}
+	if unmarshaled["run_conclusion"] != "success" {
+		t.Errorf("Expected run_conclusion='success', got %v", unmarshaled["run_conclusion"])
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus tests that empty RunStatus and RunConclusion are omitted
+func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
+	// Test that WorkflowStatus without run status omits those fields
+	status := WorkflowStatus{
+		Workflow:      "test-workflow",
+		EngineID:      "copilot",
+		Compiled:      "Yes",
+		Status:        "active",
+		TimeRemaining: "N/A",
+		// RunStatus and RunConclusion are empty
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON omits empty run status fields (due to omitempty)
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	if _, exists := unmarshaled["run_status"]; exists {
+		t.Errorf("Expected run_status to be omitted when empty, but it was present with value: %v", unmarshaled["run_status"])
+	}
+	if _, exists := unmarshaled["run_conclusion"]; exists {
+		t.Errorf("Expected run_conclusion to be omitted when empty, but it was present with value: %v", unmarshaled["run_conclusion"])
+	}
+}
+
+// TestWorkflowStatus_ConsoleRenderingWithRunStatus tests that RunStatus and RunConclusion are rendered when present
+func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
+	// Create test data with run status
+	statuses := []WorkflowStatus{
+		{
+			Workflow:      "test-workflow-1",
+			EngineID:      "copilot",
+			Compiled:      "Yes",
+			Status:        "active",
+			TimeRemaining: "N/A",
+			RunStatus:     "completed",
+			RunConclusion: "success",
+		},
+		{
+			Workflow:      "test-workflow-2",
+			EngineID:      "claude",
+			Compiled:      "No",
+			Status:        "disabled",
+			TimeRemaining: "2h 30m",
+			RunStatus:     "completed",
+			RunConclusion: "failure",
+		},
+	}
+
+	// Render using console.RenderStruct
+	output := console.RenderStruct(statuses)
+
+	// Verify the output contains run status headers
+	expectedHeaders := []string{"Workflow", "Engine", "Compiled", "Status", "Time Remaining", "Run Status", "Run Conclusion"}
+	for _, header := range expectedHeaders {
+		if !strings.Contains(output, header) {
+			t.Errorf("Expected output to contain header '%s', got:\n%s", header, output)
+		}
+	}
+
+	// Verify the output contains the run status values
+	expectedValues := []string{
+		"completed", "success", "failure",
+	}
+	for _, value := range expectedValues {
+		if !strings.Contains(output, value) {
+			t.Errorf("Expected output to contain value '%s', got:\n%s", value, output)
+		}
 	}
 }

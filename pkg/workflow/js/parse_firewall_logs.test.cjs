@@ -71,20 +71,22 @@ describe("parse_firewall_logs.cjs", () => {
       ).toBeNull();
     });
 
-    test("should return null for invalid client IP:port format", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with non-standard client IP:port format", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.clientIpPort).toBe("Accepting");
+      expect(result.domain).toBe("api.github.com:443");
     });
 
-    test("should return null for invalid domain format", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with non-standard domain format", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.domain).toBe("DNS");
+      expect(result.clientIpPort).toBe("172.30.0.20:35288");
     });
 
     test("should return null for lines with fewer than 10 fields", () => {
@@ -93,36 +95,40 @@ describe("parse_firewall_logs.cjs", () => {
       expect(parseFirewallLogLine("Accepting connection")).toBeNull();
     });
 
-    test("should return null for invalid dest IP:port format", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with non-standard dest IP:port format", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.destIpPort).toBe("Local");
+      expect(result.domain).toBe("api.github.com:443");
     });
 
-    test("should return null for invalid status code", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with non-numeric status code", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.status).toBe("Swap");
+      expect(result.decision).toBe("TCP_TUNNEL:HIER_DIRECT");
     });
 
-    test("should return null for invalid decision format", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with non-standard decision format", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.decision).toBe("Waiting");
+      expect(result.status).toBe("200");
     });
 
-    test("should return null for line with pipe character in domain position", () => {
-      expect(
-        parseFirewallLogLine(
-          '1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+    test("should parse line with pipe character in domain position", () => {
+      const result = parseFirewallLogLine(
+        '1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
+      );
+      expect(result).not.toBeNull();
+      expect(result.domain).toBe("pinger|test");
+      expect(result.decision).toBe("TCP_TUNNEL:HIER_DIRECT");
     });
   });
 

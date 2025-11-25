@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -312,4 +313,262 @@ func isPermissionSufficient(current, required PermissionLevel) bool {
 		return true
 	}
 	return false
+}
+
+// getSafeOutputTypeKeys returns the list of safe output type keys from the embedded schema.
+// This is a cached wrapper around parser.GetSafeOutputTypeKeys() to avoid parsing on every call.
+var (
+	safeOutputTypeKeys     []string
+	safeOutputTypeKeysOnce sync.Once
+	safeOutputTypeKeysErr  error
+)
+
+func getSafeOutputTypeKeys() ([]string, error) {
+	safeOutputTypeKeysOnce.Do(func() {
+		safeOutputTypeKeys, safeOutputTypeKeysErr = parser.GetSafeOutputTypeKeys()
+	})
+	return safeOutputTypeKeys, safeOutputTypeKeysErr
+}
+
+// MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs
+// Returns an error if a conflict is detected (same safe-output type defined in both main and imported)
+func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedSafeOutputsJSON []string) (*SafeOutputsConfig, error) {
+	importsLog.Print("Merging safe-outputs from imports")
+
+	if len(importedSafeOutputsJSON) == 0 {
+		importsLog.Print("No imported safe-outputs to merge")
+		return topSafeOutputs, nil
+	}
+
+	// Get safe output type keys from the embedded schema
+	typeKeys, err := getSafeOutputTypeKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get safe output type keys: %w", err)
+	}
+
+	// Collect all safe output types defined in the top-level config
+	topDefinedTypes := make(map[string]bool)
+	if topSafeOutputs != nil {
+		for _, key := range typeKeys {
+			if hasSafeOutputType(topSafeOutputs, key) {
+				topDefinedTypes[key] = true
+			}
+		}
+	}
+	importsLog.Printf("Top-level safe-outputs defines %d types", len(topDefinedTypes))
+
+	// Track types defined in imported configs for conflict detection
+	importedDefinedTypes := make(map[string]bool)
+
+	// Collect all imported configs. This includes configs with only meta fields (like allowed-domains,
+	// staged, env, github-token, max-patch-size, runs-on) as well as those defining safe output types.
+	// Meta fields can be imported even when no safe output types are defined.
+	var importedConfigs []map[string]any
+	for _, configJSON := range importedSafeOutputsJSON {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		var config map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+			importsLog.Printf("Skipping malformed safe-outputs config: %v", err)
+			continue
+		}
+
+		// Check for conflicts with top-level config (only for safe output types, not meta fields)
+		for _, key := range typeKeys {
+			if _, exists := config[key]; exists {
+				if topDefinedTypes[key] {
+					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in both the main workflow and an imported workflow. Remove the duplicate definition from one of the workflows", key)
+				}
+				if importedDefinedTypes[key] {
+					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)
+				}
+				importedDefinedTypes[key] = true
+			}
+		}
+
+		importedConfigs = append(importedConfigs, config)
+	}
+
+	importsLog.Printf("Found %d imported safe-outputs configs with %d types", len(importedConfigs), len(importedDefinedTypes))
+
+	// If no imported configs found (neither safe output types nor meta fields), return the original
+	if len(importedConfigs) == 0 {
+		return topSafeOutputs, nil
+	}
+
+	// Initialize result with top-level config or create new one
+	result := topSafeOutputs
+	if result == nil {
+		result = &SafeOutputsConfig{}
+	}
+
+	// Merge each imported config
+	for _, config := range importedConfigs {
+		result = mergeSafeOutputConfig(result, config, c)
+	}
+
+	importsLog.Printf("Successfully merged safe-outputs from imports")
+	return result, nil
+}
+
+// hasSafeOutputType checks if a SafeOutputsConfig has a specific safe output type defined
+func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
+	if config == nil {
+		return false
+	}
+
+	switch key {
+	case "create-issue":
+		return config.CreateIssues != nil
+	case "create-discussion":
+		return config.CreateDiscussions != nil
+	case "close-discussion":
+		return config.CloseDiscussions != nil
+	case "close-issue":
+		return config.CloseIssues != nil
+	case "close-pull-request":
+		return config.ClosePullRequests != nil
+	case "add-comment":
+		return config.AddComments != nil
+	case "create-pull-request":
+		return config.CreatePullRequests != nil
+	case "create-pull-request-review-comment":
+		return config.CreatePullRequestReviewComments != nil
+	case "create-code-scanning-alert":
+		return config.CreateCodeScanningAlerts != nil
+	case "add-labels":
+		return config.AddLabels != nil
+	case "add-reviewer":
+		return config.AddReviewer != nil
+	case "assign-milestone":
+		return config.AssignMilestone != nil
+	case "assign-to-agent":
+		return config.AssignToAgent != nil
+	case "update-issue":
+		return config.UpdateIssues != nil
+	case "push-to-pull-request-branch":
+		return config.PushToPullRequestBranch != nil
+	case "upload-assets":
+		return config.UploadAssets != nil
+	case "update-release":
+		return config.UpdateRelease != nil
+	case "create-agent-task":
+		return config.CreateAgentTasks != nil
+	case "update-project":
+		return config.UpdateProjects != nil
+	case "missing-tool":
+		return config.MissingTool != nil
+	case "noop":
+		return config.NoOp != nil
+	case "threat-detection":
+		return config.ThreatDetection != nil
+	default:
+		return false
+	}
+}
+
+// mergeSafeOutputConfig merges a single imported config map into the result SafeOutputsConfig
+func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *Compiler) *SafeOutputsConfig {
+	// Create a frontmatter-like structure for extractSafeOutputsConfig
+	frontmatter := map[string]any{
+		"safe-outputs": config,
+	}
+
+	// Use the existing extraction logic to parse the config
+	importedConfig := c.extractSafeOutputsConfig(frontmatter)
+	if importedConfig == nil {
+		return result
+	}
+
+	// Merge each safe output type (only set if nil in result)
+	if result.CreateIssues == nil && importedConfig.CreateIssues != nil {
+		result.CreateIssues = importedConfig.CreateIssues
+	}
+	if result.CreateDiscussions == nil && importedConfig.CreateDiscussions != nil {
+		result.CreateDiscussions = importedConfig.CreateDiscussions
+	}
+	if result.CloseDiscussions == nil && importedConfig.CloseDiscussions != nil {
+		result.CloseDiscussions = importedConfig.CloseDiscussions
+	}
+	if result.CloseIssues == nil && importedConfig.CloseIssues != nil {
+		result.CloseIssues = importedConfig.CloseIssues
+	}
+	if result.ClosePullRequests == nil && importedConfig.ClosePullRequests != nil {
+		result.ClosePullRequests = importedConfig.ClosePullRequests
+	}
+	if result.AddComments == nil && importedConfig.AddComments != nil {
+		result.AddComments = importedConfig.AddComments
+	}
+	if result.CreatePullRequests == nil && importedConfig.CreatePullRequests != nil {
+		result.CreatePullRequests = importedConfig.CreatePullRequests
+	}
+	if result.CreatePullRequestReviewComments == nil && importedConfig.CreatePullRequestReviewComments != nil {
+		result.CreatePullRequestReviewComments = importedConfig.CreatePullRequestReviewComments
+	}
+	if result.CreateCodeScanningAlerts == nil && importedConfig.CreateCodeScanningAlerts != nil {
+		result.CreateCodeScanningAlerts = importedConfig.CreateCodeScanningAlerts
+	}
+	if result.AddLabels == nil && importedConfig.AddLabels != nil {
+		result.AddLabels = importedConfig.AddLabels
+	}
+	if result.AddReviewer == nil && importedConfig.AddReviewer != nil {
+		result.AddReviewer = importedConfig.AddReviewer
+	}
+	if result.AssignMilestone == nil && importedConfig.AssignMilestone != nil {
+		result.AssignMilestone = importedConfig.AssignMilestone
+	}
+	if result.AssignToAgent == nil && importedConfig.AssignToAgent != nil {
+		result.AssignToAgent = importedConfig.AssignToAgent
+	}
+	if result.UpdateIssues == nil && importedConfig.UpdateIssues != nil {
+		result.UpdateIssues = importedConfig.UpdateIssues
+	}
+	if result.PushToPullRequestBranch == nil && importedConfig.PushToPullRequestBranch != nil {
+		result.PushToPullRequestBranch = importedConfig.PushToPullRequestBranch
+	}
+	if result.UploadAssets == nil && importedConfig.UploadAssets != nil {
+		result.UploadAssets = importedConfig.UploadAssets
+	}
+	if result.UpdateRelease == nil && importedConfig.UpdateRelease != nil {
+		result.UpdateRelease = importedConfig.UpdateRelease
+	}
+	if result.CreateAgentTasks == nil && importedConfig.CreateAgentTasks != nil {
+		result.CreateAgentTasks = importedConfig.CreateAgentTasks
+	}
+	if result.UpdateProjects == nil && importedConfig.UpdateProjects != nil {
+		result.UpdateProjects = importedConfig.UpdateProjects
+	}
+	if result.MissingTool == nil && importedConfig.MissingTool != nil {
+		result.MissingTool = importedConfig.MissingTool
+	}
+	if result.NoOp == nil && importedConfig.NoOp != nil {
+		result.NoOp = importedConfig.NoOp
+	}
+	if result.ThreatDetection == nil && importedConfig.ThreatDetection != nil {
+		result.ThreatDetection = importedConfig.ThreatDetection
+	}
+
+	// Merge meta-configuration fields (only set if empty/zero in result)
+	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
+		result.AllowedDomains = importedConfig.AllowedDomains
+	}
+	if !result.Staged && importedConfig.Staged {
+		result.Staged = importedConfig.Staged
+	}
+	if len(result.Env) == 0 && len(importedConfig.Env) > 0 {
+		result.Env = importedConfig.Env
+	}
+	if result.GitHubToken == "" && importedConfig.GitHubToken != "" {
+		result.GitHubToken = importedConfig.GitHubToken
+	}
+	if result.MaximumPatchSize == 0 && importedConfig.MaximumPatchSize > 0 {
+		result.MaximumPatchSize = importedConfig.MaximumPatchSize
+	}
+	if result.RunsOn == "" && importedConfig.RunsOn != "" {
+		result.RunsOn = importedConfig.RunsOn
+	}
+
+	return result
 }

@@ -204,6 +204,59 @@ func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 	return schema, nil
 }
 
+// safeOutputMetaFields are the meta-configuration fields in safe-outputs that are NOT actual safe output types.
+// These are used for configuration, not for defining safe output operations.
+var safeOutputMetaFields = map[string]bool{
+	"allowed-domains": true,
+	"staged":          true,
+	"env":             true,
+	"github-token":    true,
+	"app":             true,
+	"max-patch-size":  true,
+	"jobs":            true,
+	"runs-on":         true,
+}
+
+// GetSafeOutputTypeKeys returns the list of safe output type keys from the embedded main workflow schema.
+// These are the keys under safe-outputs that define actual safe output operations (like create-issue, add-comment, etc.)
+// Meta-configuration fields (like allowed-domains, staged, env, etc.) are excluded.
+func GetSafeOutputTypeKeys() ([]string, error) {
+	// Parse the embedded schema JSON
+	var schemaDoc map[string]any
+	if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
+		return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
+	}
+
+	// Navigate to properties.safe-outputs.properties
+	properties, ok := schemaDoc["properties"].(map[string]any)
+	if !ok {
+		return nil, errors.New("schema missing 'properties' field")
+	}
+
+	safeOutputs, ok := properties["safe-outputs"].(map[string]any)
+	if !ok {
+		return nil, errors.New("schema missing 'properties.safe-outputs' field")
+	}
+
+	safeOutputsProperties, ok := safeOutputs["properties"].(map[string]any)
+	if !ok {
+		return nil, errors.New("schema missing 'properties.safe-outputs.properties' field")
+	}
+
+	// Extract keys that are actual safe output types (not meta-configuration)
+	var keys []string
+	for key := range safeOutputsProperties {
+		if !safeOutputMetaFields[key] {
+			keys = append(keys, key)
+		}
+	}
+
+	// Sort keys for consistent ordering
+	sort.Strings(keys)
+
+	return keys, nil
+}
+
 func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
 	// Determine which cached schema to use based on the schemaJSON
 	var schema *jsonschema.Schema
