@@ -111,27 +111,58 @@ function parseFirewallLogLine(line) {
 
   // Split by whitespace but preserve quoted strings
   const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
   if (!fields || fields.length < 10) {
     return null;
   }
 
-  // Only validate timestamp (essential for log format detection)
+  // Validate timestamp format (should be numeric with optional decimal point)
   const timestamp = fields[0];
   if (!/^\d+(\.\d+)?$/.test(timestamp)) {
     return null;
   }
 
+  // Validate client IP:port format (should be IP:port or "-")
+  const clientIpPort = fields[1];
+  if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+    return null;
+  }
+
+  // Validate domain format (should be domain:port or "-")
+  const domain = fields[2];
+  if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+    return null;
+  }
+
+  // Validate dest IP:port format (should be IP:port or "-")
+  const destIpPort = fields[3];
+  if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+    return null;
+  }
+
+  // Validate status code (should be numeric or "-")
+  const status = fields[6];
+  if (status !== "-" && !/^\d+$/.test(status)) {
+    return null;
+  }
+
+  // Validate decision format (should contain ":" or be "-")
+  const decision = fields[7];
+  if (decision !== "-" && !decision.includes(":")) {
+    return null;
+  }
+
   return {
-    timestamp,
-    clientIpPort: fields[1],
-    domain: fields[2],
-    destIpPort: fields[3],
+    timestamp: timestamp,
+    clientIpPort: clientIpPort,
+    domain: domain,
+    destIpPort: destIpPort,
     proto: fields[4],
     method: fields[5],
-    status: fields[6],
-    decision: fields[7],
+    status: status,
+    decision: decision,
     url: fields[8],
-    userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+    userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
   };
 }
 
