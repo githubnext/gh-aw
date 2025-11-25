@@ -6,11 +6,13 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
+  core.setOutput("temporary_id_map", "{}");
 
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -33,11 +35,17 @@ async function main() {
       renderItem: (item, index) => {
         let content = `### Issue ${index + 1}\n`;
         content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.temporary_id) {
+          content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+        }
         if (item.body) {
           content += `**Body:**\n${item.body}\n\n`;
         }
         if (item.labels && item.labels.length > 0) {
           content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+        }
+        if (item.parent) {
+          content += `**Parent:** ${item.parent}\n\n`;
         }
         return content;
       },
@@ -45,6 +53,10 @@ async function main() {
     return;
   }
   const parentIssueNumber = context.payload?.issue?.number;
+
+  // Map to track temporary_id -> issue_number relationships
+  /** @type {Map<string, number>} */
+  const temporaryIdMap = new Map();
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber =
@@ -63,16 +75,43 @@ async function main() {
   const createdIssues = [];
   for (let i = 0; i < createIssueItems.length; i++) {
     const createIssueItem = createIssueItems[i];
+
+    // Get or generate the temporary ID for this issue
+    const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
     core.info(
-      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}`
     );
 
     // Debug logging for parent field
     core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
     core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
 
-    // Use the parent field from the item if provided, otherwise fall back to context
-    const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+    // Resolve parent: check if it's a temporary ID reference
+    let effectiveParentIssueNumber;
+    if (createIssueItem.parent !== undefined) {
+      if (isTemporaryId(createIssueItem.parent)) {
+        // It's a temporary ID, look it up in the map
+        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
+        if (resolvedParent !== undefined) {
+          effectiveParentIssueNumber = resolvedParent;
+          core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
+        } else {
+          core.warning(
+            `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
+          );
+          effectiveParentIssueNumber = undefined;
+        }
+      } else {
+        // It's a real issue number
+        effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
+        if (isNaN(effectiveParentIssueNumber)) {
+          core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+          effectiveParentIssueNumber = undefined;
+        }
+      }
+    } else {
+      effectiveParentIssueNumber = parentIssueNumber;
+    }
     core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
 
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
@@ -91,7 +130,11 @@ async function main() {
       .map(label => (label.length > 64 ? label.substring(0, 64) : label))
       .filter((label, index, arr) => arr.indexOf(label) === index);
     let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-    let bodyLines = createIssueItem.body.split("\n");
+
+    // Replace temporary ID references in the body using already-created issues
+    let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap);
+    let bodyLines = processedBody.split("\n");
+
     if (!title) {
       title = createIssueItem.body || "Agent Output";
     }
@@ -146,6 +189,10 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
+
+      // Store the mapping of temporary_id -> issue_number
+      temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
+      core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
 
       // Debug logging for sub-issue linking
       core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
@@ -250,6 +297,12 @@ async function main() {
     }
     await core.summary.addRaw(summaryContent).write();
   }
+
+  // Output the temporary ID map as JSON for use by downstream jobs
+  const tempIdMapObject = Object.fromEntries(temporaryIdMap);
+  core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
+  core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
+
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
 (async () => {
