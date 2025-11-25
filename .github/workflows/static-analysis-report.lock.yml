@@ -2040,7 +2040,7 @@ jobs:
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           ## Temporary Files
           
-          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
+          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the /tmp/gh-aw/agent/ directory** that has been pre-created for you. Do NOT use the root /tmp/ directory directly.
           
           PROMPT_EOF
       - name: Append cache memory instructions to prompt
@@ -2193,9 +2193,9 @@ jobs:
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
             echo ""
-            echo '```markdown'
+            echo '``````markdown'
             cat "$GH_AW_PROMPT"
-            echo '```'
+            echo '``````'
             echo ""
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"

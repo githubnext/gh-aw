@@ -2774,7 +2774,7 @@ jobs:
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           ## Temporary Files
           
-          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
+          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the /tmp/gh-aw/agent/ directory** that has been pre-created for you. Do NOT use the root /tmp/ directory directly.
           
           PROMPT_EOF
       - name: Append cache memory instructions to prompt
@@ -2881,7 +2881,7 @@ jobs:
           - The current working directory contains the code from the pull request branch
           - Any file operations you perform will be on the PR branch code
           - You can inspect, analyze, and work with the PR changes directly
-          - The PR branch has been checked out using `gh pr checkout`
+          - The PR branch has been checked out using "gh pr checkout"
           
           PROMPT_EOF
       - name: Interpolate variables and render templates
@@ -2958,9 +2958,9 @@ jobs:
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
             echo ""
-            echo '```markdown'
+            echo '``````markdown'
             cat "$GH_AW_PROMPT"
-            echo '```'
+            echo '``````'
             echo ""
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -2375,7 +2375,7 @@ jobs:
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           ## Temporary Files
           
-          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
+          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the /tmp/gh-aw/agent/ directory** that has been pre-created for you. Do NOT use the root /tmp/ directory directly.
           
           PROMPT_EOF
       - name: Append edit tool accessibility instructions to prompt
@@ -2388,8 +2388,8 @@ jobs:
           
           **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
           
-          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
-          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
+          - **Current workspace**: $GITHUB_WORKSPACE - The repository you're working on
+          - **Temporary directory**: /tmp/gh-aw/ - For temporary files and agent work
           
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
@@ -2565,9 +2565,9 @@ jobs:
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
             echo ""
-            echo '```markdown'
+            echo '``````markdown'
             cat "$GH_AW_PROMPT"
-            echo '```'
+            echo '``````'
             echo ""
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
