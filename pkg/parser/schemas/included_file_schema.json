@@ -264,7 +264,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "description": "Safe outputs configuration (only jobs allowed in included files)",
+      "description": "Safe outputs configuration (only jobs and conclusion-steps allowed in included files)",
       "properties": {
         "jobs": {
           "type": "object",
@@ -275,6 +275,31 @@
             }
           },
           "additionalProperties": false
+        },
+        "conclusion-steps": {
+          "description": "Custom steps to inject into the conclusion job. Steps are executed after artifact download and before comment creation.",
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Named steps as an object (for named imports and complex configurations)",
+              "additionalProperties": true
+            },
+            {
+              "type": "array",
+              "description": "Array of GitHub Actions steps",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                ]
+              }
+            }
+          ]
         }
       },
       "additionalProperties": false

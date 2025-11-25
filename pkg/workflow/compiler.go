@@ -288,6 +288,7 @@ type SafeOutputsConfig struct {
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+	ConclusionSteps                 string                                 `yaml:"-"`                        // Custom steps to inject in conclusion job (after artifact download, before comment creation)
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior
@@ -1261,6 +1262,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.SafeOutputs.App = includedApp
 	}
 
+	// Merge conclusion-steps from included safe-outputs configurations
+	includedConclusionSteps := c.mergeConclusionStepsFromIncludedConfigs(workflowData.SafeOutputs, allSafeOutputsConfigs)
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ConclusionSteps == "" && includedConclusionSteps != "" {
+		workflowData.SafeOutputs.ConclusionSteps = includedConclusionSteps
+	}
+
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
 	if err != nil {
@@ -1468,6 +1475,43 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 	}
 
 	return result, nil
+}
+
+// mergeConclusionStepsFromIncludedConfigs merges conclusion-steps from included safe-outputs configurations
+func (c *Compiler) mergeConclusionStepsFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) string {
+	log.Printf("Merging conclusion-steps: included_configs=%d", len(includedConfigs))
+	// If top-level workflow already has conclusion-steps configured, use it (no merge needed)
+	if topSafeOutputs != nil && topSafeOutputs.ConclusionSteps != "" {
+		log.Print("Using top-level conclusion-steps configuration")
+		return topSafeOutputs.ConclusionSteps
+	}
+
+	// Otherwise, find the first conclusion-steps configuration in included configs
+	for _, configJSON := range includedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the safe-outputs configuration
+		var safeOutputsConfig map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
+			continue // Skip invalid JSON
+		}
+
+		// Extract conclusion-steps from the safe-outputs
+		if stepsData, exists := safeOutputsConfig["conclusion-steps"]; exists {
+			// Convert to YAML string
+			stepsWrapper := map[string]any{"conclusion-steps": stepsData}
+			stepsYAML, err := yaml.Marshal(stepsWrapper)
+			if err == nil {
+				log.Print("Found conclusion-steps in included config")
+				return unquoteUsesWithComments(string(stepsYAML))
+			}
+		}
+	}
+
+	log.Print("No conclusion-steps found in included configs")
+	return ""
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present

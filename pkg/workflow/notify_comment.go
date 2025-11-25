@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -31,10 +32,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasSafeOutputs := data.SafeOutputs != nil
+	hasConclusionSteps := data.SafeOutputs != nil && data.SafeOutputs.ConclusionSteps != ""
 
-	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t, has_safe_outputs=%t", hasAddComment, hasCommand, hasNoOp, hasReaction, hasSafeOutputs)
+	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t, has_safe_outputs=%t, has_conclusion_steps=%t", hasAddComment, hasCommand, hasNoOp, hasReaction, hasSafeOutputs, hasConclusionSteps)
 
-	// Always create this job when safe-outputs exist (because noop is always enabled)
+	// Create this job when safe-outputs exist (because noop is always enabled as a fallback)
+	// or when conclusion-steps are configured (which implies safe-outputs is configured)
 	// This ensures noop messages can be handled even without reactions
 	if !hasSafeOutputs {
 		notifyCommentLog.Printf("Skipping job: no safe-outputs configured")
@@ -66,6 +69,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Add artifact download steps once (shared by noop and conclusion steps)
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Add custom conclusion-steps if configured (after artifact download, before noop/comment processing)
+	if data.SafeOutputs.ConclusionSteps != "" {
+		conclusionSteps := c.generateConclusionSteps(data.SafeOutputs.ConclusionSteps)
+		steps = append(steps, conclusionSteps...)
+	}
 
 	// Add noop processing step if noop is configured
 	if data.SafeOutputs.NoOp != nil {
@@ -190,4 +199,32 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	return job, nil
+}
+
+// generateConclusionSteps converts conclusion-steps YAML to formatted step strings
+// The steps are formatted with proper indentation for inclusion in a job
+func (c *Compiler) generateConclusionSteps(conclusionStepsYAML string) []string {
+	var result []string
+
+	// Remove "conclusion-steps:" wrapper line and adjust indentation
+	lines := strings.Split(conclusionStepsYAML, "\n")
+	if len(lines) > 1 {
+		for _, line := range lines[1:] {
+			// Trim trailing whitespace
+			trimmed := strings.TrimRight(line, " ")
+			// Skip empty lines
+			if strings.TrimSpace(trimmed) == "" {
+				continue
+			}
+			// Steps need 6-space indentation (      - name:)
+			// Nested properties need 8-space indentation (        run:)
+			if strings.HasPrefix(line, "  ") {
+				result = append(result, "        "+line[2:]+"\n")
+			} else {
+				result = append(result, "      "+line+"\n")
+			}
+		}
+	}
+
+	return result
 }

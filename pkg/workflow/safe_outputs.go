@@ -7,6 +7,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var safeOutputsLog = logger.New("workflow:safe_outputs")
@@ -468,6 +469,16 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			if runsOn, exists := outputMap["runs-on"]; exists {
 				if runsOnStr, ok := runsOn.(string); ok {
 					config.RunsOn = runsOnStr
+				}
+			}
+
+			// Handle conclusion-steps configuration
+			if conclusionSteps, exists := outputMap["conclusion-steps"]; exists {
+				// Convert the conclusion-steps to YAML string (similar to how post-steps is handled)
+				stepsWrapper := map[string]any{"conclusion-steps": conclusionSteps}
+				stepsYAML, err := yaml.Marshal(stepsWrapper)
+				if err == nil {
+					config.ConclusionSteps = unquoteUsesWithComments(string(stepsYAML))
 				}
 			}
 
