@@ -191,15 +191,22 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     }
     core.info("Using GH_AW_AGENT_TOKEN for mutation");
 
-    // Use github.graphql with custom headers for authentication
+    // Make raw GraphQL request with custom token
     core.debug(`GraphQL mutation: ${mutation}`);
-    const response = await github.graphql(mutation, {
+    const response = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
       headers: {
-        authorization: `token ${mutationToken}`,
+        'Authorization': `Bearer ${mutationToken}`,
+        'Content-Type': 'application/json',
       },
-    });
+      body: JSON.stringify({ query: mutation }),
+    }).then(res => res.json());
 
-    if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+    if (response.errors && response.errors.length > 0) {
+      throw new Error(response.errors[0].message);
+    }
+
+    if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
       return true;
     } else {
       core.error("Unexpected response from GitHub API");
@@ -255,12 +262,15 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
         } else {
           core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
           core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
-          const fallbackResp = await github.graphql(fallbackMutation, {
+          const fallbackResp = await fetch('https://api.github.com/graphql', {
+            method: 'POST',
             headers: {
-              authorization: `token ${fallbackToken}`,
+              'Authorization': `Bearer ${fallbackToken}`,
+              'Content-Type': 'application/json',
             },
-          });
-          if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+            body: JSON.stringify({ query: fallbackMutation }),
+          }).then(res => res.json());
+          if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
             core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
             return true;
           } else {
