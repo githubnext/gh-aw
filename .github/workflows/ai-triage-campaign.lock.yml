@@ -306,8 +306,6 @@
 
 name: "AI Triage Campaign"
 "on":
-  schedule:
-  - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
       max_issues:
@@ -4184,7 +4182,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 1
-          GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
         with:
           github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
@@ -4370,9 +4368,9 @@ jobs:
               `;
               try {
                 const { Octokit } = require("@octokit/rest");
-                const mutationToken = process.env.GH_TOKEN;
+                const mutationToken = process.env.GH_AW_AGENT_TOKEN;
                 if (!mutationToken) {
-                  core.error("GH_TOKEN environment variable is not set. Cannot perform assignment mutation.");
+                  core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
                 const mutationClient = new Octokit({ auth: mutationToken });
@@ -4415,9 +4413,9 @@ jobs:
                   core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
                   try {
                     const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
-                    const fallbackToken = process.env.GH_TOKEN;
+                    const fallbackToken = process.env.GH_AW_AGENT_TOKEN;
                     if (!fallbackToken) {
-                      core.error("GH_TOKEN environment variable is not set. Cannot perform fallback mutation.");
+                      core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
                       const fallbackClient = new Octokit({ auth: fallbackToken });
                       const fallbackResp = await fallbackClient.graphql(fallbackMutation);

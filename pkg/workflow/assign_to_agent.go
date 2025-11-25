@@ -50,7 +50,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	} else {
 		tokenValue = "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", tokenValue))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_TOKEN: %s\n", tokenValue))
 
 	// Pass the target configuration
 
