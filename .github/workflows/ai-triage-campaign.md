@@ -3,8 +3,8 @@ name: AI Triage Campaign
 description: Automatically identify, score, and assign issues to AI agents for efficient resolution
 
 on:
-  #schedule:
-    #- cron: "0 */4 * * *"  # Every 4 hours
+  schedule:
+    - cron: "0 */4 * * *"  # Every 4 hours
   workflow_dispatch:
     inputs:
       project_url:

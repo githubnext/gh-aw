@@ -382,7 +382,7 @@ safe-outputs:
 
 **Token Requirements:**
 
-The GitHub Action lacks permissions to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
+The default `GITHUB_TOKEN` lacks permission to assign agents. Create a fine-grained personal access token with these permissions and store it as the `COPILOT_GITHUB_TOKEN` secret:
 
 - **Read** access to metadata
 - **Write** access to actions, contents, issues, and pull requests
