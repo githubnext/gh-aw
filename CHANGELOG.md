@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.3 - 2025-11-25
+
+### Bug Fixes
+
+#### Add automated changeset generation workflow that creates changeset files when pull requests are marked as ready for review
+
+#### Added support for importing safe-outputs configurations from shared workflow files
+
+#### Update DEVGUIDE.md with agent-finish command
+
+
 ## v0.31.2 - 2025-11-25
 
 Maintenance release with dependency updates and minor improvements.

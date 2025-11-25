@@ -1,20 +1,18 @@
 ---
-name: Release Highlights Generator
-description: Automatically generates and prepends a summary of highlights to release notes when a new release is created
+name: Release
+description: Build, test, and release gh-aw extension, then generate and prepend release highlights
 on:
-  release:
-    types: [created]
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag to update (leave empty for latest release)"
-        required: false
-        type: string
+  push:
+    tags:
+      - 'v*.*.*'
 permissions:
   contents: read
   pull-requests: read
   actions: read
   issues: read
+roles:
+  - admin
+  - maintainer
 engine: copilot
 timeout-minutes: 20
 network:
@@ -28,24 +26,55 @@ tools:
   edit:
 safe-outputs:
   update-release:
+jobs:
+  release:
+    needs: ["activation"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          
+      - name: Release with gh-extension-precompile
+        uses: cli/gh-extension-precompile@v2
+        with:
+          go_version_file: go.mod
+          build_script_override: scripts/build-release.sh
+
+      - name: Get release ID
+        id: get_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          echo "Getting release ID for tag: $RELEASE_TAG"
+          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "✓ Release ID: $RELEASE_ID"
 steps:
   - name: Setup environment and fetch release data
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
       
-      # Determine which release to analyze
-      if [ "${{ github.event_name }}" = "release" ]; then
-        RELEASE_TAG="${{ github.event.release.tag_name }}"
-        echo "Processing release from event: $RELEASE_TAG"
-      elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
-        RELEASE_TAG="${{ github.event.inputs.release_tag }}"
-        echo "Processing release from workflow input: $RELEASE_TAG"
-      else
-        # Get latest release tag
-        RELEASE_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-        echo "Processing latest release: $RELEASE_TAG"
+      # Use the release ID from the release job
+      echo "Release ID from release job: ${{ needs.release.outputs.release_id }}"
+      
+      # Get the release tag from the push event
+      if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
+        echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
+        exit 1
       fi
+      RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+      echo "Processing release: $RELEASE_TAG"
       
       echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
       
@@ -101,6 +130,8 @@ steps:
 # Release Highlights Generator
 
 Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
+
+**Release ID**: ${{ needs.release.outputs.release_id }}
 
 ## Data Available
 

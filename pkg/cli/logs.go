@@ -344,8 +344,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --firewall                # Filter logs with firewall enabled
   ` + constants.CLIExtensionPrefix + ` logs --no-firewall             # Filter logs without firewall
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
-  ` + constants.CLIExtensionPrefix + ` logs --branch main             # Filter logs by branch name
-  ` + constants.CLIExtensionPrefix + ` logs --branch feature-xyz      # Filter logs by feature branch
+  ` + constants.CLIExtensionPrefix + ` logs --ref main                # Filter logs by branch or tag
+  ` + constants.CLIExtensionPrefix + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
@@ -390,7 +390,7 @@ Examples:
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
 			engine, _ := cmd.Flags().GetString("engine")
-			branch, _ := cmd.Flags().GetString("branch")
+			ref, _ := cmd.Flags().GetString("ref")
 			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
 			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -450,7 +450,7 @@ Examples:
 				os.Exit(1)
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -466,7 +466,7 @@ Examples:
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by engine type (claude, codex, copilot)")
-	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
+	logsCmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
@@ -482,7 +482,7 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int) error {
 	logsLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s", workflowName, count, startDate, endDate, outputDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
@@ -559,7 +559,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, ref, beforeRunID, afterRunID, repoOverride, len(processedRuns), count, verbose)
 		if err != nil {
 			return err
 		}
@@ -829,7 +829,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			StartDate:    startDate,
 			EndDate:      endDate,
 			Engine:       engine,
-			Branch:       branch,
+			Branch:       ref,
 			AfterRunID:   afterRunID,
 			BeforeRunID:  oldestRunID, // Continue from where we left off
 			Timeout:      timeout,
@@ -1063,7 +1063,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 // not the total number of matching runs the user wants to find.
 //
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
-func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
+func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, ref string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -1083,9 +1083,9 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	if beforeDate != "" {
 		args = append(args, "--created", "<"+beforeDate)
 	}
-	// Add branch filter
-	if branch != "" {
-		args = append(args, "--branch", branch)
+	// Add ref filter (uses --branch flag which also works for tags)
+	if ref != "" {
+		args = append(args, "--branch", ref)
 	}
 	// Add repo filter
 	if repoOverride != "" {

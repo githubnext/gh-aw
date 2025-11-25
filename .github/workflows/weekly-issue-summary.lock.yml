@@ -4912,67 +4912,27 @@ jobs:
 
               }
 
-              const clientIpPort = fields[1];
-
-              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
-
-                return null;
-
-              }
-
-              const domain = fields[2];
-
-              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
-
-                return null;
-
-              }
-
-              const destIpPort = fields[3];
-
-              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
-
-                return null;
-
-              }
-
-              const status = fields[6];
-
-              if (status !== "-" && !/^\d+$/.test(status)) {
-
-                return null;
-
-              }
-
-              const decision = fields[7];
-
-              if (decision !== "-" && !decision.includes(":")) {
-
-                return null;
-
-              }
-
               return {
 
-                timestamp: timestamp,
+                timestamp,
 
-                clientIpPort: clientIpPort,
+                clientIpPort: fields[1],
 
-                domain: domain,
+                domain: fields[2],
 
-                destIpPort: destIpPort,
+                destIpPort: fields[3],
 
                 proto: fields[4],
 
                 method: fields[5],
 
-                status: status,
+                status: fields[6],
 
-                decision: decision,
+                decision: fields[7],
 
                 url: fields[8],
 
-                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
 
               };
 
