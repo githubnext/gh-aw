@@ -37,6 +37,7 @@ tools:
 safe-outputs:
     staged: true
     add-comment:
+    create-issue:
 timeout-minutes: 10
 ---
 
