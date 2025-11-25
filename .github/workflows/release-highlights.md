@@ -34,6 +34,7 @@ safe-outputs:
   update-release:
 jobs:
   release:
+    needs: ["activation"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
