@@ -52,9 +52,9 @@
 # ## Your Mission
 #
 # 1. **Fetch open issues** - Query for open issues in this repository (max ${{ github.event.inputs.max_issues }} most recent, default: 10)
-# 2. **Filter unassigned issues** - Skip issues that already have assignees (do NOT add them to the project board)
-# 3. **Analyze unassigned issues** - Determine if each unassigned issue is well-suited for AI agent resolution
-# 4. **Route to project board** - Add only unassigned issues to project ${{ github.event.inputs.project_url }} with intelligent field assignments
+# 2. **Filter assigned issues** - Skip issues that already have assignees (human or agent)
+# 3. **Analyze ALL unassigned issues** - Determine if each unassigned issue is well-suited for AI agent resolution (including issues already on the board - re-evaluate them to keep scores current)
+# 4. **Update project board** - For unassigned issues with AI-Readiness Score ≥ 5, add or update them on project ${{ github.event.inputs.project_url }} with current field assignments
 #
 # ## AI Agent Suitability Assessment
 #
@@ -278,16 +278,18 @@
 # ## Workflow Steps
 #
 # 1. **Fetch Issues**: Use GitHub MCP to query up to ${{ github.event.inputs.max_issues }} most recent open issues (default: 10)
-# 2. **Filter Unassigned**: Skip any issues that already have assignees (human or agent) - do NOT process or add them to the project board
-# 3. **Score Each Issue**: Evaluate AI-readiness based on the criteria above (only for unassigned issues)
-# 4. **Route to Project Board**: For each unassigned issue, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add it to the project board with field assignments
-# 5. **Assign High-Readiness Issues**: For unassigned issues with AI-Readiness Score ≥ 9, output an `assign_to_agent` safe-output item to immediately assign the issue to @copilot
+# 2. **Filter Assigned Issues**: Skip any issues that already have assignees (human or agent) - these are already being worked on
+# 3. **Score ALL Unassigned Issues**: Evaluate AI-readiness for ALL unassigned issues, including those already on the project board (this keeps scores current as issues evolve)
+# 4. **Update Project Board**: For each unassigned issue with AI-Readiness Score ≥ 5, output an `update_project` safe-output item with `"project": "${{ github.event.inputs.project_url }}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add or update it on the project board with current field assignments. Issues with scores < 5 are not added to the board.
+# 5. **Assign High-Readiness Issues**: For unassigned issues with AI-Readiness Score ≥ 9, output an `assign_to_agent` safe-output item to immediately assign the issue to @copilot (this includes issues that improved from lower scores)
 #
 # ## Execution Notes
 #
 # - This workflow runs every 4 hours automatically (or manually with custom parameters)
 # - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-# - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped); routed issues are differentiated via the Status field
+# - **All unassigned issues are re-evaluated every run** to keep scores current as issues evolve (comments add context, acceptance criteria improve, etc.)
+# - **Only unassigned issues with AI-Readiness Score ≥ 5** are added/updated on the project board (issues with existing assignees or scores < 5 are skipped); routed issues are differentiated via the Status field
+# - **Issues crossing the 9/10 threshold** automatically get assigned to @copilot (even if they were previously scored lower)
 # - Custom fields are created automatically if they don't exist
 # - User projects must exist before workflow runs (cannot auto-create)
 # ```
@@ -1270,9 +1272,9 @@ jobs:
           ## Your Mission
           
           1. **Fetch open issues** - Query for open issues in this repository (max ${GH_AW_EXPR_0D0C2AD6} most recent, default: 10)
-          2. **Filter unassigned issues** - Skip issues that already have assignees (do NOT add them to the project board)
-          3. **Analyze unassigned issues** - Determine if each unassigned issue is well-suited for AI agent resolution
-          4. **Route to project board** - Add only unassigned issues to project ${GH_AW_EXPR_7B9A5317} with intelligent field assignments
+          2. **Filter assigned issues** - Skip issues that already have assignees (human or agent)
+          3. **Analyze ALL unassigned issues** - Determine if each unassigned issue is well-suited for AI agent resolution (including issues already on the board - re-evaluate them to keep scores current)
+          4. **Update project board** - For unassigned issues with AI-Readiness Score ≥ 5, add or update them on project ${GH_AW_EXPR_7B9A5317} with current field assignments
           
           ## AI Agent Suitability Assessment
           
@@ -1496,16 +1498,18 @@ jobs:
           ## Workflow Steps
           
           1. **Fetch Issues**: Use GitHub MCP to query up to ${GH_AW_EXPR_0D0C2AD6} most recent open issues (default: 10)
-          2. **Filter Unassigned**: Skip any issues that already have assignees (human or agent) - do NOT process or add them to the project board
-          3. **Score Each Issue**: Evaluate AI-readiness based on the criteria above (only for unassigned issues)
-          4. **Route to Project Board**: For each unassigned issue, output an `update_project` safe-output item with `"project": "${GH_AW_EXPR_7B9A5317}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add it to the project board with field assignments
-          5. **Assign High-Readiness Issues**: For unassigned issues with AI-Readiness Score ≥ 9, output an `assign_to_agent` safe-output item to immediately assign the issue to @copilot
+          2. **Filter Assigned Issues**: Skip any issues that already have assignees (human or agent) - these are already being worked on
+          3. **Score ALL Unassigned Issues**: Evaluate AI-readiness for ALL unassigned issues, including those already on the project board (this keeps scores current as issues evolve)
+          4. **Update Project Board**: For each unassigned issue with AI-Readiness Score ≥ 5, output an `update_project` safe-output item with `"project": "${GH_AW_EXPR_7B9A5317}"` (or `"project": "https://github.com/orgs/githubnext/projects/53"` when the input is empty) to add or update it on the project board with current field assignments. Issues with scores < 5 are not added to the board.
+          5. **Assign High-Readiness Issues**: For unassigned issues with AI-Readiness Score ≥ 9, output an `assign_to_agent` safe-output item to immediately assign the issue to @copilot (this includes issues that improved from lower scores)
           
           ## Execution Notes
           
           - This workflow runs every 4 hours automatically (or manually with custom parameters)
           - Input defaults: max_issues=10, project_url=https://github.com/orgs/githubnext/projects/53
-          - **Only unassigned issues** are routed to the project board (issues with existing assignees are completely skipped); routed issues are differentiated via the Status field
+          - **All unassigned issues are re-evaluated every run** to keep scores current as issues evolve (comments add context, acceptance criteria improve, etc.)
+          - **Only unassigned issues with AI-Readiness Score ≥ 5** are added/updated on the project board (issues with existing assignees or scores < 5 are skipped); routed issues are differentiated via the Status field
+          - **Issues crossing the 9/10 threshold** automatically get assigned to @copilot (even if they were previously scored lower)
           - Custom fields are created automatically if they don't exist
           - User projects must exist before workflow runs (cannot auto-create)
           
