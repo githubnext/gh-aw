@@ -88,7 +88,7 @@
 #
 # ## Project Board Fields
 #
-# For each issue with score ≥ 5, use the `update_project` tool to set these fields:
+# For each issue with score ≥ 5, use the `update_project` tool with `project: "${{ github.event.inputs.project_url }}"` to set these fields:
 #
 # | Field | Values |
 # |-------|--------|
@@ -109,8 +109,8 @@
 # 1. **Assessment**: Why is this suitable/unsuitable for AI? (1-2 sentences)
 # 2. **Scores**: AI-Readiness, Status, Effort, Type, Priority with brief rationale
 # 3. **Decision**: 
-#    - Score ≥ 9: "Assigning to @copilot" + use both `update_project` and `assign_to_agent` tools
-#    - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only
+#    - Score ≥ 9: "Assigning to @copilot" + use both `update_project` (with `project: "${{ github.event.inputs.project_url }}"`) and `assign_to_agent` tools
+#    - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only (with `project: "${{ github.event.inputs.project_url }}"`)
 #    - Score < 5: "Requires human review: [reasons]" + no tool calls
 #
 # ## Notes
@@ -1135,7 +1135,7 @@ jobs:
           
           ## Project Board Fields
           
-          For each issue with score ≥ 5, use the `update_project` tool to set these fields:
+          For each issue with score ≥ 5, use the `update_project` tool with `project: "${GH_AW_EXPR_7B9A5317}"` to set these fields:
           
           | Field | Values |
           |-------|--------|
@@ -1156,8 +1156,8 @@ jobs:
           1. **Assessment**: Why is this suitable/unsuitable for AI? (1-2 sentences)
           2. **Scores**: AI-Readiness, Status, Effort, Type, Priority with brief rationale
           3. **Decision**: 
-             - Score ≥ 9: "Assigning to @copilot" + use both `update_project` and `assign_to_agent` tools
-             - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only
+             - Score ≥ 9: "Assigning to @copilot" + use both `update_project` (with `project: "${GH_AW_EXPR_7B9A5317}"`) and `assign_to_agent` tools
+             - Score 5-8: "Needs clarification: [specific questions]" + use `update_project` tool only (with `project: "${GH_AW_EXPR_7B9A5317}"`)
              - Score < 5: "Requires human review: [reasons]" + no tool calls
           
           ## Notes
@@ -4036,17 +4036,25 @@ jobs:
                 }
               `;
               try {
-                const { getOctokit } = require("@actions/github");
                 const mutationToken = process.env.GH_AW_AGENT_TOKEN;
                 if (!mutationToken) {
                   core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
                   return false;
                 }
                 core.info("Using GH_AW_AGENT_TOKEN for mutation");
-                const mutationClient = getOctokit(mutationToken);
                 core.debug(`GraphQL mutation: ${mutation}`);
-                const response = await mutationClient.graphql(mutation);
-                if (response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                const response = await fetch("https://api.github.com/graphql", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${mutationToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ query: mutation }),
+                }).then(res => res.json());
+                if (response.errors && response.errors.length > 0) {
+                  throw new Error(response.errors[0].message);
+                }
+                if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
                   core.error("Unexpected response from GitHub API");
@@ -4089,10 +4097,16 @@ jobs:
                       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
                     } else {
                       core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
-                      const fallbackClient = getOctokit(fallbackToken);
                       core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
-                      const fallbackResp = await fallbackClient.graphql(fallbackMutation);
-                      if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                      const fallbackResp = await fetch("https://api.github.com/graphql", {
+                        method: "POST",
+                        headers: {
+                          Authorization: `Bearer ${fallbackToken}`,
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ query: fallbackMutation }),
+                      }).then(res => res.json());
+                      if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
                         core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
                         return true;
                       } else {
