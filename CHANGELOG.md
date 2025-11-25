@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.2 - 2025-11-25
+
+Maintenance release with dependency updates and minor improvements.
+
 ## v0.31.1 - 2025-11-25
 
 ### Bug Fixes
