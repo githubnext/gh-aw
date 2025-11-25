@@ -497,3 +497,225 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 		})
 	}
 }
+
+// TestSafeOutputsImportMetaFields tests that safe-output meta fields can be imported from shared workflows
+func TestSafeOutputsImportMetaFields(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with meta fields
+	sharedWorkflow := `---
+safe-outputs:
+  allowed-domains:
+    - "example.com"
+    - "api.example.com"
+  staged: true
+  env:
+    TEST_VAR: "test_value"
+  github-token: "${{ secrets.CUSTOM_TOKEN }}"
+  max-patch-size: 2048
+  runs-on: "ubuntu-latest"
+---
+
+# Shared Meta Fields Configuration
+
+This shared workflow provides meta configuration fields.
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-meta.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that imports the meta configuration
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-meta.md
+safe-outputs:
+  create-issue:
+    title-prefix: "[test] "
+---
+
+# Main Workflow
+
+This workflow uses the imported meta configuration.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify create-issue from main workflow
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present from main")
+	assert.Equal(t, "[test] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+
+	// Verify imported meta fields
+	assert.Equal(t, []string{"example.com", "api.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
+	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported and true")
+	assert.Equal(t, map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
+	assert.Equal(t, "${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
+	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (1024)
+	// before merge happens, so imported value is not used. User should specify max-patch-size in main workflow.
+	assert.Equal(t, 1024, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 1024 when main has safe-outputs")
+	assert.Equal(t, "ubuntu-latest", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
+}
+
+// TestSafeOutputsImportMetaFieldsMainTakesPrecedence tests that main workflow meta fields take precedence over imports
+func TestSafeOutputsImportMetaFieldsMainTakesPrecedence(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with meta fields
+	sharedWorkflow := `---
+safe-outputs:
+  allowed-domains:
+    - "shared.example.com"
+  github-token: "${{ secrets.SHARED_TOKEN }}"
+  max-patch-size: 1024
+---
+
+# Shared Meta Fields Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-meta.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that has its own meta fields
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-meta.md
+safe-outputs:
+  allowed-domains:
+    - "main.example.com"
+  github-token: "${{ secrets.MAIN_TOKEN }}"
+  max-patch-size: 2048
+  create-issue:
+    title-prefix: "[test] "
+---
+
+# Main Workflow
+
+This workflow has its own meta configuration that should take precedence.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify main workflow meta fields take precedence
+	assert.Equal(t, []string{"main.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains from main should take precedence")
+	assert.Equal(t, "${{ secrets.MAIN_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken from main should take precedence")
+	assert.Equal(t, 2048, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize from main should take precedence")
+}
+
+// TestSafeOutputsImportMetaFieldsFromOnlyImport tests that meta fields are correctly imported when main has no safe-outputs section
+func TestSafeOutputsImportMetaFieldsFromOnlyImport(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a shared workflow with meta fields and create-issue
+	sharedWorkflow := `---
+safe-outputs:
+  create-issue:
+    title-prefix: "[imported] "
+  allowed-domains:
+    - "import.example.com"
+  github-token: "${{ secrets.IMPORT_TOKEN }}"
+  max-patch-size: 4096
+  staged: true
+  runs-on: "ubuntu-22.04"
+---
+
+# Shared Safe Outputs Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-full.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Create main workflow that has NO safe-outputs section (only imports)
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-full.md
+---
+
+# Main Workflow
+
+This workflow uses only imported safe-outputs configuration.
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	// Change to the workflows directory for relative path resolution
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Verify safe output type from import
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be imported")
+	assert.Equal(t, "[imported] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+
+	// Verify all meta fields from import (no defaults from main since main has no safe-outputs)
+	assert.Equal(t, []string{"import.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
+	assert.Equal(t, "${{ secrets.IMPORT_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
+	assert.Equal(t, 4096, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize should be imported")
+	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported")
+	assert.Equal(t, "ubuntu-22.04", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
+}

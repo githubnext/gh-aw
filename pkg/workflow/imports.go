@@ -360,7 +360,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 	// Track types defined in imported configs for conflict detection
 	importedDefinedTypes := make(map[string]bool)
 
-	// Collect all imported configs that have safe output types
+	// Collect all imported configs (including those with only meta fields)
 	var importedConfigs []map[string]any
 	for _, configJSON := range importedSafeOutputsJSON {
 		if configJSON == "" || configJSON == "{}" {
@@ -373,7 +373,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 			continue
 		}
 
-		// Check for conflicts with top-level config
+		// Check for conflicts with top-level config (only for safe output types)
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
@@ -391,8 +391,8 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 
 	importsLog.Printf("Found %d imported safe-outputs configs with %d types", len(importedConfigs), len(importedDefinedTypes))
 
-	// If no imports define safe output types, return the original
-	if len(importedDefinedTypes) == 0 {
+	// If no imported configs found, return the original
+	if len(importedConfigs) == 0 {
 		return topSafeOutputs, nil
 	}
 
@@ -546,6 +546,26 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.ThreatDetection == nil && importedConfig.ThreatDetection != nil {
 		result.ThreatDetection = importedConfig.ThreatDetection
+	}
+
+	// Merge meta-configuration fields (only set if empty/zero in result)
+	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
+		result.AllowedDomains = importedConfig.AllowedDomains
+	}
+	if !result.Staged && importedConfig.Staged {
+		result.Staged = importedConfig.Staged
+	}
+	if len(result.Env) == 0 && len(importedConfig.Env) > 0 {
+		result.Env = importedConfig.Env
+	}
+	if result.GitHubToken == "" && importedConfig.GitHubToken != "" {
+		result.GitHubToken = importedConfig.GitHubToken
+	}
+	if result.MaximumPatchSize == 0 && importedConfig.MaximumPatchSize > 0 {
+		result.MaximumPatchSize = importedConfig.MaximumPatchSize
+	}
+	if result.RunsOn == "" && importedConfig.RunsOn != "" {
+		result.RunsOn = importedConfig.RunsOn
 	}
 
 	return result
