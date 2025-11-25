@@ -59,8 +59,9 @@ Troubleshooting:
   - The key has necessary permissions for the requested resources
 
   500 Internal Server Error:
-  - Try clearing saved auth info: rm -rf ~/.mcp-auth
-  - Ensure you're using a compatible node version
+  - Verify the LINEAR_API_KEY secret value is correct
+  - Check that the API key has not been revoked in Linear settings
+  - Ensure the Linear workspace is accessible with the provided key
 
 References:
   - Linear MCP Documentation: https://linear.app/docs/mcp
