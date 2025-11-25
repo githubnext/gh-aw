@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -314,31 +315,19 @@ func isPermissionSufficient(current, required PermissionLevel) bool {
 	return false
 }
 
-// safeOutputTypeKeys lists all the safe output type keys that are used in frontmatter
-// These are the keys that define actual safe output operations (not meta configuration like app, jobs, staged, etc.)
-var safeOutputTypeKeys = []string{
-	"create-issue",
-	"create-discussion",
-	"close-discussion",
-	"close-issue",
-	"close-pull-request",
-	"add-comment",
-	"create-pull-request",
-	"create-pull-request-review-comment",
-	"create-code-scanning-alert",
-	"add-labels",
-	"add-reviewer",
-	"assign-milestone",
-	"assign-to-agent",
-	"update-issue",
-	"push-to-pull-request-branch",
-	"upload-assets",
-	"update-release",
-	"create-agent-task",
-	"update-project",
-	"missing-tool",
-	"noop",
-	"threat-detection",
+// getSafeOutputTypeKeys returns the list of safe output type keys from the embedded schema.
+// This is a cached wrapper around parser.GetSafeOutputTypeKeys() to avoid parsing on every call.
+var (
+	safeOutputTypeKeys     []string
+	safeOutputTypeKeysOnce sync.Once
+	safeOutputTypeKeysErr  error
+)
+
+func getSafeOutputTypeKeys() ([]string, error) {
+	safeOutputTypeKeysOnce.Do(func() {
+		safeOutputTypeKeys, safeOutputTypeKeysErr = parser.GetSafeOutputTypeKeys()
+	})
+	return safeOutputTypeKeys, safeOutputTypeKeysErr
 }
 
 // MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs
@@ -351,10 +340,16 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		return topSafeOutputs, nil
 	}
 
+	// Get safe output type keys from the embedded schema
+	typeKeys, err := getSafeOutputTypeKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get safe output type keys: %w", err)
+	}
+
 	// Collect all safe output types defined in the top-level config
 	topDefinedTypes := make(map[string]bool)
 	if topSafeOutputs != nil {
-		for _, key := range safeOutputTypeKeys {
+		for _, key := range typeKeys {
 			if hasSafeOutputType(topSafeOutputs, key) {
 				topDefinedTypes[key] = true
 			}
@@ -379,7 +374,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		}
 
 		// Check for conflicts with top-level config
-		for _, key := range safeOutputTypeKeys {
+		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
 					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in both the main workflow and an imported workflow. Remove the duplicate definition from one of the workflows", key)
