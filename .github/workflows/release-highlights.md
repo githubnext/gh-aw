@@ -2,9 +2,8 @@
 name: Release
 description: Build, test, and release gh-aw extension, then generate and prepend release highlights
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  release:
+    types: [created]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -59,7 +58,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
@@ -74,13 +73,9 @@ steps:
       echo "Release ID from release job: ${{ needs.release.outputs.release_id }}"
       
       # Determine which release to analyze
-      if [ "${{ github.event_name }}" = "push" ]; then
-        if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
-          echo "Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF"
-          exit 1
-        fi
-        RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-        echo "Processing release from push event: $RELEASE_TAG"
+      if [ "${{ github.event_name }}" = "release" ]; then
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        echo "Processing release from event: $RELEASE_TAG"
       elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
         RELEASE_TAG="${{ github.event.inputs.release_tag }}"
         echo "Processing release from workflow input: $RELEASE_TAG"
