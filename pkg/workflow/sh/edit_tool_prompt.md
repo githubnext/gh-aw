@@ -1,7 +1,3 @@
-
-
----
-
 ## File Editing Access
 
 **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:

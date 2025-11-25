@@ -7,9 +7,9 @@ cat "$GH_AW_PROMPT"
   echo "<details>"
   echo "<summary>Generated Prompt</summary>"
   echo ""
-  echo '```markdown'
+  echo '``````markdown'
   cat "$GH_AW_PROMPT"
-  echo '```'
+  echo '``````'
   echo ""
   echo "</details>"
 } >> "$GITHUB_STEP_SUMMARY"

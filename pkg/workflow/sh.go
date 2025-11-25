@@ -63,10 +63,11 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 	chunks := chunkLines(textLines, indent, MaxPromptChunkSize, MaxPromptChunks)
 
 	// Write each chunk as a separate heredoc
+	// Use quoted heredoc and envsubst for safe environment variable substitution
 	for _, chunk := range chunks {
 		// shellcheck disable directive suppresses false positives from markdown backticks
 		yaml.WriteString(indent + shellcheckDisableBackticks)
-		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
+		yaml.WriteString(indent + "cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
 		}

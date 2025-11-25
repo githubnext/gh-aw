@@ -1,6 +1,3 @@
-
----
-
 ## Current Branch Context
 
 **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.

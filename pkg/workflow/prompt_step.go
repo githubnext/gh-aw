@@ -29,7 +29,7 @@ func appendPromptStep(yaml *strings.Builder, stepName string, renderer func(*str
 }
 
 // appendPromptStepWithHeredoc generates a workflow step that appends content to the prompt file
-// using a heredoc (cat >> "$GH_AW_PROMPT" << 'EOF' pattern).
+// using a heredoc (cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT" pattern).
 // This is used by compiler functions that need to embed structured content.
 //
 // Parameters:
@@ -43,7 +43,7 @@ func appendPromptStepWithHeredoc(yaml *strings.Builder, stepName string, rendere
 	yaml.WriteString("        run: |\n")
 	// shellcheck disable directive suppresses false positives from markdown backticks
 	yaml.WriteString("          " + shellcheckDisableBackticks)
-	yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
+	yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
 
 	// Call the renderer to write the content
 	renderer(yaml)

@@ -1,6 +1,3 @@
-
----
-
 ## GitHub Context
 
 The following GitHub context information is available for this workflow:
