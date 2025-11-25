@@ -219,7 +219,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "release-highlights.lock.yml"
+          GH_AW_WORKFLOW_FILE: "release.lock.yml"
         with:
           script: |
             async function main() {
