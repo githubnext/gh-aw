@@ -190,7 +190,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
       return false;
     }
-    
+
     const mutationClient = new Octokit({ auth: mutationToken });
     const response = await mutationClient.graphql(mutation);
 
