@@ -558,7 +558,9 @@ describe.sequential("safe_outputs_mcp_server.cjs add_labels tool patching", () =
         expect(addLabelsTool).toBeDefined();
 
         // Check that the description is the default (no "Allowed labels:" text)
-        expect(addLabelsTool.description).toBe("Add labels to a GitHub issue or pull request");
+        expect(addLabelsTool.description).toBe(
+          "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead."
+        );
         expect(addLabelsTool.description).not.toContain("Allowed labels:");
 
         resolve();
@@ -771,7 +773,9 @@ describe.sequential("safe_outputs_mcp_server.cjs update_issue tool patching", ()
         expect(updateIssueTool).toBeDefined();
 
         // Check that the description is the default (no "Allowed updates:" text)
-        expect(updateIssueTool.description).toBe("Update a GitHub issue");
+        expect(updateIssueTool.description).toBe(
+          "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged."
+        );
         expect(updateIssueTool.description).not.toContain("Allowed updates:");
 
         resolve();
@@ -873,7 +877,9 @@ describe.sequential("safe_outputs_mcp_server.cjs update_issue tool patching", ()
         expect(updateIssueTool).toBeDefined();
 
         // Check that the description is the default (no "Allowed updates:" text)
-        expect(updateIssueTool.description).toBe("Update a GitHub issue");
+        expect(updateIssueTool.description).toBe(
+          "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged."
+        );
         expect(updateIssueTool.description).not.toContain("Allowed updates:");
 
         resolve();
@@ -1199,8 +1205,8 @@ describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () 
 
         // Check that branch property exists and has the correct description
         expect(createPrTool.inputSchema.properties.branch).toBeDefined();
-        expect(createPrTool.inputSchema.properties.branch.description).toContain("Optional");
-        expect(createPrTool.inputSchema.properties.branch.description).toContain("current branch");
+        expect(createPrTool.inputSchema.properties.branch.description).toContain("If omitted");
+        expect(createPrTool.inputSchema.properties.branch.description).toContain("current");
 
         resolve();
       }, 500);
@@ -1304,8 +1310,8 @@ describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () 
 
         // Check that branch property exists and has the correct description
         expect(pushTool.inputSchema.properties.branch).toBeDefined();
-        expect(pushTool.inputSchema.properties.branch.description).toContain("Optional");
-        expect(pushTool.inputSchema.properties.branch.description).toContain("current branch");
+        expect(pushTool.inputSchema.properties.branch.description).toContain("If omitted");
+        expect(pushTool.inputSchema.properties.branch.description).toContain("current");
 
         resolve();
       }, 500);
