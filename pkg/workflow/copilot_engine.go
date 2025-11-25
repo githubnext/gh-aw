@@ -114,7 +114,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		// Always add workspace directory to --add-dir so Copilot CLI can access it
 		// This allows Copilot CLI to discover agent files and access the workspace
-		copilotArgs = append(copilotArgs, "--add-dir", "${GITHUB_WORKSPACE}")
+		// Use double quotes to allow shell variable expansion
+		copilotArgs = append(copilotArgs, "--add-dir", "\"${GITHUB_WORKSPACE}\"")
 		copilotLog.Print("Added workspace directory to --add-dir")
 
 		copilotLog.Print("Using firewall mode with simplified arguments")
