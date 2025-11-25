@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -23,28 +22,17 @@ var addReactionAndEditCommentScript string
 //go:embed js/check_membership.cjs
 var checkMembershipScriptSource string
 
-var (
-	checkMembershipScript     string
-	checkMembershipScriptOnce sync.Once
-)
+// init registers scripts from js.go with the DefaultScriptRegistry
+func init() {
+	DefaultScriptRegistry.Register("check_membership", checkMembershipScriptSource)
+	DefaultScriptRegistry.Register("safe_outputs_mcp_server", safeOutputsMCPServerScriptSource)
+	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
+	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
+}
 
 // getCheckMembershipScript returns the bundled check_membership script
-// Bundling is performed on first access and cached for subsequent calls
 func getCheckMembershipScript() string {
-	checkMembershipScriptOnce.Do(func() {
-		jsLog.Print("Bundling check_membership script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(checkMembershipScriptSource, sources, "")
-		if err != nil {
-			jsLog.Printf("Failed to bundle check_membership script, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			checkMembershipScript = checkMembershipScriptSource
-		} else {
-			jsLog.Printf("Successfully bundled check_membership script: %d bytes", len(bundled))
-			checkMembershipScript = bundled
-		}
-	})
-	return checkMembershipScript
+	return DefaultScriptRegistry.Get("check_membership")
 }
 
 //go:embed js/check_stop_time.cjs
@@ -71,28 +59,9 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScriptSource string
 
-var (
-	safeOutputsMCPServerScript     string
-	safeOutputsMCPServerScriptOnce sync.Once
-)
-
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
-// Bundling is performed on first access and cached for subsequent calls
 func getSafeOutputsMCPServerScript() string {
-	safeOutputsMCPServerScriptOnce.Do(func() {
-		jsLog.Print("Bundling safe_outputs_mcp_server script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(safeOutputsMCPServerScriptSource, sources, "")
-		if err != nil {
-			jsLog.Printf("Failed to bundle safe_outputs_mcp_server script, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			safeOutputsMCPServerScript = safeOutputsMCPServerScriptSource
-		} else {
-			jsLog.Printf("Successfully bundled safe_outputs_mcp_server script: %d bytes", len(bundled))
-			safeOutputsMCPServerScript = bundled
-		}
-	})
-	return safeOutputsMCPServerScript
+	return DefaultScriptRegistry.Get("safe_outputs_mcp_server")
 }
 
 //go:embed js/safe_outputs_tools.json
@@ -140,28 +109,9 @@ var updateActivationCommentScript string
 //go:embed js/update_project.cjs
 var updateProjectScriptSource string
 
-var (
-	updateProjectScript     string
-	updateProjectScriptOnce sync.Once
-)
-
 // getUpdateProjectScript returns the bundled update_project script
-// Bundling is performed on first access and cached for subsequent calls
 func getUpdateProjectScript() string {
-	updateProjectScriptOnce.Do(func() {
-		jsLog.Print("Bundling update_project script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(updateProjectScriptSource, sources, "")
-		if err != nil {
-			jsLog.Printf("Failed to bundle update_project script, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			updateProjectScript = updateProjectScriptSource
-		} else {
-			jsLog.Printf("Successfully bundled update_project script: %d bytes", len(bundled))
-			updateProjectScript = bundled
-		}
-	})
-	return updateProjectScript
+	return DefaultScriptRegistry.Get("update_project")
 }
 
 //go:embed js/generate_footer.cjs

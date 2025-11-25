@@ -1,13 +1,17 @@
+// Package workflow provides embedded JavaScript scripts for GitHub Actions workflows.
+//
+// # Script Registry Pattern
+//
+// This file uses the ScriptRegistry pattern to manage lazy bundling of JavaScript
+// scripts. Instead of having separate sync.Once patterns for each script, all scripts
+// are registered with the DefaultScriptRegistry and bundled on-demand.
+//
+// See script_registry.go for the ScriptRegistry implementation.
 package workflow
 
 import (
 	_ "embed"
-	"sync"
-
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var scriptsLog = logger.New("workflow:scripts")
 
 // Source scripts that may contain local requires
 //
@@ -91,567 +95,176 @@ var parseCodexLogScriptSource string
 //go:embed js/parse_copilot_log.cjs
 var parseCopilotLogScriptSource string
 
-// Bundled scripts (lazily bundled on-demand and cached)
-var (
-	collectJSONLOutputScript     string
-	collectJSONLOutputScriptOnce sync.Once
+// init registers all scripts with the DefaultScriptRegistry.
+// Scripts are bundled lazily on first access via the getter functions.
+func init() {
+	// Safe output scripts
+	DefaultScriptRegistry.Register("collect_jsonl_output", collectJSONLOutputScriptSource)
+	DefaultScriptRegistry.Register("compute_text", computeTextScriptSource)
+	DefaultScriptRegistry.Register("sanitize_output", sanitizeOutputScriptSource)
+	DefaultScriptRegistry.Register("create_issue", createIssueScriptSource)
+	DefaultScriptRegistry.Register("add_labels", addLabelsScriptSource)
+	DefaultScriptRegistry.Register("add_reviewer", addReviewerScriptSource)
+	DefaultScriptRegistry.Register("assign_milestone", assignMilestoneScriptSource)
+	DefaultScriptRegistry.Register("assign_to_agent", assignToAgentScriptSource)
+	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
+	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
+	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
+	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
+	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
+	DefaultScriptRegistry.Register("update_release", updateReleaseScriptSource)
+	DefaultScriptRegistry.Register("create_code_scanning_alert", createCodeScanningAlertScriptSource)
+	DefaultScriptRegistry.Register("create_pr_review_comment", createPRReviewCommentScriptSource)
+	DefaultScriptRegistry.Register("add_comment", addCommentScriptSource)
+	DefaultScriptRegistry.Register("upload_assets", uploadAssetsScriptSource)
+	DefaultScriptRegistry.Register("parse_firewall_logs", parseFirewallLogsScriptSource)
+	DefaultScriptRegistry.Register("push_to_pull_request_branch", pushToPullRequestBranchScriptSource)
+	DefaultScriptRegistry.Register("create_pull_request", createPullRequestScriptSource)
+	DefaultScriptRegistry.Register("notify_comment_error", notifyCommentErrorScriptSource)
+	DefaultScriptRegistry.Register("noop", noopScriptSource)
 
-	computeTextScript     string
-	computeTextScriptOnce sync.Once
+	// interpolate_prompt is registered from js.go (uses interpolatePromptScript variable)
 
-	sanitizeOutputScript     string
-	sanitizeOutputScriptOnce sync.Once
+	// Log parser scripts
+	DefaultScriptRegistry.Register("parse_claude_log", parseClaudeLogScriptSource)
+	DefaultScriptRegistry.Register("parse_codex_log", parseCodexLogScriptSource)
+	DefaultScriptRegistry.Register("parse_copilot_log", parseCopilotLogScriptSource)
+}
 
-	createIssueScript     string
-	createIssueScriptOnce sync.Once
-
-	addLabelsScript     string
-	addLabelsScriptOnce sync.Once
-
-	addReviewerScript     string
-	addReviewerScriptOnce sync.Once
-
-	assignMilestoneScript     string
-	assignMilestoneScriptOnce sync.Once
-
-	assignToAgentScript     string
-	assignToAgentScriptOnce sync.Once
-
-	createDiscussionScript     string
-	createDiscussionScriptOnce sync.Once
-
-	closeDiscussionScript     string
-	closeDiscussionScriptOnce sync.Once
-
-	closeIssueScript     string
-	closeIssueScriptOnce sync.Once
-
-	closePullRequestScript     string
-	closePullRequestScriptOnce sync.Once
-
-	updateIssueScript     string
-	updateIssueScriptOnce sync.Once
-
-	updateReleaseScript     string
-	updateReleaseScriptOnce sync.Once
-
-	createCodeScanningAlertScript     string
-	createCodeScanningAlertScriptOnce sync.Once
-
-	createPRReviewCommentScript     string
-	createPRReviewCommentScriptOnce sync.Once
-
-	addCommentScript     string
-	addCommentScriptOnce sync.Once
-
-	uploadAssetsScript     string
-	uploadAssetsScriptOnce sync.Once
-
-	parseFirewallLogsScript     string
-	parseFirewallLogsScriptOnce sync.Once
-
-	pushToPullRequestBranchScript     string
-	pushToPullRequestBranchScriptOnce sync.Once
-
-	createPullRequestScript     string
-	createPullRequestScriptOnce sync.Once
-
-	notifyCommentErrorScript     string
-	notifyCommentErrorScriptOnce sync.Once
-
-	noopScriptBundled     string
-	noopScriptBundledOnce sync.Once
-
-	interpolatePromptBundled     string
-	interpolatePromptBundledOnce sync.Once
-
-	parseClaudeLogBundled     string
-	parseClaudeLogBundledOnce sync.Once
-
-	parseCodexLogBundled     string
-	parseCodexLogBundledOnce sync.Once
-
-	parseCopilotLogBundled     string
-	parseCopilotLogBundledOnce sync.Once
-)
+// Getter functions for bundled scripts.
+// These use the ScriptRegistry for lazy bundling with caching.
 
 // getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
-// Bundling is performed on first access and cached for subsequent calls
 func getCollectJSONLOutputScript() string {
-	collectJSONLOutputScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling collect_ndjson_output script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for collect_ndjson_output, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			collectJSONLOutputScript = collectJSONLOutputScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled collect_ndjson_output script: %d bytes", len(bundled))
-			collectJSONLOutputScript = bundled
-		}
-	})
-	return collectJSONLOutputScript
+	return DefaultScriptRegistry.Get("collect_jsonl_output")
 }
 
 // getComputeTextScript returns the bundled compute_text script
-// Bundling is performed on first access and cached for subsequent calls
 func getComputeTextScript() string {
-	computeTextScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(computeTextScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for compute_text, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			computeTextScript = computeTextScriptSource
-		} else {
-			computeTextScript = bundled
-		}
-	})
-	return computeTextScript
+	return DefaultScriptRegistry.Get("compute_text")
 }
 
 // getSanitizeOutputScript returns the bundled sanitize_output script
-// Bundling is performed on first access and cached for subsequent calls
 func getSanitizeOutputScript() string {
-	sanitizeOutputScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for sanitize_output, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			sanitizeOutputScript = sanitizeOutputScriptSource
-		} else {
-			sanitizeOutputScript = bundled
-		}
-	})
-	return sanitizeOutputScript
+	return DefaultScriptRegistry.Get("sanitize_output")
 }
 
 // getCreateIssueScript returns the bundled create_issue script
-// Bundling is performed on first access and cached for subsequent calls
 func getCreateIssueScript() string {
-	createIssueScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(createIssueScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for create_issue, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			createIssueScript = createIssueScriptSource
-		} else {
-			createIssueScript = bundled
-		}
-	})
-	return createIssueScript
+	return DefaultScriptRegistry.Get("create_issue")
 }
 
 // getAddLabelsScript returns the bundled add_labels script
-// Bundling is performed on first access and cached for subsequent calls
 func getAddLabelsScript() string {
-	addLabelsScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(addLabelsScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for add_labels, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			addLabelsScript = addLabelsScriptSource
-		} else {
-			addLabelsScript = bundled
-		}
-	})
-	return addLabelsScript
+	return DefaultScriptRegistry.Get("add_labels")
 }
 
 // getAddReviewerScript returns the bundled add_reviewer script
-// Bundling is performed on first access and cached for subsequent calls
 func getAddReviewerScript() string {
-	addReviewerScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling add_reviewer script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(addReviewerScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for add_reviewer, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			addReviewerScript = addReviewerScriptSource
-		} else {
-			addReviewerScript = bundled
-		}
-	})
-	return addReviewerScript
+	return DefaultScriptRegistry.Get("add_reviewer")
 }
 
 // getAssignMilestoneScript returns the bundled assign_milestone script
-// Bundling is performed on first access and cached for subsequent calls
 func getAssignMilestoneScript() string {
-	assignMilestoneScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling assign_milestone script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(assignMilestoneScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for assign_milestone, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			assignMilestoneScript = assignMilestoneScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled assign_milestone script: %d bytes", len(bundled))
-			assignMilestoneScript = bundled
-		}
-	})
-	return assignMilestoneScript
+	return DefaultScriptRegistry.Get("assign_milestone")
 }
 
 // getAssignToAgentScript returns the bundled assign_to_agent script
-// Bundling is performed on first access and cached for subsequent calls
 func getAssignToAgentScript() string {
-	assignToAgentScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling assign_to_agent script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(assignToAgentScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for assign_to_agent, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			assignToAgentScript = assignToAgentScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled assign_to_agent script: %d bytes", len(bundled))
-			assignToAgentScript = bundled
-		}
-	})
-	return assignToAgentScript
+	return DefaultScriptRegistry.Get("assign_to_agent")
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script
-// Bundling is performed on first access and cached for subsequent calls
 func getParseFirewallLogsScript() string {
-	parseFirewallLogsScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(parseFirewallLogsScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for parse_firewall_logs, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			parseFirewallLogsScript = parseFirewallLogsScriptSource
-		} else {
-			parseFirewallLogsScript = bundled
-		}
-	})
-	return parseFirewallLogsScript
+	return DefaultScriptRegistry.Get("parse_firewall_logs")
 }
 
 // getCreateDiscussionScript returns the bundled create_discussion script
-// Bundling is performed on first access and cached for subsequent calls
 func getCreateDiscussionScript() string {
-	createDiscussionScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(createDiscussionScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for create_discussion, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			createDiscussionScript = createDiscussionScriptSource
-		} else {
-			createDiscussionScript = bundled
-		}
-	})
-	return createDiscussionScript
+	return DefaultScriptRegistry.Get("create_discussion")
 }
 
 // getCloseDiscussionScript returns the bundled close_discussion script
-// Bundling is performed on first access and cached for subsequent calls
 func getCloseDiscussionScript() string {
-	closeDiscussionScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(closeDiscussionScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for close_discussion, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			closeDiscussionScript = closeDiscussionScriptSource
-		} else {
-			closeDiscussionScript = bundled
-		}
-	})
-	return closeDiscussionScript
+	return DefaultScriptRegistry.Get("close_discussion")
 }
 
 // getCloseIssueScript returns the bundled close_issue script
-// Bundling is performed on first access and cached for subsequent calls
 func getCloseIssueScript() string {
-	closeIssueScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(closeIssueScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for close_issue, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			closeIssueScript = closeIssueScriptSource
-		} else {
-			closeIssueScript = bundled
-		}
-	})
-	return closeIssueScript
+	return DefaultScriptRegistry.Get("close_issue")
 }
 
 // getClosePullRequestScript returns the bundled close_pull_request script
-// Bundling is performed on first access and cached for subsequent calls
 func getClosePullRequestScript() string {
-	closePullRequestScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(closePullRequestScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for close_pull_request, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			closePullRequestScript = closePullRequestScriptSource
-		} else {
-			closePullRequestScript = bundled
-		}
-	})
-	return closePullRequestScript
+	return DefaultScriptRegistry.Get("close_pull_request")
 }
 
 // getUpdateIssueScript returns the bundled update_issue script
-// Bundling is performed on first access and cached for subsequent calls
 func getUpdateIssueScript() string {
-	updateIssueScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(updateIssueScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for update_issue, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			updateIssueScript = updateIssueScriptSource
-		} else {
-			updateIssueScript = bundled
-		}
-	})
-	return updateIssueScript
+	return DefaultScriptRegistry.Get("update_issue")
 }
 
 // getUpdateReleaseScript returns the bundled update_release script
-// Bundling is performed on first access and cached for subsequent calls
 func getUpdateReleaseScript() string {
-	updateReleaseScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(updateReleaseScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for update_release, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			updateReleaseScript = updateReleaseScriptSource
-		} else {
-			updateReleaseScript = bundled
-		}
-	})
-	return updateReleaseScript
+	return DefaultScriptRegistry.Get("update_release")
 }
 
 // getCreateCodeScanningAlertScript returns the bundled create_code_scanning_alert script
-// Bundling is performed on first access and cached for subsequent calls
 func getCreateCodeScanningAlertScript() string {
-	createCodeScanningAlertScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(createCodeScanningAlertScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for create_code_scanning_alert, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			createCodeScanningAlertScript = createCodeScanningAlertScriptSource
-		} else {
-			createCodeScanningAlertScript = bundled
-		}
-	})
-	return createCodeScanningAlertScript
+	return DefaultScriptRegistry.Get("create_code_scanning_alert")
 }
 
 // getCreatePRReviewCommentScript returns the bundled create_pr_review_comment script
-// Bundling is performed on first access and cached for subsequent calls
 func getCreatePRReviewCommentScript() string {
-	createPRReviewCommentScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(createPRReviewCommentScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for create_pr_review_comment, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			createPRReviewCommentScript = createPRReviewCommentScriptSource
-		} else {
-			createPRReviewCommentScript = bundled
-		}
-	})
-	return createPRReviewCommentScript
+	return DefaultScriptRegistry.Get("create_pr_review_comment")
 }
 
 // getAddCommentScript returns the bundled add_comment script
-// Bundling is performed on first access and cached for subsequent calls
 func getAddCommentScript() string {
-	addCommentScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(addCommentScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for add_comment, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			addCommentScript = addCommentScriptSource
-		} else {
-			addCommentScript = bundled
-		}
-	})
-	return addCommentScript
+	return DefaultScriptRegistry.Get("add_comment")
 }
 
 // getUploadAssetsScript returns the bundled upload_assets script
-// Bundling is performed on first access and cached for subsequent calls
 func getUploadAssetsScript() string {
-	uploadAssetsScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(uploadAssetsScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for upload_assets, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			uploadAssetsScript = uploadAssetsScriptSource
-		} else {
-			uploadAssetsScript = bundled
-		}
-	})
-	return uploadAssetsScript
+	return DefaultScriptRegistry.Get("upload_assets")
 }
 
 // getPushToPullRequestBranchScript returns the bundled push_to_pull_request_branch script
-// Bundling is performed on first access and cached for subsequent calls
 func getPushToPullRequestBranchScript() string {
-	pushToPullRequestBranchScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(pushToPullRequestBranchScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for push_to_pull_request_branch, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			pushToPullRequestBranchScript = pushToPullRequestBranchScriptSource
-		} else {
-			pushToPullRequestBranchScript = bundled
-		}
-	})
-	return pushToPullRequestBranchScript
+	return DefaultScriptRegistry.Get("push_to_pull_request_branch")
 }
 
 // getCreatePullRequestScript returns the bundled create_pull_request script
-// Bundling is performed on first access and cached for subsequent calls
 func getCreatePullRequestScript() string {
-	createPullRequestScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(createPullRequestScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for create_pull_request, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			createPullRequestScript = createPullRequestScriptSource
-		} else {
-			createPullRequestScript = bundled
-		}
-	})
-	return createPullRequestScript
+	return DefaultScriptRegistry.Get("create_pull_request")
 }
 
 // getNotifyCommentErrorScript returns the bundled notify_comment_error script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles load_agent_output.cjs inline to avoid require() issues in GitHub Actions
 func getNotifyCommentErrorScript() string {
-	notifyCommentErrorScriptOnce.Do(func() {
-		scriptsLog.Print("Bundling notify_comment_error script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(notifyCommentErrorScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for notify_comment_error, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			notifyCommentErrorScript = notifyCommentErrorScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled notify_comment_error script: %d bytes", len(bundled))
-			notifyCommentErrorScript = bundled
-		}
-	})
-	return notifyCommentErrorScript
+	return DefaultScriptRegistry.Get("notify_comment_error")
 }
 
 // getNoOpScript returns the bundled noop script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles load_agent_output.cjs inline to avoid require() issues in GitHub Actions
 func getNoOpScript() string {
-	noopScriptBundledOnce.Do(func() {
-		scriptsLog.Print("Bundling noop script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(noopScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for noop, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			noopScriptBundled = noopScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled noop script: %d bytes", len(bundled))
-			noopScriptBundled = bundled
-		}
-	})
-	return noopScriptBundled
+	return DefaultScriptRegistry.Get("noop")
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles is_truthy.cjs inline to avoid require() issues in GitHub Actions
 func getInterpolatePromptScript() string {
-	interpolatePromptBundledOnce.Do(func() {
-		scriptsLog.Print("Bundling interpolate_prompt script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(interpolatePromptScript, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for interpolate_prompt, using source as-is: %v", err)
-			// If bundling fails, use the source as-is
-			interpolatePromptBundled = interpolatePromptScript
-		} else {
-			scriptsLog.Printf("Successfully bundled interpolate_prompt script: %d bytes", len(bundled))
-			interpolatePromptBundled = bundled
-		}
-	})
-	return interpolatePromptBundled
+	return DefaultScriptRegistry.Get("interpolate_prompt")
 }
 
 // getParseClaudeLogScript returns the bundled parse_claude_log script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
 func getParseClaudeLogScript() string {
-	parseClaudeLogBundledOnce.Do(func() {
-		scriptsLog.Print("Bundling parse_claude_log script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(parseClaudeLogScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for parse_claude_log, using source as-is: %v", err)
-			parseClaudeLogBundled = parseClaudeLogScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled parse_claude_log script: %d bytes", len(bundled))
-			parseClaudeLogBundled = bundled
-		}
-	})
-	return parseClaudeLogBundled
+	return DefaultScriptRegistry.Get("parse_claude_log")
 }
 
 // getParseCodexLogScript returns the bundled parse_codex_log script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
 func getParseCodexLogScript() string {
-	parseCodexLogBundledOnce.Do(func() {
-		scriptsLog.Print("Bundling parse_codex_log script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(parseCodexLogScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for parse_codex_log, using source as-is: %v", err)
-			parseCodexLogBundled = parseCodexLogScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled parse_codex_log script: %d bytes", len(bundled))
-			parseCodexLogBundled = bundled
-		}
-	})
-	return parseCodexLogBundled
+	return DefaultScriptRegistry.Get("parse_codex_log")
 }
 
 // getParseCopilotLogScript returns the bundled parse_copilot_log script
-// Bundling is performed on first access and cached for subsequent calls
-// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
 func getParseCopilotLogScript() string {
-	parseCopilotLogBundledOnce.Do(func() {
-		scriptsLog.Print("Bundling parse_copilot_log script")
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(parseCopilotLogScriptSource, sources, "")
-		if err != nil {
-			scriptsLog.Printf("Bundling failed for parse_copilot_log, using source as-is: %v", err)
-			parseCopilotLogBundled = parseCopilotLogScriptSource
-		} else {
-			scriptsLog.Printf("Successfully bundled parse_copilot_log script: %d bytes", len(bundled))
-			parseCopilotLogBundled = bundled
-		}
-	})
-	return parseCopilotLogBundled
+	return DefaultScriptRegistry.Get("parse_copilot_log")
 }
