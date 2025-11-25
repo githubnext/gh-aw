@@ -45,186 +45,129 @@
 #
 # Original Prompt:
 # ```markdown
-# # Release Highlights Generator 🎉
+# # Release Highlights Generator
 #
-# You are a skilled **Release Notes Writer** who creates engaging, informative, and professional summaries of software releases. Your mission is to analyze the changes between releases and create a compelling highlights section that helps users understand what's new and improved.
+# Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
 #
-# ## Current Context
+# ## Data Available
 #
-# - **Repository**: ${{ github.repository }}
-# - **Release Tag**: `${RELEASE_TAG}` (from environment variable set by pre-step)
-# - **Previous Release**: `${PREV_RELEASE_TAG}` (from environment variable, may be empty for first release)
-# - **Data Location**: `/tmp/gh-aw/release-data/`
-#   - `current_release.json` - Current release metadata
-#   - `pull_requests.json` - All PRs merged between releases
-#   - `CHANGELOG.md` - Full changelog (if exists)
-#   - `docs_files.txt` - List of documentation files
+# All data is pre-fetched in `/tmp/gh-aw/release-data/`:
+# - `current_release.json` - Release metadata (tag, name, dates, existing body)
+# - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (empty array if first release)
+# - `CHANGELOG.md` - Full changelog for context (if exists)
+# - `docs_files.txt` - Available documentation files for linking
 #
-# ## Your Mission
+# ## Output Requirements
 #
-# Generate a **highlights summary** that will be prepended to the release notes. Your summary should:
+# Create a **"🌟 Release Highlights"** section that:
+# - Is concise and scannable (users grasp key changes in 30 seconds)
+# - Uses professional, enthusiastic tone (not overly casual)
+# - Categorizes changes logically (features, fixes, docs, breaking changes)
+# - Links to relevant documentation where helpful
+# - Focuses on user impact (why changes matter, not just what changed)
 #
-# 1. **Be concise and scannable** - Users should quickly grasp what's important
-# 2. **Use a happy, professional tone** - Celebrate the improvements while remaining informative
-# 3. **Link to documentation** - Reference relevant docs from the `docs/` directory when applicable
-# 4. **Categorize changes** - Group related improvements together
-# 5. **Highlight breaking changes** - If any, make them prominent and clear
+# ## Workflow
 #
-# ## Analysis Process
-#
-# ### Step 1: Load and Review Data
-#
-# Read the data files to understand what changed:
+# ### 1. Load Data
 #
 # ```bash
-# # Current release details
-# cat /tmp/gh-aw/release-data/current_release.json
+# # View release metadata
+# cat /tmp/gh-aw/release-data/current_release.json | jq
 #
-# # Pull requests in this release (may be empty for first release)
-# cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- PR #\(.number): \(.title)"'
+# # List PRs (empty if first release)
+# cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 #
-# # Available documentation files
+# # Check CHANGELOG context
+# head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
+#
+# # View available docs
 # cat /tmp/gh-aw/release-data/docs_files.txt
-#
-# # Changelog context (if exists)
-# head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG.md"
 # ```
 #
-# ### Step 2: Categorize Changes
+# ### 2. Categorize & Prioritize
 #
-# Analyze the PRs and group them into meaningful categories such as:
-# - ✨ **New Features** - New capabilities and enhancements
-# - 🐛 **Bug Fixes** - Issues resolved and problems fixed
-# - 📚 **Documentation** - Improvements to guides and references
-# - 🔧 **Internal Changes** - Refactoring, tooling, dependencies
-# - ⚠️ **Breaking Changes** - Changes that require user action
-# - 🎨 **UI/UX Improvements** - User experience enhancements
-# - ⚡ **Performance** - Speed and efficiency improvements
+# Group PRs by category (omit categories with no items):
+# - **✨ New Features** - User-facing capabilities
+# - **🐛 Bug Fixes** - Issue resolutions
+# - **⚡ Performance** - Speed/efficiency improvements
+# - **📚 Documentation** - Guide/reference updates
+# - **⚠️ Breaking Changes** - Requires user action (ALWAYS list first if present)
+# - **🔧 Internal** - Refactoring, dependencies (usually omit from highlights)
 #
-# ### Step 3: Create Documentation Links
+# ### 3. Write Highlights
 #
-# For each significant feature or change, check if there's relevant documentation:
-#
-# ```bash
-# # Search for related docs
-# grep -i "keyword" /tmp/gh-aw/release-data/docs_files.txt
-# ```
-#
-# Then create links using this format:
-# - `[Feature Name](https://githubnext.github.io/gh-aw/path/to/doc/)` for user-facing docs
-# - Reference specific sections when helpful
-#
-# ### Step 4: Write the Highlights Summary
-#
-# Create a markdown section with this structure:
-#
+# Structure:
 # ```markdown
 # ## 🌟 Release Highlights
 #
-# [Brief opening sentence about this release - what makes it special?]
-#
-# ### ✨ What's New
-#
-# [List the most important new features with brief descriptions]
-# - **Feature Name**: Short description. [Learn more](link-to-docs)
-# - **Another Feature**: Description with context
-#
-# ### 🐛 Bug Fixes & Improvements
-#
-# [Notable fixes and improvements]
-# - Fixed [issue description]
-# - Improved [area] for better [outcome]
-#
-# ### 📚 Documentation
-#
-# [If there are doc improvements worth noting]
-# - Updated [guide name] with [new content]
+# [1-2 sentence summary of the release theme/focus]
 #
 # ### ⚠️ Breaking Changes
+# [If any - list FIRST with migration guidance]
 #
-# [If any - make this VERY clear and provide migration guidance]
-# - **Important**: [Description of breaking change]
-#   - **Action Required**: [What users need to do]
-#   - See [migration guide](link) for details
+# ### ✨ What's New
+# [Top 3-5 features with user benefit, link docs when relevant]
 #
-# ### 🙏 Contributors
+# ### 🐛 Bug Fixes & Improvements
+# [Notable fixes - focus on user impact]
 #
-# [If you have contributor data, acknowledge them]
-# Special thanks to the contributors who made this release possible! [List key contributors or link to full list]
+# ### 📚 Documentation
+# [Only if significant doc additions/improvements]
 #
 # ---
-#
-# [Optional: Link to full changelog]
-# For a complete list of changes, see the [full changelog](link-to-changelog).
+# For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
 # ```
 #
-# ## Tone Guidelines
+# **Writing Guidelines:**
+# - Lead with benefits: "GitHub MCP now supports remote mode" not "Added remote mode"
+# - Be specific: "Reduced compilation time by 40%" not "Faster compilation"
+# - Skip internal changes unless they have user impact
+# - Use docs links: `[Learn more](https://githubnext.github.io/gh-aw/path/)`
+# - Keep breaking changes prominent with action items
 #
-# - **Be enthusiastic but professional** - "We're excited to announce" not "OMG AMAZING"
-# - **Focus on user benefits** - Explain *why* changes matter, not just *what* changed
-# - **Use inclusive language** - "We've added" or "This release includes"
-# - **Be clear and direct** - Avoid jargon and overly technical language
-# - **Celebrate improvements** - Positive framing: "Enhanced" not "Fixed limitation"
+# ### 4. Handle Special Cases
 #
-# ## Special Cases
-#
-# ### First Release (No Previous Release)
-# If `${PREV_RELEASE_TAG}` is empty:
-# - Focus on the initial capabilities
-# - Welcome users to the first release
-# - Highlight core features
-# - Provide getting started resources
-#
-# Example:
+# **First Release** (no `${PREV_RELEASE_TAG}`):
 # ```markdown
-# ## 🎉 Welcome to v1.0.0!
+# ## 🎉 First Release
 #
-# This is the first official release of [project]. We're excited to share what we've built...
+# Welcome to the inaugural release! This version includes [core capabilities].
+#
+# ### Key Features
+# [List primary features with brief descriptions]
 # ```
 #
-# ### No Changes to Highlight
-# If the PR list is empty or contains only internal changes:
-# - Acknowledge it's a maintenance release
-# - Highlight any dependency updates or internal improvements
-# - Keep it brief
-#
-# Example:
+# **Maintenance Release** (no user-facing changes):
 # ```markdown
 # ## 🔧 Maintenance Release
 #
-# This is a maintenance release with dependency updates and internal improvements to keep things running smoothly.
+# Dependency updates and internal improvements to keep things running smoothly.
 # ```
 #
 # ## Output Format
 #
-# Use the `update_release` safe output format to prepend your highlights to the release notes:
+# **CRITICAL**: Output using the `update_release` safe output format:
 #
 # ```
 # TYPE: update_release
 # TAG: ${RELEASE_TAG}
 # OPERATION: prepend
-# BODY: [Your complete highlights markdown here]
+# BODY: [Your complete markdown highlights here]
 # ```
 #
-# **Important Notes:**
-# - **The `TAG` field is REQUIRED** - You must specify the release tag (e.g., "v0.30.2") using the ${RELEASE_TAG} environment variable
-# - The tag cannot be automatically inferred when the workflow is triggered manually (workflow_dispatch)
-# - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
-# - Include all your markdown formatting in the BODY section
-# - The system will automatically add an AI attribution footer
+# **Required Fields:**
+# - `TAG` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
+# - `OPERATION` - Must be `prepend` to add before existing notes
+# - `BODY` - Complete markdown content (include all formatting, emojis, links)
 #
-# ## Documentation Links
+# **Documentation Base URLs:**
+# - User docs: `https://githubnext.github.io/gh-aw/`
+# - Reference: `https://githubnext.github.io/gh-aw/reference/`
+# - Setup: `https://githubnext.github.io/gh-aw/setup/`
 #
-# When creating documentation links, use these base URLs:
-# - User documentation: `https://githubnext.github.io/gh-aw/`
-# - API reference: `https://githubnext.github.io/gh-aw/reference/`
-# - Setup guides: `https://githubnext.github.io/gh-aw/setup/`
-#
-# Verify documentation exists by checking `/tmp/gh-aw/release-data/docs_files.txt` and construct URLs accordingly.
+# Verify paths exist in `docs_files.txt` before linking.
 #
 # ## Example Output
-#
-# Here's a sample of what your output might look like:
 #
 # ```
 # TYPE: update_release
@@ -232,29 +175,20 @@
 # OPERATION: prepend
 # BODY: ## 🌟 Release Highlights
 #
-# We're thrilled to announce v0.30.2 with improved patch generation and enhanced testing capabilities!
+# This release improves patch generation reliability and adds comprehensive logging for debugging.
 #
 # ### ✨ What's New
 #
-# - **Improved Patch Generation**: Commits made directly to the current branch during workflow execution are now properly captured. This makes code-generating workflows more reliable. [Learn more](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
+# - **Enhanced Patch Generation**: Commits to the current branch during workflow execution are now properly captured, making code-generating workflows more reliable. [Learn more](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
 #
 # ### 🐛 Bug Fixes & Improvements
 #
 # - Fixed bug where patch generation only captured commits from explicitly named branches
-# - Added extensive logging throughout the patch generation process for better debugging
-#
-# ### 🙏 Contributors
-#
-# Thank you to all contributors who helped make this release possible!
+# - Added detailed logging throughout patch generation for easier troubleshooting
 #
 # ---
-#
-# For a complete list of changes, see the [full changelog](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
+# For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
 # ```
-#
-# ## Ready to Generate! ✨
-#
-# Now review the data, analyze the changes, and create an engaging highlights summary for this release!
 # ```
 #
 # Pinned GitHub Actions:
@@ -1250,186 +1184,129 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          # Release Highlights Generator 🎉
+          # Release Highlights Generator
           
-          You are a skilled **Release Notes Writer** who creates engaging, informative, and professional summaries of software releases. Your mission is to analyze the changes between releases and create a compelling highlights section that helps users understand what's new and improved.
+          Generate an engaging release highlights summary for **${GH_AW_EXPR_D892F163}** release `${RELEASE_TAG}`.
           
-          ## Current Context
+          ## Data Available
           
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Release Tag**: `${RELEASE_TAG}` (from environment variable set by pre-step)
-          - **Previous Release**: `${PREV_RELEASE_TAG}` (from environment variable, may be empty for first release)
-          - **Data Location**: `/tmp/gh-aw/release-data/`
-            - `current_release.json` - Current release metadata
-            - `pull_requests.json` - All PRs merged between releases
-            - `CHANGELOG.md` - Full changelog (if exists)
-            - `docs_files.txt` - List of documentation files
+          All data is pre-fetched in `/tmp/gh-aw/release-data/`:
+          - `current_release.json` - Release metadata (tag, name, dates, existing body)
+          - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (empty array if first release)
+          - `CHANGELOG.md` - Full changelog for context (if exists)
+          - `docs_files.txt` - Available documentation files for linking
           
-          ## Your Mission
+          ## Output Requirements
           
-          Generate a **highlights summary** that will be prepended to the release notes. Your summary should:
+          Create a **"🌟 Release Highlights"** section that:
+          - Is concise and scannable (users grasp key changes in 30 seconds)
+          - Uses professional, enthusiastic tone (not overly casual)
+          - Categorizes changes logically (features, fixes, docs, breaking changes)
+          - Links to relevant documentation where helpful
+          - Focuses on user impact (why changes matter, not just what changed)
           
-          1. **Be concise and scannable** - Users should quickly grasp what's important
-          2. **Use a happy, professional tone** - Celebrate the improvements while remaining informative
-          3. **Link to documentation** - Reference relevant docs from the `docs/` directory when applicable
-          4. **Categorize changes** - Group related improvements together
-          5. **Highlight breaking changes** - If any, make them prominent and clear
+          ## Workflow
           
-          ## Analysis Process
-          
-          ### Step 1: Load and Review Data
-          
-          Read the data files to understand what changed:
+          ### 1. Load Data
           
           ```bash
-          # Current release details
-          cat /tmp/gh-aw/release-data/current_release.json
+          # View release metadata
+          cat /tmp/gh-aw/release-data/current_release.json | jq
           
-          # Pull requests in this release (may be empty for first release)
-          cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- PR #\(.number): \(.title)"'
+          # List PRs (empty if first release)
+          cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
           
-          # Available documentation files
+          # Check CHANGELOG context
+          head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
+          
+          # View available docs
           cat /tmp/gh-aw/release-data/docs_files.txt
-          
-          # Changelog context (if exists)
-          head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG.md"
           ```
           
-          ### Step 2: Categorize Changes
+          ### 2. Categorize & Prioritize
           
-          Analyze the PRs and group them into meaningful categories such as:
-          - ✨ **New Features** - New capabilities and enhancements
-          - 🐛 **Bug Fixes** - Issues resolved and problems fixed
-          - 📚 **Documentation** - Improvements to guides and references
-          - 🔧 **Internal Changes** - Refactoring, tooling, dependencies
-          - ⚠️ **Breaking Changes** - Changes that require user action
-          - 🎨 **UI/UX Improvements** - User experience enhancements
-          - ⚡ **Performance** - Speed and efficiency improvements
+          Group PRs by category (omit categories with no items):
+          - **✨ New Features** - User-facing capabilities
+          - **🐛 Bug Fixes** - Issue resolutions
+          - **⚡ Performance** - Speed/efficiency improvements
+          - **📚 Documentation** - Guide/reference updates
+          - **⚠️ Breaking Changes** - Requires user action (ALWAYS list first if present)
+          - **🔧 Internal** - Refactoring, dependencies (usually omit from highlights)
           
-          ### Step 3: Create Documentation Links
+          ### 3. Write Highlights
           
-          For each significant feature or change, check if there's relevant documentation:
-          
-          ```bash
-          # Search for related docs
-          grep -i "keyword" /tmp/gh-aw/release-data/docs_files.txt
-          ```
-          
-          Then create links using this format:
-          - `[Feature Name](https://githubnext.github.io/gh-aw/path/to/doc/)` for user-facing docs
-          - Reference specific sections when helpful
-          
-          ### Step 4: Write the Highlights Summary
-          
-          Create a markdown section with this structure:
-          
+          Structure:
           ```markdown
           ## 🌟 Release Highlights
           
-          [Brief opening sentence about this release - what makes it special?]
-          
-          ### ✨ What's New
-          
-          [List the most important new features with brief descriptions]
-          - **Feature Name**: Short description. [Learn more](link-to-docs)
-          - **Another Feature**: Description with context
-          
-          ### 🐛 Bug Fixes & Improvements
-          
-          [Notable fixes and improvements]
-          - Fixed [issue description]
-          - Improved [area] for better [outcome]
-          
-          ### 📚 Documentation
-          
-          [If there are doc improvements worth noting]
-          - Updated [guide name] with [new content]
+          [1-2 sentence summary of the release theme/focus]
           
           ### ⚠️ Breaking Changes
+          [If any - list FIRST with migration guidance]
           
-          [If any - make this VERY clear and provide migration guidance]
-          - **Important**: [Description of breaking change]
-            - **Action Required**: [What users need to do]
-            - See [migration guide](link) for details
+          ### ✨ What's New
+          [Top 3-5 features with user benefit, link docs when relevant]
           
-          ### 🙏 Contributors
+          ### 🐛 Bug Fixes & Improvements
+          [Notable fixes - focus on user impact]
           
-          [If you have contributor data, acknowledge them]
-          Special thanks to the contributors who made this release possible! [List key contributors or link to full list]
+          ### 📚 Documentation
+          [Only if significant doc additions/improvements]
           
           ---
-          
-          [Optional: Link to full changelog]
-          For a complete list of changes, see the [full changelog](link-to-changelog).
+          For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
           ```
           
-          ## Tone Guidelines
+          **Writing Guidelines:**
+          - Lead with benefits: "GitHub MCP now supports remote mode" not "Added remote mode"
+          - Be specific: "Reduced compilation time by 40%" not "Faster compilation"
+          - Skip internal changes unless they have user impact
+          - Use docs links: `[Learn more](https://githubnext.github.io/gh-aw/path/)`
+          - Keep breaking changes prominent with action items
           
-          - **Be enthusiastic but professional** - "We're excited to announce" not "OMG AMAZING"
-          - **Focus on user benefits** - Explain *why* changes matter, not just *what* changed
-          - **Use inclusive language** - "We've added" or "This release includes"
-          - **Be clear and direct** - Avoid jargon and overly technical language
-          - **Celebrate improvements** - Positive framing: "Enhanced" not "Fixed limitation"
+          ### 4. Handle Special Cases
           
-          ## Special Cases
-          
-          ### First Release (No Previous Release)
-          If `${PREV_RELEASE_TAG}` is empty:
-          - Focus on the initial capabilities
-          - Welcome users to the first release
-          - Highlight core features
-          - Provide getting started resources
-          
-          Example:
+          **First Release** (no `${PREV_RELEASE_TAG}`):
           ```markdown
-          ## 🎉 Welcome to v1.0.0!
+          ## 🎉 First Release
           
-          This is the first official release of [project]. We're excited to share what we've built...
+          Welcome to the inaugural release! This version includes [core capabilities].
+          
+          ### Key Features
+          [List primary features with brief descriptions]
           ```
           
-          ### No Changes to Highlight
-          If the PR list is empty or contains only internal changes:
-          - Acknowledge it's a maintenance release
-          - Highlight any dependency updates or internal improvements
-          - Keep it brief
-          
-          Example:
+          **Maintenance Release** (no user-facing changes):
           ```markdown
           ## 🔧 Maintenance Release
           
-          This is a maintenance release with dependency updates and internal improvements to keep things running smoothly.
+          Dependency updates and internal improvements to keep things running smoothly.
           ```
           
           ## Output Format
           
-          Use the `update_release` safe output format to prepend your highlights to the release notes:
+          **CRITICAL**: Output using the `update_release` safe output format:
           
           ```
           TYPE: update_release
           TAG: ${RELEASE_TAG}
           OPERATION: prepend
-          BODY: [Your complete highlights markdown here]
+          BODY: [Your complete markdown highlights here]
           ```
           
-          **Important Notes:**
-          - **The `TAG` field is REQUIRED** - You must specify the release tag (e.g., "v0.30.2") using the ${RELEASE_TAG} environment variable
-          - The tag cannot be automatically inferred when the workflow is triggered manually (workflow_dispatch)
-          - Use `OPERATION: prepend` to add your highlights at the beginning of existing notes
-          - Include all your markdown formatting in the BODY section
-          - The system will automatically add an AI attribution footer
+          **Required Fields:**
+          - `TAG` - Release tag from `${RELEASE_TAG}` environment variable (e.g., "v0.30.2")
+          - `OPERATION` - Must be `prepend` to add before existing notes
+          - `BODY` - Complete markdown content (include all formatting, emojis, links)
           
-          ## Documentation Links
+          **Documentation Base URLs:**
+          - User docs: `https://githubnext.github.io/gh-aw/`
+          - Reference: `https://githubnext.github.io/gh-aw/reference/`
+          - Setup: `https://githubnext.github.io/gh-aw/setup/`
           
-          When creating documentation links, use these base URLs:
-          - User documentation: `https://githubnext.github.io/gh-aw/`
-          - API reference: `https://githubnext.github.io/gh-aw/reference/`
-          - Setup guides: `https://githubnext.github.io/gh-aw/setup/`
-          
-          Verify documentation exists by checking `/tmp/gh-aw/release-data/docs_files.txt` and construct URLs accordingly.
+          Verify paths exist in `docs_files.txt` before linking.
           
           ## Example Output
-          
-          Here's a sample of what your output might look like:
           
           ```
           TYPE: update_release
@@ -1437,29 +1314,20 @@ jobs:
           OPERATION: prepend
           BODY: ## 🌟 Release Highlights
           
-          We're thrilled to announce v0.30.2 with improved patch generation and enhanced testing capabilities!
+          This release improves patch generation reliability and adds comprehensive logging for debugging.
           
           ### ✨ What's New
           
-          - **Improved Patch Generation**: Commits made directly to the current branch during workflow execution are now properly captured. This makes code-generating workflows more reliable. [Learn more](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
+          - **Enhanced Patch Generation**: Commits to the current branch during workflow execution are now properly captured, making code-generating workflows more reliable. [Learn more](https://githubnext.github.io/gh-aw/reference/safe-outputs/)
           
           ### 🐛 Bug Fixes & Improvements
           
           - Fixed bug where patch generation only captured commits from explicitly named branches
-          - Added extensive logging throughout the patch generation process for better debugging
-          
-          ### 🙏 Contributors
-          
-          Thank you to all contributors who helped make this release possible!
+          - Added detailed logging throughout patch generation for easier troubleshooting
           
           ---
-          
-          For a complete list of changes, see the [full changelog](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
+          For complete details, see [CHANGELOG](https://github.com/githubnext/gh-aw/blob/main/CHANGELOG.md).
           ```
-          
-          ## Ready to Generate! ✨
-          
-          Now review the data, analyze the changes, and create an engaging highlights summary for this release!
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
