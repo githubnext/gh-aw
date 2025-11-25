@@ -29,20 +29,16 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   update_issue["update_issue"]
 #   agent --> add_labels
 #   detection --> add_labels
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   add_labels --> conclusion
-#   update_issue --> conclusion
 #   missing_tool --> conclusion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> update_issue
-#   detection --> update_issue
 # ```
 #
 # Original Prompt:
@@ -768,10 +764,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["bug","feature","enhancement","documentation","question","help-wanted","good-first-issue"],"max":20},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":20}}
+          {"add_labels":{"allowed":["bug","feature","enhancement","documentation","question","help-wanted","good-first-issue"],"max":20},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Add labels to a GitHub issue or pull request","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number (optional for current context)","type":"number"},"labels":{"description":"Labels to add","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Update a GitHub issue","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Optional new issue body","type":"string"},"issue_number":{"description":"Optional issue number for target '*'","type":["number","string"]},"status":{"description":"Optional new issue status","enum":["open","closed"],"type":"string"},"title":{"description":"Optional new issue title","type":"string"}},"type":"object"},"name":"update_issue"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Add labels to a GitHub issue or pull request","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number (optional for current context)","type":"number"},"labels":{"description":"Labels to add","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Report a missing tool or functionality needed to complete tasks","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Possible alternatives or workarounds (max 256 characters)","type":"string"},"reason":{"description":"Why this tool is needed (max 256 characters)","type":"string"},"tool":{"description":"Name of the missing tool (max 128 characters)","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a message for transparency when no significant actions are needed. Use this to ensure workflows produce human-visible artifacts even when no other actions are taken (e.g., 'Analysis complete - no issues found').","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Message to log for transparency","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1625,17 +1621,13 @@ jobs:
           
           ---
           
-          ## Adding Labels to Issues or Pull Requests, Updating Issues, Reporting Missing Tools or Functionality
+          ## Adding Labels to Issues or Pull Requests, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding Labels to Issues or Pull Requests**
           
           To add labels to an issue or a pull request, use the add-labels tool from safeoutputs
-          
-          **Updating an Issue**
-          
-          To udpate an issue, use the update-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -4239,7 +4231,6 @@ jobs:
       - agent
       - activation
       - add_labels
-      - update_issue
       - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -4894,247 +4885,4 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  update_issue:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.update_issue.outputs.issue_number }}
-      issue_url: ${{ steps.update_issue.outputs.issue_url }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Update Issue
-        id: update_issue
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_UPDATE_STATUS: false
-          GH_AW_UPDATE_TITLE: false
-          GH_AW_UPDATE_BODY: false
-          GH_AW_UPDATE_TARGET: "*"
-          GH_AW_WORKFLOW_NAME: "Issue Triage Agent"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const updateItems = result.items.filter( item => item.type === "update_issue");
-              if (updateItems.length === 0) {
-                core.info("No update-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${updateItems.length} update-issue item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Update Issues",
-                  description: "The following issue updates would be applied if staged mode was disabled:",
-                  items: updateItems,
-                  renderItem: (item, index) => {
-                    let content = `### Issue Update ${index + 1}\n`;
-                    if (item.issue_number) {
-                      content += `**Target Issue:** #${item.issue_number}\n\n`;
-                    } else {
-                      content += `**Target:** Current issue\n\n`;
-                    }
-                    if (item.title !== undefined) {
-                      content += `**New Title:** ${item.title}\n\n`;
-                    }
-                    if (item.body !== undefined) {
-                      content += `**New Body:**\n${item.body}\n\n`;
-                    }
-                    if (item.status !== undefined) {
-                      content += `**New Status:** ${item.status}\n\n`;
-                    }
-                    return content;
-                  },
-                });
-                return;
-              }
-              const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
-              const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
-              const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
-              const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
-              core.info(`Update target configuration: ${updateTarget}`);
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              if (updateTarget === "triggering" && !isIssueContext) {
-                core.info('Target is "triggering" but not running in issue context, skipping issue update');
-                return;
-              }
-              const updatedIssues = [];
-              for (let i = 0; i < updateItems.length; i++) {
-                const updateItem = updateItems[i];
-                core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
-                let issueNumber;
-                if (updateTarget === "*") {
-                  if (updateItem.issue_number) {
-                    issueNumber = parseInt(updateItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
-                      continue;
-                    }
-                  } else {
-                    core.info('Target is "*" but no issue_number specified in update item');
-                    continue;
-                  }
-                } else if (updateTarget && updateTarget !== "triggering") {
-                  issueNumber = parseInt(updateTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${updateTarget}`);
-                    continue;
-                  }
-                } else {
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else {
-                    core.info("Could not determine issue number");
-                    continue;
-                  }
-                }
-                if (!issueNumber) {
-                  core.info("Could not determine issue number");
-                  continue;
-                }
-                core.info(`Updating issue #${issueNumber}`);
-                const updateData = {};
-                let hasUpdates = false;
-                if (canUpdateStatus && updateItem.status !== undefined) {
-                  if (updateItem.status === "open" || updateItem.status === "closed") {
-                    updateData.state = updateItem.status;
-                    hasUpdates = true;
-                    core.info(`Will update status to: ${updateItem.status}`);
-                  } else {
-                    core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
-                  }
-                }
-                if (canUpdateTitle && updateItem.title !== undefined) {
-                  if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
-                    updateData.title = updateItem.title.trim();
-                    hasUpdates = true;
-                    core.info(`Will update title to: ${updateItem.title.trim()}`);
-                  } else {
-                    core.info("Invalid title value: must be a non-empty string");
-                  }
-                }
-                if (canUpdateBody && updateItem.body !== undefined) {
-                  if (typeof updateItem.body === "string") {
-                    updateData.body = updateItem.body;
-                    hasUpdates = true;
-                    core.info(`Will update body (length: ${updateItem.body.length})`);
-                  } else {
-                    core.info("Invalid body value: must be a string");
-                  }
-                }
-                if (!hasUpdates) {
-                  core.info("No valid updates to apply for this item");
-                  continue;
-                }
-                try {
-                  const { data: issue } = await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    ...updateData,
-                  });
-                  core.info("Updated issue #" + issue.number + ": " + issue.html_url);
-                  updatedIssues.push(issue);
-                  if (i === updateItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (updatedIssues.length > 0) {
-                let summaryContent = "\n\n## Updated Issues\n";
-                for (const issue of updatedIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
-              return updatedIssues;
-            }
-            await main();
 

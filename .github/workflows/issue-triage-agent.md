@@ -14,9 +14,6 @@ tools:
     read-only: true
     toolsets: [issues, labels]
 safe-outputs:
-  update-issue:
-    target: "*"
-    max: 20
   add-labels:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
     max: 20
