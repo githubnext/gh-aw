@@ -17,14 +17,14 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
 const encoder = new TextEncoder();
 const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 
-// MCP server log folder - uses the standard mcp-logs directory
-const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR || "/tmp/gh-aw/mcp-logs/safeoutputs";
-const LOG_FILE_PATH = path.join(MCP_LOG_DIR, "server.log");
+// MCP server log folder - only enabled if GH_AW_MCP_LOG_DIR is explicitly set
+const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
+const LOG_FILE_PATH = MCP_LOG_DIR ? path.join(MCP_LOG_DIR, "server.log") : "";
 
 // Initialize log file - create directory and file if they don't exist
 let logFileInitialized = false;
 function initLogFile() {
-  if (logFileInitialized) return;
+  if (logFileInitialized || !MCP_LOG_DIR || !LOG_FILE_PATH) return;
   try {
     if (!fs.existsSync(MCP_LOG_DIR)) {
       fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
@@ -38,7 +38,7 @@ function initLogFile() {
   }
 }
 
-// Debug function that writes to both stderr and log file
+// Debug function that writes to both stderr and log file (if enabled)
 const debug = msg => {
   const timestamp = new Date().toISOString();
   const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
@@ -46,15 +46,17 @@ const debug = msg => {
   // Always write to stderr
   process.stderr.write(formattedMsg);
 
-  // Also write to log file (initialize on first use)
-  if (!logFileInitialized) {
-    initLogFile();
-  }
-  if (logFileInitialized) {
-    try {
-      fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
-    } catch {
-      // Silently ignore file write errors - stderr logging still works
+  // Also write to log file if GH_AW_MCP_LOG_DIR is set (initialize on first use)
+  if (MCP_LOG_DIR && LOG_FILE_PATH) {
+    if (!logFileInitialized) {
+      initLogFile();
+    }
+    if (logFileInitialized) {
+      try {
+        fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
+      } catch {
+        // Silently ignore file write errors - stderr logging still works
+      }
     }
   }
 };

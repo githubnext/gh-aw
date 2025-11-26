@@ -895,6 +895,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
 		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
+		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
+		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
+
 		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
 
 		// Add asset-related environment variables if upload-assets is configured

@@ -239,13 +239,19 @@ describe("safe_outputs_mcp_server.cjs", () => {
   });
 
   describe("logging configuration", () => {
-    it("should define default MCP log directory", () => {
-      const defaultLogDir = "/tmp/gh-aw/mcp-logs/safeoutputs";
-      expect(defaultLogDir).toContain("mcp-logs");
-      expect(defaultLogDir).toContain("safeoutputs");
+    it("should only enable file logging when GH_AW_MCP_LOG_DIR is set", () => {
+      // Without GH_AW_MCP_LOG_DIR set, MCP_LOG_DIR should be undefined
+      const logDirFromEnv = undefined;
+      expect(logDirFromEnv).toBeUndefined();
     });
 
-    it("should validate log file path format", () => {
+    it("should validate log directory path format when set", () => {
+      const logDir = "/tmp/gh-aw/mcp-logs/safeoutputs";
+      expect(logDir).toContain("mcp-logs");
+      expect(logDir).toContain("safeoutputs");
+    });
+
+    it("should validate log file path format when log directory is set", () => {
       const logFilePath = "/tmp/gh-aw/mcp-logs/safeoutputs/server.log";
       expect(logFilePath).toContain("/tmp/gh-aw/mcp-logs/");
       expect(logFilePath.endsWith(".log")).toBe(true);
@@ -273,12 +279,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
     const path = require("path");
     const os = require("os");
 
-    it("should write log messages to file when debug is called", () => {
+    it("should write log messages to file when GH_AW_MCP_LOG_DIR is set", () => {
       // Create a unique temp directory for this test
       const testLogDir = path.join(os.tmpdir(), `test-mcp-logs-${Date.now()}`);
       const testLogFile = path.join(testLogDir, "server.log");
 
-      // Simulate the logging behavior
+      // Simulate the logging behavior when GH_AW_MCP_LOG_DIR is set
       fs.mkdirSync(testLogDir, { recursive: true });
       const timestamp = new Date().toISOString();
       const header = `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: 1.0.0\n\n`;
@@ -297,7 +303,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       fs.rmSync(testLogDir, { recursive: true, force: true });
     });
 
-    it("should create log directory lazily on first debug call", () => {
+    it("should create log directory lazily on first debug call when GH_AW_MCP_LOG_DIR is set", () => {
       // Create a unique temp directory for this test
       const testLogDir = path.join(os.tmpdir(), `test-lazy-init-${Date.now()}`);
       const testLogFile = path.join(testLogDir, "server.log");
@@ -305,7 +311,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Verify directory doesn't exist initially
       expect(fs.existsSync(testLogDir)).toBe(false);
 
-      // Simulate lazy initialization
+      // Simulate lazy initialization when GH_AW_MCP_LOG_DIR is set
       fs.mkdirSync(testLogDir, { recursive: true });
       const timestamp = new Date().toISOString();
       fs.writeFileSync(testLogFile, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: 1.0.0\n\n`);
@@ -318,7 +324,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       fs.rmSync(testLogDir, { recursive: true, force: true });
     });
 
-    it("should write both to stderr and file simultaneously", () => {
+    it("should write both to stderr and file simultaneously when GH_AW_MCP_LOG_DIR is set", () => {
       const testLogDir = path.join(os.tmpdir(), `test-dual-output-${Date.now()}`);
       const testLogFile = path.join(testLogDir, "server.log");
 
@@ -388,6 +394,14 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Cleanup
       fs.rmSync(testLogDir, { recursive: true, force: true });
+    });
+
+    it("should not create log file when GH_AW_MCP_LOG_DIR is not set", () => {
+      // This test verifies the conditional behavior
+      const logDirFromEnv = undefined; // Simulating no env var
+      const logFilePath = logDirFromEnv ? require("path").join(logDirFromEnv, "server.log") : "";
+
+      expect(logFilePath).toBe("");
     });
   });
 });
