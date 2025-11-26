@@ -74,9 +74,9 @@ Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-a
 
 ## Frontmatter Merging
 
-Imported files can only define `tools:`, `mcp-servers:`, and `services:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields are merged with the main workflow's configuration.
+Imported files can define `tools:`, `mcp-servers:`, `services:`, and `safe-outputs:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields are merged with the main workflow's configuration.
 
-### Example
+### Tools and MCP Servers
 
 ```aw wrap
 # Base workflow
@@ -99,6 +99,39 @@ mcp-servers:
 ```
 
 The imported MCP server configuration is merged into the final workflow, making it available to the AI engine.
+
+### Safe Outputs
+
+Safe output configurations (like `create-issue`, `add-comment`, etc.) and safe output jobs can be imported from shared workflows. If the same safe output type is defined in both the main workflow and an imported workflow, compilation fails with a conflict error.
+
+```aw wrap
+# shared-config.md
+---
+safe-outputs:
+  create-issue:
+    title-prefix: "[bot] "
+    labels: [automated]
+  allowed-domains:
+    - "api.example.com"
+  staged: true
+  jobs:
+    notify:
+      runs-on: ubuntu-latest
+      steps:
+        - run: echo "Notification sent"
+---
+```
+
+```aw wrap
+# main-workflow.md
+---
+on: issues
+imports:
+  - shared-config.md
+---
+```
+
+The main workflow inherits the `create-issue` configuration, allowed domains, staged setting, and the `notify` job from the imported file. Safe output meta fields (like `allowed-domains`, `staged`, `env`, `github-token`, `max-patch-size`, `runs-on`) from the main workflow take precedence over imported values.
 
 ## Related Documentation
 
