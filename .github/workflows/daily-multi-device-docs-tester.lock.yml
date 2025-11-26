@@ -18,6 +18,55 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Multi-Device Docs Tester
+# description: Tests documentation site functionality and responsive design across multiple device form factors
+# on:
+#   schedule:
+#     - cron: '0 9 * * *'  # Daily at 9 AM UTC
+#   workflow_dispatch:
+#     inputs:
+#       devices:
+#         description: 'Device types to test (comma-separated: mobile,tablet,desktop)'
+#         required: false
+#         default: 'mobile,tablet,desktop'
+# permissions:
+#   contents: read
+#   issues: write
+#   pull-requests: read
+# tracker-id: daily-multi-device-docs-tester
+# engine:
+#   id: claude
+#   max-turns: 30  # Prevent runaway token usage
+# strict: false
+# timeout-minutes: 30
+# tools:
+#   playwright:
+#     version: "v1.56.1"
+#     allowed_domains:
+#       - "localhost"
+#       - "127.0.0.1"
+#   bash:
+#     - "npm install*"
+#     - "npm run build*"
+#     - "npm run preview*"
+#     - "npx playwright*"
+#     - "curl*"
+#     - "kill*"
+#     - "lsof*"
+#     - "ls*"      # List files for directory navigation
+#     - "pwd*"     # Print working directory
+#     - "cd*"      # Change directory
+# safe-outputs:
+#   upload-assets:
+#   create-issue:
+#
+# network:
+#   allowed:
+#     - node
+# ```
+#
 # Tests documentation site functionality and responsive design across multiple device form factors
 #
 # Job Dependency Graph:

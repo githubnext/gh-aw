@@ -18,6 +18,116 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Copilot Agent Prompt Clustering Analysis
+# description: Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
+# on:
+#   schedule:
+#     # Every day at 7pm UTC (1 hour after copilot-agent-analysis)
+#     - cron: "0 19 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   issues: read
+#   actions: read
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#     - python
+#
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[prompt-clustering] "
+#     category: "audits"
+#     max: 1
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/reporting.md
+#   - shared/mcp/gh-aw.md
+#   - shared/copilot-pr-data-fetch.md
+#   - shared/trending-charts-simple.md
+#
+# cache:
+#   - key: prompt-clustering-cache-${{ github.run_id }}
+#     path: /tmp/gh-aw/prompt-cache
+#     restore-keys: |
+#       prompt-clustering-cache-
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [repos, pull_requests]
+#   bash: ["*"]
+#
+# steps:
+#   - name: Install additional ML libraries
+#     run: |
+#       pip3 install --user scikit-learn nltk
+#
+#   - name: Download full PR data with comments and reviews
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: |
+#       # Create output directory for full PR data
+#       mkdir -p /tmp/gh-aw/prompt-cache/pr-full-data
+#
+#       # Download full data for each PR including comments, reviews, commits, and files
+#       echo "Downloading full PR data for each PR..."
+#
+#       PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
+#       echo "Processing $PR_COUNT PRs..."
+#
+#       # Extract PR numbers and download full data for each
+#       jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r pr_number; do
+#         echo "Downloading full data for PR #$pr_number..."
+#
+#         # Download full PR data with essential fields only
+#         gh pr view "$pr_number" \
+#           --repo "${{ github.repository }}" \
+#           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
+#           > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json"
+#
+#         echo "Downloaded PR #$pr_number"
+#       done
+#
+#       # Create an index file listing all downloaded PRs
+#       find /tmp/gh-aw/prompt-cache/pr-full-data/ -maxdepth 1 -name 'pr-[0-9]*.json' -type f -printf '%f\n' | \
+#         sed 's/pr-\([0-9]*\)\.json/\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+#
+#       echo "Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/"
+#       echo "Total PRs with full data: $(wc -l < /tmp/gh-aw/prompt-cache/pr-full-data/index.txt)"
+#
+#   - name: Download workflow logs for PR analysis
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: |
+#       # Create logs directory
+#       mkdir -p /tmp/gh-aw/workflow-logs
+#
+#       echo "Downloading workflow logs to extract turn counts..."
+#
+#       # Download logs for the last 30 days of copilot workflows
+#       # This will give us the aw_info.json which contains turn counts
+#       ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
+#
+#       # Verify logs were downloaded
+#       echo "Downloaded workflow logs:"
+#       ls -la /tmp/gh-aw/workflow-logs
+#
+# timeout-minutes: 20
+#
+# ```
+#
 # Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
 #
 # Resolved workflow manifest:

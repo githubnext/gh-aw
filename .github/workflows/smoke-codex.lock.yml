@@ -18,6 +18,44 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs every 6 hours
+# on: 
+#   schedule:
+#     - cron: "0 0,6,12,18 * * *"  # Every 6 hours
+#   workflow_dispatch:
+#   pull_request:
+#     types: [labeled]
+#     names: ["smoke"]
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# name: Smoke Codex
+# engine: codex
+# strict: false
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#     - playwright
+# tools:
+#   github:
+#   playwright:
+#     allowed_domains:
+#       - github.com
+#   edit:
+#   bash:
+#     - "*"
+#   serena: ["go"]
+# safe-outputs:
+#     staged: true
+#     add-comment:
+#     create-issue:
+# timeout-minutes: 10
+# ```
+#
 # Smoke test workflow that validates Codex engine functionality by reviewing recent PRs every 6 hours
 #
 # Job Dependency Graph:

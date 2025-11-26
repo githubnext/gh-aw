@@ -18,6 +18,42 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
+# on:
+#   schedule:
+#     - cron: "0 12 * * 0"  # Weekly on Sundays at 12pm UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   discussions: read
+#   issues: read
+#   pull-requests: read
+#   repository-projects: read
+#   security-events: read
+# engine: claude
+# tools:
+#   github:
+#     mode: "remote"
+#     toolsets: [all]
+#   cache-memory: true
+#   edit:
+# safe-outputs:
+#   create-discussion:
+#     category: "audits"
+#     max: 1
+#   create-pull-request:
+#     title-prefix: "[mcp-tools] "
+#     labels: [documentation, automation]
+#     reviewers: copilot
+#     draft: false
+# timeout-minutes: 15
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
 #
 # Resolved workflow manifest:

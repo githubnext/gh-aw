@@ -18,6 +18,41 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
+# on:
+#   schedule:
+#     - cron: "0 0 * * *"  # Daily at midnight UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# tracker-id: audit-workflows-daily
+# engine: claude
+# tools:
+#   cache-memory: true
+#   timeout: 300
+# steps:
+#   - name: Download logs from last 24 hours
+#     env:
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "audits"
+#     max: 1
+# timeout-minutes: 30
+# imports:
+#   - shared/mcp/gh-aw.md
+#   - shared/jqschema.md
+#   - shared/reporting.md
+#   - shared/trending-charts-simple.md
+# ```
+#
 # Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
 #
 # Resolved workflow manifest:

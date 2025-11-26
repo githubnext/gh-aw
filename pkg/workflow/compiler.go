@@ -199,6 +199,7 @@ type WorkflowData struct {
 	TrialMode           bool     // whether the workflow is running in trial mode
 	TrialLogicalRepo    string   // target repository slug for trial mode (owner/repo)
 	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
+	FrontmatterYAML     string   // raw frontmatter YAML content (rendered as comment in lock file for reference)
 	Description         string   // optional description rendered as comment in lock file
 	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
 	TrackerID           string   // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
@@ -1007,6 +1008,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData := &WorkflowData{
 		Name:                workflowName,
 		FrontmatterName:     frontmatterName,
+		FrontmatterYAML:     strings.Join(result.FrontmatterLines, "\n"),
 		Description:         c.extractDescription(result.Frontmatter),
 		Source:              c.extractSource(result.Frontmatter),
 		TrackerID:           trackerID,

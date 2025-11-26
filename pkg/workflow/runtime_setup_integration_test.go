@@ -8,6 +8,24 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
+// countInNonCommentLines counts occurrences of a string in non-comment lines
+// A comment line is one that starts with '#' (after trimming leading whitespace)
+func countInNonCommentLines(content, search string) int {
+	count := 0
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		count += strings.Count(line, search)
+	}
+	return count
+}
+
+// Note: indexInNonCommentLines is defined in compiler_test.go
+
 func TestRuntimeSetupIntegration(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -277,8 +295,8 @@ steps:
 		t.Error("Should not override user's version with default version")
 	}
 
-	// Should only have one Python setup
-	count := strings.Count(lockContent, "Setup Python")
+	// Should only have one Python setup (excluding comment lines where frontmatter is embedded)
+	count := countInNonCommentLines(lockContent, "Setup Python")
 	if count > 1 {
 		t.Errorf("Expected 'Setup Python' to appear once, but found %d occurrences", count)
 	}
@@ -334,15 +352,15 @@ steps:
 		t.Error("Expected 'Setup uv' to be added")
 	}
 
-	// Python setup should come before uv setup
-	pythonIndex := strings.Index(lockContent, "Setup Python")
-	uvIndex := strings.Index(lockContent, "Setup uv")
+	// Python setup should come before uv setup (in non-comment lines)
+	pythonIndex := indexInNonCommentLines(lockContent, "Setup Python")
+	uvIndex := indexInNonCommentLines(lockContent, "Setup uv")
 	if pythonIndex > uvIndex {
 		t.Error("Setup Python should come before Setup uv (Python is a dependency of uv)")
 	}
 
-	// Both should come before "Verify uv" step
-	verifyIndex := strings.Index(lockContent, "Verify uv")
+	// Both should come before "Verify uv" step (in non-comment lines)
+	verifyIndex := indexInNonCommentLines(lockContent, "Verify uv")
 	if pythonIndex > verifyIndex || uvIndex > verifyIndex {
 		t.Error("Setup steps should come before 'Verify uv' step")
 	}

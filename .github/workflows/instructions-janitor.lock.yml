@@ -18,6 +18,50 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Instructions Janitor
+# description: Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
+# on:
+#   schedule:
+#     # Every day at 9am UTC
+#     - cron: "0 9 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[instructions] "
+#     labels: [documentation, automation, instructions]
+#     draft: false
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "cat .github/instructions/github-agentic-workflows.instructions.md"
+#     - "wc -l .github/instructions/github-agentic-workflows.instructions.md"
+#     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
+#     - "git describe --tags --abbrev=0"
+#
+# timeout-minutes: 15
+#
+# ```
+#
 # Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 #
 # Job Dependency Graph:

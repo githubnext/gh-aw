@@ -18,6 +18,53 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Semantic Function Refactoring
+# description: Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 8 * * *"  # Daily at 8 AM UTC
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+#
+# imports:
+#   - shared/reporting.md
+#
+# safe-outputs:
+#   close-issue:
+#     required-title-prefix: "[refactor] "
+#     target: "*"
+#     max: 10
+#   create-issue:
+#     title-prefix: "[refactor] "
+#     labels: [refactoring, code-quality, automated-analysis]
+#     max: 1
+#
+# tools:
+#   github:
+#     toolsets: [default, issues]
+#   edit:
+#   bash:
+#     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
+#     - "find pkg -type f -name '*.go' ! -name '*_test.go'"
+#     - "ls -la pkg/"
+#     - "ls -la pkg/workflow/"
+#     - "wc -l pkg/**/*.go"
+#     - "head -n * pkg/**/*.go"
+#     - "grep -r 'func ' pkg --include='*.go'"
+#     - "cat pkg/**/*.go"
+#
+# timeout-minutes: 20
+# strict: true
+# ```
+#
 # Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring
 #
 # Resolved workflow manifest:

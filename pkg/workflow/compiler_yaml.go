@@ -54,6 +54,24 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString("#   " + constants.CLIExtensionPrefix + " compile\n")
 	yaml.WriteString("# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md\n")
 
+	// Add original frontmatter as comment for reference
+	if data.FrontmatterYAML != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Original Frontmatter:\n")
+		yaml.WriteString("# ```yaml\n")
+		// Split frontmatter into lines and prefix each with "# "
+		frontmatterLines := strings.Split(data.FrontmatterYAML, "\n")
+		for _, line := range frontmatterLines {
+			// Preserve empty lines but prefix them with "#"
+			if strings.TrimSpace(line) == "" {
+				yaml.WriteString("#\n")
+			} else {
+				yaml.WriteString(fmt.Sprintf("# %s\n", line))
+			}
+		}
+		yaml.WriteString("# ```\n")
+	}
+
 	// Add description comment if provided
 	if data.Description != "" {
 		yaml.WriteString("#\n")

@@ -18,6 +18,49 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Summarizes PDF and other documents by analyzing URLs provided via /summarize command or workflow dispatch
+# on:
+#   # Command trigger - responds to /summarize mentions
+#   command:
+#     name: summarize
+#     events: [issue_comment, issues]
+#
+#   # Workflow dispatch with url and query inputs
+#   workflow_dispatch:
+#     inputs:
+#       url:
+#         description: 'URL(s) to resource(s) to analyze (comma-separated for multiple URLs)'
+#         required: true
+#         type: string
+#       query:
+#         description: 'Query or question to answer about the resource(s)'
+#         required: false
+#         type: string
+#         default: 'summarize in the context of this repository'
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: copilot
+#
+# imports:
+#   - shared/mcp/markitdown.md
+#
+# tools:
+#   cache-memory: true
+#
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#
+# timeout-minutes: 15
+# strict: true
+# ```
+#
 # Summarizes PDF and other documents by analyzing URLs provided via /summarize command or workflow dispatch
 #
 # Resolved workflow manifest:

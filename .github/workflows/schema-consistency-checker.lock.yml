@@ -18,6 +18,37 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Detects inconsistencies between JSON schema, implementation code, and documentation
+# on:
+#   schedule:
+#     - cron: "0 2 * * *"  # Daily at 2 AM UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   discussions: read
+#   issues: read
+#   pull-requests: read
+# engine: claude
+# tools:
+#   edit:
+#   bash: ["*"]
+#   github:
+#     mode: remote
+#     toolsets: [default, discussions]
+#   cache-memory:
+#     key: schema-consistency-cache-${{ github.workflow }}
+# safe-outputs:
+#   create-discussion:
+#     category: "audits"
+#     title-prefix: "[Schema Consistency] "
+#     max: 1
+# timeout-minutes: 30
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Detects inconsistencies between JSON schema, implementation code, and documentation
 #
 # Resolved workflow manifest:

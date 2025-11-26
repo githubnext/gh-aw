@@ -18,6 +18,33 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Plan Command
+# description: Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
+# on:
+#   command:
+#     name: plan
+#     events: [issue_comment, discussion_comment]
+# permissions:
+#   contents: read
+#   discussions: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   github:
+#     toolsets: [default, discussions]
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[task] "
+#     labels: [task, ai-generated]
+#     max: 5
+#   close-discussion:
+#     required-category: "Ideas"
+# timeout-minutes: 10
+# ```
+#
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
 #
 # Job Dependency Graph:

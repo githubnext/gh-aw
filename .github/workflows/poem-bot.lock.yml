@@ -18,6 +18,111 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates creative poems on specified themes when invoked with /poem-bot command
+# # Custom triggers: command with events filter, workflow_dispatch
+# on:
+#   # Command trigger - responds to /poem-bot mentions
+#   command:
+#     name: poem-bot
+#     events: [issues]
+#
+#   # Workflow dispatch with poem theme input
+#   workflow_dispatch:
+#     inputs:
+#       poem_theme:
+#         description: 'Theme for the generated poem'
+#         required: false
+#         default: 'technology and automation'
+#
+# # Restrict to admin/maintainer roles only
+# roles:
+#   - admin
+#   - maintainer
+#
+# # Minimal permissions - safe-outputs handles write operations
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# # AI engine configuration
+# engine:
+#   id: copilot
+#   model: gpt-5
+#
+# # Deny all network access
+# network: {}
+#
+# # Tools configuration
+# tools:
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "echo"
+#     - "date"
+#   # Memory cache for persistent AI memory across runs
+#   cache-memory:
+#     key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
+#     retention-days: 30
+#
+# # Comprehensive safe-outputs configuration - ALL types with staged mode
+# safe-outputs:
+#   # Enable staged mode to prevent actual GitHub interactions during testing
+#   staged: true
+#
+#   # Issue creation with custom prefix and labels
+#   create-issue:
+#     title-prefix: "[🎭 POEM-BOT] "
+#     labels: [poetry, automation, ai-generated]
+#     max: 2
+#
+#   # Comment creation on issues/PRs
+#   add-comment:
+#     max: 3
+#     target: "*"
+#
+#   # Issue updates
+#   update-issue:
+#     status:
+#     title:
+#     body:
+#     target: "*"
+#     max: 2
+#
+#   # Label addition
+#   add-labels:
+#     allowed: [poetry, creative, automation, ai-generated, epic, haiku, sonnet, limerick]
+#     max: 5
+#
+#   # Pull request creation
+#   create-pull-request:
+#     title-prefix: "[🎨 POETRY] "
+#     labels: [poetry, automation, creative-writing]
+#     reviewers: copilot
+#     draft: false
+#
+#   # PR review comments
+#   create-pull-request-review-comment:
+#     max: 2
+#     side: "RIGHT"
+#
+#   # Push to PR branch
+#   push-to-pull-request-branch:
+#
+#   # Upload assets
+#   upload-assets:
+#
+#   # Missing tool reporting
+#   missing-tool:
+#
+# # Global timeout
+# timeout-minutes: 10
+# strict: true
+# ```
+#
 # Generates creative poems on specified themes when invoked with /poem-bot command
 #
 # Job Dependency Graph:

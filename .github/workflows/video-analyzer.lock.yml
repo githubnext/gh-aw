@@ -18,6 +18,40 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Analyzes video files using ffmpeg to extract metadata, frames, and other technical information
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       video_url:
+#         description: 'URL to video file to analyze (must be publicly accessible)'
+#         required: true
+#         type: string
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: copilot
+#
+# imports:
+#   - shared/ffmpeg.md
+#
+# tools:
+#   bash:
+#
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[video-analysis] "
+#     labels: [automation, video-processing]
+#     max: 1
+#
+# timeout-minutes: 15
+# strict: true
+# ```
+#
 # Analyzes video files using ffmpeg to extract metadata, frames, and other technical information
 #
 # Resolved workflow manifest:

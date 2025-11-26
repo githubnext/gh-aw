@@ -18,6 +18,92 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# name: Copilot PR Conversation NLP Analysis
+# description: Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions
+# on:
+#   schedule:
+#     # Every day at 10am UTC (weekdays only)
+#     - cron: "0 10 * * 1-5"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   actions: read
+#   issues: read
+#
+# engine: copilot
+#
+# network:
+#   allowed:
+#     - defaults
+#     - python
+#     - node
+#   firewall: true
+#
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[nlp-analysis] "
+#     category: "audit"
+#     max: 1
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/python-dataviz.md
+#   - shared/reporting.md
+#   - shared/copilot-pr-data-fetch.md
+#
+# tools:
+#   cache-memory: true
+#   edit:
+#   github:
+#     toolsets: [default]
+#   bash: ["*"]
+#
+# steps:
+#   - name: Fetch PR comments for detailed analysis
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: |
+#       # Create comments directory
+#       mkdir -p /tmp/gh-aw/pr-comments
+#
+#       # Fetch detailed comments for each PR from the pre-fetched data
+#       PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
+#       echo "Fetching comments for $PR_COUNT PRs..."
+#
+#       jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do
+#         echo "Fetching comments for PR #${PR_NUM}"
+#         gh pr view "${PR_NUM}" \
+#           --json comments,reviews,reviewComments \
+#           > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json" 2>/dev/null || echo "{}" > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json"
+#         sleep 0.5  # Rate limiting
+#       done
+#
+#       echo "Comment data saved to /tmp/gh-aw/pr-comments/"
+#
+#   - name: Install NLP libraries
+#     run: |
+#       pip install --user nltk scikit-learn textblob wordcloud
+#
+#       # Download required NLTK data (using punkt_tab for NLTK 3.9+)
+#       python3 -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
+#
+#       # Verify installations
+#       python3 -c "import nltk; print(f'NLTK {nltk.__version__} installed')"
+#       python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__} installed')"
+#       python3 -c "import textblob; print(f'TextBlob {textblob.__version__} installed')"
+#       python3 -c "import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')"
+#
+#       echo "All NLP libraries installed successfully"
+#
+# timeout-minutes: 20
+#
+# ```
+#
 # Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions
 #
 # Resolved workflow manifest:

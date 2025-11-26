@@ -18,6 +18,88 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# description: Runs comprehensive code quality checks using Super Linter and creates issues for violations
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 14 * * 1-5" # 2 PM UTC, weekdays only
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[linter] "
+#     labels: [automation, code-quality]
+# engine: copilot
+# name: Super Linter Report
+# timeout-minutes: 15
+# imports:
+#   - shared/reporting.md
+# jobs:
+#   super_linter:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       packages: read
+#       # To report GitHub Actions status checks
+#       statuses: write
+#     steps:
+#       - name: Checkout Code
+#         uses: actions/checkout@v5
+#         with:
+#           # super-linter needs the full git history to get the
+#           # list of files that changed across commits
+#           fetch-depth: 0
+#           persist-credentials: false
+#
+#       - name: Super-linter
+#         uses: super-linter/super-linter@v8.2.1 # x-release-please-version
+#         id: super-linter
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           CREATE_LOG_FILE: "true"
+#           LOG_FILE: super-linter.log
+#           DEFAULT_BRANCH: main
+#           ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
+#
+#       - name: Check for linting issues
+#         id: check-results
+#         run: |
+#           if [ -f "super-linter.log" ] && [ -s "super-linter.log" ]; then
+#             # Check if there are actual errors (not just the header)
+#             if grep -qE "ERROR|WARN|FAIL" super-linter.log; then
+#               echo "needs-linting=true" >> "$GITHUB_OUTPUT"
+#             else
+#               echo "needs-linting=false" >> "$GITHUB_OUTPUT"
+#             fi
+#           else
+#             echo "needs-linting=false" >> "$GITHUB_OUTPUT"
+#           fi
+#
+#       - name: Upload super-linter log
+#         if: always()
+#         uses: actions/upload-artifact@v5
+#         with:
+#           name: super-linter-log
+#           path: super-linter.log
+#           retention-days: 7
+# steps:
+#   - name: Download super-linter log
+#     uses: actions/download-artifact@v6
+#     with:
+#       name: super-linter-log
+#       path: /tmp/gh-aw/
+# tools:
+#   cache-memory: true
+#   edit:
+#   bash:
+#     - "*"
+# ```
+#
 # Runs comprehensive code quality checks using Super Linter and creates issues for violations
 #
 # Resolved workflow manifest:
