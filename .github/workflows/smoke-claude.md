@@ -36,7 +36,6 @@ tools:
     - "*"
   serena: ["go"]
 safe-outputs:
-    staged: true
     add-comment:
     create-issue:
     add-labels:

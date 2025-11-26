@@ -54,7 +54,6 @@
 #       - github.com
 #   serena: ["go"]
 # safe-outputs:
-#     staged: true
 #     add-comment:
 #     create-issue:
 #     add-labels:
@@ -639,7 +638,6 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1092,7 +1090,6 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2660,7 +2657,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               steps: {
                 firewall: "squid"
               },
@@ -2703,7 +2700,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -5897,7 +5893,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

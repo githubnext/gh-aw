@@ -59,7 +59,6 @@
 #     - "*"
 #   serena: ["go"]
 # safe-outputs:
-#     staged: true
 #     add-comment:
 #     create-issue:
 #     add-labels:
@@ -758,7 +757,6 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1211,7 +1209,6 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-claude"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2990,7 +2987,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               steps: {
                 firewall: ""
               },
@@ -3118,7 +3115,6 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GH_AW_MAX_TURNS: 15
       - name: Clean up network proxy hook files
         if: always()
@@ -5562,7 +5558,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

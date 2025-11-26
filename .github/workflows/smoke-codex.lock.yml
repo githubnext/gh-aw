@@ -53,7 +53,6 @@
 #     - "*"
 #   serena: ["go"]
 # safe-outputs:
-#     staged: true
 #     add-comment:
 #     create-issue:
 #     add-labels:
@@ -637,7 +636,6 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Codex"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1090,7 +1088,6 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-codex"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Codex"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2647,7 +2644,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               steps: {
                 firewall: ""
               },
@@ -2679,7 +2676,6 @@ jobs:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
@@ -4956,7 +4952,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Codex"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
