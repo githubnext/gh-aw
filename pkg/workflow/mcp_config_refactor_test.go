@@ -20,7 +20,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0", // Version is ignored - always uses official MCP image
+				"version": "v1.45.0", // Version is used for the Docker image tag
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -29,11 +29,14 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"type": "local"`,
 				`"command": "docker"`,
-				`"args": ["run", "-i", "--rm", "--init", "--pull=always", "mcr.microsoft.com/playwright/mcp"`,
+				`"mcr.microsoft.com/playwright/mcp:v1.45.0"`,
+				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 				`"tools": ["*"]`,
 				`              }`,
 			},
-			unexpectedContent: []string{},
+			unexpectedContent: []string{
+				`"--pull=always"`,
+			},
 		},
 		{
 			name: "Claude/Custom with multi-line args, no type/tools fields",
@@ -51,13 +54,15 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"-i"`,
 				`"--rm"`,
 				`"--init"`,
-				`"--pull=always"`,
-				`"mcr.microsoft.com/playwright/mcp"`,
+				`"mcr.microsoft.com/playwright/mcp:`,
+				`"--output-dir"`,
+				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
+				`"--pull=always"`,
 			},
 		},
 		{
@@ -275,8 +280,9 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 				`"-i"`,
 				`"--rm"`,
 				`"--init"`,
-				`"--pull=always"`,
-				`"mcr.microsoft.com/playwright/mcp"`,
+				`"mcr.microsoft.com/playwright/mcp:`,
+				`"--output-dir"`,
+				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},
 		},
 		{

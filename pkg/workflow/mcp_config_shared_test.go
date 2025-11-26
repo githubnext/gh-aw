@@ -27,8 +27,9 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 				`"-i"`,
 				`"--rm"`,
 				`"--init"`,
-				`"--pull=always"`,
-				`"mcr.microsoft.com/playwright/mcp"`,
+				`"mcr.microsoft.com/playwright/mcp:`,
+				`"--output-dir"`,
+				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-hosts"`,
 				`example.com;test.com`, // Domains are joined with semicolons
 			},
@@ -53,7 +54,9 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "docker"`,
-				`"mcr.microsoft.com/playwright/mcp"`,
+				`"mcr.microsoft.com/playwright/mcp:`,
+				`"--output-dir"`,
+				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},
 			wantEnding: "},\n",
 		},
