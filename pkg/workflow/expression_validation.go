@@ -56,7 +56,7 @@ var expressionValidationLog = logger.New("workflow:expression_validation")
 
 // maxFuzzyMatchSuggestions is the maximum number of similar expressions to suggest
 // when an unauthorized expression is found
-const maxFuzzyMatchSuggestions = 3
+const maxFuzzyMatchSuggestions = 7
 
 // Pre-compiled regexes for expression validation (performance optimization)
 var (
