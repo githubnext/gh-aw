@@ -2493,7 +2493,15 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContent(content, maxLength) {
+            function sanitizeContent(content, maxLengthOrOptions) {
+              let maxLength;
+              let allowedAliasesLowercase = [];
+              if (typeof maxLengthOrOptions === "number") {
+                maxLength = maxLengthOrOptions;
+              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+                maxLength = maxLengthOrOptions.maxLength;
+                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
+              }
               if (!content || typeof content !== "string") {
                 return "";
               }
@@ -2603,10 +2611,13 @@ jobs:
                 return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
               }
               function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
+                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
+                  if (isAllowed) {
+                    return `${p1}@${p2}`; 
+                  }
+                  return `${p1}\`@${p2}\``; 
+                });
               }
               function removeXmlComments(s) {
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
