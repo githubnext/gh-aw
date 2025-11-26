@@ -183,7 +183,7 @@ func BenchmarkValidateSchema(b *testing.B) {
 		"engine": "claude",
 		"tools": map[string]any{
 			"github": map[string]any{
-				"allowed": []any{"get_issue", "add_issue_comment"},
+				"allowed": []any{"issue_read", "add_issue_comment"},
 			},
 			"bash": []any{"echo", "ls"},
 		},

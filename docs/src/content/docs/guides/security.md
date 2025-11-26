@@ -268,7 +268,7 @@ Configure explicit allow-lists. See `docs/tools.md` for full options.
 # Minimal GitHub tools (recommended)
 tools:
   github:
-    allowed: [get_issue, add_issue_comment]
+    allowed: [issue_read, add_issue_comment]
 
 # Specific bash commands (recommended for security)
 tools:

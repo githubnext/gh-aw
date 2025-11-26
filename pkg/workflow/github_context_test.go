@@ -15,7 +15,7 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 			name: "GitHub tool enabled",
 			tools: map[string]any{
 				"github": map[string]any{
-					"allowed": []string{"get_issue"},
+					"allowed": []string{"issue_read"},
 				},
 			},
 			expectContext: true,

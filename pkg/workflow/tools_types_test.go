@@ -30,7 +30,7 @@ func TestNewTools(t *testing.T) {
 
 	t.Run("parses known tools", func(t *testing.T) {
 		toolsMap := map[string]any{
-			"github":    map[string]any{"allowed": []any{"get_issue"}},
+			"github":    map[string]any{"allowed": []any{"issue_read"}},
 			"bash":      []any{"echo", "ls"},
 			"edit":      nil,
 			"web-fetch": nil,
@@ -194,7 +194,7 @@ func TestGitHubConfigParsing(t *testing.T) {
 	t.Run("parses github config map", func(t *testing.T) {
 		toolsMap := map[string]any{
 			"github": map[string]any{
-				"allowed":      []any{"get_issue", "create_issue"},
+				"allowed":      []any{"issue_read", "create_issue"},
 				"mode":         "remote",
 				"version":      "v1.0.0",
 				"args":         []any{"--verbose"},
@@ -214,8 +214,8 @@ func TestGitHubConfigParsing(t *testing.T) {
 		if len(config.Allowed) != 2 {
 			t.Errorf("expected 2 allowed tools, got %d", len(config.Allowed))
 		}
-		if config.Allowed[0] != "get_issue" {
-			t.Errorf("expected first allowed tool to be 'get_issue', got %q", config.Allowed[0])
+		if config.Allowed[0] != "issue_read" {
+			t.Errorf("expected first allowed tool to be 'issue_read', got %q", config.Allowed[0])
 		}
 
 		if config.Mode != "remote" {
@@ -471,7 +471,7 @@ func TestExtractRuntimesFromFrontmatter(t *testing.T) {
 func TestParseToolsConfig(t *testing.T) {
 	t.Run("parses valid tools map", func(t *testing.T) {
 		toolsMap := map[string]any{
-			"github":    map[string]any{"allowed": []any{"get_issue"}},
+			"github":    map[string]any{"allowed": []any{"issue_read"}},
 			"bash":      []any{"echo", "ls"},
 			"edit":      nil,
 			"my-custom": map[string]any{"command": "node"},
@@ -520,7 +520,7 @@ func TestToolsConfigToMap(t *testing.T) {
 	t.Run("converts ToolsConfig back to map", func(t *testing.T) {
 		toolsMap := map[string]any{
 			"github": map[string]any{
-				"allowed": []any{"get_issue", "create_issue"},
+				"allowed": []any{"issue_read", "create_issue"},
 				"mode":    "remote",
 			},
 			"bash":      []any{"echo"},
@@ -572,7 +572,7 @@ func TestToolsConfigToMap(t *testing.T) {
 	t.Run("ToMap preserves raw map when available", func(t *testing.T) {
 		// Create a ToolsConfig with a raw map
 		toolsMap := map[string]any{
-			"github": map[string]any{"allowed": []any{"get_issue"}},
+			"github": map[string]any{"allowed": []any{"issue_read"}},
 		}
 
 		config := NewTools(toolsMap)

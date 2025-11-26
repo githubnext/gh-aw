@@ -2638,7 +2638,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # AI Reaction with Comment Creation Test
@@ -2725,7 +2725,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Command Bot with Reaction Test
@@ -2795,7 +2795,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Command Bot with Auto Reaction
@@ -2872,7 +2872,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Command Bot with Custom Reaction
@@ -2938,7 +2938,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Invalid Reaction Test
@@ -3003,7 +3003,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == false)",
 			shouldHaveIf: true,
@@ -3024,7 +3024,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == true)",
 			shouldHaveIf: true,
@@ -3044,7 +3044,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldHaveIf: false,
 		},
@@ -3066,7 +3066,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == false))",
 			shouldHaveIf: true,
@@ -3089,7 +3089,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == true))",
 			shouldHaveIf: true,
@@ -3109,7 +3109,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldHaveIf: false,
 		},
@@ -3195,7 +3195,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldContainComment: true,
 			shouldContainPaths:   true,
@@ -3217,7 +3217,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldContainComment: true,
 			shouldContainPaths:   false,
@@ -3238,7 +3238,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldContainComment: true,
 			shouldContainPaths:   false,
@@ -3262,7 +3262,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			shouldContainComment: true,
 			shouldContainPaths:   true,
@@ -4936,7 +4936,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -4961,7 +4961,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -4988,7 +4988,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -5016,7 +5016,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -5042,7 +5042,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -5068,7 +5068,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.actor != 'dependabot[bot]'",
@@ -5092,7 +5092,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -5116,7 +5116,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{
 				"github.event.pull_request.head.repo.id == github.repository_id",
@@ -5140,7 +5140,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{},
 			shouldHaveIf:       false, // No fork filtering should be applied
@@ -5163,7 +5163,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedConditions: []string{},
 			shouldHaveIf:       false, // No fork filtering should be applied due to "*"
@@ -5249,7 +5249,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
     # forks: # Fork filtering applied via job conditions
@@ -5277,7 +5277,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
     # forks: # Fork filtering applied via job conditions
@@ -5299,7 +5299,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
     # forks: specific/repo # Fork filtering applied via job conditions`,
@@ -5320,7 +5320,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
     # forks: "*" # Fork filtering applied via job conditions`,
@@ -5706,7 +5706,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			description: "Test that 'on' IS quoted when reaction is present",
 		},
@@ -5745,7 +5745,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			description: "Test that 'on' IS quoted when both reaction and stop-after are present",
 		},

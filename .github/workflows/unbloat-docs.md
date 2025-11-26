@@ -148,7 +148,7 @@ Focus on files that were recently modified or are in the `docs/src/content/docs/
 **Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
 
 ```bash
-# Get PR file changes using the get_pull_request tool
+# Get PR file changes using the pull_request_read tool
 ```
 
 Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.

@@ -39,7 +39,7 @@ engine: copilot
 tools:
   github:
     allowed:
-      - get_issue
+      - issue_read
       - list_issues
   bash:
     allowed:

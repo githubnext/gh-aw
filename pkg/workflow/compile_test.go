@@ -497,7 +497,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 engine: claude
 strict: false
 safe-outputs:
@@ -1043,7 +1043,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 engine: claude
 strict: false
 safe-outputs:
@@ -1485,7 +1485,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 engine: claude
 strict: false
 safe-outputs:
@@ -1553,7 +1553,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 engine: claude
 strict: false
 safe-outputs:

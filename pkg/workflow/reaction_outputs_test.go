@@ -29,7 +29,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Test Reaction Outputs
