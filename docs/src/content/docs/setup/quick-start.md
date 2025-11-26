@@ -41,7 +41,7 @@ If this step fails, you may need to use a personal access token or run the [inst
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
-gh aw add githubnext/agentics/daily-team-status --pr
+gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
 This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). The [compilation](/gh-aw/reference/glossary/#compilation) process (converting markdown to GitHub Actions YAML) translates your human-friendly markdown into the YAML format that GitHub Actions can execute. Review and merge the PR into your repo.
