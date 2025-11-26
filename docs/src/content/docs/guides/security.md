@@ -364,7 +364,7 @@ Fine-grained control over AI engine network access, separate from MCP tool permi
 
 **Copilot Engine with AWF**: Uses [AWF](https://github.com/githubnext/gh-aw-firewall) firewall wrapper, process-level domain allowlisting, execution wrapping, activity logging. See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions).
 
-**Best Practices**: Start with `defaults`, add needed ecosystems; use ecosystem identifiers over individual domains; use wildcards carefully (matches all subdomains); test thoroughly, monitor logs, document reasoning.
+**Best Practices**: Start with `defaults`, add needed ecosystems; use ecosystem identifiers over individual domains; listing a domain automatically includes all subdomains; test thoroughly, monitor logs, document reasoning.
 
 ### Permission Modes
 

@@ -388,7 +388,7 @@ strict mode: wildcard '*' is not allowed in network.allowed domains
 
 **Cause:** The workflow uses `*` wildcard in network.allowed domains when compiled with `--strict` flag. Strict mode requires specific domain patterns.
 
-**Solution:** Replace wildcard with specific domain patterns (e.g., `*.githubusercontent.com`) or use `network: defaults`.
+**Solution:** Replace wildcard with specific domains (e.g., `githubusercontent.com` which automatically includes all subdomains) or use `network: defaults`.
 
 ### HTTP MCP Tool Missing Required URL Field
 
