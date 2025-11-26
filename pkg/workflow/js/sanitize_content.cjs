@@ -52,21 +52,22 @@ function extractDomainsFromUrl(url) {
 /**
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize
- * @param {number | SanitizeOptions} [optionsOrMaxLength] - Maximum length of content (default: 524288) or options object
+ * @param {number | SanitizeOptions} [maxLengthOrOptions] - Maximum length of content (default: 524288) or options object
  * @returns {string} The sanitized content
  */
-function sanitizeContent(content, optionsOrMaxLength) {
+function sanitizeContent(content, maxLengthOrOptions) {
   // Handle both old signature (maxLength) and new signature (options object)
   /** @type {number | undefined} */
   let maxLength;
   /** @type {string[]} */
-  let allowedAliases = [];
+  let allowedAliasesLowercase = [];
 
-  if (typeof optionsOrMaxLength === "number") {
-    maxLength = optionsOrMaxLength;
-  } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
-    maxLength = optionsOrMaxLength.maxLength;
-    allowedAliases = optionsOrMaxLength.allowedAliases || [];
+  if (typeof maxLengthOrOptions === "number") {
+    maxLength = maxLengthOrOptions;
+  } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+    maxLength = maxLengthOrOptions.maxLength;
+    // Pre-process allowed aliases to lowercase for efficient comparison
+    allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
   }
   if (!content || typeof content !== "string") {
     return "";
@@ -282,7 +283,8 @@ function sanitizeContent(content, optionsOrMaxLength) {
     // Skip mentions that are in the allowed aliases list
     return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
       // Check if this mention is in the allowed aliases list (case-insensitive)
-      const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+      // allowedAliasesLowercase is pre-processed to lowercase for efficient comparison
+      const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
       if (isAllowed) {
         return `${p1}@${p2}`; // Keep the original mention
       }

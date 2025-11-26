@@ -242,14 +242,14 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContent(content, optionsOrMaxLength) {
+            function sanitizeContent(content, maxLengthOrOptions) {
               let maxLength;
-              let allowedAliases = [];
-              if (typeof optionsOrMaxLength === "number") {
-                maxLength = optionsOrMaxLength;
-              } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
-                maxLength = optionsOrMaxLength.maxLength;
-                allowedAliases = optionsOrMaxLength.allowedAliases || [];
+              let allowedAliasesLowercase = [];
+              if (typeof maxLengthOrOptions === "number") {
+                maxLength = maxLengthOrOptions;
+              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+                maxLength = maxLengthOrOptions.maxLength;
+                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
               }
               if (!content || typeof content !== "string") {
                 return "";
@@ -361,7 +361,7 @@ jobs:
               }
               function neutralizeMentions(s) {
                 return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-                  const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
@@ -2552,14 +2552,14 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContent(content, optionsOrMaxLength) {
+            function sanitizeContent(content, maxLengthOrOptions) {
               let maxLength;
-              let allowedAliases = [];
-              if (typeof optionsOrMaxLength === "number") {
-                maxLength = optionsOrMaxLength;
-              } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
-                maxLength = optionsOrMaxLength.maxLength;
-                allowedAliases = optionsOrMaxLength.allowedAliases || [];
+              let allowedAliasesLowercase = [];
+              if (typeof maxLengthOrOptions === "number") {
+                maxLength = maxLengthOrOptions;
+              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+                maxLength = maxLengthOrOptions.maxLength;
+                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
               }
               if (!content || typeof content !== "string") {
                 return "";
@@ -2671,7 +2671,7 @@ jobs:
               }
               function neutralizeMentions(s) {
                 return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-                  const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
