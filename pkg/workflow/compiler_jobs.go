@@ -445,23 +445,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, pushToBranchJob.Name)
 	}
 
-	// Build missing_tool job (always enabled when SafeOutputs exists)
-	if data.SafeOutputs.MissingTool != nil {
-		missingToolJob, err := c.buildCreateOutputMissingToolJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build missing_tool job: %w", err)
-		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
-		if threatDetectionEnabled {
-			missingToolJob.Needs = append(missingToolJob.Needs, constants.DetectionJobName)
-			// Add detection success check to the job condition
-			missingToolJob.If = AddDetectionSuccessCheck(missingToolJob.If)
-		}
-		if err := c.jobManager.AddJob(missingToolJob); err != nil {
-			return fmt.Errorf("failed to add missing_tool job: %w", err)
-		}
-		safeOutputJobNames = append(safeOutputJobNames, missingToolJob.Name)
-	}
+	// Note: missing_tool processing is now handled inside the conclusion job, not as a separate job
 
 	// Build upload_assets job if output.upload-asset is configured
 	if data.SafeOutputs.UploadAssets != nil {
