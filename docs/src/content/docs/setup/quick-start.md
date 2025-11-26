@@ -17,14 +17,15 @@ This guide walks you through setup step-by-step, so you don't need everything up
 :::note[Must Have (before you start)]
 - **GitHub account** with access to a repository
 - **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
-  - Verify: Run `gh --version` (requires v2.0.0 or higher)
+  - Verify installation: Run `gh --version` (requires v2.0.0 or higher)
+  - Verify authentication: Run `gh auth status`
 - **Operating System:** Linux, macOS, or Windows with WSL
 :::
 
 :::tip[Must Configure (in your repository)]
 - **Admin or write access** to your target repository
 - **GitHub Actions** enabled
-- **Discussions** enabled (for workflows that create discussions)
+- **Discussions** enabled (required for the sample workflow in this guide)
 :::
 
 :::caution[Will Need Later (you'll set this up in Step 3)]
