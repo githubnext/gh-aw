@@ -18,7 +18,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# The Cookie Monster of issues - bundles related issues and assigns them to Copilot agents
+# The Cookie Monster of issues - assigns issues to Copilot agents one at a time
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -47,11 +47,11 @@
 # ```markdown
 # # Issue Monster 🍪
 #
-# You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by bundling related ones together and assigning them to Copilot agents for resolution.
+# You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
 #
 # ## Your Mission
 #
-# Find issues that can be bundled together and assign them to Copilot agents for resolution. You work efficiently by grouping related issues but never overwhelm yourself with too many at once.
+# Find one issue that needs work and assign it to the Copilot agent for resolution. You work methodically, processing one issue at a time every hour.
 #
 # ## Current Context
 #
@@ -81,34 +81,29 @@
 #
 # **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 #
-# ### 3. Identify Issues That Can Be Bundled Together
+# ### 3. Select One Issue to Work On
 #
 # From the remaining issues (without Copilot assignments or open PRs):
-# - **Analyze the issues** to find ones that are related or can be fixed together
-# - **Group criteria**:
-#   - Issues affecting the same file or component
-#   - Issues with similar themes (e.g., documentation, refactoring, bug fixes)
-#   - Issues that have dependencies on each other
-# - **Limit**: Select **2-4 issues maximum** to bundle together
+# - **Select the single most appropriate issue** to assign
 # - **Priority**: Prefer issues that are:
 #   - Quick wins (small, well-defined fixes)
-#   - Related to each other
 #   - Have clear acceptance criteria
+#   - Most recently created
 #
 # **If all issues are already being worked on:**
 # - Output a message: "🍽️ All issues are already being worked on!"
 # - **STOP** and do not proceed further
 #
-# ### 4. Read and Understand the Issues
+# ### 4. Read and Understand the Issue
 #
-# For each selected issue:
+# For the selected issue:
 # - Read the full issue body and any comments
 # - Understand what fix is needed
 # - Identify the files that need to be modified
 #
-# ### 5. Assign Issues to Copilot Agent
+# ### 5. Assign Issue to Copilot Agent
 #
-# For each bundled issue, use the `assign_to_agent` safe output to assign the Copilot agent:
+# Use the `assign_to_agent` safe output to assign the Copilot agent:
 #
 # **Agent Output Format:**
 # ```json
@@ -125,16 +120,14 @@
 # 3. Create a pull request with the fix
 # 4. Follow the repository's AGENTS.md guidelines
 #
-# ### 6. Add Comments to Each Issue
+# ### 6. Add Comment to the Issue
 #
-# For each issue being assigned, add a comment:
+# Add a comment to the issue being assigned:
 #
 # ```markdown
 # 🍪 **Issue Monster has assigned this to Copilot!**
 #
 # I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
-#
-# Other issues in this bundle: #[OTHER_ISSUE_NUMBERS]
 #
 # The Copilot agent will analyze the issue and create a pull request with the fix.
 #
@@ -143,21 +136,20 @@
 #
 # ## Important Guidelines
 #
-# - ✅ **Bundle wisely**: Group 2-4 related issues together
-# - ✅ **Don't overdo it**: Never try to assign more than 4 issues in one run
-# - ✅ **Be transparent**: Comment on all issues being assigned
+# - ✅ **One at a time**: Only assign one issue per run
+# - ✅ **Be transparent**: Comment on the issue being assigned
 # - ✅ **Check assignments**: Skip issues already assigned to Copilot
-# - ❌ **Don't batch too many**: Avoid bundling more than 4 issues
+# - ❌ **Don't batch**: Never assign more than one issue per run
 #
 # ## Success Criteria
 #
 # A successful run means:
-# 1. You found available issues with the "issue monster" label
+# 1. You found an available issue with the "issue monster" label
 # 2. You filtered out issues that are already assigned or have PRs
-# 3. You identified 2-4 related issues to bundle
-# 4. You read and understood each issue
-# 5. You assigned each issue to the Copilot agent using `assign_to_agent`
-# 6. You commented on each issue being assigned
+# 3. You selected one appropriate issue
+# 4. You read and understood the issue
+# 5. You assigned the issue to the Copilot agent using `assign_to_agent`
+# 6. You commented on the issue being assigned
 #
 # ## Error Handling
 #
@@ -166,7 +158,7 @@
 # - **All issues assigned**: Output a message and stop gracefully
 # - **API errors**: Log the error clearly
 #
-# Remember: You're the Issue Monster! Stay hungry, bundle wisely, and let Copilot do the heavy lifting! 🍪 Om nom nom!
+# Remember: You're the Issue Monster! Stay hungry, work methodically, and let Copilot do the heavy lifting! 🍪 Om nom nom!
 # ```
 #
 # Pinned GitHub Actions:
@@ -183,7 +175,9 @@
 
 name: "Issue Monster"
 "on":
-  # skip-if-match: is:pr is:open in:title "[issue monster]" # Skip-if-match processed as search check in pre-activation job
+  schedule:
+  - cron: "0 * * * *"
+  # skip-if-match: is:pr is:open author:app/copilot-swe-agent # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch: null
 
 permissions:
@@ -850,7 +844,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":5},"assign_to_agent":{"max":5},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"assign_to_agent":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.","inputSchema":{"additionalProperties":false,"properties":{"agent":{"description":"Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.","type":"string"},"issue_number":{"description":"Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements.","type":["number","string"]}},"required":["issue_number"],"type":"object"},"name":"assign_to_agent"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
@@ -1593,11 +1587,11 @@ jobs:
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Issue Monster 🍪
           
-          You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by bundling related ones together and assigning them to Copilot agents for resolution.
+          You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
           
           ## Your Mission
           
-          Find issues that can be bundled together and assign them to Copilot agents for resolution. You work efficiently by grouping related issues but never overwhelm yourself with too many at once.
+          Find one issue that needs work and assign it to the Copilot agent for resolution. You work methodically, processing one issue at a time every hour.
           
           ## Current Context
           
@@ -1627,34 +1621,29 @@ jobs:
           
           **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
           
-          ### 3. Identify Issues That Can Be Bundled Together
+          ### 3. Select One Issue to Work On
           
           From the remaining issues (without Copilot assignments or open PRs):
-          - **Analyze the issues** to find ones that are related or can be fixed together
-          - **Group criteria**:
-            - Issues affecting the same file or component
-            - Issues with similar themes (e.g., documentation, refactoring, bug fixes)
-            - Issues that have dependencies on each other
-          - **Limit**: Select **2-4 issues maximum** to bundle together
+          - **Select the single most appropriate issue** to assign
           - **Priority**: Prefer issues that are:
             - Quick wins (small, well-defined fixes)
-            - Related to each other
             - Have clear acceptance criteria
+            - Most recently created
           
           **If all issues are already being worked on:**
           - Output a message: "🍽️ All issues are already being worked on!"
           - **STOP** and do not proceed further
           
-          ### 4. Read and Understand the Issues
+          ### 4. Read and Understand the Issue
           
-          For each selected issue:
+          For the selected issue:
           - Read the full issue body and any comments
           - Understand what fix is needed
           - Identify the files that need to be modified
           
-          ### 5. Assign Issues to Copilot Agent
+          ### 5. Assign Issue to Copilot Agent
           
-          For each bundled issue, use the `assign_to_agent` safe output to assign the Copilot agent:
+          Use the `assign_to_agent` safe output to assign the Copilot agent:
           
           **Agent Output Format:**
           ```json
@@ -1671,16 +1660,14 @@ jobs:
           3. Create a pull request with the fix
           4. Follow the repository's AGENTS.md guidelines
           
-          ### 6. Add Comments to Each Issue
+          ### 6. Add Comment to the Issue
           
-          For each issue being assigned, add a comment:
+          Add a comment to the issue being assigned:
           
           ```markdown
           🍪 **Issue Monster has assigned this to Copilot!**
           
           I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
-          
-          Other issues in this bundle: #[OTHER_ISSUE_NUMBERS]
           
           The Copilot agent will analyze the issue and create a pull request with the fix.
           
@@ -1689,21 +1676,20 @@ jobs:
           
           ## Important Guidelines
           
-          - ✅ **Bundle wisely**: Group 2-4 related issues together
-          - ✅ **Don't overdo it**: Never try to assign more than 4 issues in one run
-          - ✅ **Be transparent**: Comment on all issues being assigned
+          - ✅ **One at a time**: Only assign one issue per run
+          - ✅ **Be transparent**: Comment on the issue being assigned
           - ✅ **Check assignments**: Skip issues already assigned to Copilot
-          - ❌ **Don't batch too many**: Avoid bundling more than 4 issues
+          - ❌ **Don't batch**: Never assign more than one issue per run
           
           ## Success Criteria
           
           A successful run means:
-          1. You found available issues with the "issue monster" label
+          1. You found an available issue with the "issue monster" label
           2. You filtered out issues that are already assigned or have PRs
-          3. You identified 2-4 related issues to bundle
-          4. You read and understood each issue
-          5. You assigned each issue to the Copilot agent using `assign_to_agent`
-          6. You commented on each issue being assigned
+          3. You selected one appropriate issue
+          4. You read and understood the issue
+          5. You assigned the issue to the Copilot agent using `assign_to_agent`
+          6. You commented on the issue being assigned
           
           ## Error Handling
           
@@ -1712,7 +1698,7 @@ jobs:
           - **All issues assigned**: Output a message and stop gracefully
           - **API errors**: Log the error clearly
           
-          Remember: You're the Issue Monster! Stay hungry, bundle wisely, and let Copilot do the heavy lifting! 🍪 Om nom nom!
+          Remember: You're the Issue Monster! Stay hungry, work methodically, and let Copilot do the heavy lifting! 🍪 Om nom nom!
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -4396,7 +4382,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
-          GH_AW_AGENT_MAX_COUNT: 5
+          GH_AW_AGENT_MAX_COUNT: 1
           GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_WORKFLOW_NAME: "Issue Monster"
         with:
@@ -5381,7 +5367,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Issue Monster"
-          WORKFLOW_DESCRIPTION: "The Cookie Monster of issues - bundles related issues and assigns them to Copilot agents"
+          WORKFLOW_DESCRIPTION: "The Cookie Monster of issues - assigns issues to Copilot agents one at a time"
         with:
           script: |
             const fs = require('fs');
@@ -5681,7 +5667,7 @@ jobs:
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_QUERY: "is:pr is:open in:title \"[issue monster]\""
+          GH_AW_SKIP_QUERY: "is:pr is:open author:app/copilot-swe-agent"
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
