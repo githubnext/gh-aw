@@ -813,7 +813,9 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		`},`, // GitHub should NOT be last (comma after closing brace)
 		`"playwright": {`,
 		`"type": "local",`,
-		`"command": "npx",`,
+		`"command": "docker",`,
+		`"mcr.microsoft.com/playwright/mcp"`,
+		`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 	}
 
 	for _, expected := range expectedStrs {

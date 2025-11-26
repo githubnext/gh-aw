@@ -3,8 +3,6 @@ package workflow
 import (
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigShared tests the shared renderPlaywrightMCPConfig function
@@ -24,8 +22,12 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast: false,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
+				`"command": "docker"`,
+				`"run"`,
+				`"-i"`,
+				`"--rm"`,
+				`"--init"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-hosts"`,
@@ -41,7 +43,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast: true,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
 			},
 			wantEnding: "}\n",
 		},
@@ -51,8 +53,10 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast:         false,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
+				`"command": "docker"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
+				`"--output-dir"`,
+				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},
 			wantEnding: "},\n",
 		},

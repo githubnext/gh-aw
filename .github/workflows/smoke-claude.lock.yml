@@ -1839,6 +1839,7 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.22.0
+          docker pull mcr.microsoft.com/playwright/mcp
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2580,9 +2581,13 @@ jobs:
                 }
               },
               "playwright": {
-                "command": "npx",
+                "command": "docker",
                 "args": [
-                  "@playwright/mcp@0.0.48",
+                  "run",
+                  "-i",
+                  "--rm",
+                  "--init",
+                  "mcr.microsoft.com/playwright/mcp",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
                   "--allowed-hosts",
