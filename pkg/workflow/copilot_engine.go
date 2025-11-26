@@ -11,7 +11,7 @@ import (
 
 var copilotLog = logger.New("workflow:copilot_engine")
 
-const logsFolder = "/tmp/gh-aw/.copilot/logs/"
+const logsFolder = "/tmp/gh-aw/.agent/logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -323,13 +323,14 @@ sudo -E awf %s \
   -- %s \
   2>&1 | tee %s
 
-# Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
-  echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
+# Move preserved agent logs to expected location
+# Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
+AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
+  echo "Moving agent logs from $AGENT_LOGS_DIR to %s"
   sudo mkdir -p %s
-  sudo mv "$COPILOT_LOGS_DIR"/* %s || true
-  sudo rmdir "$COPILOT_LOGS_DIR" || true
+  sudo mv "$AGENT_LOGS_DIR"/* %s || true
+  sudo rmdir "$AGENT_LOGS_DIR" || true
 fi`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
