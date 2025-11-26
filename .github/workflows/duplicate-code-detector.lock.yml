@@ -20,6 +20,31 @@
 #
 # Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
 #
+# Original Frontmatter:
+# ```yaml
+# name: Duplicate Code Detector
+# description: Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 21 * * *"  # Daily at 9 PM UTC
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# engine: codex
+# tools:
+#   serena: ["go"]
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[duplicate-code] "
+#     labels: [code-quality, automated-analysis]
+#     assignees: copilot
+#     max: 3
+# timeout-minutes: 15
+# strict: true
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

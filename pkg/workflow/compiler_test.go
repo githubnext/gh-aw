@@ -3354,6 +3354,83 @@ This workflow tests that draft fields are properly commented out in the on secti
 	}
 }
 
+// TestFrontmatterEmbeddedInLockFile tests that the original frontmatter YAML
+// is embedded as a comment in the generated lock file
+func TestFrontmatterEmbeddedInLockFile(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-embed-test")
+
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+strict: false
+timeout-minutes: 15
+---
+
+# Test Frontmatter Embedding
+
+This workflow tests that frontmatter is embedded in the lock file.
+`
+
+	testFile := filepath.Join(tmpDir, "test-frontmatter.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test-frontmatter.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Verify that the "Original Frontmatter:" comment is present
+	if !strings.Contains(lockContent, "# Original Frontmatter:") {
+		t.Error("Expected '# Original Frontmatter:' comment in lock file")
+	}
+
+	// Verify the frontmatter is in a yaml code block
+	if !strings.Contains(lockContent, "# ```yaml") {
+		t.Error("Expected frontmatter to be in a yaml code block")
+	}
+
+	// Verify key frontmatter fields are present in comments
+	frontmatterFields := []string{
+		"# on: push",
+		"# permissions:",
+		"#   contents: read",
+		"# tools:",
+		"# engine: claude",
+		"# timeout-minutes: 15",
+	}
+
+	for _, field := range frontmatterFields {
+		if !strings.Contains(lockContent, field) {
+			t.Errorf("Expected frontmatter to contain '%s' in comments", field)
+		}
+	}
+
+	// Verify the frontmatter block ends with closing fence
+	fmStart := strings.Index(lockContent, "# Original Frontmatter:")
+	fmEnd := strings.Index(lockContent[fmStart:], "# ```\n")
+	if fmEnd == -1 {
+		t.Error("Expected frontmatter block to end with '# ```'")
+	}
+}
+
 // TestCompileWorkflowWithInvalidYAML tests that workflows with invalid YAML syntax
 // produce properly formatted error messages with file:line:column information
 func TestCompileWorkflowWithInvalidYAML(t *testing.T) {
@@ -3786,6 +3863,45 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 	}
 }
 
+// containsInNonCommentLines checks if a string appears in any non-comment lines
+// A comment line is one that starts with '#' (after trimming leading whitespace)
+func containsInNonCommentLines(content, search string) bool {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.Contains(line, search) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexInNonCommentLines returns the index (relative to the original content) of the first
+// occurrence of search that appears in a non-comment line. This is used for order comparisons
+// where we need to verify step ordering while ignoring matches in comment lines (such as
+// frontmatter embedded as comments). Returns -1 if not found.
+func indexInNonCommentLines(content, search string) int {
+	lines := strings.Split(content, "\n")
+	offset := 0
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "#") {
+			offset += len(line) + 1 // +1 for newline
+			continue
+		}
+		if idx := strings.Index(line, search); idx != -1 {
+			return offset + idx
+		}
+		offset += len(line) + 1 // +1 for newline
+	}
+	return -1
+}
+
 func TestCacheSupport(t *testing.T) {
 	// Test cache support in workflow compilation
 	tests := []struct {
@@ -3952,10 +4068,11 @@ tools:
 				}
 			}
 
-			// Check that unexpected strings are NOT present
+			// Check that unexpected strings are NOT present in non-comment lines
+			// (frontmatter is embedded as comments, so we need to exclude comment lines)
 			for _, notExpected := range tt.notExpectedInLock {
-				if strings.Contains(lockContent, notExpected) {
-					t.Errorf("Lock file should NOT contain '%s' but it did.\nContent:\n%s", notExpected, lockContent)
+				if containsInNonCommentLines(lockContent, notExpected) {
+					t.Errorf("Lock file should NOT contain '%s' in non-comment lines but it did.\nContent:\n%s", notExpected, lockContent)
 				}
 			}
 		})
@@ -4032,9 +4149,10 @@ This workflow tests the post-steps functionality.
 	}
 
 	// Verify the order: pre-steps should come before AI execution, post-steps after
-	preStepIndex := strings.Index(lockContent, "- name: Pre AI Step")
-	aiStepIndex := strings.Index(lockContent, "- name: Execute Claude Code CLI")
-	postStepIndex := strings.Index(lockContent, "- name: Post AI Step")
+	// Use indices that exclude comment lines (frontmatter is embedded as comments)
+	preStepIndex := indexInNonCommentLines(lockContent, "- name: Pre AI Step")
+	aiStepIndex := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
+	postStepIndex := indexInNonCommentLines(lockContent, "- name: Post AI Step")
 
 	if preStepIndex == -1 || aiStepIndex == -1 || postStepIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
@@ -4110,8 +4228,9 @@ This workflow tests post-steps without pre-steps.
 	}
 
 	// Verify the order: AI execution should come before post-steps
-	aiStepIndex := strings.Index(lockContent, "- name: Execute Claude Code CLI")
-	postStepIndex := strings.Index(lockContent, "- name: Only Post Step")
+	// Use indices that exclude comment lines (frontmatter is embedded as comments)
+	aiStepIndex := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
+	postStepIndex := indexInNonCommentLines(lockContent, "- name: Only Post Step")
 
 	if aiStepIndex == -1 || postStepIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
@@ -4452,9 +4571,15 @@ strict: false
 			}
 
 			// Verify step properties have proper indentation (8+ spaces for uses, with, etc.)
+			// Only check non-comment lines (frontmatter is embedded as comments)
 			lines := strings.Split(lockContent, "\n")
 			foundCustomSteps := false
 			for i, line := range lines {
+				// Skip comment lines
+				trimmed := strings.TrimLeft(line, " \t")
+				if strings.HasPrefix(trimmed, "#") {
+					continue
+				}
 				// Look for custom step content (not generated workflow infrastructure)
 				if strings.Contains(line, "Checkout code") || strings.Contains(line, "Set up Go") ||
 					strings.Contains(line, "Odd indent") || strings.Contains(line, "Deep nesting") {
@@ -4712,10 +4837,11 @@ This workflow tests that stop-after is properly compiled away.
 
 			lockContent := string(content)
 
-			// Check that strings that should NOT appear are indeed absent
+			// Check that strings that should NOT appear are indeed absent from non-comment lines
+			// (frontmatter is embedded as comments, so we exclude comment lines)
 			for _, shouldNotContain := range tt.shouldNotContain {
-				if strings.Contains(lockContent, shouldNotContain) {
-					t.Errorf("%s: Lock file should NOT contain '%s' but it did.\nLock file content:\n%s", tt.description, shouldNotContain, lockContent)
+				if containsInNonCommentLines(lockContent, shouldNotContain) {
+					t.Errorf("%s: Lock file should NOT contain '%s' in non-comment lines but it did.\nLock file content:\n%s", tt.description, shouldNotContain, lockContent)
 				}
 			}
 
@@ -5898,19 +6024,30 @@ Test post-steps indentation fix.
 	}
 
 	// Verify indentation is correct (6 spaces for list items, 8 for properties)
+	// Only check non-comment lines (frontmatter is embedded as comments)
 	lines := strings.Split(lockContent, "\n")
 	for i, line := range lines {
+		// Skip comment lines
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
 		if strings.Contains(line, "- name: First Post Step") {
 			// Check that this line has exactly 6 leading spaces
 			if !strings.HasPrefix(line, "      - name: First Post Step") {
 				t.Errorf("Line %d: Expected 6 spaces before '- name: First Post Step', got: %q", i+1, line)
 			}
-			// Check the next line (run:) has 8 spaces
-			if i+1 < len(lines) {
-				nextLine := lines[i+1]
-				if strings.Contains(nextLine, "run:") && !strings.HasPrefix(nextLine, "        run:") {
-					t.Errorf("Line %d: Expected 8 spaces before 'run:', got: %q", i+2, nextLine)
+			// Check the next non-comment line (run:) has 8 spaces
+			for j := i + 1; j < len(lines); j++ {
+				nextTrimmed := strings.TrimLeft(lines[j], " \t")
+				if strings.HasPrefix(nextTrimmed, "#") {
+					continue
 				}
+				nextLine := lines[j]
+				if strings.Contains(nextLine, "run:") && !strings.HasPrefix(nextLine, "        run:") {
+					t.Errorf("Line %d: Expected 8 spaces before 'run:', got: %q", j+1, nextLine)
+				}
+				break
 			}
 		}
 		if strings.Contains(line, "- name: Second Post Step") {
@@ -5918,15 +6055,23 @@ Test post-steps indentation fix.
 			if !strings.HasPrefix(line, "      - name: Second Post Step") {
 				t.Errorf("Line %d: Expected 6 spaces before '- name: Second Post Step', got: %q", i+1, line)
 			}
-			// Check subsequent lines have correct indentation
-			if i+1 < len(lines) && strings.Contains(lines[i+1], "uses:") {
-				if !strings.HasPrefix(lines[i+1], "        uses:") {
-					t.Errorf("Line %d: Expected 8 spaces before 'uses:', got: %q", i+2, lines[i+1])
+			// Check subsequent non-comment lines have correct indentation
+			checkIdx := 0
+			for j := i + 1; j < len(lines) && checkIdx < 2; j++ {
+				nextTrimmed := strings.TrimLeft(lines[j], " \t")
+				if strings.HasPrefix(nextTrimmed, "#") {
+					continue
 				}
-			}
-			if i+2 < len(lines) && strings.Contains(lines[i+2], "with:") {
-				if !strings.HasPrefix(lines[i+2], "        with:") {
-					t.Errorf("Line %d: Expected 8 spaces before 'with:', got: %q", i+3, lines[i+2])
+				if checkIdx == 0 && strings.Contains(lines[j], "uses:") {
+					if !strings.HasPrefix(lines[j], "        uses:") {
+						t.Errorf("Line %d: Expected 8 spaces before 'uses:', got: %q", j+1, lines[j])
+					}
+					checkIdx++
+				} else if checkIdx == 1 && strings.Contains(lines[j], "with:") {
+					if !strings.HasPrefix(lines[j], "        with:") {
+						t.Errorf("Line %d: Expected 8 spaces before 'with:', got: %q", j+1, lines[j])
+					}
+					checkIdx++
 				}
 			}
 		}

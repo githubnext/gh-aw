@@ -20,6 +20,39 @@
 #
 # Tests documentation as a new user would, identifying confusing or broken steps in getting started guides
 #
+# Original Frontmatter:
+# ```yaml
+# name: Documentation Noob Tester
+# description: Tests documentation as a new user would, identifying confusing or broken steps in getting started guides
+# on:
+#   schedule:
+#     - cron: '0 10 * * *'  # Daily at 10 AM UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# timeout-minutes: 30
+# tools:
+#   playwright:
+#     allowed_domains:
+#       - "localhost"
+#       - "127.0.0.1"
+#   edit:
+#   bash:
+#     - "*"
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "General"
+#
+# network:
+#   allowed:
+#     - defaults
+#     - node
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

@@ -20,6 +20,43 @@
 #
 # Generates optimized prompts for voice dictation and speech-to-text workflows
 #
+# Original Frontmatter:
+# ```yaml
+# name: Dictation Prompt Generator
+# description: Generates optimized prompts for voice dictation and speech-to-text workflows
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 6 * * 0"  # Weekly on Sundays at 6 AM UTC
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: copilot
+#
+# network: defaults
+#
+# imports:
+#   - shared/reporting.md
+#
+# tools:
+#   edit:
+#   bash:
+#     - "*"
+#   github:
+#     toolsets: [default]
+#
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation, automation]
+#     draft: false
+#
+# timeout-minutes: 10
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

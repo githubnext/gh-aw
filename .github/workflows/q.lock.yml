@@ -20,6 +20,46 @@
 #
 # Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
 #
+# Original Frontmatter:
+# ```yaml
+# name: Q
+# description: Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
+# on:
+#   command:
+#     name: q
+#   reaction: rocket
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# roles: [admin, maintainer, write]
+# engine: copilot
+# imports:
+#   - shared/mcp/gh-aw.md
+#   - shared/mcp/tavily.md
+# tools:
+#   serena: ["go"]
+#   github:
+#     toolsets:
+#       - default
+#       - actions
+#   edit:
+#   bash:
+#   cache-memory: true
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#   create-pull-request:
+#     title-prefix: "[q] "
+#     labels: [automation, workflow-optimization]
+#     reviewers: copilot
+#     draft: false
+#     if-no-changes: "ignore"
+# timeout-minutes: 15
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/gh-aw.md

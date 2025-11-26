@@ -20,6 +20,30 @@
 #
 # Generates high-quality data visualizations and trend charts using Python scientific computing libraries
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates high-quality data visualizations and trend charts using Python scientific computing libraries
+# on:
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   agentic-workflows:
+#   edit:
+# imports:
+#   - shared/charts-with-trending.md
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "artifacts"
+#     max: 1
+# timeout-minutes: 15
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/charts-with-trending.md

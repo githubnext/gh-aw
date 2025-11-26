@@ -20,6 +20,31 @@
 #
 # Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 #
+# Original Frontmatter:
+# ```yaml
+# description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
+# on:
+#   schedule:
+#     - cron: "0 9 * * *"  # Daily at 9 AM UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   security-events: read
+# tracker-id: malicious-code-scan
+# engine: copilot
+# tools:
+#   github:
+#     toolsets: [repos, code_security]
+#   bash:
+# safe-outputs:
+#   create-code-scanning-alert:
+#     driver: "Malicious Code Scanner"
+#   threat-detection: false
+# timeout-minutes: 15
+# strict: true
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

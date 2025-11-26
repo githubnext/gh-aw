@@ -20,6 +20,35 @@
 #
 # Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
 #
+# Original Frontmatter:
+# ```yaml
+# description: Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
+# on:
+#   command: "nit"
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   actions: read
+# engine: copilot
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [pull_requests, repos]
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[nitpick-report] "
+#     category: "General"
+#     max: 1
+#   add-comment:
+#     max: 3
+#   create-pull-request-review-comment:
+#     max: 10
+#     side: "RIGHT"
+# timeout-minutes: 15
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

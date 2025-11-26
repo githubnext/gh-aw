@@ -20,6 +20,36 @@
 #
 # Monitors development workflow activities and provides real-time alerts and insights on pull requests and CI status
 #
+# Original Frontmatter:
+# ```yaml
+# name: Dev Hawk
+# description: Monitors development workflow activities and provides real-time alerts and insights on pull requests and CI status
+# on:
+#   workflow_run:
+#     workflows:
+#       - Dev
+#     types:
+#       - completed
+#     branches:
+#       - 'copilot/*'
+# if: ${{ github.event.workflow_run.event == 'workflow_dispatch' }}
+# permissions:
+#   contents: read
+#   actions: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   agentic-workflows:
+#   github:
+#     toolsets: [pull_requests, actions, repos]
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#     target: "*"
+# timeout-minutes: 10
+# strict: true
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

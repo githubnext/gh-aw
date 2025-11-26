@@ -20,6 +20,35 @@
 #
 # Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 #
+# Original Frontmatter:
+# ```yaml
+# description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
+# on:
+#   schedule:
+#     - cron: "0 8 * * *"  # Daily at 8 AM UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# tracker-id: daily-code-metrics
+# engine: claude
+# tools:
+#   cache-memory:
+#     - id: metrics
+#       key: code-metrics-${{ github.workflow }}
+#   bash:
+# safe-outputs:
+#   create-discussion:
+#     category: "audits"
+#     max: 1
+# timeout-minutes: 15
+# strict: true
+# imports:
+#   - shared/reporting.md
+#   - shared/trending-charts-simple.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

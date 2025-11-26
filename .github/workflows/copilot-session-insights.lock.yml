@@ -20,6 +20,195 @@
 #
 # Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
 #
+# Original Frontmatter:
+# ```yaml
+# name: Copilot Session Insights
+# description: Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
+# on:
+#   schedule:
+#     # Daily at 8:00 AM Pacific Time (16:00 UTC)
+#     - cron: "0 16 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#     - python
+#
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     title-prefix: "[copilot-session-insights] "
+#     category: "audits"
+#     max: 1
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   bash:
+#     - "gh extension list"
+#     - "gh extension install *"
+#     - "gh agent-task list *"
+#     - "gh agent-task view *"
+#     - "jq *"
+#     - "find /tmp -type f"
+#     - "cat /tmp/*"
+#     - "mkdir -p *"
+#     - "ls -la *"
+#     - "date *"
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/reporting.md
+#   - shared/trends.md
+#
+# steps:
+#   - name: Install gh agent-task extension
+#     id: install-extension
+#     continue-on-error: true
+#     env:
+#       GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+#     run: |
+#       echo "::group::Install gh agent-task Extension"
+#
+#       # Check if gh CLI is available
+#       if ! command -v gh &> /dev/null; then
+#         echo "::error::GitHub CLI (gh) is not installed or not in PATH"
+#         echo "EXTENSION_INSTALLED=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#       echo "✓ GitHub CLI found: $(gh --version | head -1)"
+#
+#       # Check if gh agent-task extension is already installed
+#       if gh extension list | grep -q "github/agent-task"; then
+#         echo "✓ gh agent-task extension is already installed"
+#         echo "EXTENSION_INSTALLED=true" >> "$GITHUB_OUTPUT"
+#         echo "::endgroup::"
+#         exit 0
+#       fi
+#
+#       # Attempt to install the extension
+#       echo "Installing gh agent-task extension..."
+#       if gh extension install github/agent-task; then
+#         echo "✓ gh agent-task extension installed successfully"
+#         echo "EXTENSION_INSTALLED=true" >> "$GITHUB_OUTPUT"
+#       else
+#         echo "::warning::Failed to install gh agent-task extension"
+#         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
+#         echo "::warning::The extension may not be available for this account"
+#         echo "EXTENSION_INSTALLED=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#
+#       echo "::endgroup::"
+#
+#   - name: List and download Copilot agent sessions
+#     id: download-sessions
+#     continue-on-error: true
+#     env:
+#       GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+#       # Security: Pass step output through environment variable to prevent template injection
+#       EXTENSION_INSTALLED: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}
+#     run: |
+#       # Create output directory
+#       mkdir -p /tmp/gh-aw/agent-sessions
+#       mkdir -p /tmp/gh-aw/agent-sessions/logs
+#
+#       # Pre-flight validation checks
+#       echo "::group::Pre-flight Validation"
+#
+#       # Check if gh CLI is available
+#       if ! command -v gh &> /dev/null; then
+#         echo "::error::GitHub CLI (gh) is not installed or not in PATH"
+#         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#       echo "✓ GitHub CLI found: $(gh --version | head -1)"
+#
+#       # Check if gh agent-task extension is installed
+#       if ! gh agent-task --help &> /dev/null; then
+#         echo "::warning::gh agent-task extension is not installed"
+#         # Security: Use environment variable instead of template expression in bash script
+#         echo "::warning::Extension installation status from previous step: $EXTENSION_INSTALLED"
+#         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
+#         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#       echo "✓ gh agent-task extension found"
+#
+#       # Check authentication
+#       if [ -z "$GH_TOKEN" ]; then
+#         echo "::error::GH_TOKEN is not set"
+#         echo "::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token"
+#         echo "::warning::The default GITHUB_TOKEN does not have agent-task API access"
+#         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#       echo "✓ GH_TOKEN is configured"
+#
+#       echo "::endgroup::"
+#
+#       # Attempt to fetch sessions
+#       echo "::group::Fetching Copilot Agent Sessions"
+#       echo "Fetching Copilot agent task sessions..."
+#
+#       # List recent agent tasks (limit to 50 for manageable analysis)
+#       if ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then
+#         echo "::error::Failed to list agent tasks"
+#         echo "::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled"
+#         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+#         exit 1
+#       fi
+#
+#       echo "Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json"
+#       TOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)
+#       echo "Total sessions found: $TOTAL_SESSIONS"
+#
+#       if [ "$TOTAL_SESSIONS" -eq 0 ]; then
+#         echo "::warning::No sessions available for analysis"
+#         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+#         exit 0
+#       fi
+#
+#       # Download logs for each session (limit to first 50)
+#       echo "Downloading session logs..."
+#       jq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do
+#         if [ -n "$session_id" ]; then
+#           echo "Downloading session: $session_id"
+#           gh agent-task view "$session_id" --log > "/tmp/gh-aw/agent-sessions/logs/${session_id}.log" 2>&1 || true
+#         fi
+#       done
+#
+#       LOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)
+#       echo "Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/"
+#       echo "Total log files: $LOG_COUNT"
+#
+#       echo "SESSIONS_AVAILABLE=true" >> "$GITHUB_OUTPUT"
+#       echo "::endgroup::"
+#
+#   - name: Create fallback session data
+#     if: steps.download-sessions.outcome == 'failure'
+#     run: |
+#       # Create empty session data to prevent downstream errors
+#       mkdir -p /tmp/gh-aw/agent-sessions/logs
+#       echo '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json
+#       echo "Created empty session data files for graceful degradation"
+#
+# timeout-minutes: 20
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md

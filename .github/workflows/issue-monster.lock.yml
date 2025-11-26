@@ -20,6 +20,35 @@
 #
 # The Cookie Monster of issues - assigns issues to Copilot agents one at a time
 #
+# Original Frontmatter:
+# ```yaml
+# name: Issue Monster
+# description: The Cookie Monster of issues - assigns issues to Copilot agents one at a time
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 * * * *"
+#   skip-if-match: 'is:pr is:open author:app/copilot-swe-agent'
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: copilot
+# timeout-minutes: 30
+#
+# tools:
+#   github:
+#     toolsets: [default, pull_requests]
+#
+# safe-outputs:
+#   assign-to-agent:
+#     max: 1
+#   add-comment:
+#     max: 1
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

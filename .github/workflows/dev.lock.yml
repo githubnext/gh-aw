@@ -20,6 +20,30 @@
 #
 # Test workflow for development and experimentation purposes
 #
+# Original Frontmatter:
+# ```yaml
+# on: 
+#   workflow_dispatch:
+# name: Dev
+# description: Test workflow for development and experimentation purposes
+# timeout-minutes: 5
+# strict: false
+# # Using experimental Claude engine for testing
+# engine: claude
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   discussions: read
+# tools:
+#   bash: ["*"]
+#   edit:
+#   github:
+#     toolsets: [default, repos, issues, discussions]
+# safe-outputs:
+#   assign-to-agent:
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

@@ -20,6 +20,74 @@
 #
 # Reviews and improves technical documentation based on provided topics
 #
+# Original Frontmatter:
+# ```yaml
+# description: Reviews and improves technical documentation based on provided topics
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       topic:
+#         description: 'Documentation topic to review'
+#         required: true
+#         type: string
+#
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   issues: read
+#   actions: read
+#
+# engine:
+#   id: copilot
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# imports:
+#   - ../instructions/documentation.instructions.md
+#   - ../agents/technical-doc-writer.md
+#
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation]
+#     reviewers: copilot
+#     draft: false
+#   upload-assets:
+#
+# steps:
+#   - name: Setup Node.js
+#     uses: actions/setup-node@v6
+#     with:
+#       node-version: '24'
+#       cache: 'npm'
+#       cache-dependency-path: 'docs/package-lock.json'
+#
+#   - name: Install dependencies
+#     working-directory: ./docs
+#     run: npm ci
+#
+#   - name: Build documentation
+#     working-directory: ./docs
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: npm run build
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#
+# timeout-minutes: 10
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - ../instructions/documentation.instructions.md

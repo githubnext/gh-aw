@@ -18,6 +18,24 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Original Frontmatter:
+# ```yaml
+# timeout-minutes: 5
+# strict: true
+# on:
+#   schedule:
+#     - cron: "0 14 * * 1-5"
+#   workflow_dispatch:
+# permissions:
+#   issues: read
+# tools:
+#   github:
+#     toolsets: [issues, labels]
+# safe-outputs:
+#   add-labels:
+#     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

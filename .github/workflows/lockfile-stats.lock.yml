@@ -20,6 +20,31 @@
 #
 # Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 #
+# Original Frontmatter:
+# ```yaml
+# description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
+# on:
+#   schedule:
+#     - cron: "0 3 * * *"  # Daily at 3am UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# engine: claude
+# tools:
+#   cache-memory: true
+#   bash:
+# safe-outputs:
+#   create-discussion:
+#     category: "audits"
+#     max: 1
+# timeout-minutes: 15
+# strict: true
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

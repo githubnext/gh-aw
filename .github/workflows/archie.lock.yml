@@ -20,6 +20,35 @@
 #
 # Generates Mermaid diagrams to visualize issue and pull request relationships when invoked with the /archie command
 #
+# Original Frontmatter:
+# ```yaml
+# name: Archie
+# description: Generates Mermaid diagrams to visualize issue and pull request relationships when invoked with the /archie command
+# on:
+#   command:
+#     name: archie
+#     events: [issues, issue_comment, pull_request, pull_request_comment]
+#   reaction: eyes
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+# engine: copilot
+# strict: true
+# tools:
+#   serena: ["go"]
+#   github:
+#     toolsets:
+#       - default
+#   edit:
+#   bash:
+# safe-outputs:
+#   add-comment:
+#     max: 1
+# timeout-minutes: 10
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

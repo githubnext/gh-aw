@@ -20,6 +20,41 @@
 #
 # Posts a daily random fact about the gh-aw project to a discussion thread
 #
+# Original Frontmatter:
+# ```yaml
+# description: Posts a daily random fact about the gh-aw project to a discussion thread
+# on:
+#   schedule:
+#     - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+#   discussions: read
+# tracker-id: daily-fact-thread
+# engine:
+#   id: codex
+#   model: gpt-5-mini
+# strict: false  # Required: codex engine doesn't support network firewall
+# timeout-minutes: 15
+#
+# network:
+#   allowed:
+#     - defaults
+#
+# tools:
+#   github:
+#     toolsets:
+#       - default
+#       - discussions
+# safe-outputs:
+#   add-comment:
+#     target: "4750"
+#     discussion: true
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

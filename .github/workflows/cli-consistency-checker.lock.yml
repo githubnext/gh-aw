@@ -20,6 +20,34 @@
 #
 # Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
 #
+# Original Frontmatter:
+# ```yaml
+# description: Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
+# on:
+#   schedule:
+#     - cron: "0 13 * * 1-5"  # Daily at 1 PM UTC, weekdays only (Mon-Fri)
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# network:
+#   allowed: [defaults, node, "api.github.com"]
+# tools:
+#   edit:
+#   web-fetch:
+#   bash:
+#     - "*"
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[cli-consistency] "
+#     labels: [automation, cli, documentation]
+#     max: 5
+# timeout-minutes: 20
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

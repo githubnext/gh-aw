@@ -20,6 +20,51 @@
 #
 # Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
 #
+# Original Frontmatter:
+# ```yaml
+# name: Daily File Diet
+# description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 13 * * 1-5"  # Weekdays at 1 PM UTC
+#   skip-if-match: 'is:issue is:open in:title "[file-diet]"'
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# tracker-id: daily-file-diet
+# engine: codex
+#
+# imports:
+#   - shared/reporting.md
+#   - shared/safe-output-app.md
+#
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[file-diet] "
+#     labels: [refactoring, code-health, automated-analysis]
+#     max: 1
+#
+# tools:
+#   serena: ["go"]
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
+#     - "wc -l pkg/**/*.go"
+#     - "cat pkg/**/*.go"
+#     - "head -n * pkg/**/*.go"
+#     - "grep -r 'func ' pkg --include='*.go'"
+#     - "ls -la pkg/"
+#
+# timeout-minutes: 20
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

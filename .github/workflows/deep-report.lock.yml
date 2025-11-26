@@ -20,6 +20,56 @@
 #
 # Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 #
+# Original Frontmatter:
+# ```yaml
+# description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
+# on:
+#   schedule:
+#     # Daily at 3pm UTC, weekdays only
+#     - cron: "0 15 * * 1-5"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+#   discussions: read
+#   repository-projects: read
+#   security-events: read
+#
+# tracker-id: deep-report-intel-agent
+# timeout-minutes: 45
+#
+# network:
+#   allowed:
+#     - defaults
+#     - python
+#     - node
+#   firewall: true
+#
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "reports"
+#     max: 1
+#
+# tools:
+#   cache-memory:
+#   github:
+#     toolsets:
+#       - all
+#   bash:
+#     - "*"
+#   edit:
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/weekly-issues-data-fetch.md
+#   - shared/mcp/gh-aw.md
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md

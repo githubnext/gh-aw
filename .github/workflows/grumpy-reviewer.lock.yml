@@ -20,6 +20,30 @@
 #
 # Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 #
+# Original Frontmatter:
+# ```yaml
+# description: Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
+# on:
+#   command:
+#     name: grumpy
+#     events: [pull_request_comment, pull_request_review_comment]
+# permissions:
+#   contents: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [pull_requests, repos]
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#   create-pull-request-review-comment:
+#     max: 5
+#     side: "RIGHT"
+# timeout-minutes: 10
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

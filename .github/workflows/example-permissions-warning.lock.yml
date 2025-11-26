@@ -20,6 +20,23 @@
 #
 # Example workflow demonstrating proper permission provisioning and security best practices
 #
+# Original Frontmatter:
+# ```yaml
+# description: Example workflow demonstrating proper permission provisioning and security best practices
+# timeout-minutes: 5
+# on:
+#   workflow_dispatch:
+# permissions:
+#   contents: write
+#   issues: write
+#   pull-requests: write
+# tools:
+#   github:
+#     toolsets: [repos, issues, pull_requests]
+#     read-only: false
+# strict: false
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
