@@ -314,3 +314,4 @@ make minor-release  # Automated via GitHub Actions
 - Read issue comments for context before making changes
 - Use conventional commits for commit messages
 - do NOT commit explanation markdown files about the fixes
+- PR descriptions should be concise: 1-2 sentences only
