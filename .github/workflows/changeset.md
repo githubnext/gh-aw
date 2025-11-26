@@ -32,12 +32,6 @@ imports:
   - shared/changeset-format.md
   - shared/jqschema.md
   - shared/safe-output-app.md
-steps:
-  - name: Setup changeset directory
-    run: |
-      mkdir -p .changeset
-      git config user.name "github-actions[bot]"
-      git config user.email "github-actions[bot]@users.noreply.github.com"
 ---
 
 # Changeset Generator
@@ -72,12 +66,11 @@ Your task is to:
    **Important**: Internal changes, tooling, and documentation are always "patch" level.
 
 4. **Generate the Changeset File**:
-   - Create file in `.changeset/` directory (already created by pre-step)
+   - Create the `.changeset/` directory if it doesn't exist: `mkdir -p .changeset`
    - Use format from the changeset format reference above
    - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
 
 5. **Commit and Push Changes**:
-   - Git is already configured by pre-step
    - Add and commit the changeset file using git commands:
      ```bash
      git add .changeset/<filename> && git commit -m "Add changeset"
