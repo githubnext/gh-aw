@@ -3906,10 +3906,17 @@ jobs:
             const AGENT_LOGIN_NAMES = {
               copilot: "copilot-swe-agent",
             };
+            function getAgentName(assignee) {
+              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+              if (AGENT_LOGIN_NAMES[normalized]) {
+                return normalized;
+              }
+              return null;
+            }
             async function getAvailableAgentLogins(owner, repo) {
               const query = `
-                query {
-                  repository(owner: "${owner}", name: "${repo}") {
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
                     suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
                       nodes { ... on Bot { login __typename } }
                     }
@@ -3917,7 +3924,7 @@ jobs:
                 }
               `;
               try {
-                const response = await github.graphql(query);
+                const response = await github.graphql(query, { owner, repo });
                 const actors = response.repository?.suggestedActors?.nodes || [];
                 const knownValues = Object.values(AGENT_LOGIN_NAMES);
                 const available = [];
@@ -3935,8 +3942,8 @@ jobs:
             }
             async function findAgent(owner, repo, agentName) {
               const query = `
-                query {
-                  repository(owner: "${owner}", name: "${repo}") {
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
                     suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
                       nodes {
                         ... on Bot {
@@ -3950,7 +3957,7 @@ jobs:
                 }
               `;
               try {
-                const response = await github.graphql(query);
+                const response = await github.graphql(query, { owner, repo });
                 const actors = response.repository.suggestedActors.nodes;
                 const loginName = AGENT_LOGIN_NAMES[agentName];
                 if (!loginName) {
@@ -3983,9 +3990,9 @@ jobs:
             }
             async function getIssueDetails(owner, repo, issueNumber) {
               const query = `
-                query {
-                  repository(owner: "${owner}", name: "${repo}") {
-                    issue(number: ${issueNumber}) {
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
                       id
                       assignees(first: 100) {
                         nodes {
@@ -3997,7 +4004,7 @@ jobs:
                 }
               `;
               try {
-                const response = await github.graphql(query);
+                const response = await github.graphql(query, { owner, repo, issueNumber });
                 const issue = response.repository.issue;
                 if (!issue || !issue.id) {
                   core.error("Could not get issue data");
@@ -4014,7 +4021,7 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
@@ -4022,30 +4029,35 @@ jobs:
                 }
               }
               const mutation = `
-                mutation {
+                mutation($assignableId: ID!, $actorIds: [ID!]!) {
                   replaceActorsForAssignable(input: {
-                    assignableId: "${issueId}",
-                    actorIds: ${JSON.stringify(actorIds)}
+                    assignableId: $assignableId,
+                    actorIds: $actorIds
                   }) {
                     __typename
                   }
                 }
               `;
               try {
-                const mutationToken = process.env.GH_AW_AGENT_TOKEN;
-                if (!mutationToken) {
-                  core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
+                if (!ghToken) {
+                  core.error("GitHub token is not set. Cannot perform assignment mutation.");
                   return false;
                 }
-                core.info("Using GH_AW_AGENT_TOKEN for mutation");
-                core.debug(`GraphQL mutation: ${mutation}`);
+                core.info("Using provided GitHub token for mutation");
+                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
                 const response = await fetch("https://api.github.com/graphql", {
                   method: "POST",
                   headers: {
-                    Authorization: `Bearer ${mutationToken}`,
+                    Authorization: `Bearer ${ghToken}`,
                     "Content-Type": "application/json",
                   },
-                  body: JSON.stringify({ query: mutation }),
+                  body: JSON.stringify({
+                    query: mutation,
+                    variables: {
+                      assignableId: issueId,
+                      actorIds: actorIds,
+                    },
+                  }),
                 }).then(res => res.json());
                 if (response.errors && response.errors.length > 0) {
                   throw new Error(response.errors[0].message);
@@ -4087,20 +4099,34 @@ jobs:
                 ) {
                   core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
                   try {
-                    const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
-                    const fallbackToken = process.env.GH_AW_AGENT_TOKEN;
-                    if (!fallbackToken) {
-                      core.error("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform fallback mutation.");
+                    const fallbackMutation = `
+                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        addAssigneesToAssignable(input: {
+                          assignableId: $assignableId,
+                          assigneeIds: $assigneeIds
+                        }) {
+                          clientMutationId
+                        }
+                      }
+                    `;
+                    if (!ghToken) {
+                      core.error("GitHub token is not set. Cannot perform fallback mutation.");
                     } else {
-                      core.info("Using GH_AW_AGENT_TOKEN for fallback mutation");
-                      core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
+                      core.info("Using provided GitHub token for fallback mutation");
+                      core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
                       const fallbackResp = await fetch("https://api.github.com/graphql", {
                         method: "POST",
                         headers: {
-                          Authorization: `Bearer ${fallbackToken}`,
+                          Authorization: `Bearer ${ghToken}`,
                           "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({ query: fallbackMutation }),
+                        body: JSON.stringify({
+                          query: fallbackMutation,
+                          variables: {
+                            assignableId: issueId,
+                            assigneeIds: [agentId],
+                          },
+                        }),
                       }).then(res => res.json());
                       if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
                         core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
@@ -4113,32 +4139,96 @@ jobs:
                     const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
                     core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
                   }
-                  core.error(`Failed to assign ${agentName}: Insufficient permissions`);
-                  core.error("");
-                  core.error("Assigning Copilot agents requires:");
-                  core.error("  1. All four workflow permissions:");
-                  core.error("     - actions: write");
-                  core.error("     - contents: write");
-                  core.error("     - issues: write");
-                  core.error("     - pull-requests: write");
-                  core.error("");
-                  core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
-                  core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
-                  core.error("");
-                  core.error("  3. Repository settings:");
-                  core.error("     - Actions must have write permissions");
-                  core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-                  core.error("     - Select: 'Read and write permissions'");
-                  core.error("");
-                  core.error("  4. Organization/Enterprise settings:");
-                  core.error("     - Check if your org restricts bot assignments");
-                  core.error("     - Verify Copilot is enabled for your repository");
-                  core.error("");
-                  core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+                  logPermissionError(agentName);
                 } else {
                   core.error(`Failed to assign ${agentName}: ${errorMessage}`);
                 }
                 return false;
+              }
+            }
+            function logPermissionError(agentName) {
+              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+              core.error("");
+              core.error("Assigning Copilot agents requires:");
+              core.error("  1. All four workflow permissions:");
+              core.error("     - actions: write");
+              core.error("     - contents: write");
+              core.error("     - issues: write");
+              core.error("     - pull-requests: write");
+              core.error("");
+              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+              core.error("");
+              core.error("  3. Repository settings:");
+              core.error("     - Actions must have write permissions");
+              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+              core.error("     - Select: 'Read and write permissions'");
+              core.error("");
+              core.error("  4. Organization/Enterprise settings:");
+              core.error("     - Check if your org restricts bot assignments");
+              core.error("     - Verify Copilot is enabled for your repository");
+              core.error("");
+              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+            }
+            function generatePermissionErrorSummary() {
+              let content = "\n### ⚠️ Permission Requirements\n\n";
+              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+              content += "```yaml\n";
+              content += "permissions:\n";
+              content += "  actions: write\n";
+              content += "  contents: write\n";
+              content += "  issues: write\n";
+              content += "  pull-requests: write\n";
+              content += "```\n\n";
+              content += "**Token capability note:**\n";
+              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+              content += "**Recommended remediation paths:**\n";
+              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+              content +=
+                "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+              return content;
+            }
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghToken) {
+              if (!AGENT_LOGIN_NAMES[agentName]) {
+                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.warning(error);
+                return { success: false, error };
+              }
+              try {
+                core.info(`Looking for ${agentName} coding agent...`);
+                const agentId = await findAgent(owner, repo, agentName);
+                if (!agentId) {
+                  const error = `${agentName} coding agent is not available for this repository`;
+                  const available = await getAvailableAgentLogins(owner, repo);
+                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+                  return { success: false, error: enrichedError };
+                }
+                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                core.info("Getting issue details...");
+                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+                if (!issueDetails) {
+                  return { success: false, error: "Failed to get issue details" };
+                }
+                core.info(`Issue ID: ${issueDetails.issueId}`);
+                if (issueDetails.currentAssignees.includes(agentId)) {
+                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                  return { success: true };
+                }
+                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+                if (!success) {
+                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
+                }
+                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                return { success: true };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
               }
             }
             async function main() {
@@ -4192,6 +4282,11 @@ jobs:
                   core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
                 }
               }
+              const mutationToken = process.env.GH_AW_AGENT_TOKEN;
+              if (!mutationToken) {
+                core.setFailed("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
+                return;
+              }
               const agentCache = {};
               const results = [];
               for (const item of itemsToProcess) {
@@ -4238,7 +4333,7 @@ jobs:
                     continue;
                   }
                   core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, mutationToken);
                   if (!success) {
                     throw new Error(`Failed to assign ${agentName} via GraphQL`);
                   }
@@ -4288,29 +4383,7 @@ jobs:
                   r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
                 );
                 if (hasPermissionError) {
-                  summaryContent += "\n### ⚠️ Permission Requirements\n\n";
-                  summaryContent += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
-                  summaryContent += "```yaml\n";
-                  summaryContent += "permissions:\n";
-                  summaryContent += "  actions: write\n";
-                  summaryContent += "  contents: write\n";
-                  summaryContent += "  issues: write\n";
-                  summaryContent += "  pull-requests: write\n";
-                  summaryContent += "```\n\n";
-                  summaryContent += "**Token capability note:**\n";
-                  summaryContent += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-                  summaryContent +=
-                    "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
-                  summaryContent += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
-                  summaryContent += "**Recommended remediation paths:**\n";
-                  summaryContent +=
-                    "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
-                  summaryContent += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
-                  summaryContent += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-                  summaryContent +=
-                    "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-                  summaryContent +=
-                    "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+                  summaryContent += generatePermissionErrorSummary();
                 }
               }
               await core.summary.addRaw(summaryContent).write();

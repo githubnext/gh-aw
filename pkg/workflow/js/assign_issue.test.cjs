@@ -49,9 +49,22 @@ const mockExec = {
   exec: vi.fn(),
 };
 
+const mockGithub = {
+  graphql: vi.fn(),
+};
+
+const mockContext = {
+  repo: {
+    owner: "testowner",
+    repo: "testrepo",
+  },
+};
+
 // Set up global variables
 global.core = mockCore;
 global.exec = mockExec;
+global.github = mockGithub;
+global.context = mockContext;
 
 describe("assign_issue.cjs", () => {
   let assignIssueScript;
@@ -147,7 +160,7 @@ describe("assign_issue.cjs", () => {
     });
   });
 
-  describe("Successful assignment", () => {
+  describe("Successful assignment for regular users", () => {
     it("should successfully assign issue to a regular user", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
@@ -169,28 +182,6 @@ describe("assign_issue.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully assigned issue #456 to test-user");
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned issue #456"));
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-
-    it("should successfully assign issue to @copilot", async () => {
-      process.env.GH_TOKEN = "ghp_copilot_token";
-      process.env.ASSIGNEE = "@copilot";
-      process.env.ISSUE_NUMBER = "789";
-
-      mockExec.exec.mockResolvedValue(0);
-
-      // Execute the script
-      await eval(`(async () => { ${assignIssueScript} })()`);
-
-      expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #789 to @copilot");
-      expect(mockExec.exec).toHaveBeenCalledWith(
-        "gh",
-        ["issue", "edit", "789", "--add-assignee", "@copilot"],
-        expect.objectContaining({
-          env: expect.objectContaining({ GH_TOKEN: "ghp_copilot_token" }),
-        })
-      );
-      expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully assigned issue #789 to @copilot");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -225,7 +216,7 @@ describe("assign_issue.cjs", () => {
     });
   });
 
-  describe("Error handling", () => {
+  describe("Error handling for regular users", () => {
     it("should handle gh CLI execution errors", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
@@ -273,7 +264,7 @@ describe("assign_issue.cjs", () => {
     });
   });
 
-  describe("Edge cases", () => {
+  describe("Edge cases for regular users", () => {
     it("should handle numeric issue number", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
@@ -332,4 +323,8 @@ describe("assign_issue.cjs", () => {
       expect(failedCall).toContain("https://githubnext.github.io/gh-aw/reference/safe-outputs/#assigning-issues-to-copilot");
     });
   });
+
+  // Note: Agent-specific tests (e.g., @copilot) are in assign_agent_helpers.test.cjs
+  // since assign_issue.cjs uses the shared helpers module for agent assignment,
+  // and the require() statements don't work with eval() in tests.
 });
