@@ -774,7 +774,7 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	// Find closest matches using Levenshtein distance
 	var suggestions []string
 	for _, invalidProp := range invalidProps {
-		closest := findClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
+		closest := FindClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
 		suggestions = append(suggestions, closest...)
 	}
 
@@ -812,8 +812,10 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	return suggestion.String()
 }
 
-// findClosestMatches finds the closest matching strings using Levenshtein distance
-func findClosestMatches(target string, candidates []string, maxResults int) []string {
+// FindClosestMatches finds the closest matching strings using Levenshtein distance.
+// It returns up to maxResults matches that have a Levenshtein distance of 3 or less.
+// Results are sorted by distance (closest first), then alphabetically for ties.
+func FindClosestMatches(target string, candidates []string, maxResults int) []string {
 	type match struct {
 		value    string
 		distance int
@@ -832,7 +834,7 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 			continue
 		}
 
-		distance := levenshteinDistance(targetLower, candidateLower)
+		distance := LevenshteinDistance(targetLower, candidateLower)
 
 		// Only include if distance is within acceptable range
 		if distance <= maxDistance {
@@ -857,10 +859,10 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 	return results
 }
 
-// levenshteinDistance computes the Levenshtein distance between two strings.
+// LevenshteinDistance computes the Levenshtein distance between two strings.
 // This is the minimum number of single-character edits (insertions, deletions, or substitutions)
 // required to change one string into the other.
-func levenshteinDistance(a, b string) int {
+func LevenshteinDistance(a, b string) int {
 	aLen := len(a)
 	bLen := len(b)
 
