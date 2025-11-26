@@ -39,7 +39,7 @@ tools:
 post-steps:
   - name: Check test results and create issue on failure
     if: failure()
-    uses: actions/github-script@v7
+    uses: actions/github-script@v8
     with:
       script: |
         await github.rest.issues.create({

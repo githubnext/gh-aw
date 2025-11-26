@@ -49,9 +49,14 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var expressionValidationLog = logger.New("workflow:expression_validation")
+
+// maxFuzzyMatchSuggestions is the maximum number of similar expressions to suggest
+// when an unauthorized expression is found
+const maxFuzzyMatchSuggestions = 7
 
 // Pre-compiled regexes for expression validation (performance optimization)
 var (
@@ -116,12 +121,21 @@ func validateExpressionSafety(markdownContent string) error {
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
 		expressionValidationLog.Printf("Expression safety validation failed: %d unauthorized expressions found", len(unauthorizedExpressions))
-		// Format unauthorized expressions list
+		// Format unauthorized expressions list with fuzzy match suggestions
 		var unauthorizedList strings.Builder
 		unauthorizedList.WriteString("\n")
 		for _, expr := range unauthorizedExpressions {
 			unauthorizedList.WriteString("  - ")
 			unauthorizedList.WriteString(expr)
+
+			// Find closest matches using fuzzy string matching
+			closestMatches := parser.FindClosestMatches(expr, constants.AllowedExpressions, maxFuzzyMatchSuggestions)
+			if len(closestMatches) > 0 {
+				unauthorizedList.WriteString(" (did you mean: ")
+				unauthorizedList.WriteString(strings.Join(closestMatches, ", "))
+				unauthorizedList.WriteString("?)")
+			}
+
 			unauthorizedList.WriteString("\n")
 		}
 

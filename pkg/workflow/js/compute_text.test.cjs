@@ -396,5 +396,208 @@ describe("compute_text.cjs", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", "");
     });
+
+    it("should allow issue author mention without neutralization", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test Issue by @issueAuthor",
+          body: "Body mentioning @issueAuthor and @other",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // @issueAuthor should not be neutralized (allowed alias)
+      expect(outputCall[1]).toContain("@issueAuthor");
+      expect(outputCall[1]).not.toContain("`@issueAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
+
+    it("should allow PR author mention without neutralization", async () => {
+      mockContext.eventName = "pull_request";
+      mockContext.payload = {
+        pull_request: {
+          title: "PR by @prAuthor",
+          body: "Mentioning @prAuthor",
+          user: { login: "prAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      expect(outputCall[1]).toContain("@prAuthor");
+      expect(outputCall[1]).not.toContain("`@prAuthor`");
+    });
+
+    it("should allow comment author mention without neutralization", async () => {
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = {
+        comment: {
+          body: "Comment by @commentAuthor mentioning @commentAuthor",
+          user: { login: "commentAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      expect(outputCall[1]).toContain("@commentAuthor");
+      expect(outputCall[1]).not.toContain("`@commentAuthor`");
+    });
+
+    it("should allow discussion author mention without neutralization", async () => {
+      mockContext.eventName = "discussion";
+      mockContext.payload = {
+        discussion: {
+          title: "Discussion by @discussionAuthor",
+          body: "Body with @discussionAuthor",
+          user: { login: "discussionAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      expect(outputCall[1]).toContain("@discussionAuthor");
+      expect(outputCall[1]).not.toContain("`@discussionAuthor`");
+    });
+
+    it("should allow release author mention without neutralization", async () => {
+      mockContext.eventName = "release";
+      mockContext.payload = {
+        release: {
+          name: "Release by @releaseAuthor",
+          body: "Notes mentioning @releaseAuthor",
+          author: { login: "releaseAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      expect(outputCall[1]).toContain("@releaseAuthor");
+      expect(outputCall[1]).not.toContain("`@releaseAuthor`");
+    });
+
+    it("should handle case-insensitive author matching", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @AUTHOR",
+          body: "Body with @author",
+          user: { login: "Author" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Both @AUTHOR and @author should be allowed
+      expect(outputCall[1]).toContain("@AUTHOR");
+      expect(outputCall[1]).not.toContain("`@AUTHOR`");
+      expect(outputCall[1]).toContain("@author");
+      expect(outputCall[1]).not.toContain("`@author`");
+    });
+
+    it("should allow both comment author and parent issue author for issue_comment", async () => {
+      mockContext.eventName = "issue_comment";
+      mockContext.payload = {
+        comment: {
+          body: "Mentioning @commentAuthor and @issueAuthor and @other",
+          user: { login: "commentAuthor" },
+        },
+        issue: {
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Both comment author and issue author should not be neutralized
+      expect(outputCall[1]).toContain("@commentAuthor");
+      expect(outputCall[1]).not.toContain("`@commentAuthor`");
+      expect(outputCall[1]).toContain("@issueAuthor");
+      expect(outputCall[1]).not.toContain("`@issueAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
+
+    it("should allow both comment author and parent PR author for pull_request_review_comment", async () => {
+      mockContext.eventName = "pull_request_review_comment";
+      mockContext.payload = {
+        comment: {
+          body: "Mentioning @reviewCommentAuthor and @prAuthor and @other",
+          user: { login: "reviewCommentAuthor" },
+        },
+        pull_request: {
+          user: { login: "prAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Both comment author and PR author should not be neutralized
+      expect(outputCall[1]).toContain("@reviewCommentAuthor");
+      expect(outputCall[1]).not.toContain("`@reviewCommentAuthor`");
+      expect(outputCall[1]).toContain("@prAuthor");
+      expect(outputCall[1]).not.toContain("`@prAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
+
+    it("should allow both review author and parent PR author for pull_request_review", async () => {
+      mockContext.eventName = "pull_request_review";
+      mockContext.payload = {
+        review: {
+          body: "Mentioning @reviewAuthor and @prAuthor and @other",
+          user: { login: "reviewAuthor" },
+        },
+        pull_request: {
+          user: { login: "prAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Both review author and PR author should not be neutralized
+      expect(outputCall[1]).toContain("@reviewAuthor");
+      expect(outputCall[1]).not.toContain("`@reviewAuthor`");
+      expect(outputCall[1]).toContain("@prAuthor");
+      expect(outputCall[1]).not.toContain("`@prAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
+
+    it("should allow both comment author and parent discussion author for discussion_comment", async () => {
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        comment: {
+          body: "Mentioning @commentAuthor and @discussionAuthor and @other",
+          user: { login: "commentAuthor" },
+        },
+        discussion: {
+          user: { login: "discussionAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Both comment author and discussion author should not be neutralized
+      expect(outputCall[1]).toContain("@commentAuthor");
+      expect(outputCall[1]).not.toContain("`@commentAuthor`");
+      expect(outputCall[1]).toContain("@discussionAuthor");
+      expect(outputCall[1]).not.toContain("`@discussionAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
   });
 });

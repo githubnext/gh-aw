@@ -216,7 +216,7 @@ safe-outputs:
   threat-detection:
     steps:
       - name: Ollama LlamaGuard 3 Scan
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Install and start Ollama service

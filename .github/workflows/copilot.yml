@@ -1,9 +1,6 @@
 name: "copilot only"
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/copilot.yml'
 permissions: {}
 concurrency:
   group: copilot-only
@@ -19,7 +16,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot    
+        run: npm install -g @github/copilot
       - name: Setup MCP Configuration
         run: |
           mkdir -p /tmp/logs
