@@ -112,6 +112,27 @@ The default log level is `info`, which provides a balance between visibility and
 
 See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) documentation for detailed AWF configuration options.
 
+### Disabling the Firewall
+
+To disable the AWF firewall while using network domain allowlists, set both `firewall: false` and `strict: false`:
+
+```yaml wrap
+strict: false
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+  firewall: false
+```
+
+When the firewall is disabled with specific `allowed` domains:
+- **Normal mode**: Compilation succeeds with a warning
+- **Strict mode**: Compilation fails with an error
+
+This configuration is useful during development or when the firewall is incompatible with your workflow requirements. For production workflows, enabling the firewall is recommended for better network security.
+
 ## Best Practices
 
 Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over broad wildcard patterns. Avoid overly permissive patterns like `"*"` or `"*.com"`.
