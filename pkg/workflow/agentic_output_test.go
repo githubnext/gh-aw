@@ -239,7 +239,7 @@ func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "engine-output-cleanup-test")
 
-	// Create a test markdown file with Copilot engine (which declares /tmp/gh-aw/.h-aw/.copilot/logs/ as output file)
+	// Create a test markdown file with Copilot engine (which declares /tmp/gh-aw/.agent/logs/ as output file)
 	testContent := `---
 on: push
 permissions:
@@ -255,7 +255,7 @@ strict: false
 
 # Test Engine Output Cleanup
 
-This workflow tests that /tmp/gh-aw/ h-aw/ files are excluded from cleanup.
+This workflow tests that /tmp/gh-aw/ files are excluded from cleanup.
 `
 
 	testFile := filepath.Join(tmpDir, "test-engine-output-cleanup.md")
@@ -278,13 +278,13 @@ This workflow tests that /tmp/gh-aw/ h-aw/ files are excluded from cleanup.
 	lockStr := string(lockContent)
 
 	// Verify that the upload step includes the /tmp/gh-aw/ path (artifact should still be uploaded)
-	if !strings.Contains(lockStr, "/tmp/gh-aw/.copilot/logs/") {
-		t.Error("Expected upload artifact path to include '/tmp/gh-aw/.copilot/logs/' in generated workflow")
+	if !strings.Contains(lockStr, "/tmp/gh-aw/.agent/logs/") {
+		t.Error("Expected upload artifact path to include '/tmp/gh-aw/.agent/logs/' in generated workflow")
 	}
 
 	// Verify that the cleanup step does NOT include rm commands for /tmp/gh-aw/ paths
-	if strings.Contains(lockStr, "rm -fr /tmp/gh-aw/.copilot/logs/") {
-		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/.copilot/logs/' command")
+	if strings.Contains(lockStr, "rm -fr /tmp/gh-aw/.agent/logs/") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/.agent/logs/' command")
 	}
 
 	// Verify that cleanup step does NOT exist when all files are in /tmp/gh-aw/
