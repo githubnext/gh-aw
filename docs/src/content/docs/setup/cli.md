@@ -40,18 +40,8 @@ gh extension install githubnext/gh-aw
 If the extension installation fails (common in Codespaces outside the githubnext organization or when authentication issues occur), use the standalone installer:
 
 ```bash wrap
-curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
-chmod +x install-gh-aw.sh
-./install-gh-aw.sh
-```
-
-:::tip[One-line install]
-After verifying the script contents, you can use this one-liner:
-
-```bash wrap
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
-:::
 
 After standalone installation, the binary is available as `./gh-aw` in the current directory. To use it globally:
 
