@@ -81,3 +81,90 @@ func TestValidReactionsMap(t *testing.T) {
 		}
 	}
 }
+
+func TestParseReactionValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       any
+		expected    string
+		expectError bool
+	}{
+		// String values
+		{"string +1", "+1", "+1", false},
+		{"string -1", "-1", "-1", false},
+		{"string eyes", "eyes", "eyes", false},
+		{"string rocket", "rocket", "rocket", false},
+
+		// Integer values (as parsed from unquoted YAML)
+		{"int 1 becomes +1", int(1), "+1", false},
+		{"int -1 becomes -1", int(-1), "-1", false},
+		{"int64 1 becomes +1", int64(1), "+1", false},
+		{"int64 -1 becomes -1", int64(-1), "-1", false},
+		{"uint64 1 becomes +1", uint64(1), "+1", false},
+
+		// Invalid integer values
+		{"int 2 is invalid", int(2), "", true},
+		{"int 0 is invalid", int(0), "", true},
+		{"int64 5 is invalid", int64(5), "", true},
+		{"uint64 2 is invalid", uint64(2), "", true},
+
+		// Invalid types
+		{"float is invalid", 1.0, "", true},
+		{"bool is invalid", true, "", true},
+		{"nil is invalid", nil, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseReactionValue(tt.value)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("parseReactionValue(%v) expected error, got result %q", tt.value, result)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("parseReactionValue(%v) unexpected error: %v", tt.value, err)
+				}
+				if result != tt.expected {
+					t.Errorf("parseReactionValue(%v) = %q, want %q", tt.value, result, tt.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestIntToReactionString(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       int64
+		expected    string
+		expectError bool
+	}{
+		{"1 becomes +1", 1, "+1", false},
+		{"-1 becomes -1", -1, "-1", false},
+		{"0 is invalid", 0, "", true},
+		{"2 is invalid", 2, "", true},
+		{"-2 is invalid", -2, "", true},
+		{"100 is invalid", 100, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := intToReactionString(tt.value)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("intToReactionString(%d) expected error, got result %q", tt.value, result)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("intToReactionString(%d) unexpected error: %v", tt.value, err)
+				}
+				if result != tt.expected {
+					t.Errorf("intToReactionString(%d) = %q, want %q", tt.value, result, tt.expected)
+				}
+			}
+		})
+	}
+}

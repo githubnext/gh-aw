@@ -705,7 +705,7 @@ jobs:
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_REACTION: eyes
+          GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: poem-bot
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
         with:

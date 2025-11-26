@@ -2503,7 +2503,7 @@ Test workflow with reaction.
 
 	// Check for reaction-specific content in generated YAML
 	expectedStrings := []string{
-		"GH_AW_REACTION: eyes",
+		"GH_AW_REACTION: \"eyes\"",
 		"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 	}
 
@@ -2672,7 +2672,7 @@ Test workflow with reaction and comment creation.
 
 	// Check for enhanced reaction functionality in generated YAML
 	expectedStrings := []string{
-		"GH_AW_REACTION: eyes",
+		"GH_AW_REACTION: \"eyes\"",
 		"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 		"addCommentWithWorkflowLink", // This should be in the new script
 		"runUrl =",                   // This should be in the new script for workflow run URL
@@ -2762,7 +2762,7 @@ Test command workflow with reaction and comment editing.
 
 	// Check for both environment variables in the generated YAML
 	expectedEnvVars := []string{
-		"GH_AW_REACTION: eyes",
+		"GH_AW_REACTION: \"eyes\"",
 		"GH_AW_COMMAND: test-bot",
 	}
 
@@ -2833,7 +2833,7 @@ Test command workflow that should automatically get "eyes" reaction.
 	}
 
 	// Check for reaction environment variable in the generated YAML
-	if !strings.Contains(yamlContent, "GH_AW_REACTION: eyes") {
+	if !strings.Contains(yamlContent, "GH_AW_REACTION: \"eyes\"") {
 		t.Error("Generated YAML should contain default 'eyes' reaction for command workflow")
 	}
 
@@ -2910,12 +2910,12 @@ Test command workflow with custom reaction override.
 	}
 
 	// Check for custom reaction in the generated YAML
-	if !strings.Contains(yamlContent, "GH_AW_REACTION: rocket") {
+	if !strings.Contains(yamlContent, "GH_AW_REACTION: \"rocket\"") {
 		t.Error("Generated YAML should contain custom 'rocket' reaction")
 	}
 
 	// Verify it doesn't contain default "eyes"
-	if strings.Contains(yamlContent, "GH_AW_REACTION: eyes") {
+	if strings.Contains(yamlContent, "GH_AW_REACTION: \"eyes\"") {
 		t.Error("Generated YAML should not contain default 'eyes' when custom reaction is specified")
 	}
 }
@@ -2971,6 +2971,122 @@ Test workflow with invalid reaction value.
 	}
 	if !hasValidOptions {
 		t.Errorf("Error message should mention valid reaction options, got: %v", err)
+	}
+}
+
+// TestNumericReactionParsing tests that +1 and -1 reactions without quotes are parsed correctly
+// YAML parses +1 as integer 1 and -1 as integer -1 when unquoted
+func TestNumericReactionParsing(t *testing.T) {
+	testCases := []struct {
+		name             string
+		reactionInYAML   string // How it appears in YAML
+		expectedReaction string // Expected AIReaction value
+	}{
+		{
+			name:             "plus one without quotes becomes +1",
+			reactionInYAML:   "+1", // YAML parses unquoted +1 as int 1
+			expectedReaction: "+1",
+		},
+		{
+			name:             "minus one without quotes becomes -1",
+			reactionInYAML:   "-1", // YAML parses unquoted -1 as int -1
+			expectedReaction: "-1",
+		},
+		{
+			name:             "plus one with quotes stays +1",
+			reactionInYAML:   `"+1"`, // YAML parses quoted "+1" as string "+1"
+			expectedReaction: "+1",
+		},
+		{
+			name:             "minus one with quotes stays -1",
+			reactionInYAML:   `"-1"`, // YAML parses quoted "-1" as string "-1"
+			expectedReaction: "-1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "numeric-reaction-test")
+
+			testContent := fmt.Sprintf(`---
+on:
+  issues:
+    types: [opened]
+  reaction: %s
+permissions:
+  contents: read
+  issues: write
+strict: false
+tools:
+  github:
+    allowed: [issue_read]
+---
+
+# Numeric Reaction Test
+
+Test workflow with numeric reaction value.
+`, tc.reactionInYAML)
+
+			testFile := filepath.Join(tmpDir, "test-numeric-reaction.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData, err := compiler.ParseWorkflowFile(testFile)
+			if err != nil {
+				t.Fatalf("Failed to parse workflow with reaction %s: %v", tc.reactionInYAML, err)
+			}
+
+			if workflowData.AIReaction != tc.expectedReaction {
+				t.Errorf("Expected AIReaction to be %q, got %q", tc.expectedReaction, workflowData.AIReaction)
+			}
+		})
+	}
+}
+
+// TestInvalidNumericReaction tests that invalid numeric reactions are rejected
+func TestInvalidNumericReaction(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "invalid-numeric-reaction-test")
+
+	// Use integer 2 which is not a valid reaction
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+  reaction: 2
+permissions:
+  contents: read
+  issues: write
+strict: false
+tools:
+  github:
+    allowed: [issue_read]
+---
+
+# Invalid Numeric Reaction Test
+
+Test workflow with invalid numeric reaction value.
+`
+
+	testFile := filepath.Join(tmpDir, "test-invalid-numeric-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow - should fail with validation error
+	_, err := compiler.ParseWorkflowFile(testFile)
+	if err == nil {
+		t.Fatal("Expected error for invalid numeric reaction value, but got none")
+	}
+
+	// Verify error message mentions the invalid value
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "2") && !strings.Contains(errMsg, "reaction") {
+		t.Errorf("Error message should mention the invalid reaction value, got: %v", err)
 	}
 }
 

@@ -1348,14 +1348,16 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				if reactionStr, ok := reactionValue.(string); ok {
-					// Validate reaction value
-					if !isValidReaction(reactionStr) {
-						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
-					}
-					// Set AIReaction even if it's "none" - "none" explicitly disables reactions
-					workflowData.AIReaction = reactionStr
+				reactionStr, err := parseReactionValue(reactionValue)
+				if err != nil {
+					return err
 				}
+				// Validate reaction value
+				if !isValidReaction(reactionStr) {
+					return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+				}
+				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
+				workflowData.AIReaction = reactionStr
 			}
 
 			if _, hasCommandKey := onMap["command"]; hasCommandKey {

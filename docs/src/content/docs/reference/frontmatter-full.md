@@ -580,7 +580,14 @@ on:
   # heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to
   # 'eyes' if not specified.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: string
   reaction: "+1"
+
+  # Option 2: YAML parses +1 and -1 without quotes as integers. These are converted
+  # to +1 and -1 strings respectively.
+  reaction: 1
 
 # GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can
 # access during execution. Use the principle of least privilege - only grant the
