@@ -276,7 +276,9 @@
 # curl -v --max-time 10 https://example.com:8443 2>&1
 #
 # # Test port 443 with explicit host header manipulation
-# curl -v --max-time 10 -H "Host: allowed-domain.com" https://93.184.216.34:443 2>&1
+# # Note: Resolve the IP dynamically to handle infrastructure changes
+# TARGET_IP=$(dig +short example.com | head -1)
+# curl -v --max-time 10 -H "Host: github.com" https://${TARGET_IP}:443 2>&1
 # ```
 #
 # #### Vector 2: Direct IP Connection (Bypassing DNS-based ACL)
@@ -284,15 +286,16 @@
 # Squid ACLs filter by domain name. What if you bypass DNS?
 #
 # ```bash
-# # Get example.com's IP address
-# dig +short example.com
+# # Get example.com's IP address (resolve dynamically)
+# TARGET_IP=$(dig +short example.com | head -1)
+# echo "Target IP: $TARGET_IP"
 #
 # # Connect directly by IP (bypasses domain-based ACL?)
-# curl -v --max-time 10 http://93.184.216.34 2>&1
-# curl -v --max-time 10 https://93.184.216.34 2>&1
+# curl -v --max-time 10 http://${TARGET_IP} 2>&1
+# curl -v --max-time 10 https://${TARGET_IP} 2>&1
 #
 # # Try with explicit Host header
-# curl -v --max-time 10 -H "Host: example.com" http://93.184.216.34 2>&1
+# curl -v --max-time 10 -H "Host: example.com" http://${TARGET_IP} 2>&1
 # ```
 #
 # #### Vector 3: DNS Tunneling (The Open Channel)
@@ -330,10 +333,11 @@
 #
 # ```bash
 # # Try chunked encoding smuggling
-# printf 'GET / HTTP/1.1\r\nHost: allowed-domain.com\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET / HTTP/1.1\r\nHost: example.com\r\n\r\n' | nc 172.30.0.10 3128
+# # Use github.com (an allowed domain) as the initial host, then smuggle request to example.com
+# printf 'GET / HTTP/1.1\r\nHost: github.com\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET / HTTP/1.1\r\nHost: example.com\r\n\r\n' | nc 172.30.0.10 3128
 #
 # # Try content-length/transfer-encoding confusion
-# printf 'GET / HTTP/1.1\r\nHost: allowed-domain.com\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n' | nc 172.30.0.10 3128
+# printf 'GET / HTTP/1.1\r\nHost: github.com\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n' | nc 172.30.0.10 3128
 # ```
 #
 # #### Vector 6: SSRF via Allowed Domains
@@ -388,10 +392,11 @@
 # # Try CONNECT to non-standard port
 # echo -e "CONNECT example.com:8080 HTTP/1.1\r\nHost: example.com\r\n\r\n" | nc 172.30.0.10 3128
 #
-# # Try with bogus Host header
+# # Try with bogus Host header (claim to be github.com but actually connect to example.com)
 # curl -v --proxy 172.30.0.10:3128 -H "Host: github.com" https://example.com 2>&1
 #
-# # Try URL encoding in CONNECT
+# # Try URL encoding in CONNECT request
+# # The %2E is URL-encoded "." - tests if Squid decodes before ACL matching
 # echo -e "CONNECT example%2Ecom:443 HTTP/1.1\r\n\r\n" | nc 172.30.0.10 3128
 # ```
 #
@@ -1070,7 +1075,9 @@ jobs:
           curl -v --max-time 10 https://example.com:8443 2>&1
           
           # Test port 443 with explicit host header manipulation
-          curl -v --max-time 10 -H "Host: allowed-domain.com" https://93.184.216.34:443 2>&1
+          # Note: Resolve the IP dynamically to handle infrastructure changes
+          TARGET_IP=$(dig +short example.com | head -1)
+          curl -v --max-time 10 -H "Host: github.com" https://${TARGET_IP}:443 2>&1
           ```
           
           #### Vector 2: Direct IP Connection (Bypassing DNS-based ACL)
@@ -1078,15 +1085,16 @@ jobs:
           Squid ACLs filter by domain name. What if you bypass DNS?
           
           ```bash
-          # Get example.com's IP address
-          dig +short example.com
+          # Get example.com's IP address (resolve dynamically)
+          TARGET_IP=$(dig +short example.com | head -1)
+          echo "Target IP: $TARGET_IP"
           
           # Connect directly by IP (bypasses domain-based ACL?)
-          curl -v --max-time 10 http://93.184.216.34 2>&1
-          curl -v --max-time 10 https://93.184.216.34 2>&1
+          curl -v --max-time 10 http://${TARGET_IP} 2>&1
+          curl -v --max-time 10 https://${TARGET_IP} 2>&1
           
           # Try with explicit Host header
-          curl -v --max-time 10 -H "Host: example.com" http://93.184.216.34 2>&1
+          curl -v --max-time 10 -H "Host: example.com" http://${TARGET_IP} 2>&1
           ```
           
           #### Vector 3: DNS Tunneling (The Open Channel)
@@ -1124,10 +1132,11 @@ jobs:
           
           ```bash
           # Try chunked encoding smuggling
-          printf 'GET / HTTP/1.1\r\nHost: allowed-domain.com\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET / HTTP/1.1\r\nHost: example.com\r\n\r\n' | nc 172.30.0.10 3128
+          # Use github.com (an allowed domain) as the initial host, then smuggle request to example.com
+          printf 'GET / HTTP/1.1\r\nHost: github.com\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET / HTTP/1.1\r\nHost: example.com\r\n\r\n' | nc 172.30.0.10 3128
           
           # Try content-length/transfer-encoding confusion
-          printf 'GET / HTTP/1.1\r\nHost: allowed-domain.com\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n' | nc 172.30.0.10 3128
+          printf 'GET / HTTP/1.1\r\nHost: github.com\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n' | nc 172.30.0.10 3128
           ```
           
           #### Vector 6: SSRF via Allowed Domains
@@ -1182,10 +1191,11 @@ jobs:
           # Try CONNECT to non-standard port
           echo -e "CONNECT example.com:8080 HTTP/1.1\r\nHost: example.com\r\n\r\n" | nc 172.30.0.10 3128
           
-          # Try with bogus Host header
+          # Try with bogus Host header (claim to be github.com but actually connect to example.com)
           curl -v --proxy 172.30.0.10:3128 -H "Host: github.com" https://example.com 2>&1
           
-          # Try URL encoding in CONNECT
+          # Try URL encoding in CONNECT request
+          # The %2E is URL-encoded "." - tests if Squid decodes before ACL matching
           echo -e "CONNECT example%2Ecom:443 HTTP/1.1\r\n\r\n" | nc 172.30.0.10 3128
           ```
           
