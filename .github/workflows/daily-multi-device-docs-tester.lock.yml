@@ -1228,13 +1228,11 @@ jobs:
                 "command": "docker",
                 "args": [
                   "run",
-                  "--rm",
                   "-i",
-                  "mcr.microsoft.com/playwright:v1.56.1",
-                  "npx",
-                  "@playwright/mcp@0.0.48",
-                  "--output-dir",
-                  "/tmp/gh-aw/mcp-logs/playwright",
+                  "--rm",
+                  "--init",
+                  "--pull=always",
+                  "mcr.microsoft.com/playwright/mcp",
                   "--allowed-hosts",
                   "localhost:*;127.0.0.1:*;localhost;127.0.0.1"
                 ]

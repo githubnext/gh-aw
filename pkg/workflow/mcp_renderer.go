@@ -112,28 +112,24 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 }
 
 // renderPlaywrightTOML generates Playwright MCP configuration in TOML format
-// Uses Docker container with the Playwright browser image for consistent environment
+// Uses the official Playwright MCP Docker image (mcr.microsoft.com/playwright/mcp) for headless browser automation
 func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
-	// Use Docker image version from constants
-	playwrightImage := "mcr.microsoft.com/playwright:" + args.ImageVersion
-	// Use MCP package version from constants
-	playwrightPackage := "@playwright/mcp@" + args.MCPPackageVersion
+	// Use the official Playwright MCP Docker image
+	playwrightImage := "mcr.microsoft.com/playwright/mcp"
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"run\",\n")
-	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"-i\",\n")
-	yaml.WriteString("            \"" + playwrightImage + "\",\n")
-	yaml.WriteString("            \"npx\",\n")
-	yaml.WriteString("            \"" + playwrightPackage + "\",\n")
-	yaml.WriteString("            \"--output-dir\",\n")
-	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
+	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"--init\",\n")
+	yaml.WriteString("            \"--pull=always\",\n")
+	yaml.WriteString("            \"" + playwrightImage + "\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")

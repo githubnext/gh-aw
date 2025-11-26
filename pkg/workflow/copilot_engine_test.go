@@ -814,7 +814,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		`"playwright": {`,
 		`"type": "local",`,
 		`"command": "docker",`,
-		`"mcr.microsoft.com/playwright:`,
+		`"mcr.microsoft.com/playwright/mcp"`,
 	}
 
 	for _, expected := range expectedStrs {

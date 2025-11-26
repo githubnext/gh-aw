@@ -54,13 +54,9 @@ Please navigate to example.com and take a screenshot.
 
 	lockContentStr := string(lockContent)
 
-	// Verify Playwright MCP configuration includes output-dir
-	if !strings.Contains(lockContentStr, "\"--output-dir\"") {
-		t.Error("Expected Playwright MCP configuration to include '--output-dir' argument")
-	}
-
-	if !strings.Contains(lockContentStr, "\"/tmp/gh-aw/mcp-logs/playwright\"") {
-		t.Error("Expected Playwright MCP configuration to include '/tmp/gh-aw/mh-aw/mcp-logs/playwright' path")
+	// Verify Playwright MCP configuration uses official Docker image
+	if !strings.Contains(lockContentStr, "mcr.microsoft.com/playwright/mcp") {
+		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
 	}
 
 	// Verify MCP logs upload step exists

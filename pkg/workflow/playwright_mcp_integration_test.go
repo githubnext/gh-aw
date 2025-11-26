@@ -10,8 +10,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// TestPlaywrightMCPIntegration tests that compiled workflows generate correct npx Playwright commands
-// This test verifies that the --allowed-hosts flag is used (not the old --allowed-origins)
+// TestPlaywrightMCPIntegration tests that compiled workflows generate correct Docker Playwright commands
+// This test verifies that the official Playwright MCP Docker image is used with --allowed-hosts flag
 func TestPlaywrightMCPIntegration(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-integration-*")
@@ -112,11 +112,11 @@ Test playwright with copilot engine.
 
 			lockStr := string(lockContent)
 
-			// Verify the Playwright MCP package is present
+			// Verify the official Playwright MCP Docker image is used
 			if tt.shouldContainPackage {
-				expectedPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion)
-				if !strings.Contains(lockStr, expectedPackage) {
-					t.Errorf("Expected lock file to contain Playwright MCP package %s", expectedPackage)
+				expectedImage := "mcr.microsoft.com/playwright/mcp"
+				if !strings.Contains(lockStr, expectedImage) {
+					t.Errorf("Expected lock file to contain Playwright MCP Docker image %s", expectedImage)
 				}
 			}
 

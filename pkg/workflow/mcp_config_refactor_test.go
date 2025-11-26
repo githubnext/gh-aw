@@ -3,8 +3,6 @@ package workflow
 import (
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigWithOptions verifies the shared Playwright config helper
@@ -22,7 +20,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0", // Docker image version
+				"version": "v1.45.0", // Version is ignored - always uses official MCP image
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -31,8 +29,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"playwright": {`,
 				`"type": "local"`,
 				`"command": "docker"`,
-				`"args": ["run", "--rm", "-i", "mcr.microsoft.com/playwright:v1.45.0", "npx", "@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
-				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
+				`"args": ["run", "-i", "--rm", "--init", "--pull=always", "mcr.microsoft.com/playwright/mcp"`,
 				`"tools": ["*"]`,
 				`              }`,
 			},
@@ -51,13 +48,11 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 				`"command": "docker"`,
 				`"args": [`,
 				`"run"`,
-				`"--rm"`,
 				`"-i"`,
-				`"mcr.microsoft.com/playwright:` + string(constants.DefaultPlaywrightBrowserVersion) + `"`,
-				`"npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
-				`"--output-dir"`,
-				`"/tmp/gh-aw/mcp-logs/playwright"`,
+				`"--rm"`,
+				`"--init"`,
+				`"--pull=always"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -277,13 +272,11 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 				`command = "docker"`,
 				`args = [`,
 				`"run"`,
-				`"--rm"`,
 				`"-i"`,
-				`"mcr.microsoft.com/playwright:` + string(constants.DefaultPlaywrightBrowserVersion) + `"`,
-				`"npx"`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
-				`"--output-dir"`,
-				`"/tmp/gh-aw/mcp-logs/playwright"`,
+				`"--rm"`,
+				`"--init"`,
+				`"--pull=always"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 			},
 		},
 		{
