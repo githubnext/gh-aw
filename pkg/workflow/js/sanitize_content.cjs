@@ -44,12 +44,30 @@ function extractDomainsFromUrl(url) {
 }
 
 /**
+ * @typedef {Object} SanitizeOptions
+ * @property {number} [maxLength] - Maximum length of content (default: 524288)
+ * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
+ */
+
+/**
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize
- * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @param {number | SanitizeOptions} [optionsOrMaxLength] - Maximum length of content (default: 524288) or options object
  * @returns {string} The sanitized content
  */
-function sanitizeContent(content, maxLength) {
+function sanitizeContent(content, optionsOrMaxLength) {
+  // Handle both old signature (maxLength) and new signature (options object)
+  /** @type {number | undefined} */
+  let maxLength;
+  /** @type {string[]} */
+  let allowedAliases = [];
+
+  if (typeof optionsOrMaxLength === "number") {
+    maxLength = optionsOrMaxLength;
+  } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
+    maxLength = optionsOrMaxLength.maxLength;
+    allowedAliases = optionsOrMaxLength.allowedAliases || [];
+  }
   if (!content || typeof content !== "string") {
     return "";
   }
@@ -255,15 +273,21 @@ function sanitizeContent(content, maxLength) {
 
   /**
    * Neutralizes @mentions by wrapping them in backticks
+   * Skips mentions that are in the allowedAliases list
    * @param {string} s - The string to process
    * @returns {string} The string with neutralized mentions
    */
   function neutralizeMentions(s) {
     // Replace @name or @org/team outside code with `@name`
-    return s.replace(
-      /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-      (_m, p1, p2) => `${p1}\`@${p2}\``
-    );
+    // Skip mentions that are in the allowed aliases list
+    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+      // Check if this mention is in the allowed aliases list (case-insensitive)
+      const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+      if (isAllowed) {
+        return `${p1}@${p2}`; // Keep the original mention
+      }
+      return `${p1}\`@${p2}\``; // Neutralize the mention
+    });
   }
 
   /**

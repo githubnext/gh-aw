@@ -373,7 +373,15 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContent(content, maxLength) {
+            function sanitizeContent(content, optionsOrMaxLength) {
+              let maxLength;
+              let allowedAliases = [];
+              if (typeof optionsOrMaxLength === "number") {
+                maxLength = optionsOrMaxLength;
+              } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
+                maxLength = optionsOrMaxLength.maxLength;
+                allowedAliases = optionsOrMaxLength.allowedAliases || [];
+              }
               if (!content || typeof content !== "string") {
                 return "";
               }
@@ -483,10 +491,13 @@ jobs:
                 return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
               }
               function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
+                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+                  const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+                  if (isAllowed) {
+                    return `${p1}@${p2}`; 
+                  }
+                  return `${p1}\`@${p2}\``; 
+                });
               }
               function removeXmlComments(s) {
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
@@ -514,6 +525,7 @@ jobs:
             }
             async function main() {
               let text = "";
+              let allowedAliases = [];
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
@@ -533,6 +545,9 @@ jobs:
                     const title = context.payload.issue.title || "";
                     const body = context.payload.issue.body || "";
                     text = `${title}\n\n${body}`;
+                    if (context.payload.issue.user?.login) {
+                      allowedAliases.push(context.payload.issue.user.login);
+                    }
                   }
                   break;
                 case "pull_request":
@@ -540,6 +555,9 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
+                    if (context.payload.pull_request.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
                   }
                   break;
                 case "pull_request_target":
@@ -547,21 +565,33 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
+                    if (context.payload.pull_request.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
                   }
                   break;
                 case "issue_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
                   }
                   break;
                 case "pull_request_review_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
                   }
                   break;
                 case "pull_request_review":
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
+                    if (context.payload.review.user?.login) {
+                      allowedAliases.push(context.payload.review.user.login);
+                    }
                   }
                   break;
                 case "discussion":
@@ -569,11 +599,17 @@ jobs:
                     const title = context.payload.discussion.title || "";
                     const body = context.payload.discussion.body || "";
                     text = `${title}\n\n${body}`;
+                    if (context.payload.discussion.user?.login) {
+                      allowedAliases.push(context.payload.discussion.user.login);
+                    }
                   }
                   break;
                 case "discussion_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
                   }
                   break;
                 case "release":
@@ -581,6 +617,9 @@ jobs:
                     const name = context.payload.release.name || context.payload.release.tag_name || "";
                     const body = context.payload.release.body || "";
                     text = `${name}\n\n${body}`;
+                    if (context.payload.release.author?.login) {
+                      allowedAliases.push(context.payload.release.author.login);
+                    }
                   }
                   break;
                 case "workflow_dispatch":
@@ -624,7 +663,7 @@ jobs:
                   text = "";
                   break;
               }
-              const sanitizedText = sanitizeContent(text);
+              const sanitizedText = sanitizeContent(text, { allowedAliases });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
             }
@@ -2899,7 +2938,15 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContent(content, maxLength) {
+            function sanitizeContent(content, optionsOrMaxLength) {
+              let maxLength;
+              let allowedAliases = [];
+              if (typeof optionsOrMaxLength === "number") {
+                maxLength = optionsOrMaxLength;
+              } else if (optionsOrMaxLength && typeof optionsOrMaxLength === "object") {
+                maxLength = optionsOrMaxLength.maxLength;
+                allowedAliases = optionsOrMaxLength.allowedAliases || [];
+              }
               if (!content || typeof content !== "string") {
                 return "";
               }
@@ -3009,10 +3056,13 @@ jobs:
                 return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
               }
               function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
+                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+                  const isAllowed = allowedAliases.some(alias => alias.toLowerCase() === p2.toLowerCase());
+                  if (isAllowed) {
+                    return `${p1}@${p2}`; 
+                  }
+                  return `${p1}\`@${p2}\``; 
+                });
               }
               function removeXmlComments(s) {
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");

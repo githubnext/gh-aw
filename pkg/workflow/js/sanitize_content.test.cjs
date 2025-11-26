@@ -109,6 +109,58 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("@mention allowedAliases", () => {
+    it("should not neutralize mentions in allowedAliases list", () => {
+      const result = sanitizeContent("Hello @author", { allowedAliases: ["author"] });
+      expect(result).toBe("Hello @author");
+    });
+
+    it("should neutralize mentions not in allowedAliases list", () => {
+      const result = sanitizeContent("Hello @other", { allowedAliases: ["author"] });
+      expect(result).toBe("Hello `@other`");
+    });
+
+    it("should handle multiple mentions with some allowed", () => {
+      const result = sanitizeContent("Hello @author and @other", { allowedAliases: ["author"] });
+      expect(result).toBe("Hello @author and `@other`");
+    });
+
+    it("should handle case-insensitive matching for allowedAliases", () => {
+      const result = sanitizeContent("Hello @Author", { allowedAliases: ["author"] });
+      expect(result).toBe("Hello @Author");
+    });
+
+    it("should handle multiple allowed aliases", () => {
+      const result = sanitizeContent("Hello @user1 and @user2 and @other", {
+        allowedAliases: ["user1", "user2"],
+      });
+      expect(result).toBe("Hello @user1 and @user2 and `@other`");
+    });
+
+    it("should work with options object containing both maxLength and allowedAliases", () => {
+      const result = sanitizeContent("Hello @author and @other", {
+        maxLength: 524288,
+        allowedAliases: ["author"],
+      });
+      expect(result).toBe("Hello @author and `@other`");
+    });
+
+    it("should handle empty allowedAliases array", () => {
+      const result = sanitizeContent("Hello @user", { allowedAliases: [] });
+      expect(result).toBe("Hello `@user`");
+    });
+
+    it("should not neutralize org/team mentions in allowedAliases", () => {
+      const result = sanitizeContent("Hello @myorg/myteam", { allowedAliases: ["myorg/myteam"] });
+      expect(result).toBe("Hello @myorg/myteam");
+    });
+
+    it("should preserve backward compatibility with numeric maxLength parameter", () => {
+      const result = sanitizeContent("Hello @user", 524288);
+      expect(result).toBe("Hello `@user`");
+    });
+  });
+
   describe("XML comments removal", () => {
     it("should remove XML comments", () => {
       const result = sanitizeContent("Hello <!-- comment --> world");

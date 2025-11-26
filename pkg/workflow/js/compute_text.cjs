@@ -10,6 +10,8 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 
 async function main() {
   let text = "";
+  /** @type {string[]} */
+  let allowedAliases = [];
 
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -37,6 +39,10 @@ async function main() {
         const title = context.payload.issue.title || "";
         const body = context.payload.issue.body || "";
         text = `${title}\n\n${body}`;
+        // Add issue author to allowed aliases
+        if (context.payload.issue.user?.login) {
+          allowedAliases.push(context.payload.issue.user.login);
+        }
       }
       break;
 
@@ -46,6 +52,10 @@ async function main() {
         const title = context.payload.pull_request.title || "";
         const body = context.payload.pull_request.body || "";
         text = `${title}\n\n${body}`;
+        // Add PR author to allowed aliases
+        if (context.payload.pull_request.user?.login) {
+          allowedAliases.push(context.payload.pull_request.user.login);
+        }
       }
       break;
 
@@ -55,6 +65,10 @@ async function main() {
         const title = context.payload.pull_request.title || "";
         const body = context.payload.pull_request.body || "";
         text = `${title}\n\n${body}`;
+        // Add PR author to allowed aliases
+        if (context.payload.pull_request.user?.login) {
+          allowedAliases.push(context.payload.pull_request.user.login);
+        }
       }
       break;
 
@@ -62,6 +76,10 @@ async function main() {
       // For issue comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
+        // Add comment author to allowed aliases
+        if (context.payload.comment.user?.login) {
+          allowedAliases.push(context.payload.comment.user.login);
+        }
       }
       break;
 
@@ -69,6 +87,10 @@ async function main() {
       // For PR review comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
+        // Add comment author to allowed aliases
+        if (context.payload.comment.user?.login) {
+          allowedAliases.push(context.payload.comment.user.login);
+        }
       }
       break;
 
@@ -76,6 +98,10 @@ async function main() {
       // For PR reviews: review body
       if (context.payload.review) {
         text = context.payload.review.body || "";
+        // Add review author to allowed aliases
+        if (context.payload.review.user?.login) {
+          allowedAliases.push(context.payload.review.user.login);
+        }
       }
       break;
 
@@ -85,6 +111,10 @@ async function main() {
         const title = context.payload.discussion.title || "";
         const body = context.payload.discussion.body || "";
         text = `${title}\n\n${body}`;
+        // Add discussion author to allowed aliases
+        if (context.payload.discussion.user?.login) {
+          allowedAliases.push(context.payload.discussion.user.login);
+        }
       }
       break;
 
@@ -92,6 +122,10 @@ async function main() {
       // For discussion comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
+        // Add comment author to allowed aliases
+        if (context.payload.comment.user?.login) {
+          allowedAliases.push(context.payload.comment.user.login);
+        }
       }
       break;
 
@@ -101,6 +135,10 @@ async function main() {
         const name = context.payload.release.name || context.payload.release.tag_name || "";
         const body = context.payload.release.body || "";
         text = `${name}\n\n${body}`;
+        // Add release author to allowed aliases
+        if (context.payload.release.author?.login) {
+          allowedAliases.push(context.payload.release.author.login);
+        }
       }
       break;
 
@@ -152,8 +190,8 @@ async function main() {
       break;
   }
 
-  // Sanitize the text before output
-  const sanitizedText = sanitizeContent(text);
+  // Sanitize the text before output, passing the allowed aliases
+  const sanitizedText = sanitizeContent(text, { allowedAliases });
 
   // Display sanitized text in logs
   core.info(`text: ${sanitizedText}`);
