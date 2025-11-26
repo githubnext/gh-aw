@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -951,17 +952,22 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 }
 
 // resolveAWFPath handles path resolution for absolute and relative paths
+// It returns the path to use for the AWF binary, resolving relative paths against GITHUB_WORKSPACE
 func resolveAWFPath(customPath string) string {
 	if customPath == "" {
 		return "/usr/local/bin/awf"
 	}
 
-	if strings.HasPrefix(customPath, "/") {
-		return customPath // Absolute path
+	// Clean the path to normalize separators and remove redundant elements
+	// Note: filepath.Clean is used for normalization only, the path is not resolved against the filesystem
+	cleanPath := filepath.Clean(customPath)
+
+	if strings.HasPrefix(cleanPath, "/") {
+		return cleanPath // Absolute path
 	}
 
 	// Relative path - resolve against GITHUB_WORKSPACE
-	return fmt.Sprintf("${GITHUB_WORKSPACE}/%s", customPath)
+	return fmt.Sprintf("${GITHUB_WORKSPACE}/%s", cleanPath)
 }
 
 // getAWFBinaryPath returns appropriate AWF binary path for execution
@@ -975,20 +981,21 @@ func getAWFBinaryPath(firewallConfig *FirewallConfig) string {
 // generateAWFPathValidationStep creates a validation step to verify custom AWF binary
 func generateAWFPathValidationStep(customPath string) GitHubActionStep {
 	resolvedPath := resolveAWFPath(customPath)
+	escapedPath := shellEscapeArg(resolvedPath)
 
 	stepLines := []string{
 		"      - name: Validate custom AWF binary",
 		"        run: |",
-		fmt.Sprintf("          echo \"Validating custom AWF binary at: %s\"", resolvedPath),
-		fmt.Sprintf("          if [ ! -f %s ]; then", shellEscapeArg(resolvedPath)),
-		fmt.Sprintf("            echo \"Error: AWF binary not found at %s\"", resolvedPath),
+		fmt.Sprintf("          echo \"Validating custom AWF binary at: %s\"", escapedPath),
+		fmt.Sprintf("          if [ ! -f %s ]; then", escapedPath),
+		fmt.Sprintf("            echo \"Error: AWF binary not found at %s\"", escapedPath),
 		"            exit 1",
 		"          fi",
-		fmt.Sprintf("          if [ ! -x %s ]; then", shellEscapeArg(resolvedPath)),
-		fmt.Sprintf("            echo \"Error: AWF binary at %s is not executable\"", resolvedPath),
+		fmt.Sprintf("          if [ ! -x %s ]; then", escapedPath),
+		fmt.Sprintf("            echo \"Error: AWF binary at %s is not executable\"", escapedPath),
 		"            exit 1",
 		"          fi",
-		fmt.Sprintf("          %s --version", shellEscapeArg(resolvedPath)),
+		fmt.Sprintf("          %s --version", escapedPath),
 	}
 
 	return GitHubActionStep(stepLines)

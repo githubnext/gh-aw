@@ -41,6 +41,16 @@ func TestResolveAWFPath(t *testing.T) {
 			customPath:   "tools/bin/awf",
 			expectedPath: "${GITHUB_WORKSPACE}/tools/bin/awf",
 		},
+		{
+			name:         "path with redundant separators cleaned",
+			customPath:   "bin//awf",
+			expectedPath: "${GITHUB_WORKSPACE}/bin/awf",
+		},
+		{
+			name:         "path with dot components cleaned",
+			customPath:   "./bin/awf",
+			expectedPath: "${GITHUB_WORKSPACE}/bin/awf",
+		},
 	}
 
 	for _, tt := range tests {
