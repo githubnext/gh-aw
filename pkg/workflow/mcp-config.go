@@ -36,8 +36,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
 
-	// Use Docker image version from constants
-	playwrightImage := "mcr.microsoft.com/playwright/mcp:" + args.ImageVersion
+	// Use official Playwright MCP Docker image (no version tag - only one image)
+	playwrightImage := "mcr.microsoft.com/playwright/mcp"
 	// Use MCP package version from constants for output-dir identification
 	_ = "@playwright/mcp@" + args.MCPPackageVersion
 
@@ -255,8 +255,8 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
-	// Use Docker image version from constants
-	playwrightImage := "mcr.microsoft.com/playwright/mcp:" + args.ImageVersion
+	// Use official Playwright MCP Docker image (no version tag - only one image)
+	playwrightImage := "mcr.microsoft.com/playwright/mcp"
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")

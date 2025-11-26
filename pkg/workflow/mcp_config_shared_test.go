@@ -27,7 +27,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 				`"-i"`,
 				`"--rm"`,
 				`"--init"`,
-				`"mcr.microsoft.com/playwright/mcp:`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-hosts"`,
@@ -54,7 +54,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"playwright": {`,
 				`"command": "docker"`,
-				`"mcr.microsoft.com/playwright/mcp:`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},

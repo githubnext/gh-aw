@@ -814,7 +814,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		`"playwright": {`,
 		`"type": "local",`,
 		`"command": "docker",`,
-		`"mcr.microsoft.com/playwright/mcp:`,
+		`"mcr.microsoft.com/playwright/mcp"`,
 		`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 	}
 
