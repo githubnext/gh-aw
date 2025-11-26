@@ -21,7 +21,7 @@ strict: false
 
 engine: copilot
 
-timeout-minutes: 30
+timeout-minutes: 60
 
 network:
   allowed:
