@@ -51,13 +51,6 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	}
 
 	var jobCondition = BuildSafeOutputType("add_labels")
-	if data.SafeOutputs.AddLabels.Target == "" {
-		eventCondition := buildOr(
-			BuildPropertyAccess("github.event.issue.number"),
-			BuildPropertyAccess("github.event.pull_request.number"),
-		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
-	}
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{

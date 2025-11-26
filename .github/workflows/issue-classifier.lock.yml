@@ -834,8 +834,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))) &&
-      ((github.event.issue.number) || (github.event.pull_request.number))) && (needs.detection.outputs.success == 'true')
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))) &&
+      (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
