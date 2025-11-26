@@ -40,6 +40,41 @@ on:
           - high
 ```
 
+## Accessing Inputs in Workflows
+
+Use `${{ github.event.inputs.INPUT_NAME }}` to access input values in your workflow markdown:
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Research topic'
+        required: true
+        type: string
+      depth:
+        description: 'Analysis depth'
+        type: choice
+        options:
+          - brief
+          - detailed
+        default: brief
+permissions:
+  contents: read
+safe-outputs:
+  create-discussion:
+---
+
+# Research Assistant
+
+Research the topic: "${{ github.event.inputs.topic }}"
+
+Analysis depth: ${{ github.event.inputs.depth }}
+
+Provide findings based on the requested depth level.
+```
+
 ## Running Manual Workflows
 
 Via CLI:

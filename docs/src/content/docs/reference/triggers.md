@@ -21,10 +21,63 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 
 Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
 
+**Basic trigger:**
 ```yaml wrap
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 ```
+
+**With input parameters:**
+```yaml wrap
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Research topic'
+        required: true
+        type: string
+      priority:
+        description: 'Task priority'
+        required: false
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+        default: medium
+```
+
+#### Accessing Inputs in Markdown
+
+Use `${{ github.event.inputs.INPUT_NAME }}` expressions to access workflow_dispatch inputs in your markdown content:
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Research topic'
+        required: true
+        type: string
+permissions:
+  contents: read
+safe-outputs:
+  create-discussion:
+---
+
+# Research Assistant
+
+Research the following topic: "${{ github.event.inputs.topic }}"
+
+Provide a comprehensive summary with key findings and recommendations.
+```
+
+**Supported input types:**
+- `string` - Free-form text input
+- `boolean` - True/false checkbox
+- `choice` - Dropdown selection with predefined options
+- `environment` - Repository environment selector
 
 ### Scheduled Triggers (`schedule:`)
 
