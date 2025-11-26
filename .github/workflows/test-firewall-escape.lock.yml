@@ -2583,7 +2583,7 @@ jobs:
             }
       - if: failure()
         name: Check test results and create issue on failure
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: "await github.rest.issues.create({\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  title: '[Firewall Test] Escape test failed',\n  body: `## Firewall Escape Test Failure\n\n**Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nThe firewall escape test detected an issue. Please review the workflow logs for details.\n\n### Possible Issues\n- A forbidden domain was accessible (firewall escape vulnerability)\n- An allowed domain was blocked unexpectedly\n- File operations failed\n"
 
