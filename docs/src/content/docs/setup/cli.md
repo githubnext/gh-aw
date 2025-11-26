@@ -84,10 +84,10 @@ Add workflows from The Agentics collection or other repositories. Displays the w
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add "githubnext/agentics/ci-*"             # Add multiple with wildcards
 gh aw add ci-doctor --dir shared --number 3      # Organize and create copies
-gh aw add ci-doctor --pr                         # Create PR instead of direct commit
+gh aw add ci-doctor --create-pull-request        # Create PR instead of direct commit
 ```
 
-**Options:** `--dir` (organize in subdirectories), `--number` (create numbered copies), `--pr` (create pull request), `--no-gitattributes` (skip `.gitattributes` update)
+**Options:** `--dir` (organize in subdirectories), `--number` (create numbered copies), `--create-pull-request` or `--pr` (create pull request), `--no-gitattributes` (skip `.gitattributes` update)
 
 #### `new`
 

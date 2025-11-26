@@ -59,7 +59,7 @@ The `.md` file is human-friendly (natural language + simple config). GitHub Acti
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
-gh aw add githubnext/agentics/daily-team-status --pr
+gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
 This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
