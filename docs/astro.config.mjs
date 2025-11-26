@@ -116,6 +116,7 @@ export default defineConfig({
 						{ label: 'ProjectOps', link: '/examples/issue-pr-events/projectops/' },
 						{ label: 'Campaigns', link: '/guides/campaigns/' },
 						{ label: 'ResearchPlanAssign', link: '/guides/researchplanassign/' },
+						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 					],
 				},
 				{
