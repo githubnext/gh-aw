@@ -15,6 +15,8 @@
  * - {workflow_source_url} - GitHub URL for the workflow source
  * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
  * - {operation} - Operation name (for staged mode titles/descriptions)
+ * - {event_type} - Event type description (for run-started messages)
+ * - {status} - Workflow status text (for run-failure messages)
  *
  * Both camelCase and snake_case placeholder formats are supported.
  */
@@ -25,6 +27,9 @@
  * @property {string} [footerInstall] - Custom installation instructions template
  * @property {string} [stagedTitle] - Custom staged mode title template
  * @property {string} [stagedDescription] - Custom staged mode description template
+ * @property {string} [runStarted] - Custom workflow activation message template
+ * @property {string} [runSuccess] - Custom workflow success message template
+ * @property {string} [runFailure] - Custom workflow failure message template
  */
 
 /**
@@ -72,6 +77,9 @@ function getMessages() {
       footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
       stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
       stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
+      runStarted: rawMessages.RunStarted || rawMessages.runStarted,
+      runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
+      runFailure: rawMessages.RunFailure || rawMessages.runFailure,
     };
     cacheInitialized = true;
     core.debug(`Loaded custom messages config: ${JSON.stringify(cachedMessages)}`);
@@ -263,6 +271,80 @@ function getStagedDescription(ctx) {
     : renderTemplate(defaultDescription, templateContext);
 }
 
+/**
+ * @typedef {Object} RunStartedContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ * @property {string} eventType - Event type description (e.g., "issue", "pull request", "discussion")
+ */
+
+/**
+ * Get the run-started message, using custom template if configured.
+ * @param {RunStartedContext} ctx - Context for run-started message generation
+ * @returns {string} Run-started message
+ */
+function getRunStartedMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default run-started template
+  const defaultMessage = "Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.";
+
+  // Use custom message if configured
+  return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
+/**
+ * @typedef {Object} RunSuccessContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ */
+
+/**
+ * Get the run-success message, using custom template if configured.
+ * @param {RunSuccessContext} ctx - Context for run-success message generation
+ * @returns {string} Run-success message
+ */
+function getRunSuccessMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default run-success template
+  const defaultMessage = "✅ Agentic [{workflow_name}]({run_url}) completed successfully.";
+
+  // Use custom message if configured
+  return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
+/**
+ * @typedef {Object} RunFailureContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ * @property {string} status - Status text (e.g., "failed", "was cancelled", "timed out")
+ */
+
+/**
+ * Get the run-failure message, using custom template if configured.
+ * @param {RunFailureContext} ctx - Context for run-failure message generation
+ * @returns {string} Run-failure message
+ */
+function getRunFailureMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default run-failure template
+  const defaultMessage = "❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.";
+
+  // Use custom message if configured
+  return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
 module.exports = {
   getMessages,
   clearMessagesCache,
@@ -272,4 +354,7 @@ module.exports = {
   generateFooterWithMessages,
   getStagedTitle,
   getStagedDescription,
+  getRunStartedMessage,
+  getRunSuccessMessage,
+  getRunFailureMessage,
 };

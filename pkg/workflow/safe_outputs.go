@@ -577,6 +577,24 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
+	if runStarted, exists := messagesMap["run-started"]; exists {
+		if runStartedStr, ok := runStarted.(string); ok {
+			config.RunStarted = runStartedStr
+		}
+	}
+
+	if runSuccess, exists := messagesMap["run-success"]; exists {
+		if runSuccessStr, ok := runSuccess.(string); ok {
+			config.RunSuccess = runSuccessStr
+		}
+	}
+
+	if runFailure, exists := messagesMap["run-failure"]; exists {
+		if runFailureStr, ok := runFailure.(string); ok {
+			config.RunFailure = runFailureStr
+		}
+	}
+
 	return config
 }
 

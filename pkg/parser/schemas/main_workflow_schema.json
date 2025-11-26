@@ -3620,7 +3620,7 @@
         },
         "messages": {
           "type": "object",
-          "description": "Custom message templates for safe-output footer and notification messages. Use format strings with placeholders like {workflow_name}, {run_url}, {triggering_number}.",
+          "description": "Custom message templates for safe-output footer and notification messages. Available placeholders: {workflow_name} (workflow name), {run_url} (GitHub Actions run URL), {triggering_number} (issue/PR/discussion number), {workflow_source} (owner/repo/path@ref), {workflow_source_url} (GitHub URL to source), {operation} (safe-output operation name for staged mode).",
           "properties": {
             "footer": {
               "type": "string",
@@ -3644,6 +3644,27 @@
               "type": "string",
               "description": "Custom description template for staged mode preview. Available placeholders: {operation}. Example: 'The following {operation} would occur if staged mode was disabled:'",
               "examples": ["The following {operation} would occur if staged mode was disabled:"]
+            },
+            "run-started": {
+              "type": "string",
+              "description": "Custom message template for workflow activation comment. Available placeholders: {workflow_name}, {run_url}, {event_type}. Default: 'Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.'",
+              "examples": [
+                "Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.",
+                "[{workflow_name}]({run_url}) started processing this {event_type}."
+              ]
+            },
+            "run-success": {
+              "type": "string",
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+            },
+            "run-failure": {
+              "type": "string",
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": [
+                "❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
+                "❌ [{workflow_name}]({run_url}) {status}."
+              ]
             }
           },
           "additionalProperties": false

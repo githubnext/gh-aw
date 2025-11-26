@@ -415,4 +415,115 @@ describe("messages.cjs", () => {
       expect(result).toBe("Preview of pull requests - nothing will be created:");
     });
   });
+
+  describe("getRunStartedMessage", () => {
+    it("should return default run-started message", async () => {
+      const { getRunStartedMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunStartedMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        eventType: "issue",
+      });
+
+      expect(result).toBe("Agentic [Test Workflow](https://github.com/test/repo/actions/runs/123) triggered by this issue.");
+    });
+
+    it("should use custom run-started template", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        RunStarted: "[{workflow_name}]({run_url}) started for {event_type}",
+      });
+
+      const { getRunStartedMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunStartedMessage({
+        workflowName: "Custom Bot",
+        runUrl: "https://example.com/run/456",
+        eventType: "pull request",
+      });
+
+      expect(result).toBe("[Custom Bot](https://example.com/run/456) started for pull request");
+    });
+  });
+
+  describe("getRunSuccessMessage", () => {
+    it("should return default run-success message", async () => {
+      const { getRunSuccessMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunSuccessMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("✅ Agentic [Test Workflow](https://github.com/test/repo/actions/runs/123) completed successfully.");
+    });
+
+    it("should use custom run-success template", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        RunSuccess: "✅ [{workflow_name}]({run_url}) finished!",
+      });
+
+      const { getRunSuccessMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunSuccessMessage({
+        workflowName: "Custom Bot",
+        runUrl: "https://example.com/run/456",
+      });
+
+      expect(result).toBe("✅ [Custom Bot](https://example.com/run/456) finished!");
+    });
+  });
+
+  describe("getRunFailureMessage", () => {
+    it("should return default run-failure message", async () => {
+      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunFailureMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        status: "failed",
+      });
+
+      expect(result).toBe(
+        "❌ Agentic [Test Workflow](https://github.com/test/repo/actions/runs/123) failed and wasn't able to produce a result."
+      );
+    });
+
+    it("should use custom run-failure template", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        RunFailure: "❌ [{workflow_name}]({run_url}) {status}.",
+      });
+
+      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunFailureMessage({
+        workflowName: "Custom Bot",
+        runUrl: "https://example.com/run/456",
+        status: "timed out",
+      });
+
+      expect(result).toBe("❌ [Custom Bot](https://example.com/run/456) timed out.");
+    });
+
+    it("should handle cancelled status", async () => {
+      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
+      clearMessagesCache();
+
+      const result = getRunFailureMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        status: "was cancelled",
+      });
+
+      expect(result).toBe(
+        "❌ Agentic [Test Workflow](https://github.com/test/repo/actions/runs/123) was cancelled and wasn't able to produce a result."
+      );
+    });
+  });
 });

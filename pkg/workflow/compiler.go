@@ -297,6 +297,9 @@ type SafeOutputMessagesConfig struct {
 	FooterInstall     string `yaml:"footer-install,omitempty"`     // Custom installation instructions template
 	StagedTitle       string `yaml:"staged-title,omitempty"`       // Custom staged mode title template
 	StagedDescription string `yaml:"staged-description,omitempty"` // Custom staged mode description template
+	RunStarted        string `yaml:"run-started,omitempty"`        // Custom workflow activation message template
+	RunSuccess        string `yaml:"run-success,omitempty"`        // Custom workflow success message template
+	RunFailure        string `yaml:"run-failure,omitempty"`        // Custom workflow failure message template
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior
