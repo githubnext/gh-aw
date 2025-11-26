@@ -136,6 +136,7 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 // ValidateMCPConfigWithSchema validates MCP configuration using JSON schema
 func ValidateMCPConfigWithSchema(mcpConfig map[string]any, toolName string) error {
+	schemaLog.Printf("Validating MCP configuration for tool: %s", toolName)
 	return validateWithSchema(mcpConfig, mcpConfigSchema, fmt.Sprintf("MCP configuration for tool '%s'", toolName))
 }
 
@@ -181,6 +182,8 @@ func getCompiledMcpConfigSchema() (*jsonschema.Schema, error) {
 
 // compileSchema compiles a JSON schema from a JSON string
 func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
+	schemaLog.Printf("Compiling JSON schema: %s", schemaURL)
+
 	// Create a new compiler
 	compiler := jsonschema.NewCompiler()
 
@@ -221,6 +224,8 @@ var safeOutputMetaFields = map[string]bool{
 // These are the keys under safe-outputs that define actual safe output operations (like create-issue, add-comment, etc.)
 // Meta-configuration fields (like allowed-domains, staged, env, etc.) are excluded.
 func GetSafeOutputTypeKeys() ([]string, error) {
+	schemaLog.Print("Extracting safe output type keys from main workflow schema")
+
 	// Parse the embedded schema JSON
 	var schemaDoc map[string]any
 	if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {

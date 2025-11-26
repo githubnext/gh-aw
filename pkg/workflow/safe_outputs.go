@@ -535,7 +535,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 //
 // See package documentation for guidance on when to use sanitize vs normalize patterns.
 func normalizeSafeOutputIdentifier(identifier string) string {
-	return strings.ReplaceAll(identifier, "-", "_")
+	normalized := strings.ReplaceAll(identifier, "-", "_")
+	if safeOutputsLog.Enabled() {
+		safeOutputsLog.Printf("Normalized safe output identifier: %s -> %s", identifier, normalized)
+	}
+	return normalized
 }
 
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
@@ -567,6 +571,8 @@ type GitHubScriptStepConfig struct {
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
 // This extracts the repeated pattern found across safe output job builders
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	safeOutputsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v)", config.StepName, config.UseCopilotToken)
+
 	var steps []string
 
 	// Add artifact download steps before the GitHub Script step
@@ -611,6 +617,8 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 // This is useful when multiple script steps are needed in the same job and artifact downloads
 // should only happen once at the beginning
 func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	safeOutputsLog.Printf("Building GitHub Script step without download: %s", config.StepName)
+
 	var steps []string
 
 	// Step name and metadata (no artifact download steps)
