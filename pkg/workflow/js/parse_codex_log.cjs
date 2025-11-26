@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
+const { truncateString, estimateTokens, formatDuration } = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
@@ -365,37 +366,6 @@ function parseCodexLog(logContent) {
 }
 
 /**
- * Calculates approximate token count from text using 4 chars per token estimate
- * @param {string} text - The text to estimate tokens for
- * @returns {number} Approximate token count
- */
-function estimateTokens(text) {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
-}
-
-/**
- * Formats duration in seconds
- * @param {number} ms - Duration in milliseconds
- * @returns {string} Formatted duration string (e.g., "1s", "1m 30s")
- */
-function formatDuration(ms) {
-  if (!ms || ms <= 0) return "";
-
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (remainingSeconds === 0) {
-    return `${minutes}m`;
-  }
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
-/**
  * Format a Codex tool call with HTML details
  * @param {string} server - The server name (e.g., "github", "time")
  * @param {string} toolName - The tool name (e.g., "list_pull_requests")
@@ -489,27 +459,12 @@ function formatCodexBashCall(command, response, statusIcon) {
   return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
 }
 
-/**
- * Truncate string to maximum length
- * @param {string} str - The string to truncate
- * @param {number} maxLength - Maximum length allowed
- * @returns {string} Truncated string
- */
-function truncateString(str, maxLength) {
-  if (!str) return "";
-  if (str.length <= maxLength) return str;
-  return str.substring(0, maxLength) + "...";
-}
-
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseCodexLog,
     formatCodexToolCall,
     formatCodexBashCall,
-    truncateString,
-    estimateTokens,
-    formatDuration,
     extractMCPInitialization,
   };
 }

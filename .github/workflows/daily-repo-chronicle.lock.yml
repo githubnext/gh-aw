@@ -20,6 +20,46 @@
 #
 # Creates a narrative chronicle of daily repository activity including commits, PRs, issues, and discussions
 #
+# Original Frontmatter:
+# ```yaml
+# description: Creates a narrative chronicle of daily repository activity including commits, PRs, issues, and discussions
+# on:
+#   schedule:
+#     - cron: "0 16 * * 1-5"  # 8 AM PST (4 PM UTC), weekdays only
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   discussions: read
+# tracker-id: daily-repo-chronicle
+# engine: copilot
+#
+# timeout-minutes: 45
+#
+# network:
+#   allowed:
+#     - defaults
+#     - python
+#     - node
+#   firewall: true
+# tools:
+#   edit:
+#   bash:
+#     - "*"
+#   github:
+#     toolsets:
+#       - default
+#       - discussions
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     title-prefix: "📰 "
+# imports:
+#   - shared/reporting.md
+#   - shared/trends.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

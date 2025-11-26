@@ -20,6 +20,36 @@
 #
 # Generates ASCII tree map visualization of repository file structure weekly
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates ASCII tree map visualization of repository file structure weekly
+# on:
+#   schedule:
+#     - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: copilot
+#
+# tools:
+#   edit:
+#   bash:
+#     - "*"
+#
+# safe-outputs:
+#   create-discussion:
+#     category: "dev"
+#     max: 1
+#
+# timeout-minutes: 5
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

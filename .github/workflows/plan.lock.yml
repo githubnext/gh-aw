@@ -20,6 +20,33 @@
 #
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
 #
+# Original Frontmatter:
+# ```yaml
+# name: Plan Command
+# description: Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
+# on:
+#   command:
+#     name: plan
+#     events: [issue_comment, discussion_comment]
+# permissions:
+#   contents: read
+#   discussions: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   github:
+#     toolsets: [default, discussions]
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[task] "
+#     labels: [task, ai-generated]
+#     max: 5
+#   close-discussion:
+#     required-category: "Ideas"
+# timeout-minutes: 10
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

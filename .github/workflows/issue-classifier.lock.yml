@@ -20,6 +20,28 @@
 #
 # Automatically classifies and labels issues based on content analysis and predefined categories
 #
+# Original Frontmatter:
+# ```yaml
+# name: Issue Classifier
+# description: Automatically classifies and labels issues based on content analysis and predefined categories
+# on:
+#   issues:
+#     types: [opened]
+#   reaction: "eyes"
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# safe-outputs:
+#   add-labels:
+#     allowed: [bug, feature, enhancement, documentation]
+#     max: 1
+# timeout-minutes: 5
+# imports:
+#   - shared/actions-ai-inference.md
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/actions-ai-inference.md

@@ -1,5 +1,5 @@
 ---
-description: Posts a daily random fact about the gh-aw project to a discussion thread
+description: Posts a daily poetic verse about the gh-aw project to a discussion thread
 on:
   schedule:
     - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only
@@ -30,11 +30,16 @@ safe-outputs:
   add-comment:
     target: "4750"
     discussion: true
+  messages:
+    footer: "> 🪶 *Penned with care by [{workflow_name}]({run_url})*"
+    run-started: "📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}..."
+    run-success: "✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟"
+    run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
 ---
 
 # Daily Fact About gh-aw
 
-Your task is to post a fun, interesting fact about the ${{ github.repository }} project to discussion #4750.
+Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
 
 ## Data Sources
 
@@ -60,8 +65,8 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 
 - **Favor recent updates** but include variety - pick something interesting, not just the most recent
 - **Be specific**: Include PR numbers, issue references, or release tags when relevant
-- **Keep it short**: One or two sentences for the main fact, optionally with a brief context
-- **Be engaging**: Use a casual, friendly tone that makes the fact memorable
+- **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
+- **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
 - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
 
 ## Output Format
@@ -69,25 +74,25 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 Create a single comment with this structure:
 
 ```
-📊 **Daily gh-aw Fact**
+🌅 **A Verse from the gh-aw Chronicles**
 
-[Your interesting fact here, referencing specific PRs, issues, or releases with links]
+[Your poetic fact here, referencing specific PRs, issues, or releases with links]
 
 ---
-*Today's fact brought to you by the Daily Fact Bot 🤖*
+*Whispered to you by the Poet of Workflows 🪶*
 ```
 
 ## Examples
 
-Good facts:
-- "Did you know? PR #1234 added support for the `playwright` tool, enabling browser automation in agentic workflows! 🎭"
-- "This week, 5 issues related to MCP server configuration were resolved, making it easier than ever to set up custom tools."
-- "The latest release v0.45.0 introduced the `cache-memory` feature, allowing agents to persist data across workflow runs! 💾"
-- "Fun fact: The most active contributor this week fixed 3 bugs related to YAML parsing. Thanks @contributor! 🙌"
+Good facts (poetic tone):
+- "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
+- "Like five stars falling into place, issues of MCP woes were caught and mended this week — the path to custom tools grows ever clearer."
+- "From the forge of v0.45.0 emerges `cache-memory`, a keeper of thoughts that transcends the fleeting runs of workflows! 💾"
+- "A tireless artisan toiled this week, mending three fractures in the YAML tapestry. Gratitude flows to @contributor! 🙌"
 
 Bad facts:
-- "The repository was updated today." (too vague)
-- "There were some changes." (not specific)
-- Long paragraphs (keep it brief)
+- "The repository was updated today." (too vague, lacks poetry)
+- "There were some changes." (not specific, uninspired)
+- Long paragraphs (keep it brief and lyrical)
 
-Now, analyze the recent activity and post one interesting fact to discussion #4750.
+Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.

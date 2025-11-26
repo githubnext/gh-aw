@@ -20,6 +20,109 @@
 #
 # Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 #
+# Original Frontmatter:
+# ```yaml
+# name: Documentation Unbloat
+# description: Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
+# on:
+#   # Daily at 2am PST (10am UTC)
+#   schedule:
+#     - cron: "0 22 * * *"  # Daily at 10 PM UTC
+#
+#   # Command trigger for /unbloat in PR comments
+#   command:
+#     name: unbloat
+#     events: [pull_request_comment]
+#
+#   # Manual trigger for testing
+#   workflow_dispatch:
+#
+# # Minimal permissions - safe-outputs handles write operations
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   issues: read
+#
+# strict: false
+#
+# # AI engine configuration
+# engine:
+#   id: claude
+#   max-turns: 90  # Reduce from avg 115 turns
+#
+# # Shared instructions
+# imports:
+#   - shared/reporting.md
+#
+# # Network access for documentation best practices research
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# # Tools configuration
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   edit:
+#   playwright:
+#     args: ["--viewport-size", "1920x1080"]
+#   bash:
+#     - "find docs/src/content/docs -name '*.md'"
+#     - "wc -l *"
+#     - "grep -n *"
+#     - "cat *"
+#     - "head *"
+#     - "tail *"
+#     - "cd *"
+#     - "node *"
+#     - "curl *"
+#     - "ps *"
+#     - "kill *"
+#     - "sleep *"
+#     - "mkdir *"
+#     - "cp *"
+#     - "mv *"
+#
+# # Safe outputs configuration
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation, automation]
+#     draft: true
+#   add-comment:
+#     max: 1
+#   upload-assets:
+#
+# # Timeout (based on avg 6.8min runtime + buffer)
+# timeout-minutes: 12
+#
+# # Build steps for documentation
+# steps:
+#   - name: Checkout repository
+#     uses: actions/checkout@v5
+#     with:
+#       persist-credentials: false
+#
+#   - name: Setup Node.js
+#     uses: actions/setup-node@v6
+#     with:
+#       node-version: '24'
+#       cache: 'npm'
+#       cache-dependency-path: 'docs/package-lock.json'
+#
+#   - name: Install dependencies
+#     working-directory: ./docs
+#     run: npm ci
+#
+#   - name: Build documentation
+#     working-directory: ./docs
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: npm run build
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

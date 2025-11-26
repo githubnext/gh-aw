@@ -64,6 +64,25 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		}
 	}
 
+	// Add original frontmatter as comment for reference (after description)
+	if data.FrontmatterYAML != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Original Frontmatter:\n")
+		yaml.WriteString("# ```yaml\n")
+		// Normalize Windows line endings and split frontmatter into lines
+		normalizedFrontmatter := strings.ReplaceAll(data.FrontmatterYAML, "\r\n", "\n")
+		frontmatterLines := strings.Split(normalizedFrontmatter, "\n")
+		for _, line := range frontmatterLines {
+			// Preserve empty lines but prefix them with "#"
+			if strings.TrimSpace(line) == "" {
+				yaml.WriteString("#\n")
+			} else {
+				yaml.WriteString(fmt.Sprintf("# %s\n", line))
+			}
+		}
+		yaml.WriteString("# ```\n")
+	}
+
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")

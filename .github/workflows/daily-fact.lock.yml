@@ -18,7 +18,47 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Posts a daily random fact about the gh-aw project to a discussion thread
+# Posts a daily poetic verse about the gh-aw project to a discussion thread
+#
+# Original Frontmatter:
+# ```yaml
+# description: Posts a daily poetic verse about the gh-aw project to a discussion thread
+# on:
+#   schedule:
+#     - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+#   discussions: read
+# tracker-id: daily-fact-thread
+# engine:
+#   id: codex
+#   model: gpt-5-mini
+# strict: false  # Required: codex engine doesn't support network firewall
+# timeout-minutes: 15
+#
+# network:
+#   allowed:
+#     - defaults
+#
+# tools:
+#   github:
+#     toolsets:
+#       - default
+#       - discussions
+# safe-outputs:
+#   add-comment:
+#     target: "4750"
+#     discussion: true
+#   messages:
+#     footer: "> 🪶 *Penned with care by [{workflow_name}]({run_url})*"
+#     run-started: "📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}..."
+#     run-success: "✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟"
+#     run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
+# ```
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -41,7 +81,7 @@
 # ```markdown
 # # Daily Fact About gh-aw
 #
-# Your task is to post a fun, interesting fact about the ${{ github.repository }} project to discussion #4750.
+# Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
 #
 # ## Data Sources
 #
@@ -67,8 +107,8 @@
 #
 # - **Favor recent updates** but include variety - pick something interesting, not just the most recent
 # - **Be specific**: Include PR numbers, issue references, or release tags when relevant
-# - **Keep it short**: One or two sentences for the main fact, optionally with a brief context
-# - **Be engaging**: Use a casual, friendly tone that makes the fact memorable
+# - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
+# - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
 # - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
 #
 # ## Output Format
@@ -76,28 +116,28 @@
 # Create a single comment with this structure:
 #
 # ```
-# 📊 **Daily gh-aw Fact**
+# 🌅 **A Verse from the gh-aw Chronicles**
 #
-# [Your interesting fact here, referencing specific PRs, issues, or releases with links]
+# [Your poetic fact here, referencing specific PRs, issues, or releases with links]
 #
 # ---
-# *Today's fact brought to you by the Daily Fact Bot 🤖*
+# *Whispered to you by the Poet of Workflows 🪶*
 # ```
 #
 # ## Examples
 #
-# Good facts:
-# - "Did you know? PR #1234 added support for the `playwright` tool, enabling browser automation in agentic workflows! 🎭"
-# - "This week, 5 issues related to MCP server configuration were resolved, making it easier than ever to set up custom tools."
-# - "The latest release v0.45.0 introduced the `cache-memory` feature, allowing agents to persist data across workflow runs! 💾"
-# - "Fun fact: The most active contributor this week fixed 3 bugs related to YAML parsing. Thanks @contributor! 🙌"
+# Good facts (poetic tone):
+# - "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
+# - "Like five stars falling into place, issues of MCP woes were caught and mended this week — the path to custom tools grows ever clearer."
+# - "From the forge of v0.45.0 emerges `cache-memory`, a keeper of thoughts that transcends the fleeting runs of workflows! 💾"
+# - "A tireless artisan toiled this week, mending three fractures in the YAML tapestry. Gratitude flows to @contributor! 🙌"
 #
 # Bad facts:
-# - "The repository was updated today." (too vague)
-# - "There were some changes." (not specific)
-# - Long paragraphs (keep it brief)
+# - "The repository was updated today." (too vague, lacks poetry)
+# - "There were some changes." (not specific, uninspired)
+# - Long paragraphs (keep it brief and lyrical)
 #
-# Now, analyze the recent activity and post one interesting fact to discussion #4750.
+# Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
 # ```
 #
 # Pinned GitHub Actions:
@@ -272,6 +312,7 @@ jobs:
           GITHUB_AW_COMMENT_DISCUSSION: "true"
           GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
           GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"RunSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"RunFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1555,7 +1596,7 @@ jobs:
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Daily Fact About gh-aw
           
-          Your task is to post a fun, interesting fact about the ${GH_AW_EXPR_D892F163} project to discussion #4750.
+          Your task is to post a poetic, whimsical fact about the ${GH_AW_EXPR_D892F163} project to discussion #4750.
           
           ## Data Sources
           
@@ -1581,8 +1622,8 @@ jobs:
           
           - **Favor recent updates** but include variety - pick something interesting, not just the most recent
           - **Be specific**: Include PR numbers, issue references, or release tags when relevant
-          - **Keep it short**: One or two sentences for the main fact, optionally with a brief context
-          - **Be engaging**: Use a casual, friendly tone that makes the fact memorable
+          - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
+          - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
           - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
           
           ## Output Format
@@ -1590,28 +1631,28 @@ jobs:
           Create a single comment with this structure:
           
           ```
-          📊 **Daily gh-aw Fact**
+          🌅 **A Verse from the gh-aw Chronicles**
           
-          [Your interesting fact here, referencing specific PRs, issues, or releases with links]
+          [Your poetic fact here, referencing specific PRs, issues, or releases with links]
           
           ---
-          *Today's fact brought to you by the Daily Fact Bot 🤖*
+          *Whispered to you by the Poet of Workflows 🪶*
           ```
           
           ## Examples
           
-          Good facts:
-          - "Did you know? PR #1234 added support for the `playwright` tool, enabling browser automation in agentic workflows! 🎭"
-          - "This week, 5 issues related to MCP server configuration were resolved, making it easier than ever to set up custom tools."
-          - "The latest release v0.45.0 introduced the `cache-memory` feature, allowing agents to persist data across workflow runs! 💾"
-          - "Fun fact: The most active contributor this week fixed 3 bugs related to YAML parsing. Thanks @contributor! 🙌"
+          Good facts (poetic tone):
+          - "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
+          - "Like five stars falling into place, issues of MCP woes were caught and mended this week — the path to custom tools grows ever clearer."
+          - "From the forge of v0.45.0 emerges `cache-memory`, a keeper of thoughts that transcends the fleeting runs of workflows! 💾"
+          - "A tireless artisan toiled this week, mending three fractures in the YAML tapestry. Gratitude flows to @contributor! 🙌"
           
           Bad facts:
-          - "The repository was updated today." (too vague)
-          - "There were some changes." (not specific)
-          - Long paragraphs (keep it brief)
+          - "The repository was updated today." (too vague, lacks poetry)
+          - "There were some changes." (not specific, uninspired)
+          - Long paragraphs (keep it brief and lyrical)
           
-          Now, analyze the recent activity and post one interesting fact to discussion #4750.
+          Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -3102,6 +3143,423 @@ jobs:
                 runLogParser,
               };
             }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 300;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function formatMcpName(toolName) {
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1]; 
+                  const method = parts.slice(2).join("_"); 
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            function generateConversationMarkdown(logEntries, options) {
+              const { formatToolCallback, formatInitCallback } = options;
+              const toolUsePairs = new Map(); 
+              for (const entry of logEntries) {
+                if (entry.type === "user" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_result" && content.tool_use_id) {
+                      toolUsePairs.set(content.tool_use_id, content);
+                    }
+                  }
+                }
+              }
+              let markdown = "";
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && formatInitCallback) {
+                markdown += "## 🚀 Initialization\n\n";
+                const initResult = formatInitCallback(initEntry);
+                if (typeof initResult === "string") {
+                  markdown += initResult;
+                } else if (initResult && initResult.markdown) {
+                  markdown += initResult.markdown;
+                }
+                markdown += "\n";
+              }
+              markdown += "\n## 🤖 Reasoning\n\n";
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "text" && content.text) {
+                      const text = content.text.trim();
+                      if (text && text.length > 0) {
+                        markdown += text + "\n\n";
+                      }
+                    } else if (content.type === "tool_use") {
+                      const toolResult = toolUsePairs.get(content.id);
+                      const toolMarkdown = formatToolCallback(content, toolResult);
+                      if (toolMarkdown) {
+                        markdown += toolMarkdown;
+                      }
+                    }
+                  }
+                }
+              }
+              markdown += "## 🤖 Commands and Tools\n\n";
+              const commandSummary = []; 
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      const input = content.input || {};
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue; 
+                      }
+                      const toolResult = toolUsePairs.get(content.id);
+                      let statusIcon = "❓";
+                      if (toolResult) {
+                        statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                      }
+                      if (toolName === "Bash") {
+                        const formattedCommand = formatBashCommand(input.command || "");
+                        commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                      } else if (toolName.startsWith("mcp__")) {
+                        const mcpName = formatMcpName(toolName);
+                        commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} ${toolName}`);
+                      }
+                    }
+                  }
+                }
+              }
+              if (commandSummary.length > 0) {
+                for (const cmd of commandSummary) {
+                  markdown += `${cmd}\n`;
+                }
+              } else {
+                markdown += "No commands or tools used.\n";
+              }
+              return { markdown, commandSummary };
+            }
+            function generateInformationSection(lastEntry, options = {}) {
+              const { additionalInfoCallback } = options;
+              let markdown = "\n## 📊 Information\n\n";
+              if (!lastEntry) {
+                return markdown;
+              }
+              if (lastEntry.num_turns) {
+                markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+              }
+              if (lastEntry.duration_ms) {
+                const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                const minutes = Math.floor(durationSec / 60);
+                const seconds = durationSec % 60;
+                markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+              }
+              if (lastEntry.total_cost_usd) {
+                markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+              }
+              if (additionalInfoCallback) {
+                const additionalInfo = additionalInfoCallback(lastEntry);
+                if (additionalInfo) {
+                  markdown += additionalInfo;
+                }
+              }
+              if (lastEntry.usage) {
+                const usage = lastEntry.usage;
+                if (usage.input_tokens || usage.output_tokens) {
+                  markdown += `**Token Usage:**\n`;
+                  if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                  if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                  if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                  markdown += "\n";
+                }
+              }
+              if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+                markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+              }
+              return markdown;
+            }
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+              }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
+            }
+            function formatInitializationSummary(initEntry, options = {}) {
+              const { mcpFailureCallback, modelInfoCallback, includeSlashCommands = false } = options;
+              let markdown = "";
+              const mcpFailures = [];
+              if (initEntry.model) {
+                markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (modelInfoCallback) {
+                const modelInfo = modelInfoCallback(initEntry);
+                if (modelInfo) {
+                  markdown += modelInfo;
+                }
+              }
+              if (initEntry.session_id) {
+                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
+              }
+              if (initEntry.cwd) {
+                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
+                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
+              }
+              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
+                markdown += "**MCP Servers:**\n";
+                for (const server of initEntry.mcp_servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
+                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                  if (server.status === "failed") {
+                    mcpFailures.push(server.name);
+                    if (mcpFailureCallback) {
+                      const failureDetails = mcpFailureCallback(server);
+                      if (failureDetails) {
+                        markdown += failureDetails;
+                      }
+                    }
+                  }
+                }
+                markdown += "\n";
+              }
+              if (initEntry.tools && Array.isArray(initEntry.tools)) {
+                markdown += "**Available Tools:**\n";
+                const categories = {
+                  Core: [],
+                  "File Operations": [],
+                  "Git/GitHub": [],
+                  MCP: [],
+                  Other: [],
+                };
+                for (const tool of initEntry.tools) {
+                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
+                    categories["Core"].push(tool);
+                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
+                    categories["File Operations"].push(tool);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    markdown += `- **${category}:** ${tools.length} tools\n`;
+                    markdown += `  - ${tools.join(", ")}\n`;
+                  }
+                }
+                markdown += "\n";
+              }
+              if (includeSlashCommands && initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
+                const commandCount = initEntry.slash_commands.length;
+                markdown += `**Slash Commands:** ${commandCount} available\n`;
+                if (commandCount <= 10) {
+                  markdown += `- ${initEntry.slash_commands.join(", ")}\n`;
+                } else {
+                  markdown += `- ${initEntry.slash_commands.slice(0, 5).join(", ")}, and ${commandCount - 5} more\n`;
+                }
+                markdown += "\n";
+              }
+              if (mcpFailures.length > 0) {
+                return { markdown, mcpFailures };
+              }
+              return { markdown };
+            }
+            function formatToolUse(toolUse, toolResult, options = {}) {
+              const { includeDetailedParameters = false } = options;
+              const toolName = toolUse.name;
+              const input = toolUse.input || {};
+              if (toolName === "TodoWrite") {
+                return ""; 
+              }
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? "❌" : "✅";
+                }
+                return "❓"; 
+              }
+              const statusIcon = getStatusIcon();
+              let summary = "";
+              let details = "";
+              if (toolResult && toolResult.content) {
+                if (typeof toolResult.content === "string") {
+                  details = toolResult.content;
+                } else if (Array.isArray(toolResult.content)) {
+                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
+                }
+              }
+              const inputText = JSON.stringify(input);
+              const outputText = details;
+              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
+              let metadata = "";
+              if (toolResult && toolResult.duration_ms) {
+                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+              }
+              if (totalTokens > 0) {
+                metadata += ` <code>~${totalTokens}t</code>`;
+              }
+              switch (toolName) {
+                case "Bash":
+                  const command = input.command || "";
+                  const description = input.description || "";
+                  const formattedCommand = formatBashCommand(command);
+                  if (description) {
+                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
+                  } else {
+                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
+                  }
+                  break;
+                case "Read":
+                  const filePath = input.file_path || input.path || "";
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
+                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
+                  break;
+                case "Write":
+                case "Edit":
+                case "MultiEdit":
+                  const writeFilePath = input.file_path || input.path || "";
+                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
+                  break;
+                case "Grep":
+                case "Glob":
+                  const query = input.query || input.pattern || "";
+                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
+                  break;
+                case "LS":
+                  const lsPath = input.path || "";
+                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
+                  break;
+                default:
+                  if (toolName.startsWith("mcp__")) {
+                    const mcpName = formatMcpName(toolName);
+                    const params = formatMcpParameters(input);
+                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
+                  } else {
+                    const keys = Object.keys(input);
+                    if (keys.length > 0) {
+                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
+                      const value = String(input[mainParam] || "");
+                      if (value) {
+                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
+                      } else {
+                        summary = `${statusIcon} ${toolName}${metadata}`;
+                      }
+                    } else {
+                      summary = `${statusIcon} ${toolName}${metadata}`;
+                    }
+                  }
+              }
+              if (details && details.trim()) {
+                let detailsContent = "";
+                if (includeDetailedParameters) {
+                  const inputKeys = Object.keys(input);
+                  if (inputKeys.length > 0) {
+                    detailsContent += "**Parameters:**\n\n";
+                    detailsContent += "``````json\n";
+                    detailsContent += JSON.stringify(input, null, 2);
+                    detailsContent += "\n``````\n\n";
+                  }
+                  detailsContent += "**Response:**\n\n";
+                  detailsContent += "``````\n";
+                  detailsContent += details;
+                  detailsContent += "\n``````";
+                } else {
+                  const maxDetailsLength = 500;
+                  const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+                  detailsContent = `\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\``;
+                }
+                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+              } else {
+                return `${summary}\n\n`;
+              }
+            }
+            function parseLogEntries(logContent) {
+              let logEntries;
+              try {
+                logEntries = JSON.parse(logContent);
+                if (!Array.isArray(logEntries)) {
+                  throw new Error("Not a JSON array");
+                }
+                return logEntries;
+              } catch (jsonArrayError) {
+                logEntries = [];
+                const lines = logContent.split("\n");
+                for (const line of lines) {
+                  const trimmedLine = line.trim();
+                  if (trimmedLine === "") {
+                    continue; 
+                  }
+                  if (trimmedLine.startsWith("[{")) {
+                    try {
+                      const arrayEntries = JSON.parse(trimmedLine);
+                      if (Array.isArray(arrayEntries)) {
+                        logEntries.push(...arrayEntries);
+                        continue;
+                      }
+                    } catch (arrayParseError) {
+                      continue;
+                    }
+                  }
+                  if (!trimmedLine.startsWith("{")) {
+                    continue;
+                  }
+                  try {
+                    const jsonEntry = JSON.parse(trimmedLine);
+                    logEntries.push(jsonEntry);
+                  } catch (jsonLineError) {
+                    continue;
+                  }
+                }
+              }
+              if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                return null;
+              }
+              return logEntries;
+            }
             function main() {
               runLogParser({
                 parseLog: parseCodexLog,
@@ -3350,23 +3808,6 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function formatDuration(ms) {
-              if (!ms || ms <= 0) return "";
-              const seconds = Math.round(ms / 1000);
-              if (seconds < 60) {
-                return `${seconds}s`;
-              }
-              const minutes = Math.floor(seconds / 60);
-              const remainingSeconds = seconds % 60;
-              if (remainingSeconds === 0) {
-                return `${minutes}m`;
-              }
-              return `${minutes}m ${remainingSeconds}s`;
-            }
             function formatCodexToolCall(server, toolName, params, response, statusIcon) {
               const totalTokens = estimateTokens(params) + estimateTokens(response);
               let metadata = "";
@@ -3415,19 +3856,11 @@ jobs:
               }
               return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
             }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseCodexLog,
                 formatCodexToolCall,
                 formatCodexBashCall,
-                truncateString,
-                estimateTokens,
-                formatDuration,
                 extractMCPInitialization,
               };
             }
@@ -4128,7 +4561,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily Fact About gh-aw"
-          WORKFLOW_DESCRIPTION: "Posts a daily random fact about the gh-aw project to a discussion thread"
+          WORKFLOW_DESCRIPTION: "Posts a daily poetic verse about the gh-aw project to a discussion thread"
         with:
           script: |
             const fs = require('fs');

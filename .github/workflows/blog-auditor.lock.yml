@@ -20,6 +20,49 @@
 #
 # Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content
 #
+# Original Frontmatter:
+# ```yaml
+# description: Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 12 * * 3"  # Weekly on Wednesday at 12:00 UTC
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# tracker-id: blog-auditor-weekly
+# engine: claude
+# strict: false
+# network:
+#   allowed:
+#     - defaults
+#     - githubnext.com
+#     - www.githubnext.com
+# tools:
+#   playwright:
+#     allowed_domains:
+#       - githubnext.com
+#       - www.githubnext.com
+#   bash:
+#     - "date *"
+#     - "echo *"
+#     - "mktemp *"
+#     - "cat *"
+#     - "gh aw compile *"
+#     - "ls *"
+#     - "rm *"
+#     - "test *"
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[audit] "
+#     category: "Audits"
+#     max: 1
+# timeout-minutes: 10
+# imports:
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

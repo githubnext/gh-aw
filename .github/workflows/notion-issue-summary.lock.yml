@@ -20,6 +20,28 @@
 #
 # Creates issue summaries and syncs them to Notion for project management and tracking
 #
+# Original Frontmatter:
+# ```yaml
+# description: Creates issue summaries and syncs them to Notion for project management and tracking
+# timeout-minutes: 5
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       issue-number:
+#         description: "Issue number to analyze"
+#         required: true
+#         type: string
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# tools:
+#   github:
+# imports:
+#   - shared/mcp/notion.md
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/notion.md

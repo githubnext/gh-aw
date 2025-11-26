@@ -20,6 +20,60 @@
 #
 # Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
 #
+# Original Frontmatter:
+# ```yaml
+# name: Copilot Agent PR Analysis
+# description: Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
+# on:
+#   schedule:
+#     # Every day at 6pm UTC
+#     - cron: "0 18 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+#
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[copilot-agent-analysis] "
+#     category: "audits"
+#     max: 1
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/reporting.md
+#   - shared/copilot-pr-data-fetch.md
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   bash:
+#     - "find .github -name '*.md'"
+#     - "find .github -type f -exec cat {} +"
+#     - "ls -la .github"
+#     - "git log --oneline"
+#     - "git diff"
+#     - "gh pr list *"
+#     - "gh search prs *"
+#     - "jq *"
+#     - "/tmp/gh-aw/jqschema.sh"
+#
+# timeout-minutes: 15
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md

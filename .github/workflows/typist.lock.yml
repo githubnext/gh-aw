@@ -20,6 +20,49 @@
 #
 # Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
 #
+# Original Frontmatter:
+# ```yaml
+# name: Typist - Go Type Analysis
+# description: Analyzes Go type usage patterns and identifies opportunities for better type safety and code improvements
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 11 * * 1-5"  # Daily at 11 AM UTC, weekdays only
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+#
+# imports:
+#   - shared/reporting.md
+#
+# safe-outputs:
+#   create-discussion:
+#     category: "General"
+#     max: 1
+#
+# tools:
+#   serena: ["go"]
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
+#     - "find pkg -type f -name '*.go' ! -name '*_test.go'"
+#     - "ls -la pkg/"
+#     - "wc -l pkg/**/*.go"
+#     - "grep -r 'type ' pkg --include='*.go'"
+#     - "grep -r 'interface{}' pkg --include='*.go'"
+#     - "grep -r '\\bany\\b' pkg --include='*.go'"
+#     - "cat pkg/**/*.go"
+#
+# timeout-minutes: 20
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

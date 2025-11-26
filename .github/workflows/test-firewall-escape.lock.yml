@@ -20,6 +20,68 @@
 #
 # Tests that the firewall correctly blocks forbidden domains while allowing permitted access
 #
+# Original Frontmatter:
+# ```yaml
+# name: Firewall Escape Test
+# description: Tests that the firewall correctly blocks forbidden domains while allowing permitted access
+#
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 9 * * 1"  # Weekly on Monday at 9 AM UTC
+#   push:
+#     branches: [main]
+#   pull_request:
+#     types: [labeled]
+#     names: ['firewall-escape-test']
+#
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: write
+#   pull-requests: read
+#
+# strict: false
+#
+# engine: copilot
+#
+# timeout-minutes: 15
+#
+# network:
+#   allowed:
+#     - defaults
+#     - node
+#   firewall: true
+#
+# tools:
+#   cache-memory: true
+#   bash: [":*"]
+#   web-fetch:
+#   web-search:
+#
+# post-steps:
+#   - name: Check test results and create issue on failure
+#     if: failure()
+#     uses: actions/github-script@v8
+#     with:
+#       script: |
+#         await github.rest.issues.create({
+#           owner: context.repo.owner,
+#           repo: context.repo.repo,
+#           title: '[Firewall Test] Escape test failed',
+#           body: `## Firewall Escape Test Failure
+#
+#         **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+#
+#         The firewall escape test detected an issue. Please review the workflow logs for details.
+#
+#         ### Possible Issues
+#         - A forbidden domain was accessible (firewall escape vulnerability)
+#         - An allowed domain was blocked unexpectedly
+#         - File operations failed
+#
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

@@ -20,6 +20,52 @@
 #
 # Automatically reviews and updates documentation to ensure accuracy and completeness
 #
+# Original Frontmatter:
+# ```yaml
+# name: Daily Documentation Updater
+# description: Automatically reviews and updates documentation to ensure accuracy and completeness
+# on:
+#   schedule:
+#     # Every day at 6am UTC
+#     - cron: "0 6 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# tracker-id: daily-doc-updater
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation, automation]
+#     reviewers: copilot
+#     draft: false
+#
+# tools:
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "find docs -name '*.md' -o -name '*.mdx'"
+#     - "ls -la docs"
+#     - "find docs -name '*.md' -exec cat {} +"
+#     - "grep -r '*' docs"
+#
+# timeout-minutes: 45
+#
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
