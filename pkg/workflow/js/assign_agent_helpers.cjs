@@ -178,7 +178,12 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
- * @param {string} ghToken - GitHub token for the mutation
+ * @param {string} ghToken - GitHub token for the mutation. Must have:
+ *   - Write actions/contents/issues/pull-requests permissions
+ *   - A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions
+ *   - Note: The token source varies by caller:
+ *     - assign_to_agent.cjs uses GH_AW_AGENT_TOKEN (agent-specific token)
+ *     - assign_issue.cjs uses GH_TOKEN (general issue assignment token)
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
@@ -371,7 +376,8 @@ function generatePermissionErrorSummary() {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {string} agentName - Agent name (e.g., "copilot")
- * @param {string} ghToken - GitHub token for the mutation
+ * @param {string} ghToken - GitHub token for the mutation. Must have sufficient permissions
+ *   to assign agents. See assignAgentToIssue() for token requirements.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghToken) {
