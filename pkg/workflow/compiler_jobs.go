@@ -734,7 +734,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %s\n", data.AIReaction))
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
 		if data.Command != "" {
 			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		}

@@ -1327,14 +1327,44 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				if reactionStr, ok := reactionValue.(string); ok {
-					// Validate reaction value
-					if !isValidReaction(reactionStr) {
-						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+				var reactionStr string
+				switch v := reactionValue.(type) {
+				case string:
+					reactionStr = v
+				case int:
+					// Handle YAML parsing "+1" and "-1" as integers
+					if v == 1 {
+						reactionStr = "+1"
+					} else if v == -1 {
+						reactionStr = "-1"
+					} else {
+						return fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
 					}
-					// Set AIReaction even if it's "none" - "none" explicitly disables reactions
-					workflowData.AIReaction = reactionStr
+				case int64:
+					// Handle YAML parsing "-1" as int64
+					if v == 1 {
+						reactionStr = "+1"
+					} else if v == -1 {
+						reactionStr = "-1"
+					} else {
+						return fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
+					}
+				case uint64:
+					// Handle YAML parsing "+1" as uint64
+					if v == 1 {
+						reactionStr = "+1"
+					} else {
+						return fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
+					}
+				default:
+					return fmt.Errorf("invalid reaction type: expected string, got %T", reactionValue)
 				}
+				// Validate reaction value
+				if !isValidReaction(reactionStr) {
+					return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+				}
+				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
+				workflowData.AIReaction = reactionStr
 			}
 
 			if _, hasCommandKey := onMap["command"]; hasCommandKey {
