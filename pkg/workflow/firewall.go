@@ -50,7 +50,8 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 
 // enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
 // when network restrictions are present but no explicit firewall configuration exists
-func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions) {
+// and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
+func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Only apply to copilot engine
 	if engineID != "copilot" {
 		return
@@ -58,6 +59,12 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 
 	// Check if network permissions exist
 	if networkPermissions == nil {
+		return
+	}
+
+	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured
+	if sandboxConfig != nil && sandboxConfig.Type == SandboxTypeRuntime {
+		firewallLog.Print("SRT sandbox is enabled, skipping AWF auto-enablement")
 		return
 	}
 

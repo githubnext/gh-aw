@@ -12,7 +12,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 			Allowed: []string{"example.com", "api.github.com"},
 		}
 
-		enableFirewallByDefaultForCopilot("copilot", networkPerms)
+		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
 
 		if networkPerms.Firewall == nil {
 			t.Error("Expected firewall to be enabled by default for copilot engine with network restrictions")
@@ -28,7 +28,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 			Mode: "defaults",
 		}
 
-		enableFirewallByDefaultForCopilot("copilot", networkPerms)
+		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
 
 		if networkPerms.Firewall != nil {
 			t.Error("Expected firewall to remain nil when no network restrictions are present")
@@ -43,7 +43,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 			},
 		}
 
-		enableFirewallByDefaultForCopilot("copilot", networkPerms)
+		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
 
 		if networkPerms.Firewall.Enabled {
 			t.Error("Expected explicit firewall.Enabled=false to be preserved")
@@ -55,7 +55,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 			Allowed: []string{"example.com"},
 		}
 
-		enableFirewallByDefaultForCopilot("claude", networkPerms)
+		enableFirewallByDefaultForCopilot("claude", networkPerms, nil)
 
 		if networkPerms.Firewall != nil {
 			t.Error("Expected firewall to remain nil for non-copilot engine")
@@ -64,7 +64,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 
 	t.Run("nil network permissions does not cause error", func(t *testing.T) {
 		// Should not panic
-		enableFirewallByDefaultForCopilot("copilot", nil)
+		enableFirewallByDefaultForCopilot("copilot", nil, nil)
 	})
 }
 
@@ -99,7 +99,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Enable firewall by default
-		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms)
+		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms, nil)
 
 		// Verify firewall is enabled
 		if networkPerms.Firewall == nil {
@@ -175,7 +175,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Enable firewall by default (should not override explicit config)
-		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms)
+		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms, nil)
 
 		// Verify firewall is still disabled
 		if networkPerms.Firewall.Enabled {
@@ -231,7 +231,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Enable firewall by default (should not affect non-copilot engines)
-		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms)
+		enableFirewallByDefaultForCopilot(engineConfig.ID, networkPerms, nil)
 
 		// Verify firewall is NOT enabled for claude
 		if networkPerms.Firewall != nil {

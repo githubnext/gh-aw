@@ -29,6 +29,15 @@ func collectDockerImages(tools map[string]any) []string {
 		}
 	}
 
+	// Check for Playwright tool (uses Docker image - no version tag, only one image)
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		image := "mcr.microsoft.com/playwright/mcp"
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+		}
+	}
+
 	// Collect images from custom MCP tools with container configurations
 	for toolName, toolValue := range tools {
 		if mcpConfig, ok := toolValue.(map[string]any); ok {

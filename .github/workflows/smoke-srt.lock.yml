@@ -18,31 +18,116 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Tests network firewall functionality and validates security rules for workflow network access
+# Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
 #
 # Original Frontmatter:
 # ```yaml
-# description: Tests network firewall functionality and validates security rules for workflow network access
+# description: Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
 # on:
 #   workflow_dispatch:
-#
+#   pull_request:
+#     types: [labeled]
+#     names: ["test-srt"]
 # permissions:
 #   contents: read
 #   issues: read
-#   pull-requests: read
-#
+# name: Smoke SRT
 # engine: copilot
-#
 # network:
 #   allowed:
 #     - defaults
-#     - node
-#   firewall: true
-#
+#     - github
+#     - "*.githubcopilot.com"
+#     - "example.com"
+# sandbox:
+#   type: sandbox-runtime
+#   config:
+#     network:
+#       allowedDomains:
+#         - "*.githubusercontent.com"
+#         - "*.github.com"
+#         - "*.githubcopilot.com"
+#         - "api.enterprise.githubcopilot.com"
+#         - "api.github.com"
+#         - "api.snapcraft.io"
+#         - "archive.ubuntu.com"
+#         - "azure.archive.ubuntu.com"
+#         - "codeload.github.com"
+#         - "crl.geotrust.com"
+#         - "crl.globalsign.com"
+#         - "crl.identrust.com"
+#         - "crl.sectigo.com"
+#         - "crl.thawte.com"
+#         - "crl.usertrust.com"
+#         - "crl.verisign.com"
+#         - "crl3.digicert.com"
+#         - "crl4.digicert.com"
+#         - "crls.ssl.com"
+#         - "github-cloud.githubusercontent.com"
+#         - "github-cloud.s3.amazonaws.com"
+#         - "github.com"
+#         - "json-schema.org"
+#         - "json.schemastore.org"
+#         - "keyserver.ubuntu.com"
+#         - "lfs.github.com"
+#         - "objects.githubusercontent.com"
+#         - "ocsp.digicert.com"
+#         - "ocsp.geotrust.com"
+#         - "ocsp.globalsign.com"
+#         - "ocsp.identrust.com"
+#         - "ocsp.sectigo.com"
+#         - "ocsp.ssl.com"
+#         - "ocsp.thawte.com"
+#         - "ocsp.usertrust.com"
+#         - "ocsp.verisign.com"
+#         - "packagecloud.io"
+#         - "packages.cloud.google.com"
+#         - "packages.microsoft.com"
+#         - "ppa.launchpad.net"
+#         - "raw.githubusercontent.com"
+#         - "registry.npmjs.org"
+#         - "registry.npmjs.com"
+#         - "registry.bower.io"
+#         - "registry.yarnpkg.com"
+#         - "repo.yarnpkg.com"
+#         - "api.npms.io"
+#         - "bun.sh"
+#         - "deb.nodesource.com"
+#         - "deno.land"
+#         - "get.pnpm.io"
+#         - "nodejs.org"
+#         - "npm.pkg.github.com"
+#         - "npmjs.com"
+#         - "npmjs.org"
+#         - "www.npmjs.com"
+#         - "www.npmjs.org"
+#         - "yarnpkg.com"
+#         - "skimdb.npmjs.com"
+#         - "s.symcb.com"
+#         - "s.symcd.com"
+#         - "security.ubuntu.com"
+#         - "ts-crl.ws.symantec.com"
+#         - "ts-ocsp.ws.symantec.com"
+#         - "example.com"
+#       deniedDomains: []
+#       allowUnixSockets:
+#         - "/var/run/docker.sock"
+#       allowLocalBinding: true
+#       allowAllUnixSockets: true
+#     filesystem:
+#       denyRead: []
+#       allowWrite:
+#         - "."
+#         - "/tmp"
+#         - "/home/runner/.copilot"
+#         - "/home/runner"
+#       denyWrite: []
+#     enableWeakerNestedSandbox: true
 # tools:
-#   web-fetch:
-#
+#   bash:
+#   github:
 # timeout-minutes: 5
+# strict: true
 # ```
 #
 # Job Dependency Graph:
@@ -50,33 +135,20 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   pre_activation["pre_activation"]
+#   pre_activation --> activation
 #   activation --> agent
 # ```
 #
 # Original Prompt:
 # ```markdown
-# # Firewall Test Agent
+# You are testing the Sandbox Runtime (SRT) integration. Perform the following tasks:
 #
-# You are a test agent for network firewall functionality.
+# 1. Run `echo "Hello from SRT!"` using bash
+# 2. Check the current directory with `pwd`
+# 3. List files in the current directory with `ls -la`
 #
-# ## Mission
-#
-# Attempt to fetch content from example.com to demonstrate network permission enforcement.
-#
-# ## Instructions
-#
-# 1. Use the web-fetch tool to fetch content from https://example.com
-# 2. Report whether the fetch succeeded or failed
-# 3. If it failed, note that this demonstrates the network firewall is working correctly
-#
-# ## Expected Behavior
-#
-# Since network permissions are set to `defaults` (which does not include example.com), the fetch should be blocked by the network firewall.
-#
-# ## Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Triggered by**: ${{ github.actor }}
+# Report the results in a friendly summary. This is just a smoke test to validate that SRT is working correctly.
 # ```
 #
 # Pinned GitHub Actions:
@@ -89,22 +161,31 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Firewall Test Agent"
+name: "Smoke SRT"
 "on":
+  pull_request:
+    # names: # Label filtering applied via job conditions
+    # - test-srt # Label filtering applied via job conditions
+    types:
+    - labeled
   workflow_dispatch: null
 
 permissions:
   contents: read
   issues: read
-  pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
-run-name: "Firewall Test Agent"
+run-name: "Smoke SRT"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'test-srt'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -115,7 +196,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "firewall.lock.yml"
+          GH_AW_WORKFLOW_FILE: "smoke-srt.lock.yml"
         with:
           script: |
             async function main() {
@@ -206,9 +287,6 @@ jobs:
     permissions:
       contents: read
       issues: read
-      pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -288,21 +366,32 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install awf binary
+      - name: Install Sandbox Runtime System Dependencies
         run: |
-          echo "Installing awf from release: v0.3.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.3.0/awf-linux-x64 -o awf
-          chmod +x awf
-          sudo mv awf /usr/local/bin/
-          which awf
-          awf --version
+          echo "Installing system dependencies for Sandbox Runtime"
+          sudo apt-get update
+          sudo apt-get install -y ripgrep bubblewrap socat
+          echo "System dependencies installed successfully"
+          echo "Verifying installations:"
+          rg --version
+          bwrap --version
+          socat -V
+      - name: Configure System for Sandbox Runtime
+        run: |
+          echo "Disabling AppArmor namespace restrictions for bubblewrap"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          echo "System configuration applied successfully"
+      - name: Install Sandbox Runtime
+        run: |
+          echo "Installing @anthropic-ai/sandbox-runtime locally"
+          npm install @anthropic-ai/sandbox-runtime
+          echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+        run: npm install @github/copilot@0.0.365
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.22.0
-          docker pull mcp/fetch
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -331,16 +420,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }
@@ -352,85 +431,6 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
-      - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: "",
-              version: "",
-              agent_version: "0.0.365",
-              workflow_name: "Firewall Test Agent",
-              experimental: false,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              network_mode: "defaults",
-              allowed_domains: ["defaults","node"],
-              firewall_enabled: true,
-              firewall_version: "",
-              steps: {
-                firewall: "squid"
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
-      - name: Generate workflow overview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            const awInfoPath = '/tmp/gh-aw/aw_info.json';
-            
-            // Load aw_info.json
-            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));
-            
-            let networkDetails = '';
-            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {
-              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\n');
-              if (awInfo.allowed_domains.length > 10) {
-                networkDetails += `\n  - ... and ${awInfo.allowed_domains.length - 10} more`;
-              }
-            }
-            
-            const summary = '<details>\n' +
-              '<summary>🤖 Agentic Workflow Run Overview</summary>\n\n' +
-              '### Engine Configuration\n' +
-              '| Property | Value |\n' +
-              '|----------|-------|\n' +
-              `| Engine ID | ${awInfo.engine_id} |\n` +
-              `| Engine Name | ${awInfo.engine_name} |\n` +
-              `| Model | ${awInfo.model || '(default)'} |\n` +
-              '\n' +
-              '### Network Configuration\n' +
-              '| Property | Value |\n' +
-              '|----------|-------|\n' +
-              `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
-              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
-              '\n' +
-              (networkDetails ? `#### Allowed Domains\n${networkDetails}\n` : '') +
-              '</details>';
-            
-            await core.summary.addRaw(summary).write();
-            console.log('Generated workflow overview in step summary');
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -438,28 +438,13 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          # Firewall Test Agent
+          You are testing the Sandbox Runtime (SRT) integration. Perform the following tasks:
           
-          You are a test agent for network firewall functionality.
+          1. Run `echo "Hello from SRT!"` using bash
+          2. Check the current directory with `pwd`
+          3. List files in the current directory with `ls -la`
           
-          ## Mission
-          
-          Attempt to fetch content from example.com to demonstrate network permission enforcement.
-          
-          ## Instructions
-          
-          1. Use the web-fetch tool to fetch content from https://example.com
-          2. Report whether the fetch succeeded or failed
-          3. If it failed, note that this demonstrates the network firewall is working correctly
-          
-          ## Expected Behavior
-          
-          Since network permissions are set to `defaults` (which does not include example.com), the fetch should be blocked by the network firewall.
-          
-          ## Context
-          
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Triggered by**: ${GH_AW_EXPR_E80C082D}
+          Report the results in a friendly summary. This is just a smoke test to validate that SRT is working correctly.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -531,8 +516,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_E80C082D: ${{ github.actor }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -624,6 +607,42 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
+      - name: Generate agentic run info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: "",
+              version: "",
+              agent_version: "0.0.365",
+              workflow_name: "Smoke SRT",
+              experimental: false,
+              supports_tools_allowlist: true,
+              supports_http_transport: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              steps: {
+                firewall: ""
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -635,21 +654,220 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
-        # --allow-tool web-fetch
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
         timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool web-fetch --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
-            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Pre-create required directories for Sandbox Runtime
+          mkdir -p /home/runner/.copilot
+          mkdir -p /tmp/claude
+
+          # Create .srt-settings.json
+          cat > .srt-settings.json << 'SRT_CONFIG_EOF'
+          {
+            "network": {
+              "allowedDomains": [
+                "*.githubusercontent.com",
+                "*.github.com",
+                "*.githubcopilot.com",
+                "api.enterprise.githubcopilot.com",
+                "api.github.com",
+                "api.snapcraft.io",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "codeload.github.com",
+                "crl.geotrust.com",
+                "crl.globalsign.com",
+                "crl.identrust.com",
+                "crl.sectigo.com",
+                "crl.thawte.com",
+                "crl.usertrust.com",
+                "crl.verisign.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "crls.ssl.com",
+                "github-cloud.githubusercontent.com",
+                "github-cloud.s3.amazonaws.com",
+                "github.com",
+                "json-schema.org",
+                "json.schemastore.org",
+                "keyserver.ubuntu.com",
+                "lfs.github.com",
+                "objects.githubusercontent.com",
+                "ocsp.digicert.com",
+                "ocsp.geotrust.com",
+                "ocsp.globalsign.com",
+                "ocsp.identrust.com",
+                "ocsp.sectigo.com",
+                "ocsp.ssl.com",
+                "ocsp.thawte.com",
+                "ocsp.usertrust.com",
+                "ocsp.verisign.com",
+                "packagecloud.io",
+                "packages.cloud.google.com",
+                "packages.microsoft.com",
+                "ppa.launchpad.net",
+                "raw.githubusercontent.com",
+                "registry.npmjs.org",
+                "registry.npmjs.com",
+                "registry.bower.io",
+                "registry.yarnpkg.com",
+                "repo.yarnpkg.com",
+                "api.npms.io",
+                "bun.sh",
+                "deb.nodesource.com",
+                "deno.land",
+                "get.pnpm.io",
+                "nodejs.org",
+                "npm.pkg.github.com",
+                "npmjs.com",
+                "npmjs.org",
+                "www.npmjs.com",
+                "www.npmjs.org",
+                "yarnpkg.com",
+                "skimdb.npmjs.com",
+                "s.symcb.com",
+                "s.symcd.com",
+                "security.ubuntu.com",
+                "ts-crl.ws.symantec.com",
+                "ts-ocsp.ws.symantec.com",
+                "example.com"
+              ],
+              "deniedDomains": [],
+              "allowUnixSockets": [
+                "/var/run/docker.sock"
+              ],
+              "allowLocalBinding": true,
+              "allowAllUnixSockets": true
+            },
+            "filesystem": {
+              "denyRead": [],
+              "allowWrite": [
+                ".",
+                "/tmp",
+                "/home/runner/.copilot",
+                "/home/runner"
+              ],
+              "denyWrite": []
+            },
+            "enableWeakerNestedSandbox": true
+          }
+          SRT_CONFIG_EOF
+
+          # Create Node.js wrapper script for SRT
+          cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
+          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
+          const { spawn } = require('child_process');
+          const { readFileSync } = require('fs');
+
+          async function main() {
+            try {
+              // Load the sandbox configuration from .srt-settings.json
+              const configData = readFileSync('.srt-settings.json', 'utf-8');
+              const config = JSON.parse(configData);
+
+              // Initialize the sandbox (starts proxy servers, etc.)
+              await SandboxManager.initialize(config);
+
+              // Collect required environment variables for the sandboxed process
+              // These need to be explicitly passed because bwrap doesn't inherit env vars
+              // NOTE: Do NOT include GITHUB_TOKEN or GH_TOKEN here - they conflict with
+              // COPILOT_GITHUB_TOKEN. The Copilot CLI checks these tokens and if it finds
+              // the GitHub Actions default GITHUB_TOKEN (which is not valid for Copilot auth),
+              // it will fail with "No authentication information found" even when
+              // COPILOT_GITHUB_TOKEN is correctly set.
+              const requiredEnvVars = [
+                'COPILOT_GITHUB_TOKEN',
+                'COPILOT_AGENT_RUNNER_TYPE',
+                'XDG_CONFIG_HOME',
+                'GITHUB_STEP_SUMMARY',
+                'GITHUB_HEAD_REF',
+                'GITHUB_REF_NAME',
+                'GITHUB_WORKSPACE',
+                'GH_AW_PROMPT',
+                'GH_AW_MCP_CONFIG',
+                'GITHUB_MCP_SERVER_TOKEN',
+                'GH_AW_SAFE_OUTPUTS',
+                'GH_AW_STARTUP_TIMEOUT',
+                'GH_AW_TOOL_TIMEOUT',
+                'GH_AW_MAX_TURNS',
+              ];
+
+              // Build environment variable export statements for the command
+              // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
+              const envPrefix = requiredEnvVars
+                .filter(key => process.env[key] !== undefined)
+                .map(key => {
+                  const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
+                  return "export " + key + "='" + value + "';";
+                })
+                .join(' ');
+
+              // The command to run
+              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+
+              // Prepend environment variables to the command
+              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
+
+              // Wrap the command with sandbox restrictions
+              const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
+
+              // Execute the sandboxed command
+              const child = spawn(sandboxedCommand, {
+                shell: true,
+                stdio: 'inherit',
+                env: process.env
+              });
+
+              // Handle exit
+              child.on('exit', async (code) => {
+                // Cleanup when done
+                await SandboxManager.reset();
+                process.exit(code || 0);
+              });
+
+              // Handle errors
+              child.on('error', async (err) => {
+                console.error('Error executing command:', err);
+                await SandboxManager.reset();
+                process.exit(1);
+              });
+            } catch (err) {
+              console.error('Fatal error:', err);
+              try {
+                await SandboxManager.reset();
+              } catch (cleanupErr) {
+                console.error('Error during cleanup:', cleanupErr);
+              }
+              process.exit(1);
+            }
+          }
+
+          main();
+          SRT_WRAPPER_EOF
+
+          # Run the Node.js wrapper script
+          node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
           COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
             echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
-            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
-            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
-            sudo rmdir "$COPILOT_LOGS_DIR" || true
+            mkdir -p /tmp/gh-aw/.copilot/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            rmdir "$COPILOT_LOGS_DIR" || true
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1790,333 +2008,6 @@ jobs:
               };
             }
             main();
-      - name: Agent Firewall logs
-        if: always()
-        run: |
-          # Squid logs are preserved in timestamped directories
-          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
-            echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-firewall-test-agent/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-firewall-test-agent/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-firewall-test-agent/ || true
-          fi
-      - name: Upload Firewall Logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: squid-logs-firewall-test-agent
-          path: /tmp/gh-aw/squid-logs-firewall-test-agent/
-          if-no-files-found: ignore
-      - name: Parse firewall logs for step summary
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            function sanitizeWorkflowName(name) {
-
-              return name
-
-                .toLowerCase()
-
-                .replace(/[:\\/\s]/g, "-")
-
-                .replace(/[^a-z0-9._-]/g, "-");
-
-            }
-
-            function main() {
-
-              const fs = require("fs");
-
-              const path = require("path");
-
-              try {
-
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
-
-                if (!fs.existsSync(squidLogsDir)) {
-
-                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
-                if (files.length === 0) {
-
-                  core.info(`No firewall log files found in: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                core.info(`Found ${files.length} firewall log file(s)`);
-
-                let totalRequests = 0;
-
-                let allowedRequests = 0;
-
-                let deniedRequests = 0;
-
-                const allowedDomains = new Set();
-
-                const deniedDomains = new Set();
-
-                const requestsByDomain = new Map();
-
-                for (const file of files) {
-
-                  const filePath = path.join(squidLogsDir, file);
-
-                  core.info(`Parsing firewall log: ${file}`);
-
-                  const content = fs.readFileSync(filePath, "utf8");
-
-                  const lines = content.split("\n").filter(line => line.trim());
-
-                  for (const line of lines) {
-
-                    const entry = parseFirewallLogLine(line);
-
-                    if (!entry) {
-
-                      continue;
-
-                    }
-
-                    totalRequests++;
-
-                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
-                    if (isAllowed) {
-
-                      allowedRequests++;
-
-                      allowedDomains.add(entry.domain);
-
-                    } else {
-
-                      deniedRequests++;
-
-                      deniedDomains.add(entry.domain);
-
-                    }
-
-                    if (!requestsByDomain.has(entry.domain)) {
-
-                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
-                    }
-
-                    const domainStats = requestsByDomain.get(entry.domain);
-
-                    if (isAllowed) {
-
-                      domainStats.allowed++;
-
-                    } else {
-
-                      domainStats.denied++;
-
-                    }
-
-                  }
-
-                }
-
-                const summary = generateFirewallSummary({
-
-                  totalRequests,
-
-                  allowedRequests,
-
-                  deniedRequests,
-
-                  allowedDomains: Array.from(allowedDomains).sort(),
-
-                  deniedDomains: Array.from(deniedDomains).sort(),
-
-                  requestsByDomain,
-
-                });
-
-                core.summary.addRaw(summary).write();
-
-                core.info("Firewall log summary generated successfully");
-
-              } catch (error) {
-
-                core.setFailed(error instanceof Error ? error : String(error));
-
-              }
-
-            }
-
-            function parseFirewallLogLine(line) {
-
-              const trimmed = line.trim();
-
-              if (!trimmed || trimmed.startsWith("#")) {
-
-                return null;
-
-              }
-
-              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
-              if (!fields || fields.length < 10) {
-
-                return null;
-
-              }
-
-              const timestamp = fields[0];
-
-              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
-                return null;
-
-              }
-
-              return {
-
-                timestamp,
-
-                clientIpPort: fields[1],
-
-                domain: fields[2],
-
-                destIpPort: fields[3],
-
-                proto: fields[4],
-
-                method: fields[5],
-
-                status: fields[6],
-
-                decision: fields[7],
-
-                url: fields[8],
-
-                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
-              };
-
-            }
-
-            function isRequestAllowed(decision, status) {
-
-              const statusCode = parseInt(status, 10);
-
-              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
-                return true;
-
-              }
-
-              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
-                return true;
-
-              }
-
-              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
-                return false;
-
-              }
-
-              return false;
-
-            }
-
-            function generateFirewallSummary(analysis) {
-
-              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
-
-              let summary = "### 🔥 Firewall Blocked Requests\n\n";
-
-              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
-
-              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
-
-              if (validDeniedRequests > 0) {
-
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
-
-                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
-
-                summary += "<details>\n";
-
-                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
-
-                summary += "| Domain | Blocked Requests |\n";
-
-                summary += "|--------|------------------|\n";
-
-                for (const domain of validDeniedDomains) {
-
-                  const stats = requestsByDomain.get(domain);
-
-                  summary += `| ${domain} | ${stats.denied} |\n`;
-
-                }
-
-                summary += "\n</details>\n\n";
-
-              } else {
-
-                summary += "✅ **No blocked requests detected**\n\n";
-
-                if (totalRequests > 0) {
-
-                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-
-                } else {
-
-                  summary += "No firewall activity detected.\n\n";
-
-                }
-
-              }
-
-              return summary;
-
-            }
-
-            if (typeof module !== "undefined" && module.exports) {
-
-              module.exports = {
-
-                parseFirewallLogLine,
-
-                isRequestAllowed,
-
-                generateFirewallSummary,
-
-                main,
-
-              };
-
-            }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
-            if (isDirectExecution) {
-
-              main();
-
-            }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -2359,4 +2250,100 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  pre_activation:
+    if: >
+      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'test-srt')))
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissions = parseRequiredPermissions();
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", result.permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              }
+            }
+            await main();
 
