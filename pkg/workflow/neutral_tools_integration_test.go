@@ -56,6 +56,8 @@ Test workflow with neutral tools format.
 		t.Fatalf("Failed to read compiled workflow: %v", err)
 	}
 	yamlContent := string(yamlBytes)
+	// Strip the comment header to check only the actual YAML content
+	yamlContentNoComments := testutil.StripYAMLCommentHeader(yamlContent)
 
 	// Should contain Claude tools that were converted from neutral tools
 	expectedClaudeTools := []string{
@@ -95,8 +97,8 @@ Test workflow with neutral tools format.
 		}
 	}
 
-	// Verify that the old format is not present in the compiled output
-	if strings.Contains(yamlContent, "bash:") || strings.Contains(yamlContent, "web-fetch:") {
+	// Verify that the old format is not present in the compiled output (excluding comments)
+	if strings.Contains(yamlContentNoComments, "bash:") || strings.Contains(yamlContentNoComments, "web-fetch:") {
 		t.Error("Compiled YAML should not contain neutral tool names directly")
 	}
 }

@@ -7,6 +7,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["smoke"]
+  reaction: "eyes"
 permissions:
   contents: read
   pull-requests: read
@@ -30,9 +31,10 @@ tools:
       - github.com
   serena: ["go"]
 safe-outputs:
-    staged: true
     add-comment:
     create-issue:
+    add-labels:
+      allowed: [smoke-copilot]
 timeout-minutes: 10
 strict: true
 ---
@@ -56,3 +58,5 @@ Add a comment to the current pull request with:
 - Bash tool test result (file content verification)
 - Playwright test result (page title verification)
 - Overall smoke test status for **Copilot engine**
+
+If all tests pass successfully, add the label `smoke-copilot` to the pull request.

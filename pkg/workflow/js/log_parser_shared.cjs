@@ -3,7 +3,7 @@
 
 /**
  * Shared utility functions for log parsers
- * Used by parse_claude_log.cjs and parse_copilot_log.cjs
+ * Used by parse_claude_log.cjs, parse_copilot_log.cjs, and parse_codex_log.cjs
  */
 
 /**
