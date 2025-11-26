@@ -40,7 +40,7 @@ If this step fails, you may need to use a personal access token or run the [inst
 
 Before adding a workflow, it helps to understand how agentic workflows work.
 
-**You write** (`.md`) → **Compile** (`gh aw compile`) → **GitHub Actions runs** (`.lock.yml`)
+**You write** `.md` → **Compile** `gh aw compile` → **GitHub Actions runs** `.lock.yml`
 
 The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
 
