@@ -236,6 +236,7 @@ type WorkflowData struct {
 	Cache               string               // cache configuration
 	NeedsTextOutput     bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions  *NetworkPermissions  // parsed network permissions
+	SandboxConfig       *SandboxConfig       // parsed sandbox configuration (AWF or SRT)
 	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
 	Roles               []string             // permission levels required to trigger workflow
 	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
@@ -365,6 +366,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
 		return err
+	}
+
+	// Validate sandbox configuration
+	log.Printf("Validating sandbox configuration")
+	if err := validateSandboxConfig(workflowData); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
 	}
 
 	// Validate workflow_run triggers have branch restrictions
@@ -692,6 +708,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Extract sandbox configuration from frontmatter
+	sandboxConfig := c.extractSandboxConfig(result.Frontmatter)
+
 	// Save the initial strict mode state to restore it after this workflow is processed
 	// This ensures that strict mode from one workflow doesn't affect other workflows
 	initialStrictMode := c.strictMode
@@ -819,7 +838,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Enable firewall by default for copilot engine when network restrictions are present
-	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions)
+	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
+	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 
 	// Save the initial strict mode state again for network support check
 	// (it was restored after validateStrictMode but we need it again)
@@ -1034,6 +1054,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		EngineConfig:        engineConfig,
 		AgentFile:           importsResult.AgentFile,
 		NetworkPermissions:  networkPermissions,
+		SandboxConfig:       sandboxConfig,
 		NeedsTextOutput:     needsTextOutput,
 		SafetyPrompt:        safetyPrompt,
 		ToolsTimeout:        toolsTimeout,
@@ -1327,14 +1348,16 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				if reactionStr, ok := reactionValue.(string); ok {
-					// Validate reaction value
-					if !isValidReaction(reactionStr) {
-						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
-					}
-					// Set AIReaction even if it's "none" - "none" explicitly disables reactions
-					workflowData.AIReaction = reactionStr
+				reactionStr, err := parseReactionValue(reactionValue)
+				if err != nil {
+					return err
 				}
+				// Validate reaction value
+				if !isValidReaction(reactionStr) {
+					return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+				}
+				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
+				workflowData.AIReaction = reactionStr
 			}
 
 			if _, hasCommandKey := onMap["command"]; hasCommandKey {

@@ -88,8 +88,8 @@ func TestRenderPlaywrightMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"playwright": {`) {
 		t.Error("Expected playwright server ID")
 	}
-	if !strings.Contains(output, `"command": "npx"`) {
-		t.Error("Expected npx command")
+	if !strings.Contains(output, `"command": "docker"`) {
+		t.Error("Expected docker command")
 	}
 	// Check for trailing comma (not last)
 	if !strings.Contains(output, "},\n") {
@@ -151,7 +151,7 @@ func TestRenderPlaywrightMCP_TOML(t *testing.T) {
 	if !strings.Contains(output, "[mcp_servers.playwright]") {
 		t.Error("Expected TOML section header")
 	}
-	if !strings.Contains(output, `command = "npx"`) {
+	if !strings.Contains(output, `command = "docker"`) {
 		t.Error("Expected TOML command format")
 	}
 	if !strings.Contains(output, "args = [") {

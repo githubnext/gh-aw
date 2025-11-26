@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
@@ -301,14 +300,14 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightMCPVersion)) {
-		t.Errorf("Expected Playwright MCP npx package in output")
+	// Check that it contains the official Playwright MCP Docker image
+	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
+		t.Errorf("Expected official Playwright MCP Docker image in output")
 	}
 
 	// Check that it contains --allowed-hosts flag when domains are configured
 	if !strings.Contains(output, "--allowed-hosts") {
-		t.Errorf("Expected --allowed-hosts flag in npx args")
+		t.Errorf("Expected --allowed-hosts flag in docker args")
 	}
 
 	// Check that it contains the specified domains AND localhost domains with port variations
@@ -352,14 +351,14 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP npx configuration
-	if !strings.Contains(output, "@playwright/mcp@"+string(constants.DefaultPlaywrightMCPVersion)) {
-		t.Errorf("Expected Playwright MCP npx package in output")
+	// Check that it contains the official Playwright MCP Docker image
+	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
+		t.Errorf("Expected official Playwright MCP Docker image in output")
 	}
 
 	// Check that it contains --allowed-hosts flag for default domains
 	if !strings.Contains(output, "--allowed-hosts") {
-		t.Errorf("Expected --allowed-hosts flag in npx args")
+		t.Errorf("Expected --allowed-hosts flag in docker args")
 	}
 
 	// Check that it contains default domains with port variations (localhost, localhost:*, 127.0.0.1, 127.0.0.1:*)

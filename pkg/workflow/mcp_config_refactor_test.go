@@ -3,8 +3,6 @@ package workflow
 import (
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestRenderPlaywrightMCPConfigWithOptions verifies the shared Playwright config helper
@@ -22,7 +20,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0", // Docker image version (does not affect NPM package)
+				"version": "v1.45.0", // Version is used for the Docker image tag
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -30,13 +28,15 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"playwright": {`,
 				`"type": "local"`,
-				`"command": "npx"`,
-				`"args": ["@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`, // Always uses default NPM package version
+				`"command": "docker"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 				`"tools": ["*"]`,
 				`              }`,
 			},
-			unexpectedContent: []string{},
+			unexpectedContent: []string{
+				`"--pull=always"`,
+			},
 		},
 		{
 			name: "Claude/Custom with multi-line args, no type/tools fields",
@@ -48,9 +48,13 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
 				`"args": [`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
+				`"run"`,
+				`"-i"`,
+				`"--rm"`,
+				`"--init"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`              },`,
@@ -58,6 +62,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
+				`"--pull=always"`,
 			},
 		},
 		{
@@ -269,9 +274,13 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 			},
 			expectedContent: []string{
 				`[mcp_servers.playwright]`,
-				`command = "npx"`,
+				`command = "docker"`,
 				`args = [`,
-				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
+				`"run"`,
+				`"-i"`,
+				`"--rm"`,
+				`"--init"`,
+				`"mcr.microsoft.com/playwright/mcp"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 			},

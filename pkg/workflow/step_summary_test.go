@@ -136,3 +136,168 @@ This workflow tests that the step summary includes agentic run information.
 
 	t.Log("Step correctly creates aw_info.json without adding to step summary")
 }
+
+func TestStepSummaryIncludesWorkflowOverview(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "workflow-overview-test")
+
+	tests := []struct {
+		name                 string
+		workflowContent      string
+		expectEngineID       string
+		expectEngineName     string
+		expectModel          string
+		expectFirewall       bool
+		expectAllowedDomains []string
+	}{
+		{
+			name: "copilot engine with firewall",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - node
+  firewall: true
+---
+
+# Test Workflow Overview
+
+This workflow tests the workflow overview step summary.
+`,
+			expectEngineID:       "copilot",
+			expectEngineName:     "GitHub Copilot CLI",
+			expectModel:          "",
+			expectFirewall:       true,
+			expectAllowedDomains: []string{"defaults", "node"},
+		},
+		{
+			name: "claude engine with model",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+strict: false
+engine:
+  id: claude
+  model: claude-sonnet-4-20250514
+---
+
+# Test Claude Workflow Overview
+
+This workflow tests the workflow overview for Claude engine.
+`,
+			expectEngineID:       "claude",
+			expectEngineName:     "Claude Code",
+			expectModel:          "claude-sonnet-4-20250514",
+			expectFirewall:       false,
+			expectAllowedDomains: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFile := filepath.Join(tmpDir, tt.name+".md")
+			if err := os.WriteFile(testFile, []byte(tt.workflowContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+
+			// Compile the workflow
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := filepath.Join(tmpDir, tt.name+".lock.yml")
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Verify that the "Generate agentic run info" step exists and contains network config
+			if !strings.Contains(lockContent, "- name: Generate agentic run info") {
+				t.Error("Expected 'Generate agentic run info' step")
+			}
+
+			// Verify that the "Generate workflow overview" step exists
+			if !strings.Contains(lockContent, "- name: Generate workflow overview") {
+				t.Error("Expected 'Generate workflow overview' step")
+			}
+
+			// Verify "Generate agentic run info" runs BEFORE "Generate workflow overview"
+			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
+			overviewIdx := strings.Index(lockContent, "- name: Generate workflow overview")
+			if awInfoIdx >= overviewIdx {
+				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Generate workflow overview' step")
+			}
+
+			// Verify workflow overview reads from aw_info.json
+			if !strings.Contains(lockContent, "const awInfoPath = '/tmp/gh-aw/aw_info.json'") {
+				t.Error("Expected workflow overview step to read from aw_info.json")
+			}
+
+			// Verify engine ID is present in aw_info.json
+			if !strings.Contains(lockContent, "engine_id: \""+tt.expectEngineID+"\"") {
+				t.Errorf("Expected engine_id: %q in aw_info.json", tt.expectEngineID)
+			}
+
+			// Verify engine name is present in aw_info.json
+			if !strings.Contains(lockContent, "engine_name: \""+tt.expectEngineName+"\"") {
+				t.Errorf("Expected engine_name: %q in aw_info.json", tt.expectEngineName)
+			}
+
+			// Verify model is present in aw_info.json
+			if !strings.Contains(lockContent, "model: \""+tt.expectModel+"\"") {
+				t.Errorf("Expected model: %q in aw_info.json", tt.expectModel)
+			}
+
+			// Verify firewall status in aw_info.json
+			expectedFirewall := "false"
+			if tt.expectFirewall {
+				expectedFirewall = "true"
+			}
+			if !strings.Contains(lockContent, "firewall_enabled: "+expectedFirewall) {
+				t.Errorf("Expected firewall_enabled: %s in aw_info.json", expectedFirewall)
+			}
+
+			// Verify allowed domains if specified (in aw_info.json)
+			if len(tt.expectAllowedDomains) > 0 {
+				for _, domain := range tt.expectAllowedDomains {
+					if !strings.Contains(lockContent, domain) {
+						t.Errorf("Expected allowed domain: %q in aw_info.json", domain)
+					}
+				}
+			}
+
+			// Verify step runs before "Create prompt"
+			promptIdx := strings.Index(lockContent, "- name: Create prompt")
+			if overviewIdx >= promptIdx {
+				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Create prompt' step")
+			}
+
+			// Verify HTML details/summary format
+			if !strings.Contains(lockContent, "<details>") {
+				t.Error("Expected HTML <details> tag for collapsible summary")
+			}
+			if !strings.Contains(lockContent, "<summary>🤖 Agentic Workflow Run Overview</summary>") {
+				t.Error("Expected HTML <summary> tag with workflow overview title")
+			}
+			if !strings.Contains(lockContent, "</details>") {
+				t.Error("Expected HTML </details> closing tag")
+			}
+
+			t.Logf("✓ Workflow overview step correctly generated for %s", tt.name)
+		})
+	}
+}
