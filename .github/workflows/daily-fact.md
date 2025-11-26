@@ -11,7 +11,9 @@ permissions:
   actions: read
   discussions: read
 tracker-id: daily-fact-thread
-engine: codex
+engine:
+  id: codex
+  model: gpt-5-mini
 strict: false  # Required: codex engine doesn't support network firewall
 timeout-minutes: 15
 
