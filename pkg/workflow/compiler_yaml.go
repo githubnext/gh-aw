@@ -352,7 +352,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
+	// Generate aw_info.json with agentic run metadata (must run before workflow overview)
+	c.generateCreateAwInfo(yaml, data, engine)
+
 	// Generate workflow overview to step summary early, before prompts
+	// This reads from aw_info.json for consistent data
 	c.generateWorkflowOverviewStep(yaml, data, engine)
 
 	// Add prompt creation step
@@ -363,9 +367,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
-
-	// Generate aw_info.json with agentic run metadata
-	c.generateCreateAwInfo(yaml, data, engine)
 
 	// Upload info to artifact
 	c.generateUploadAwInfo(yaml)
@@ -918,59 +919,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
-	// Add steps object with firewall information
-	yaml.WriteString("              steps: {\n")
-
-	// Determine firewall type
-	firewallType := ""
-	if isFirewallEnabled(data) {
-		firewallType = "squid"
-	}
-	fmt.Fprintf(yaml, "                firewall: \"%s\"\n", firewallType)
-
-	yaml.WriteString("              },\n")
-
-	yaml.WriteString("              created_at: new Date().toISOString()\n")
-
-	yaml.WriteString("            };\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Write to /tmp/gh-aw directory to avoid inclusion in PR\n")
-	yaml.WriteString("            const tmpPath = '/tmp/gh-aw/aw_info.json';\n")
-	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
-	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
-}
-
-// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
-// This runs early (before prompt generation) and uses HTML details/summary tags for collapsible output.
-func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate workflow overview\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Build the overview info object
-	yaml.WriteString("            const overviewInfo = {\n")
-
-	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
-	engineID := engine.GetID()
-	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		engineID = data.EngineConfig.ID
-	} else if data.AI != "" {
-		engineID = data.AI
-	}
-	fmt.Fprintf(yaml, "              engine_id: \"%s\",\n", engineID)
-
-	// Engine display name
-	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
-
-	// Model information
-	model := ""
-	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-		model = data.EngineConfig.Model
-	}
-	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
-
 	// Network configuration
 	networkMode := "defaults"
 	var allowedDomains []string
@@ -999,17 +947,54 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	}
 
 	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
-	fmt.Fprintf(yaml, "              firewall_version: \"%s\"\n", firewallVersion)
+	fmt.Fprintf(yaml, "              firewall_version: \"%s\",\n", firewallVersion)
+
+	// Add steps object with firewall information
+	yaml.WriteString("              steps: {\n")
+
+	// Determine firewall type
+	firewallType := ""
+	if isFirewallEnabled(data) {
+		firewallType = "squid"
+	}
+	fmt.Fprintf(yaml, "                firewall: \"%s\"\n", firewallType)
+
+	yaml.WriteString("              },\n")
+
+	yaml.WriteString("              created_at: new Date().toISOString()\n")
 
 	yaml.WriteString("            };\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Write to /tmp/gh-aw directory to avoid inclusion in PR\n")
+	yaml.WriteString("            const tmpPath = '/tmp/gh-aw/aw_info.json';\n")
+	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
+	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+}
+
+// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
+// This runs after aw_info.json is created and reads from it for consistent data display.
+// Uses HTML details/summary tags for collapsible output.
+func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+	yaml.WriteString("      - name: Generate workflow overview\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Read from aw_info.json that was created by the previous step
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            const awInfoPath = '/tmp/gh-aw/aw_info.json';\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Load aw_info.json\n")
+	yaml.WriteString("            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));\n")
 	yaml.WriteString("            \n")
 
 	// Generate HTML with details/summary for collapsible output
 	yaml.WriteString("            let networkDetails = '';\n")
-	yaml.WriteString("            if (overviewInfo.allowed_domains.length > 0) {\n")
-	yaml.WriteString("              networkDetails = overviewInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\\n');\n")
-	yaml.WriteString("              if (overviewInfo.allowed_domains.length > 10) {\n")
-	yaml.WriteString("                networkDetails += `\\n  - ... and ${overviewInfo.allowed_domains.length - 10} more`;\n")
+	yaml.WriteString("            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {\n")
+	yaml.WriteString("              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\\n');\n")
+	yaml.WriteString("              if (awInfo.allowed_domains.length > 10) {\n")
+	yaml.WriteString("                networkDetails += `\\n  - ... and ${awInfo.allowed_domains.length - 10} more`;\n")
 	yaml.WriteString("              }\n")
 	yaml.WriteString("            }\n")
 	yaml.WriteString("            \n")
@@ -1019,16 +1004,16 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("              '### Engine Configuration\\n' +\n")
 	yaml.WriteString("              '| Property | Value |\\n' +\n")
 	yaml.WriteString("              '|----------|-------|\\n' +\n")
-	yaml.WriteString("              `| Engine ID | ${overviewInfo.engine_id} |\\n` +\n")
-	yaml.WriteString("              `| Engine Name | ${overviewInfo.engine_name} |\\n` +\n")
-	yaml.WriteString("              `| Model | ${overviewInfo.model || '(default)'} |\\n` +\n")
+	yaml.WriteString("              `| Engine ID | ${awInfo.engine_id} |\\n` +\n")
+	yaml.WriteString("              `| Engine Name | ${awInfo.engine_name} |\\n` +\n")
+	yaml.WriteString("              `| Model | ${awInfo.model || '(default)'} |\\n` +\n")
 	yaml.WriteString("              '\\n' +\n")
 	yaml.WriteString("              '### Network Configuration\\n' +\n")
 	yaml.WriteString("              '| Property | Value |\\n' +\n")
 	yaml.WriteString("              '|----------|-------|\\n' +\n")
-	yaml.WriteString("              `| Mode | ${overviewInfo.network_mode} |\\n` +\n")
-	yaml.WriteString("              `| Firewall | ${overviewInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
-	yaml.WriteString("              `| Firewall Version | ${overviewInfo.firewall_version || '(latest)'} |\\n` +\n")
+	yaml.WriteString("              `| Mode | ${awInfo.network_mode || 'defaults'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\\n` +\n")
 	yaml.WriteString("              '\\n' +\n")
 	yaml.WriteString("              (networkDetails ? `#### Allowed Domains\\n${networkDetails}\\n` : '') +\n")
 	yaml.WriteString("              '</details>';\n")

@@ -1477,25 +1477,61 @@ jobs:
             }
           }
           EOF
+      - name: Generate agentic run info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "claude",
+              engine_name: "Claude Code",
+              model: "",
+              version: "",
+              agent_version: "2.0.54",
+              workflow_name: "Commit Changes Analyzer",
+              experimental: true,
+              supports_tools_allowlist: true,
+              supports_http_transport: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              network_mode: "defaults",
+              allowed_domains: [],
+              firewall_enabled: false,
+              firewall_version: "",
+              steps: {
+                firewall: ""
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
       - name: Generate workflow overview
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const overviewInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
-              model: "",
-              network_mode: "defaults",
-              allowed_domains: [],
-              firewall_enabled: false,
-              firewall_version: ""
-            };
+            const fs = require('fs');
+            const awInfoPath = '/tmp/gh-aw/aw_info.json';
+            
+            // Load aw_info.json
+            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));
             
             let networkDetails = '';
-            if (overviewInfo.allowed_domains.length > 0) {
-              networkDetails = overviewInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\n');
-              if (overviewInfo.allowed_domains.length > 10) {
-                networkDetails += `\n  - ... and ${overviewInfo.allowed_domains.length - 10} more`;
+            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {
+              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\n');
+              if (awInfo.allowed_domains.length > 10) {
+                networkDetails += `\n  - ... and ${awInfo.allowed_domains.length - 10} more`;
               }
             }
             
@@ -1504,16 +1540,16 @@ jobs:
               '### Engine Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
-              `| Engine ID | ${overviewInfo.engine_id} |\n` +
-              `| Engine Name | ${overviewInfo.engine_name} |\n` +
-              `| Model | ${overviewInfo.model || '(default)'} |\n` +
+              `| Engine ID | ${awInfo.engine_id} |\n` +
+              `| Engine Name | ${awInfo.engine_name} |\n` +
+              `| Model | ${awInfo.model || '(default)'} |\n` +
               '\n' +
               '### Network Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
-              `| Mode | ${overviewInfo.network_mode} |\n` +
-              `| Firewall | ${overviewInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${overviewInfo.firewall_version || '(latest)'} |\n` +
+              `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
+              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
+              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `#### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -2030,42 +2066,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
-              model: "",
-              version: "",
-              agent_version: "2.0.54",
-              workflow_name: "Commit Changes Analyzer",
-              experimental: true,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              steps: {
-                firewall: ""
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
