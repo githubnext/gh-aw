@@ -7,6 +7,39 @@ sidebar:
 
 This reference documents frequently encountered issues when working with GitHub Agentic Workflows, organized by workflow stage and component.
 
+## Installation Issues
+
+### Extension Installation Fails
+
+If `gh extension install githubnext/gh-aw` fails with authentication or permission errors (common in Codespaces outside the githubnext organization), use the standalone installer:
+
+```bash wrap
+curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh
+```
+
+After installation, run commands with `./gh-aw` instead of `gh aw`. To use it globally:
+
+```bash wrap
+sudo mv gh-aw /usr/local/bin/
+```
+
+### Extension Not Found After Installation
+
+If you installed the extension but `gh aw` command is not found:
+
+1. Verify installation: `gh extension list`
+2. If not listed, reinstall: `gh extension install githubnext/gh-aw`
+3. If issues persist, use the standalone installer (see above)
+
+### Codespace Authentication Issues
+
+GitHub Codespaces may have limited permissions for installing GitHub CLI extensions. If you encounter authentication errors:
+
+1. Try the standalone installer (recommended for Codespaces)
+2. Or grant additional permissions to your Codespace token
+
 ## Workflow Compilation Issues
 
 ### Workflow Won't Compile

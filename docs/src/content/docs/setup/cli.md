@@ -35,13 +35,35 @@ Install the GitHub CLI extension:
 gh extension install githubnext/gh-aw
 ```
 
-**Alternative:** If authentication fails, use the standalone installer:
+### Alternative: Standalone Installer
+
+If the extension installation fails (common in Codespaces outside the githubnext organization or when authentication issues occur), use the standalone installer:
 
 ```bash wrap
 curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
 chmod +x install-gh-aw.sh
 ./install-gh-aw.sh
 ```
+
+:::tip[One-line install]
+After verifying the script contents, you can use this one-liner:
+
+```bash wrap
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+```
+:::
+
+After standalone installation, the binary is available as `./gh-aw` in the current directory. To use it globally:
+
+```bash wrap
+sudo mv gh-aw /usr/local/bin/
+```
+
+:::note[Command differences]
+When using the standalone binary, run commands as `./gh-aw` or `gh-aw` (if moved to PATH) instead of `gh aw`. For example:
+- Extension: `gh aw compile`
+- Standalone: `./gh-aw compile`
+:::
 
 **GitHub Enterprise Server:** Set `GITHUB_SERVER_URL` or `GH_HOST` environment variables to use your GitHub instance.
 

@@ -40,7 +40,21 @@ Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agent
 gh extension install githubnext/gh-aw
 ```
 
-If this step fails, you may need to use a personal access token or run the [install-gh-aw.sh script](https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh).
+:::caution[Installation fails in Codespaces?]
+If you're working in a GitHub Codespace (especially outside the githubnext organization), the extension installation may fail due to authentication or permission issues. Use the standalone installer instead:
+
+```bash wrap
+curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh
+```
+
+After installation, run the binary directly with `./gh-aw` instead of `gh aw`. You can also move it to your PATH:
+
+```bash wrap
+sudo mv gh-aw /usr/local/bin/
+```
+:::
 
 ### Understanding Compilation
 
