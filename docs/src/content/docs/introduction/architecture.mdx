@@ -545,13 +545,84 @@ flowchart TB
     AGGREGATE --> SUMMARY
 ```
 
+## Observability
+
+GitHub Agentic Workflows provide comprehensive observability through GitHub Actions runs and artifacts, enabling debugging, auditing, and cost monitoring.
+
+```mermaid
+flowchart TB
+    subgraph Workflow["Workflow Execution"]
+        RUN["GitHub Actions Run"]
+        JOBS["Job Logs"]
+        STEPS["Step Outputs"]
+    end
+
+    subgraph Artifacts["Workflow Artifacts"]
+        AGENT_OUT[/"agent_output.json<br/>AI decisions & actions"/]
+        PROMPT[/"prompt.txt<br/>Generated prompts"/]
+        PATCH[/"aw.patch<br/>Code changes"/]
+        LOGS[/"engine logs<br/>Token usage & timing"/]
+        FIREWALL[/"firewall logs<br/>Network requests"/]
+    end
+
+    subgraph CLI["CLI Tools"]
+        AW_LOGS["gh aw logs<br/>Download & analyze runs"]
+        AW_AUDIT["gh aw audit<br/>Investigate failures"]
+        AW_STATUS["gh aw status<br/>Workflow health"]
+    end
+
+    subgraph Insights["Observability Insights"]
+        COST["💰 Cost Tracking<br/>Token usage per run"]
+        DEBUG["🔍 Debugging<br/>Step-by-step trace"]
+        SECURITY["🛡️ Security Audit<br/>Network & tool access"]
+        PERF["⚡ Performance<br/>Duration & bottlenecks"]
+    end
+
+    RUN --> JOBS
+    JOBS --> STEPS
+    STEPS --> Artifacts
+
+    AGENT_OUT --> AW_LOGS
+    PROMPT --> AW_LOGS
+    PATCH --> AW_AUDIT
+    LOGS --> AW_LOGS
+    FIREWALL --> AW_AUDIT
+
+    AW_LOGS --> COST
+    AW_LOGS --> PERF
+    AW_AUDIT --> DEBUG
+    AW_AUDIT --> SECURITY
+    AW_STATUS --> DEBUG
+```
+
+**Key Observability Features:**
+
+- **Artifact Preservation**: All workflow outputs (prompts, patches, logs) are saved as downloadable artifacts
+- **Cost Monitoring**: Track token usage and costs across workflow runs with `gh aw logs`
+- **Failure Analysis**: Investigate failed runs with `gh aw audit` to see prompts, errors, and network activity
+- **Firewall Logs**: Review all network requests made by the agent for security auditing
+- **Step Summaries**: Rich markdown summaries in GitHub Actions showing AI decisions and outputs
+
+**CLI Commands:**
+
+```bash wrap
+# Download and analyze workflow run logs
+gh aw logs
+
+# Investigate a specific workflow run
+gh aw audit <run-id>
+
+# Check workflow health and status
+gh aw status
+```
+
 ## Security Principles Summary
 
 | Layer | Mechanism | Protection Against |
 |-------|-----------|-------------------|
 | **Compilation** | Schema validation, expression allowlist | Invalid configurations, unauthorized expressions |
 | **Compilation** | Action SHA pinning | Supply chain attacks, tag hijacking |
-| **Compilation** | Security scanners | Privilege escalation, misconfigurations |
+| **Compilation** | Security scanners (actionlint, zizmor, poutine) | Privilege escalation, misconfigurations, supply chain risks |
 | **Runtime** | Pre-activation checks | Unauthorized users, expired workflows |
 | **Runtime** | Content sanitization | Prompt injection, @mention abuse |
 | **Runtime** | AWF network controls | Data exfiltration, unauthorized API calls |
@@ -560,6 +631,7 @@ flowchart TB
 | **Output** | Threat detection | Malicious patches, secret leaks |
 | **Output** | Permission separation | Direct write access abuse |
 | **Output** | Output sanitization | Content injection, XSS |
+| **Observability** | Artifact preservation, CLI tools | Debugging failures, auditing security, cost tracking |
 
 ## Related Documentation
 
@@ -569,3 +641,4 @@ flowchart TB
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing configuration
 - [AI Engines](/gh-aw/reference/engines/) - Engine-specific security features
 - [Compilation Process](/gh-aw/reference/compilation-process/) - Build-time security validation
+- [CLI Commands](/gh-aw/setup/cli/) - Workflow management and observability tools
