@@ -225,7 +225,7 @@ func TestFindClosestMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := findClosestMatches(tt.target, candidates, tt.maxResults)
+			result := FindClosestMatches(tt.target, candidates, tt.maxResults)
 
 			if len(result) == 0 {
 				t.Errorf("Expected at least one match, got none")

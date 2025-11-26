@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -364,5 +365,102 @@ func TestUnauthorizedExpressionErrorFormat(t *testing.T) {
 
 	if !strings.Contains(errMsg, "\nallowed:\n") {
 		t.Errorf("Error message should have 'allowed:' on its own line, got: %s", errMsg)
+	}
+}
+
+func TestUnauthorizedExpressionFuzzyMatchSuggestions(t *testing.T) {
+	tests := []struct {
+		name                string
+		content             string
+		expectedExpression  string
+		expectedSuggestions []string
+	}{
+		{
+			name:               "typo in github.actor",
+			content:            "User: ${{ github.actr }}",
+			expectedExpression: "github.actr",
+			expectedSuggestions: []string{
+				"github.actor",
+			},
+		},
+		{
+			name:               "typo in github.event.issue.number",
+			content:            "Issue: ${{ github.event.issue.numbre }}",
+			expectedExpression: "github.event.issue.numbre",
+			expectedSuggestions: []string{
+				"github.event.issue.number",
+			},
+		},
+		{
+			name:               "typo in github.repository",
+			content:            "Repo: ${{ github.repositry }}",
+			expectedExpression: "github.repositry",
+			expectedSuggestions: []string{
+				"github.repository",
+			},
+		},
+		{
+			name:               "typo in github.workflow",
+			content:            "Workflow: ${{ github.workfow }}",
+			expectedExpression: "github.workfow",
+			expectedSuggestions: []string{
+				"github.workflow",
+			},
+		},
+		{
+			name:               "typo in github.run_id",
+			content:            "Run: ${{ github.run_di }}",
+			expectedExpression: "github.run_di",
+			expectedSuggestions: []string{
+				"github.run_id",
+			},
+		},
+		{
+			name:                "no close match for secrets",
+			content:             "Secret: ${{ secrets.TOKEN }}",
+			expectedExpression:  "secrets.TOKEN",
+			expectedSuggestions: []string{}, // No close match expected
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExpressionSafety(tt.content)
+
+			if err == nil {
+				t.Fatal("Expected error for unauthorized expression")
+			}
+
+			errMsg := err.Error()
+
+			// Verify the unauthorized expression is in the error message
+			if !strings.Contains(errMsg, tt.expectedExpression) {
+				t.Errorf("Error message should contain unauthorized expression '%s', got: %s",
+					tt.expectedExpression, errMsg)
+			}
+
+			// Verify fuzzy match suggestions are present (if expected)
+			for _, suggestion := range tt.expectedSuggestions {
+				if !strings.Contains(errMsg, suggestion) {
+					t.Errorf("Error message should contain suggestion '%s', got: %s",
+						suggestion, errMsg)
+				}
+				// Also verify the "did you mean" format
+				if !strings.Contains(errMsg, "did you mean:") {
+					t.Errorf("Error message should contain 'did you mean:' for suggestions, got: %s",
+						errMsg)
+				}
+			}
+
+			// If no suggestions expected, verify "did you mean" is not present for that expression
+			if len(tt.expectedSuggestions) == 0 {
+				// Check if the pattern "- <expression> (did you mean:" appears in the error message
+				pattern := fmt.Sprintf("- %s (did you mean:", tt.expectedExpression)
+				if strings.Contains(errMsg, pattern) {
+					t.Errorf("Error message for '%s' should NOT contain 'did you mean:', got: %s",
+						tt.expectedExpression, errMsg)
+				}
+			}
+		})
 	}
 }
