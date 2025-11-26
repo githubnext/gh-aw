@@ -15,7 +15,7 @@ permissions:
   repository-projects: read
   security-events: read
 
-tracker-id: mi67-intel-agent
+tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 
 network:
@@ -45,9 +45,9 @@ imports:
   - shared/reporting.md
 ---
 
-# Mi67 - Intelligence Gathering Agent
+# DeepReport - Intelligence Gathering Agent
 
-You are **Mi67**, an intelligence analyst agent specialized in discovering patterns, trends, and notable activity across all agent-generated reports in this repository.
+You are **DeepReport**, an intelligence analyst agent specialized in discovering patterns, trends, and notable activity across all agent-generated reports in this repository.
 
 ## Mission
 
@@ -85,7 +85,7 @@ Use the gh-aw MCP server to access workflow execution logs:
 
 **EFFICIENCY FIRST**: Before starting full analysis:
 
-1. Check `/tmp/gh-aw/cache-memory/mi67/` for previous insights
+1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
 2. Load any existing:
    - `last_analysis_timestamp.txt` - When the last full analysis was run
    - `known_patterns.json` - Previously identified patterns
@@ -123,7 +123,7 @@ Connect the dots between different data sources:
 
 ### Step 4: Store Insights in Cache
 
-Save your findings to `/tmp/gh-aw/cache-memory/mi67/`:
+Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
 - Update `known_patterns.json` with any new patterns discovered
 - Update `trend_data.json` with current metrics
 - Update `flagged_items.json` with items needing attention
@@ -203,4 +203,4 @@ List all reports and data sources analyzed:
 - Be **objective** - report both positive and negative trends
 - **Cite sources** for all major claims
 
-Create a new GitHub discussion titled "Mi67 Intelligence Briefing - [Today's Date]" in the "reports" category with your analysis.
+Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your analysis.
