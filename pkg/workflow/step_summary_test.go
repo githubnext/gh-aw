@@ -195,7 +195,7 @@ engine:
 This workflow tests the workflow overview for Claude engine.
 `,
 			expectEngineID:       "claude",
-			expectEngineName:     "Anthropic Claude Code",
+			expectEngineName:     "Claude Code",
 			expectModel:          "claude-sonnet-4-20250514",
 			expectFirewall:       false,
 			expectAllowedDomains: []string{},

@@ -1259,6 +1259,49 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const overviewInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: "",
+              network_mode: "defaults",
+              allowed_domains: [],
+              firewall_enabled: false,
+              firewall_version: ""
+            };
+            
+            let networkDetails = '';
+            if (overviewInfo.allowed_domains.length > 0) {
+              networkDetails = overviewInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\n');
+              if (overviewInfo.allowed_domains.length > 10) {
+                networkDetails += `\n  - ... and ${overviewInfo.allowed_domains.length - 10} more`;
+              }
+            }
+            
+            const summary = '<details>\n' +
+              '<summary>🤖 Agentic Workflow Run Overview</summary>\n\n' +
+              '### Engine Configuration\n' +
+              '| Property | Value |\n' +
+              '|----------|-------|\n' +
+              `| Engine ID | ${overviewInfo.engine_id} |\n` +
+              `| Engine Name | ${overviewInfo.engine_name} |\n` +
+              `| Model | ${overviewInfo.model || '(default)'} |\n` +
+              '\n' +
+              '### Network Configuration\n' +
+              '| Property | Value |\n' +
+              '|----------|-------|\n' +
+              `| Mode | ${overviewInfo.network_mode} |\n` +
+              `| Firewall | ${overviewInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
+              `| Firewall Version | ${overviewInfo.firewall_version || '(latest)'} |\n` +
+              '\n' +
+              (networkDetails ? `#### Allowed Domains\n${networkDetails}\n` : '') +
+              '</details>';
+            
+            await core.summary.addRaw(summary).write();
+            console.log('Generated workflow overview in step summary');
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
