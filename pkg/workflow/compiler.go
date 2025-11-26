@@ -288,6 +288,15 @@ type SafeOutputsConfig struct {
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`       // Custom message templates for footer and notifications
+}
+
+// SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages
+type SafeOutputMessagesConfig struct {
+	Footer            string `yaml:"footer,omitempty"`             // Custom footer message template
+	FooterInstall     string `yaml:"footer-install,omitempty"`     // Custom installation instructions template
+	StagedTitle       string `yaml:"staged-title,omitempty"`       // Custom staged mode title template
+	StagedDescription string `yaml:"staged-description,omitempty"` // Custom staged mode description template
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

@@ -129,6 +129,9 @@ var generateFooterScript string
 //go:embed js/get_tracker_id.cjs
 var getTrackerIDScript string
 
+//go:embed js/messages.cjs
+var messagesScript string
+
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
 
@@ -178,6 +181,7 @@ func GetJavaScriptSources() map[string]string {
 		"update_activation_comment.cjs":   updateActivationCommentScript,
 		"generate_footer.cjs":             generateFooterScript,
 		"get_tracker_id.cjs":              getTrackerIDScript,
+		"messages.cjs":                    messagesScript,
 		"get_repository_url.cjs":          getRepositoryUrlScript,
 		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,
 		"normalize_branch_name.cjs":       normalizeBranchNameScript,
