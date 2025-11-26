@@ -30,7 +30,6 @@
 #   pull_request:
 #     types: [labeled]
 #     names: ["smoke"]
-#   reaction: "+1"
 # permissions:
 #   contents: read
 #   pull-requests: read
@@ -54,10 +53,9 @@
 #       - github.com
 #   serena: ["go"]
 # safe-outputs:
+#     staged: true
 #     add-comment:
 #     create-issue:
-#     add-labels:
-#       allowed: [smoke-copilot-no-firewall]
 # timeout-minutes: 10
 # strict: false
 # ```

@@ -9,11 +9,7 @@ Cross-repository issue tracking enables organizations to maintain a centralized 
 
 ## When to Use
 
-- **Component-based architecture** - Track work across microservices or component repositories
-- **Multi-team coordination** - Centralize visibility for issues spanning multiple teams
-- **External dependencies** - Track upstream issues that affect your projects
-- **Cross-project initiatives** - Coordinate work that touches multiple repositories
-- **Reporting aggregation** - Collect metrics and status from distributed repositories
+Use cross-repo issue tracking for component-based architectures where multiple teams need centralized visibility, when tracking external dependencies, coordinating cross-project initiatives, or aggregating metrics from distributed repositories.
 
 ## How It Works
 
@@ -51,17 +47,7 @@ tracking issue in the central tracker.
 **Issue number:** ${{ github.event.issue.number }}
 **Content:** "${{ needs.activation.outputs.text }}"
 
-**Tracking issue should include:**
-- Link to original issue in component repo
-- Component identifier clearly marked
-- Summary of the issue with key details
-- Suggested priority based on labels from original
-- Any cross-component dependencies identified
-
-**Labels to apply:**
-- `from-component-alpha` (component identifier)
-- `tracking-issue` (marks as tracking issue)
-- Priority label based on original issue labels
+Create tracking issue with link to original, component identifier, summary, suggested priority, and labels `from-component-alpha` and `tracking-issue`.
 ```
 
 ## Status Synchronization
@@ -93,24 +79,7 @@ When this component issue changes status, update the central tracking issue.
 **Original issue:** ${{ github.event.issue.html_url }}
 **Action:** ${{ github.event.action }}
 
-**Process:**
-1. Search for tracking issue in `myorg/central-tracker` that references this issue URL
-2. Add comment with status update:
-   - If closed: "✅ Component issue resolved"
-   - If reopened: "🔄 Component issue reopened"
-   - If labeled: "🏷️ Labels updated: [list]"
-   - If unlabeled: "🏷️ Label removed: [name]"
-3. Include link back to component issue
-4. Add timestamp for tracking
-
-**Comment format:**
-```
-**Status Update from component-alpha**
-Action: [closed|reopened|labeled|unlabeled]
-Issue: [link to component issue]
-Time: [timestamp]
-Details: [specific changes]
-```
+Search for tracking issue in `myorg/central-tracker` and add comment with status update (✅ resolved, 🔄 reopened, or 🏷️ label changes), issue link, and timestamp.
 ```
 
 ## Multi-Component Tracking
@@ -144,21 +113,7 @@ When an issue is marked as cross-component, create coordinated tracking issues.
 
 **Original issue:** ${{ github.event.issue.html_url }}
 
-**Analysis:**
-1. Identify which components are affected (check issue description)
-2. Create primary tracking issue in central tracker
-3. If specific components mentioned, also create child issues in those repos
-
-**Tracking issue should include:**
-- Clear description of cross-component nature
-- List of affected components
-- Coordination requirements
-- Suggested approach for resolution
-- Links to all related issues
-
-**Follow-up:**
-- Tag relevant team leads
-- Set up coordination meeting if high priority
+Identify affected components, create primary tracking issue in central tracker with affected components list and coordination requirements, and create child issues in component repos if needed. Tag team leads and schedule coordination meeting for high-priority issues.
 ```
 
 ## External Dependency Tracking
@@ -194,24 +149,7 @@ Create tracking issue for external dependency problem.
 
 **External issue URL:** ${{ github.event.inputs.external_issue_url }}
 
-**Process:**
-1. Fetch issue details from external URL
-2. Extract issue title, description, and current status
-3. Identify which internal projects are affected
-4. Create tracking issue in dependency tracker
-
-**Tracking issue should include:**
-- Link to external issue
-- External project/repository name
-- Current status of external issue
-- Impact assessment on our projects
-- List of affected internal repositories
-- Workaround status (if applicable)
-- Monitoring plan
-
-**Follow-up actions:**
-- Set reminder to check external issue weekly
-- Notify affected project teams
+Fetch external issue details, identify affected internal projects, and create tracking issue with external link, status, impact assessment, affected repositories, and monitoring plan. Set weekly reminder and notify affected teams.
 ```
 
 ## Automated Triage and Routing
@@ -243,25 +181,7 @@ Analyze new issues and create tracking issues in appropriate repositories.
 **Original issue:** ${{ github.event.issue.html_url }}
 **Content:** "${{ needs.activation.outputs.text }}"
 
-**Triage process:**
-1. Analyze issue content for severity and type
-2. Determine target tracking repository:
-   - Security issues → `myorg/security-tracker`
-   - Feature requests → `myorg/feature-tracker`
-   - Bug reports → `myorg/bug-tracker`
-   - Infrastructure → `myorg/ops-tracker`
-
-3. Create tracking issue in appropriate repo with:
-   - Severity assessment
-   - Recommended priority
-   - Affected components
-   - Suggested owner/team
-
-**Include in tracking issue:**
-- Original issue link
-- Triage reasoning
-- Recommended next steps
-- SLA targets based on severity
+Analyze issue severity and route to appropriate tracker: security issues to `myorg/security-tracker`, features to `myorg/feature-tracker`, bugs to `myorg/bug-tracker`, or infrastructure to `myorg/ops-tracker`. Include original link, triage reasoning, priority, affected components, and SLA targets.
 ```
 
 ## Aggregated Reporting
@@ -290,27 +210,7 @@ safe-outputs:
 
 Generate weekly summary of tracked issues across all component repositories.
 
-**Repositories to summarize:**
-- `myorg/component-alpha`
-- `myorg/component-beta`
-- `myorg/component-gamma`
-- `myorg/shared-library`
-
-**For each repository:**
-1. Count open issues by priority
-2. List issues opened this week
-3. List issues closed this week
-4. Identify stale issues (>30 days no activity)
-5. Highlight blockers or critical issues
-
-**Create discussion with:**
-- Executive summary (key metrics)
-- Per-repository breakdown
-- Trending analysis (increasing/decreasing activity)
-- Action items requiring attention
-- Links to individual tracking issues
-
-**Format as markdown table with status indicators**
+Summarize issues from all component repositories including open counts by priority, issues opened/closed this week, stale issues (>30 days), and blockers. Create discussion with executive summary, per-repo breakdown, trending analysis, and action items formatted as markdown table.
 ```
 
 ## Bidirectional Linking
@@ -344,30 +244,7 @@ Create tracking issue and add comment to original with link.
 
 **Original issue:** ${{ github.event.issue.html_url }}
 
-**Process:**
-1. Create tracking issue in `myorg/central-tracker`
-2. Add comment to original issue with tracking issue link
-3. Include reference syntax for automatic linking
-
-**Tracking issue creation:**
-- Title: "[linked] ${{ github.event.issue.title }}"
-- Body includes: "Tracks ${{ github.event.issue.html_url }}"
-- Labels: component identifier + tracking-issue
-
-**Comment on original issue:**
-```
-🔗 **Tracking Issue Created**
-
-This issue is being tracked in the central repository:
-[Tracking Issue #XXX](https://github.com/myorg/central-tracker/issues/XXX)
-
-Updates to this issue will be reflected in the tracking issue.
-```
-
-**Benefits:**
-- Easy navigation between related issues
-- GitHub automatic reference detection
-- Clear audit trail
+Create tracking issue in `myorg/central-tracker` with title "[linked] ${{ github.event.issue.title }}" and body linking to original. Add comment to original issue with tracking link. This enables easy navigation, automatic GitHub reference detection, and clear audit trail.
 ```
 
 ## Priority-Based Routing
@@ -399,23 +276,7 @@ Route issues to appropriate tracking repository based on priority level.
 **Original issue:** ${{ github.event.issue.html_url }}
 **Labels:** Check for priority labels (P0, P1, P2, P3)
 
-**Routing logic:**
-- P0 (Critical): → `myorg/incidents`
-- P1 (High): → `myorg/priority-tracker`
-- P2 (Medium): → `myorg/central-tracker`
-- P3 (Low): → `myorg/backlog`
-
-**Tracking issue includes:**
-- Original issue link and content
-- Priority level clearly marked
-- SLA expectations based on priority
-- Escalation path
-- Required approvers/reviewers
-
-**For P0 (Critical):**
-- Alert on-call team
-- Set immediate response SLA
-- Include incident response checklist
+Route by priority: P0 → `myorg/incidents`, P1 → `myorg/priority-tracker`, P2 → `myorg/central-tracker`, P3 → `myorg/backlog`. Include original link, priority, SLA expectations, and escalation path. For P0, alert on-call team and include incident response checklist.
 ```
 
 ## Authentication Setup
@@ -447,33 +308,7 @@ safe-outputs:
 
 ## Best Practices
 
-### Issue Organization
-
-1. **Use consistent prefixes** - Identify component source in tracking issue titles
-2. **Apply component labels** - Enable filtering by source component
-3. **Include references** - Always link back to original issues
-4. **Standardize format** - Use templates for tracking issue descriptions
-
-### Status Management
-
-1. **Automate status sync** - Update tracking issues when component issues change
-2. **Set up webhooks** - Consider webhook-based updates for real-time sync
-3. **Handle closures** - Update tracking issue when component issue closes
-4. **Track reopens** - Alert when issues are reopened
-
-### Search and Discovery
-
-1. **Use GitHub issue search** - Leverage search to find related tracking issues
-2. **Implement tagging strategy** - Consistent labels for cross-repo queries
-3. **Create saved searches** - Share common queries across team
-4. **Document conventions** - Clear documentation of tracking patterns
-
-### Scaling Considerations
-
-1. **Rate limiting** - Space out tracking issue creation to avoid rate limits
-2. **Batch updates** - Group status updates when possible
-3. **Archive old trackers** - Close stale tracking issues periodically
-4. **Monitor volume** - Alert on unusual tracking issue creation rates
+Use consistent title prefixes and component labels for organization. Automate status synchronization when component issues change, including closures and reopens. Implement a consistent tagging strategy and document conventions for discoverability. For scaling, space out tracking issue creation to avoid rate limits, batch updates when possible, and archive old trackers periodically.
 
 ## Related Documentation
 
