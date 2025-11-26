@@ -24,7 +24,12 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast: false,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
+				`"run"`,
+				`"--rm"`,
+				`"-i"`,
+				`"mcr.microsoft.com/playwright:` + string(constants.DefaultPlaywrightBrowserVersion) + `"`,
+				`"npx"`,
 				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
@@ -41,7 +46,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast: true,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
 			},
 			wantEnding: "}\n",
 		},
@@ -51,7 +56,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 			isLast:         false,
 			wantContains: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
 				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 			},
 			wantEnding: "},\n",

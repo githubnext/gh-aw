@@ -1532,8 +1532,13 @@ jobs:
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
           [mcp_servers.playwright]
-          command = "npx"
+          command = "docker"
           args = [
+            "run",
+            "--rm",
+            "-i",
+            "mcr.microsoft.com/playwright:v1.57.0",
+            "npx",
             "@playwright/mcp@0.0.48",
             "--output-dir",
             "/tmp/gh-aw/mcp-logs/playwright",

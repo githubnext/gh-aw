@@ -1190,8 +1190,8 @@ jobs:
               },
               "playwright": {
                 "type": "local",
-                "command": "npx",
-                "args": ["@playwright/mcp@0.0.48", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost:*;127.0.0.1:*;localhost;127.0.0.1"],
+                "command": "docker",
+                "args": ["run", "--rm", "-i", "mcr.microsoft.com/playwright:v1.57.0", "npx", "@playwright/mcp@0.0.48", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost:*;127.0.0.1:*;localhost;127.0.0.1"],
                 "tools": ["*"]
               },
               "safeoutputs": {

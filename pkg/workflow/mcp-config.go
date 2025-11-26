@@ -14,7 +14,7 @@ import (
 var mcpLog = logger.New("workflow:mcp-config")
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
-// Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
+// Uses Docker container to launch Playwright MCP for consistent browser environment
 // This is a shared function used by both Claude and Custom engines
 func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
 	mcpLog.Print("Rendering Playwright MCP configuration")
@@ -22,6 +22,7 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 }
 
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
+// Uses Docker container with the Playwright browser image for consistent environment
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -35,8 +36,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
 
-	// Always use the default Playwright MCP NPM package version
-	playwrightPackage := "@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion)
+	// Use Docker image version from constants
+	playwrightImage := "mcr.microsoft.com/playwright:" + args.ImageVersion
+	// Use MCP package version from constants
+	playwrightPackage := "@playwright/mcp@" + args.MCPPackageVersion
 
 	yaml.WriteString("              \"playwright\": {\n")
 
@@ -45,11 +48,11 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                \"type\": \"local\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"npx\",\n")
+	yaml.WriteString("                \"command\": \"docker\",\n")
 
 	if inlineArgs {
 		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
+		yaml.WriteString("                \"args\": [\"run\", \"--rm\", \"-i\", \"" + playwrightImage + "\", \"npx\", \"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			yaml.WriteString(", \"--allowed-hosts\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
@@ -59,6 +62,11 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	} else {
 		// Multi-line format for Claude/Custom
 		yaml.WriteString("                \"args\": [\n")
+		yaml.WriteString("                  \"run\",\n")
+		yaml.WriteString("                  \"--rm\",\n")
+		yaml.WriteString("                  \"-i\",\n")
+		yaml.WriteString("                  \"" + playwrightImage + "\",\n")
+		yaml.WriteString("                  \"npx\",\n")
 		yaml.WriteString("                  \"" + playwrightPackage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
@@ -243,15 +251,26 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
+// Uses Docker container with the Playwright browser image for consistent environment
 func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
+	// Use Docker image version from constants
+	playwrightImage := "mcr.microsoft.com/playwright:" + args.ImageVersion
+	// Use MCP package version from constants
+	playwrightPackage := "@playwright/mcp@" + args.MCPPackageVersion
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
-	yaml.WriteString("          command = \"npx\"\n")
+	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@" + string(constants.DefaultPlaywrightMCPVersion) + "\",\n")
+	yaml.WriteString("            \"run\",\n")
+	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"-i\",\n")
+	yaml.WriteString("            \"" + playwrightImage + "\",\n")
+	yaml.WriteString("            \"npx\",\n")
+	yaml.WriteString("            \"" + playwrightPackage + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {

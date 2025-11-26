@@ -22,7 +22,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		{
 			name: "Copilot with inline args and type/tools fields",
 			playwrightTool: map[string]any{
-				"version": "v1.45.0", // Docker image version (does not affect NPM package)
+				"version": "v1.45.0", // Docker image version
 			},
 			isLast:               true,
 			includeCopilotFields: true,
@@ -30,8 +30,8 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"playwright": {`,
 				`"type": "local"`,
-				`"command": "npx"`,
-				`"args": ["@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`, // Always uses default NPM package version
+				`"command": "docker"`,
+				`"args": ["run", "--rm", "-i", "mcr.microsoft.com/playwright:v1.45.0", "npx", "@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"`,
 				`"tools": ["*"]`,
 				`              }`,
@@ -48,8 +48,13 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           false,
 			expectedContent: []string{
 				`"playwright": {`,
-				`"command": "npx"`,
+				`"command": "docker"`,
 				`"args": [`,
+				`"run"`,
+				`"--rm"`,
+				`"-i"`,
+				`"mcr.microsoft.com/playwright:` + string(constants.DefaultPlaywrightBrowserVersion) + `"`,
+				`"npx"`,
 				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
@@ -269,8 +274,13 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 			},
 			expectedContent: []string{
 				`[mcp_servers.playwright]`,
-				`command = "npx"`,
+				`command = "docker"`,
 				`args = [`,
+				`"run"`,
+				`"--rm"`,
+				`"-i"`,
+				`"mcr.microsoft.com/playwright:` + string(constants.DefaultPlaywrightBrowserVersion) + `"`,
+				`"npx"`,
 				`"@playwright/mcp@` + string(constants.DefaultPlaywrightMCPVersion) + `"`,
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,

@@ -1225,8 +1225,13 @@ jobs:
                 }
               },
               "playwright": {
-                "command": "npx",
+                "command": "docker",
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "mcr.microsoft.com/playwright:v1.56.1",
+                  "npx",
                   "@playwright/mcp@0.0.48",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
