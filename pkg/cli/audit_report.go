@@ -565,6 +565,7 @@ func renderMetrics(metrics MetricsData) {
 
 // renderJobsTable renders the jobs as a table using console.RenderTable
 func renderJobsTable(jobs []JobData) {
+	auditReportLog.Printf("Rendering jobs table with %d jobs", len(jobs))
 	config := console.TableConfig{
 		Headers: []string{"Name", "Status", "Conclusion", "Duration"},
 		Rows:    make([][]string, 0, len(jobs)),
@@ -594,6 +595,7 @@ func renderJobsTable(jobs []JobData) {
 
 // renderToolUsageTable renders tool usage as a table with custom formatting
 func renderToolUsageTable(toolUsage []ToolUsageInfo) {
+	auditReportLog.Printf("Rendering tool usage table with %d tools", len(toolUsage))
 	config := console.TableConfig{
 		Headers: []string{"Tool", "Calls", "Max Input", "Max Output", "Max Duration"},
 		Rows:    make([][]string, 0, len(toolUsage)),
