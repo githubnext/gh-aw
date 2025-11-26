@@ -10,14 +10,12 @@ func TestMissingToolSafeOutput(t *testing.T) {
 		name         string
 		frontmatter  map[string]any
 		expectConfig bool
-		expectJob    bool
 		expectMax    int
 	}{
 		{
 			name:         "No safe-outputs config should NOT enable missing-tool by default",
 			frontmatter:  map[string]any{"name": "Test"},
 			expectConfig: false,
-			expectJob:    false,
 			expectMax:    0,
 		},
 		{
@@ -29,7 +27,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				},
 			},
 			expectConfig: true,
-			expectJob:    true,
 			expectMax:    0,
 		},
 		{
@@ -42,7 +39,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				},
 			},
 			expectConfig: false,
-			expectJob:    false,
 			expectMax:    0,
 		},
 		{
@@ -56,7 +52,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				},
 			},
 			expectConfig: true,
-			expectJob:    true,
 			expectMax:    5,
 		},
 		{
@@ -69,7 +64,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				},
 			},
 			expectConfig: true,
-			expectJob:    true,
 			expectMax:    0,
 		},
 		{
@@ -81,7 +75,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				},
 			},
 			expectConfig: true,
-			expectJob:    true,
 			expectMax:    0,
 		},
 	}
@@ -110,30 +103,10 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				}
 			}
 
-			// Test job creation
-			if tt.expectJob {
-				if safeOutputs == nil || safeOutputs.MissingTool == nil {
-					t.Error("Expected SafeOutputs and MissingTool config to exist for job creation test")
-				} else {
-					job, err := compiler.buildCreateOutputMissingToolJob(&WorkflowData{
-						SafeOutputs: safeOutputs,
-					}, "main-job")
-					if err != nil {
-						t.Errorf("Failed to build missing tool job: %v", err)
-					}
-					if job == nil {
-						t.Error("Expected job to be created, but it was nil")
-					}
-					if job != nil {
-						if job.Name != "missing_tool" {
-							t.Errorf("Expected job name to be 'missing_tool', got '%s'", job.Name)
-						}
-						if len(job.Needs) != 1 || job.Needs[0] != "main-job" {
-							t.Errorf("Expected job to depend on 'main-job', got %v", job.Needs)
-						}
-					}
-				}
-			}
+			// Note: Missing tool processing is now integrated into the conclusion job
+			// (buildConclusionJob in notify_comment.go) rather than being a separate job.
+			// Integration testing of the conclusion job with missing_tool is covered
+			// by the workflow compilation tests.
 		})
 	}
 }

@@ -90,6 +90,30 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, noopSteps...)
 	}
 
+	// Add missing-tool processing step if missing-tool is configured
+	if data.SafeOutputs.MissingTool != nil {
+		// Build custom environment variables specific to missing-tool
+		var missingToolEnvVars []string
+		if data.SafeOutputs.MissingTool.Max > 0 {
+			notifyCommentLog.Printf("Setting max missing tools limit: %d", data.SafeOutputs.MissingTool.Max)
+			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
+		}
+
+		// Add workflow metadata for consistency
+		missingToolEnvVars = append(missingToolEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+
+		// Build the missing-tool processing step (without artifact downloads - already added above)
+		missingToolSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Record Missing Tool",
+			StepID:        "missing_tool",
+			MainJobName:   mainJobName,
+			CustomEnvVars: missingToolEnvVars,
+			Script:        missingToolScript,
+			Token:         data.SafeOutputs.MissingTool.GitHubToken,
+		})
+		steps = append(steps, missingToolSteps...)
+	}
+
 	// Build environment variables for the conclusion script
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
@@ -173,10 +197,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 
-	// Create outputs for the job (include noop output if configured)
+	// Create outputs for the job (include noop and missing_tool outputs if configured)
 	outputs := map[string]string{}
 	if data.SafeOutputs.NoOp != nil {
 		outputs["noop_message"] = "${{ steps.noop.outputs.noop_message }}"
+	}
+	if data.SafeOutputs.MissingTool != nil {
+		outputs["tools_reported"] = "${{ steps.missing_tool.outputs.tools_reported }}"
+		outputs["total_count"] = "${{ steps.missing_tool.outputs.total_count }}"
 	}
 
 	job := &Job{
