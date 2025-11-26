@@ -102,15 +102,17 @@ Test that safe-outputs github-token overrides top-level.
 		}
 
 		yamlContent := string(content)
+		// Strip the comment header to check only the actual YAML content
+		yamlContentNoComments := testutil.StripYAMLCommentHeader(yamlContent)
 
 		// Verify that safe-outputs token is used in the create_issue job
-		if !strings.Contains(yamlContent, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
+		if !strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
 			t.Error("Expected safe-outputs github-token to be used in create_issue job")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
 		// Verify that top-level token is NOT used in safe-outputs job
-		if strings.Contains(yamlContent, "github-token: ${{ secrets.TOPLEVEL_PAT }}") {
+		if strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.TOPLEVEL_PAT }}") {
 			t.Error("Top-level github-token should not be used when safe-outputs token is present")
 		}
 	})
