@@ -118,7 +118,6 @@ To disable the AWF firewall while using network domain allowlists, set both `fir
 
 ```yaml wrap
 strict: false
-engine: copilot
 network:
   allowed:
     - defaults
