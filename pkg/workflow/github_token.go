@@ -27,7 +27,8 @@ func getEffectiveGitHubToken(customToken, toplevelToken string) string {
 // 2. secrets.COPILOT_GITHUB_TOKEN (recommended token for Copilot operations)
 // 3. secrets.COPILOT_CLI_TOKEN (alternative recommended token)
 // 4. secrets.GH_AW_COPILOT_TOKEN (legacy token for backward compatibility)
-// 5. secrets.GH_AW_GITHUB_TOKEN (legacy fallback for backward compatibility)
+// 5. secrets.GH_AW_AGENT_TOKEN (token for agent operations requiring specific permissions)
+// 6. secrets.GH_AW_GITHUB_TOKEN (legacy fallback for backward compatibility)
 // Note: The default GITHUB_TOKEN is NOT included as a fallback because it does not have
 // permission to create agent tasks, assign issues to bots, or add bots as reviewers.
 // This is used for safe outputs that interact with GitHub Copilot features:
@@ -44,5 +45,5 @@ func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 		return toplevelToken
 	}
 	tokenLog.Print("Using default Copilot GitHub token fallback")
-	return "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
+	return "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
 }

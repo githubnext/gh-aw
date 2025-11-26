@@ -86,7 +86,7 @@ func TestBuildCopilotParticipantSteps_CopilotAssignee(t *testing.T) {
 	}
 
 	// Check that Copilot token precedence is used with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
 		t.Error("Expected Copilot token precedence with legacy fallback")
 	}
 
@@ -161,7 +161,7 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 	}
 
 	// Check that Copilot token precedence is used with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
 		t.Error("Expected Copilot token precedence with legacy fallback")
 	}
 }
@@ -217,7 +217,7 @@ func TestBuildCopilotParticipantSteps_MixedParticipants(t *testing.T) {
 	}
 
 	// When copilot is in the list, all steps should use Copilot token with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
 		t.Error("Expected Copilot token precedence with legacy fallback when copilot is in the list")
 	}
 
