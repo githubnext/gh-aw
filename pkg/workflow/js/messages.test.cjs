@@ -1,3 +1,14 @@
+/**
+ * Test Suite: messages.cjs
+ *
+ * Tests for the safe-output messages module functionality including:
+ * - Environment variable parsing (GH_AW_SAFE_OUTPUT_MESSAGES)
+ * - Template rendering with placeholder replacement
+ * - Footer message generation (default and custom)
+ * - Installation instructions generation
+ * - Staged mode title and description generation
+ * - Caching behavior
+ */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock core for GitHub Actions environment

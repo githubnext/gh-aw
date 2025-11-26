@@ -1,3 +1,6 @@
+// Package workflow provides workflow compilation and safe-output configuration.
+// This file contains tests for the safe-outputs messages configuration feature,
+// which allows customizing footer and notification messages in safe-output jobs.
 package workflow
 
 import (

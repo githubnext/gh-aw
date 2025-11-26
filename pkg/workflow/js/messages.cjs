@@ -2,6 +2,24 @@
 /// <reference types="@actions/github-script" />
 
 /**
+ * Safe Output Messages Module
+ *
+ * This module provides customizable message templates for safe-output workflows.
+ * It reads configuration from the GH_AW_SAFE_OUTPUT_MESSAGES environment variable
+ * and renders templates with placeholder support.
+ *
+ * Supported placeholders:
+ * - {workflow_name} - Name of the workflow
+ * - {run_url} - URL to the workflow run
+ * - {workflow_source} - Source specification (owner/repo/path@ref)
+ * - {workflow_source_url} - GitHub URL for the workflow source
+ * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
+ * - {operation} - Operation name (for staged mode titles/descriptions)
+ *
+ * Both camelCase and snake_case placeholder formats are supported.
+ */
+
+/**
  * @typedef {Object} SafeOutputMessages
  * @property {string} [footer] - Custom footer message template
  * @property {string} [footerInstall] - Custom installation instructions template
