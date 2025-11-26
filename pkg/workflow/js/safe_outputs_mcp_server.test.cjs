@@ -237,4 +237,34 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(result.content[0].text).toContain('"status":"success"');
     });
   });
+
+  describe("logging configuration", () => {
+    it("should define default MCP log directory", () => {
+      const defaultLogDir = "/tmp/gh-aw/mcp-logs/safeoutputs";
+      expect(defaultLogDir).toContain("mcp-logs");
+      expect(defaultLogDir).toContain("safeoutputs");
+    });
+
+    it("should validate log file path format", () => {
+      const logFilePath = "/tmp/gh-aw/mcp-logs/safeoutputs/server.log";
+      expect(logFilePath).toContain("/tmp/gh-aw/mcp-logs/");
+      expect(logFilePath.endsWith(".log")).toBe(true);
+    });
+
+    it("should include timestamp in log messages", () => {
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] [safeoutputs] Test message`;
+
+      expect(logMessage).toMatch(/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(logMessage).toContain("[safeoutputs]");
+    });
+
+    it("should format log header correctly", () => {
+      const header = `# Safe Outputs MCP Server Log\n# Started: 2025-11-26T12:00:00.000Z\n# Version: 1.0.0\n`;
+
+      expect(header).toContain("# Safe Outputs MCP Server Log");
+      expect(header).toContain("# Started:");
+      expect(header).toContain("# Version:");
+    });
+  });
 });

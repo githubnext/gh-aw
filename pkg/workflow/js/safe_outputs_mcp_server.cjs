@@ -16,7 +16,48 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
 
 const encoder = new TextEncoder();
 const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+
+// MCP server log folder - uses the standard mcp-logs directory
+const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR || "/tmp/gh-aw/mcp-logs/safeoutputs";
+const LOG_FILE_PATH = path.join(MCP_LOG_DIR, "server.log");
+
+// Initialize log file - create directory and file if they don't exist
+let logFileInitialized = false;
+function initLogFile() {
+  if (logFileInitialized) return;
+  try {
+    if (!fs.existsSync(MCP_LOG_DIR)) {
+      fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
+    }
+    // Initialize/truncate log file with header
+    const timestamp = new Date().toISOString();
+    fs.writeFileSync(LOG_FILE_PATH, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: ${SERVER_INFO.version}\n\n`);
+    logFileInitialized = true;
+  } catch {
+    // Silently ignore errors - logging to stderr will still work
+  }
+}
+
+// Debug function that writes to both stderr and log file
+const debug = msg => {
+  const timestamp = new Date().toISOString();
+  const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
+
+  // Always write to stderr
+  process.stderr.write(formattedMsg);
+
+  // Also write to log file (initialize on first use)
+  if (!logFileInitialized) {
+    initLogFile();
+  }
+  if (logFileInitialized) {
+    try {
+      fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
+    } catch {
+      // Silently ignore file write errors - stderr logging still works
+    }
+  }
+};
 
 // Read configuration from file
 const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
