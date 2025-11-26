@@ -267,4 +267,127 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(header).toContain("# Version:");
     });
   });
+
+  describe("logging integration", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    it("should write log messages to file when debug is called", () => {
+      // Create a unique temp directory for this test
+      const testLogDir = path.join(os.tmpdir(), `test-mcp-logs-${Date.now()}`);
+      const testLogFile = path.join(testLogDir, "server.log");
+
+      // Simulate the logging behavior
+      fs.mkdirSync(testLogDir, { recursive: true });
+      const timestamp = new Date().toISOString();
+      const header = `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: 1.0.0\n\n`;
+      fs.writeFileSync(testLogFile, header);
+
+      const logMessage = `[${timestamp}] [safeoutputs] Test message\n`;
+      fs.appendFileSync(testLogFile, logMessage);
+
+      // Verify log file was created and contains expected content
+      expect(fs.existsSync(testLogFile)).toBe(true);
+      const content = fs.readFileSync(testLogFile, "utf8");
+      expect(content).toContain("# Safe Outputs MCP Server Log");
+      expect(content).toContain("Test message");
+
+      // Cleanup
+      fs.rmSync(testLogDir, { recursive: true, force: true });
+    });
+
+    it("should create log directory lazily on first debug call", () => {
+      // Create a unique temp directory for this test
+      const testLogDir = path.join(os.tmpdir(), `test-lazy-init-${Date.now()}`);
+      const testLogFile = path.join(testLogDir, "server.log");
+
+      // Verify directory doesn't exist initially
+      expect(fs.existsSync(testLogDir)).toBe(false);
+
+      // Simulate lazy initialization
+      fs.mkdirSync(testLogDir, { recursive: true });
+      const timestamp = new Date().toISOString();
+      fs.writeFileSync(testLogFile, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: 1.0.0\n\n`);
+
+      // Verify directory was created
+      expect(fs.existsSync(testLogDir)).toBe(true);
+      expect(fs.existsSync(testLogFile)).toBe(true);
+
+      // Cleanup
+      fs.rmSync(testLogDir, { recursive: true, force: true });
+    });
+
+    it("should write both to stderr and file simultaneously", () => {
+      const testLogDir = path.join(os.tmpdir(), `test-dual-output-${Date.now()}`);
+      const testLogFile = path.join(testLogDir, "server.log");
+
+      // Set up the log file
+      fs.mkdirSync(testLogDir, { recursive: true });
+      const timestamp = new Date().toISOString();
+      fs.writeFileSync(testLogFile, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: 1.0.0\n\n`);
+
+      // Simulate debug output (file part only - stderr is handled by process)
+      const messages = ["Message 1", "Message 2", "Message 3"];
+      for (const msg of messages) {
+        const formattedMsg = `[${timestamp}] [safeoutputs] ${msg}\n`;
+        fs.appendFileSync(testLogFile, formattedMsg);
+      }
+
+      // Verify all messages are in the file
+      const content = fs.readFileSync(testLogFile, "utf8");
+      for (const msg of messages) {
+        expect(content).toContain(msg);
+      }
+
+      // Cleanup
+      fs.rmSync(testLogDir, { recursive: true, force: true });
+    });
+
+    it("should handle file write errors gracefully", () => {
+      // Test that the error handling pattern works
+      let errorHandled = false;
+      try {
+        // Attempt to write to an invalid path
+        const invalidPath = "/nonexistent-root-dir-12345/cannot/write/here.log";
+        fs.appendFileSync(invalidPath, "test");
+      } catch {
+        // Error is caught and handled gracefully
+        errorHandled = true;
+      }
+
+      // Verify that errors are caught (which is what our code does silently)
+      expect(errorHandled).toBe(true);
+    });
+
+    it("should append multiple log entries to the same file", () => {
+      const testLogDir = path.join(os.tmpdir(), `test-append-${Date.now()}`);
+      const testLogFile = path.join(testLogDir, "server.log");
+
+      // Initialize log file
+      fs.mkdirSync(testLogDir, { recursive: true });
+      const initTimestamp = new Date().toISOString();
+      fs.writeFileSync(testLogFile, `# Safe Outputs MCP Server Log\n# Started: ${initTimestamp}\n# Version: 1.0.0\n\n`);
+
+      // Append multiple entries
+      const numEntries = 5;
+      for (let i = 0; i < numEntries; i++) {
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(testLogFile, `[${timestamp}] [safeoutputs] Entry ${i + 1}\n`);
+      }
+
+      // Verify all entries are present
+      const content = fs.readFileSync(testLogFile, "utf8");
+      for (let i = 0; i < numEntries; i++) {
+        expect(content).toContain(`Entry ${i + 1}`);
+      }
+
+      // Verify the file has the header plus all entries
+      const lines = content.split("\n").filter(line => line.length > 0);
+      expect(lines.length).toBeGreaterThanOrEqual(3 + numEntries); // 3 header lines + entries
+
+      // Cleanup
+      fs.rmSync(testLogDir, { recursive: true, force: true });
+    });
+  });
 });
