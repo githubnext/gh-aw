@@ -12,19 +12,24 @@ sidebar:
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+This guide walks you through setup step-by-step, so you don't need everything upfront. Here's what you need at each stage:
 
-- [ ] **GitHub account** with access to a repository where you can:
-  - Push changes and add Actions secrets
-  - Enable GitHub Actions, Issues, and Discussions
-- [ ] **GitHub CLI (gh)** installed ([installation guide](https://cli.github.com))
+:::note[Must Have (before you start)]
+- **GitHub account** with access to a repository
+- **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
   - Verify: Run `gh --version` (requires v2.0.0 or higher)
-- [ ] **Repository permissions:** Admin or write access to your target repository
-- [ ] **Repository features enabled:** 
-  - GitHub Actions
-  - Issues or Discussions (depending on your workflow needs)
-- [ ] **Operating System:** Linux, macOS, or Windows with WSL
-- [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (a secure key for API access—you'll create this in Step 3 below)
+- **Operating System:** Linux, macOS, or Windows with WSL
+:::
+
+:::tip[Must Configure (in your repository)]
+- **Admin or write access** to your target repository
+- **GitHub Actions** enabled
+- **Discussions** enabled (for workflows that create discussions)
+:::
+
+:::caution[Will Need Later (you'll set this up in Step 3)]
+- **Personal Access Token (PAT)** with Copilot Requests permission—the guide walks you through creating this
+:::
 
 ### Step 1 — Install the extension
 
