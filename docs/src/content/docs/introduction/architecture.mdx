@@ -358,7 +358,7 @@ gh aw compile --strict --actionlint --zizmor --poutine
 
 ## Content Sanitization
 
-All user-generated content is sanitized before being processed by AI agents, preventing prompt injection and other attacks.
+All user-generated content is sanitized before being processed by AI agents, preventing prompt injection and other attacks. The sanitization pipeline applies multiple transformations to neutralize potentially malicious content.
 
 ```mermaid
 flowchart LR
@@ -368,12 +368,13 @@ flowchart LR
         COMMENT["Comment Text"]
     end
 
-    subgraph Sanitization["Content Sanitization"]
+    subgraph Sanitization["Content Sanitization Pipeline"]
         direction TB
         MENTIONS["@mention Neutralization<br/>@user → `@user`"]
         BOTS["Bot Trigger Protection<br/>fixes #123 → `fixes #123`"]
         XML["XML/HTML Tag Conversion<br/>&lt;script&gt; → (script)"]
         URI["URI Filtering<br/>Only HTTPS from trusted domains"]
+        SPECIAL["Special Character Handling<br/>Unicode normalization"]
         LIMIT["Content Limits<br/>0.5MB max, 65k lines"]
         CONTROL["Control Character Removal<br/>ANSI escapes stripped"]
     end
@@ -389,9 +390,43 @@ flowchart LR
     MENTIONS --> BOTS
     BOTS --> XML
     XML --> URI
-    URI --> LIMIT
+    URI --> SPECIAL
+    SPECIAL --> LIMIT
     LIMIT --> CONTROL
     CONTROL --> SAFE_TEXT
+```
+
+**Sanitization Mechanisms:**
+
+| Mechanism | Input | Output | Protection |
+|-----------|-------|--------|------------|
+| **@mention Neutralization** | `@user` | `` `@user` `` | Prevents unintended user notifications |
+| **Bot Trigger Protection** | `fixes #123` | `` `fixes #123` `` | Prevents automatic issue linking |
+| **XML/HTML Tag Conversion** | `<script>` | `(script)` | Prevents injection via XML tags |
+| **URI Filtering** | `http://evil.com` | `(redacted)` | Only HTTPS from trusted domains allowed |
+| **Special Characters** | Unicode homoglyphs | Normalized | Prevents visual spoofing attacks |
+| **Content Limits** | Large payloads | Truncated | 0.5MB max size, 65k lines max |
+| **Control Characters** | ANSI escapes | Stripped | Removes terminal manipulation codes |
+
+**URL Filtering Details:**
+
+The URI filtering mechanism applies strict validation:
+
+- ✅ **Allowed**: `https://github.com/...`, `https://api.github.com/...`
+- ✅ **Allowed**: URLs from explicitly trusted domains
+- ❌ **Blocked**: `http://` URLs (non-HTTPS)
+- ❌ **Blocked**: URLs with suspicious patterns
+- ❌ **Blocked**: Data URLs, javascript: URLs
+- ❌ **Blocked**: URLs from untrusted domains → replaced with `(redacted)`
+
+**XML/HTML Tag Handling:**
+
+XML and HTML tags are converted to a safe parentheses format to prevent injection:
+
+```
+<script>alert('xss')</script>  →  (script)alert('xss')(/script)
+<img src=x onerror=...>        →  (img src=x onerror=...)
+<!-- hidden comment -->        →  (!-- hidden comment --)
 ```
 
 <Aside type="caution">
