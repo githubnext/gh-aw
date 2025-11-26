@@ -316,6 +316,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -600,7 +601,37 @@ jobs:
             }
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-            const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
+            const LOG_FILE_PATH = MCP_LOG_DIR ? path.join(MCP_LOG_DIR, "server.log") : "";
+            let logFileInitialized = false;
+            function initLogFile() {
+              if (logFileInitialized || !MCP_LOG_DIR || !LOG_FILE_PATH) return;
+              try {
+                if (!fs.existsSync(MCP_LOG_DIR)) {
+                  fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
+                }
+                const timestamp = new Date().toISOString();
+                fs.writeFileSync(LOG_FILE_PATH, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: ${SERVER_INFO.version}\n\n`);
+                logFileInitialized = true;
+              } catch {
+              }
+            }
+            const debug = msg => {
+              const timestamp = new Date().toISOString();
+              const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
+              process.stderr.write(formattedMsg);
+              if (MCP_LOG_DIR && LOG_FILE_PATH) {
+                if (!logFileInitialized) {
+                  initLogFile();
+                }
+                if (logFileInitialized) {
+                  try {
+                    fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
+                  } catch {
+                  }
+                }
+              }
+            };
             const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
             debug(`Reading config from file: ${configPath}`);
