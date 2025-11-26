@@ -10,6 +10,7 @@ This document consolidates technical specifications and development guidelines f
 ## Table of Contents
 
 - [Capitalization Guidelines](#capitalization-guidelines)
+- [Pull Request Guidelines](#pull-request-guidelines)
 - [Code Organization](#code-organization)
 - [Validation Architecture](#validation-architecture)
 - [Security Best Practices](#security-best-practices)
@@ -39,6 +40,12 @@ This convention distinguishes between the product name (GitHub Agentic Workflows
 ### Implementation
 
 The capitalization rules are enforced through automated tests in `cmd/gh-aw/capitalization_test.go` that run as part of the standard test suite.
+
+---
+
+## Pull Request Guidelines
+
+PR descriptions should be concise. Limit descriptions to 1-2 sentences that clearly explain what the PR does.
 
 ---
 
