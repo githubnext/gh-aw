@@ -48,22 +48,60 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	)
 	steps = append(steps, secretValidation)
 
-	// First, get the setup Node.js step from npm steps
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@github/copilot",
-		string(constants.DefaultCopilotVersion),
-		"Install GitHub Copilot CLI",
-		"copilot",
-		workflowData,
-	)
+	// Determine Copilot version
+	copilotVersion := string(constants.DefaultCopilotVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		copilotVersion = workflowData.EngineConfig.Version
+	}
 
-	// Add Node.js setup step first (before AWF)
+	// Determine if Copilot should be installed globally or locally
+	// For SRT, install locally so npx can find it without network access
+	installGlobally := !isSRTEnabled(workflowData)
+
+	// Generate npm install steps based on installation scope
+	var npmSteps []GitHubActionStep
+	if installGlobally {
+		npmSteps = BuildStandardNpmEngineInstallSteps(
+			"@github/copilot",
+			copilotVersion,
+			"Install GitHub Copilot CLI",
+			"copilot",
+			workflowData,
+		)
+	} else {
+		// For SRT: install locally without -g flag
+		copilotLog.Print("Using local Copilot installation for SRT compatibility")
+		npmSteps = GenerateNpmInstallStepsWithScope(
+			"@github/copilot",
+			copilotVersion,
+			"Install GitHub Copilot CLI",
+			"copilot",
+			true,  // Include Node.js setup
+			false, // Install locally, not globally
+		)
+	}
+
+	// Add Node.js setup step first (before sandbox installation)
 	if len(npmSteps) > 0 {
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
 	}
 
-	// Add AWF installation steps only if firewall is enabled
-	if isFirewallEnabled(workflowData) {
+	// Add sandbox installation steps
+	// SRT and AWF are mutually exclusive (validated earlier)
+	if isSRTEnabled(workflowData) {
+		// Install Sandbox Runtime (SRT)
+		copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
+		srtSystemDeps := generateSRTSystemDepsStep()
+		steps = append(steps, srtSystemDeps)
+
+		copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
+		srtSystemConfig := generateSRTSystemConfigStep()
+		steps = append(steps, srtSystemConfig)
+
+		copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
+		srtInstall := generateSRTInstallationStep()
+		steps = append(steps, srtInstall)
+	} else if isFirewallEnabled(workflowData) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
 		var awfVersion string
@@ -76,7 +114,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, awfInstall)
 	}
 
-	// Add Copilot CLI installation step after AWF
+	// Add Copilot CLI installation step after sandbox installation
 	if len(npmSteps) > 1 {
 		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
 	}
@@ -108,8 +146,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
-	if isFirewallEnabled(workflowData) {
-		// Simplified args for firewall mode
+	sandboxEnabled := isFirewallEnabled(workflowData) || isSRTEnabled(workflowData)
+	if sandboxEnabled {
+		// Simplified args for sandbox mode (AWF or SRT)
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
 
 		// Always add workspace directory to --add-dir so Copilot CLI can access it
@@ -120,7 +159,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		copilotLog.Print("Using firewall mode with simplified arguments")
 	} else {
-		// Original args for non-firewall mode
+		// Original args for non-sandbox mode
 		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
 		copilotLog.Print("Using standard mode with full arguments")
 	}
@@ -173,8 +212,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Add prompt argument - inline for firewall, variable for non-firewall
-	if isFirewallEnabled(workflowData) {
+	// Add prompt argument - inline for sandbox modes, variable for non-sandbox
+	if sandboxEnabled {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
 	} else {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
@@ -193,21 +232,48 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build the copilot command
 	var copilotCommand string
-	if isFirewallEnabled(workflowData) {
-		// When firewall is enabled, use version pinning with npx
+	if sandboxEnabled {
+		// When sandbox is enabled, use version pinning with npx
 		copilotVersion := string(constants.DefaultCopilotVersion)
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
 		}
-		copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+
+		// For SRT: use locally installed package without -y flag to avoid internet fetch
+		// For AWF: use -y flag for automatic download (backward compatibility)
+		if isSRTEnabled(workflowData) {
+			// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
+			// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
+			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
+			copilotCommand = fmt.Sprintf("node ./node_modules/.bin/copilot %s", shellJoinArgs(copilotArgs))
+		} else {
+			// AWF or other sandboxes - use -y for automatic download
+			copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+		}
 	} else {
-		// When firewall is disabled, use unpinned copilot command
+		// When sandbox is disabled, use unpinned copilot command
 		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
 	}
 
-	// Conditionally wrap with AWF if firewall is enabled
+	// Conditionally wrap with sandbox (AWF or SRT)
 	var command string
-	if isFirewallEnabled(workflowData) {
+	if isSRTEnabled(workflowData) {
+		// Build the SRT-wrapped command
+		copilotLog.Print("Using Sandbox Runtime (SRT) for execution")
+
+		// Generate SRT config JSON
+		srtConfigJSON, err := generateSRTConfigJSON(workflowData)
+		if err != nil {
+			copilotLog.Printf("Error generating SRT config: %v", err)
+			// Fallback to empty config
+			srtConfigJSON = "{}"
+		}
+
+		// Create the Node.js wrapper script for SRT
+		srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
+
+		command = srtWrapperScript
+	} else if isFirewallEnabled(workflowData) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
 		firewallConfig := getFirewallConfig(workflowData)
 		var awfLogLevel = "info"
@@ -864,6 +930,178 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 	)
 
 	return GitHubActionStep(stepLines)
+}
+
+// generateSRTSystemDepsStep creates a GitHub Actions step to install SRT system dependencies
+func generateSRTSystemDepsStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install Sandbox Runtime System Dependencies",
+		"        run: |",
+		"          echo \"Installing system dependencies for Sandbox Runtime\"",
+		"          sudo apt-get update",
+		"          sudo apt-get install -y ripgrep bubblewrap socat",
+		"          echo \"System dependencies installed successfully\"",
+		"          echo \"Verifying installations:\"",
+		"          rg --version",
+		"          bwrap --version",
+		"          socat -V",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSRTSystemConfigStep creates a GitHub Actions step to configure system for SRT
+func generateSRTSystemConfigStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Configure System for Sandbox Runtime",
+		"        run: |",
+		"          echo \"Disabling AppArmor namespace restrictions for bubblewrap\"",
+		"          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+		"          echo \"System configuration applied successfully\"",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSRTInstallationStep creates a GitHub Actions step to install Sandbox Runtime
+func generateSRTInstallationStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install Sandbox Runtime",
+		"        run: |",
+		"          echo \"Installing @anthropic-ai/sandbox-runtime locally\"",
+		"          npm install @anthropic-ai/sandbox-runtime",
+		"          echo \"Sandbox Runtime installed successfully\"",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSRTWrapperScript creates a shell script that wraps the copilot command with SRT
+func generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder string) string {
+	// Escape quotes and special characters in the config JSON for shell
+	escapedConfigJSON := strings.ReplaceAll(srtConfigJSON, "'", "'\\''")
+
+	// Escape the copilot command for JavaScript string literal (not shell)
+	// Must escape backslashes first, then single quotes
+	escapedCopilotCommand := strings.ReplaceAll(copilotCommand, "\\", "\\\\")
+	escapedCopilotCommand = strings.ReplaceAll(escapedCopilotCommand, "'", "\\'")
+
+	script := fmt.Sprintf(`set -o pipefail
+
+# Pre-create required directories for Sandbox Runtime
+mkdir -p /home/runner/.copilot
+mkdir -p /tmp/claude
+
+# Create .srt-settings.json
+cat > .srt-settings.json << 'SRT_CONFIG_EOF'
+%s
+SRT_CONFIG_EOF
+
+# Create Node.js wrapper script for SRT
+cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
+const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
+const { spawn } = require('child_process');
+const { readFileSync } = require('fs');
+
+async function main() {
+  try {
+    // Load the sandbox configuration from .srt-settings.json
+    const configData = readFileSync('.srt-settings.json', 'utf-8');
+    const config = JSON.parse(configData);
+
+    // Initialize the sandbox (starts proxy servers, etc.)
+    await SandboxManager.initialize(config);
+
+    // Collect required environment variables for the sandboxed process
+    // These need to be explicitly passed because bwrap doesn't inherit env vars
+    // NOTE: Do NOT include GITHUB_TOKEN or GH_TOKEN here - they conflict with
+    // COPILOT_GITHUB_TOKEN. The Copilot CLI checks these tokens and if it finds
+    // the GitHub Actions default GITHUB_TOKEN (which is not valid for Copilot auth),
+    // it will fail with "No authentication information found" even when
+    // COPILOT_GITHUB_TOKEN is correctly set.
+    const requiredEnvVars = [
+      'COPILOT_GITHUB_TOKEN',
+      'COPILOT_AGENT_RUNNER_TYPE',
+      'XDG_CONFIG_HOME',
+      'GITHUB_STEP_SUMMARY',
+      'GITHUB_HEAD_REF',
+      'GITHUB_REF_NAME',
+      'GITHUB_WORKSPACE',
+      'GH_AW_PROMPT',
+      'GH_AW_MCP_CONFIG',
+      'GITHUB_MCP_SERVER_TOKEN',
+      'GH_AW_SAFE_OUTPUTS',
+      'GH_AW_STARTUP_TIMEOUT',
+      'GH_AW_TOOL_TIMEOUT',
+      'GH_AW_MAX_TURNS',
+    ];
+
+    // Build environment variable export statements for the command
+    // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
+    const envPrefix = requiredEnvVars
+      .filter(key => process.env[key] !== undefined)
+      .map(key => {
+        const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
+        return "export " + key + "='" + value + "';";
+      })
+      .join(' ');
+
+    // The command to run
+    const baseCommand = '%s';
+
+    // Prepend environment variables to the command
+    const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
+
+    // Wrap the command with sandbox restrictions
+    const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
+
+    // Execute the sandboxed command
+    const child = spawn(sandboxedCommand, {
+      shell: true,
+      stdio: 'inherit',
+      env: process.env
+    });
+
+    // Handle exit
+    child.on('exit', async (code) => {
+      // Cleanup when done
+      await SandboxManager.reset();
+      process.exit(code || 0);
+    });
+
+    // Handle errors
+    child.on('error', async (err) => {
+      console.error('Error executing command:', err);
+      await SandboxManager.reset();
+      process.exit(1);
+    });
+  } catch (err) {
+    console.error('Fatal error:', err);
+    try {
+      await SandboxManager.reset();
+    } catch (cleanupErr) {
+      console.error('Error during cleanup:', cleanupErr);
+    }
+    process.exit(1);
+  }
+}
+
+main();
+SRT_WRAPPER_EOF
+
+# Run the Node.js wrapper script
+node ./.srt-wrapper.js 2>&1 | tee %s
+
+# Move preserved Copilot logs to expected location
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+  echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
+  mkdir -p %s
+  mv "$COPILOT_LOGS_DIR"/* %s || true
+  rmdir "$COPILOT_LOGS_DIR" || true
+fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+
+	return script
 }
 
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
