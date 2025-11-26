@@ -93,11 +93,11 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 
 ### Caching Strategy
 
-- **Cache Key**: `weekly-issues-data` for workflow-level sharing
+- **Cache Key Pattern**: Uses `weekly-issues-data-${{ github.run_id }}` for saving, with `restore-keys: weekly-issues-data-` for restoring from previous runs
 - **Cache Files**: Stored with today's date in the filename (e.g., `weekly-issues-2024-11-26.json`)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/`
 - **Cache Benefits**: 
-  - Multiple workflows running on the same day share the same issues data
+  - Multiple workflows running on the same day share the same issues data via restore-keys
   - Reduces GitHub API rate limit usage
   - Faster workflow execution after first fetch of the day
 
