@@ -1096,12 +1096,10 @@ This workflow tests the add_labels job generation.
 		t.Error("Expected github-script action to be used in add_labels job")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	// Verify job has conditional execution using BuildSafeOutputType (no event gating)
 	expectedConditionParts := []string{
 		"!cancelled()",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
-		"github.event.issue.number",
-		"github.event.pull_request.number",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -1180,12 +1178,10 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	}
 	lockContent := string(lockBytes)
 
-	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	// Verify job has conditional execution using BuildSafeOutputType (no event gating)
 	expectedConditionParts := []string{
 		"!cancelled()",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
-		"github.event.issue.number",
-		"github.event.pull_request.number",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -1266,12 +1262,10 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	// Verify job has conditional execution using BuildSafeOutputType (no event gating)
 	expectedConditionParts := []string{
 		"!cancelled()",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
-		"github.event.issue.number",
-		"github.event.pull_request.number",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
