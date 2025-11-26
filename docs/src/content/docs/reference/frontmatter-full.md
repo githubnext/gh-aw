@@ -2176,9 +2176,11 @@ safe-outputs:
   jobs:
     {}
 
-  # Custom message templates for safe-output footer and notification messages. Use
-  # format strings with placeholders like {workflow_name}, {run_url},
-  # {triggering_number}.
+  # Custom message templates for safe-output footer and notification messages.
+  # Available placeholders: {workflow_name} (workflow name), {run_url} (GitHub
+  # Actions run URL), {triggering_number} (issue/PR/discussion number),
+  # {workflow_source} (owner/repo/path@ref), {workflow_source_url} (GitHub URL to
+  # source), {operation} (safe-output operation name for staged mode).
   # (optional)
   messages:
     # Custom footer message template for AI-generated content. Available placeholders:
@@ -2203,6 +2205,24 @@ safe-outputs:
     # disabled:'
     # (optional)
     staged-description: "example-value"
+
+    # Custom message template for workflow activation comment. Available placeholders:
+    # {workflow_name}, {run_url}, {event_type}. Default: 'Agentic
+    # [{workflow_name}]({run_url}) triggered by this {event_type}.'
+    # (optional)
+    run-started: "example-value"
+
+    # Custom message template for successful workflow completion. Available
+    # placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic
+    # [{workflow_name}]({run_url}) completed successfully.'
+    # (optional)
+    run-success: "example-value"
+
+    # Custom message template for failed workflow. Available placeholders:
+    # {workflow_name}, {run_url}, {status}. Default: '❌ Agentic
+    # [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'
+    # (optional)
+    run-failure: "example-value"
 
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
