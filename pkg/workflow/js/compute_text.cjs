@@ -80,6 +80,10 @@ async function main() {
         if (context.payload.comment.user?.login) {
           allowedAliases.push(context.payload.comment.user.login);
         }
+        // Also add the parent issue author to allowed aliases
+        if (context.payload.issue?.user?.login) {
+          allowedAliases.push(context.payload.issue.user.login);
+        }
       }
       break;
 
@@ -91,6 +95,10 @@ async function main() {
         if (context.payload.comment.user?.login) {
           allowedAliases.push(context.payload.comment.user.login);
         }
+        // Also add the parent PR author to allowed aliases
+        if (context.payload.pull_request?.user?.login) {
+          allowedAliases.push(context.payload.pull_request.user.login);
+        }
       }
       break;
 
@@ -101,6 +109,10 @@ async function main() {
         // Add review author to allowed aliases
         if (context.payload.review.user?.login) {
           allowedAliases.push(context.payload.review.user.login);
+        }
+        // Also add the parent PR author to allowed aliases
+        if (context.payload.pull_request?.user?.login) {
+          allowedAliases.push(context.payload.pull_request.user.login);
         }
       }
       break;
@@ -125,6 +137,10 @@ async function main() {
         // Add comment author to allowed aliases
         if (context.payload.comment.user?.login) {
           allowedAliases.push(context.payload.comment.user.login);
+        }
+        // Also add the parent discussion author to allowed aliases
+        if (context.payload.discussion?.user?.login) {
+          allowedAliases.push(context.payload.discussion.user.login);
         }
       }
       break;

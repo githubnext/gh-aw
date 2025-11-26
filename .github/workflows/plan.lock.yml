@@ -532,6 +532,9 @@ jobs:
                     if (context.payload.comment.user?.login) {
                       allowedAliases.push(context.payload.comment.user.login);
                     }
+                    if (context.payload.issue?.user?.login) {
+                      allowedAliases.push(context.payload.issue.user.login);
+                    }
                   }
                   break;
                 case "pull_request_review_comment":
@@ -540,6 +543,9 @@ jobs:
                     if (context.payload.comment.user?.login) {
                       allowedAliases.push(context.payload.comment.user.login);
                     }
+                    if (context.payload.pull_request?.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
                   }
                   break;
                 case "pull_request_review":
@@ -547,6 +553,9 @@ jobs:
                     text = context.payload.review.body || "";
                     if (context.payload.review.user?.login) {
                       allowedAliases.push(context.payload.review.user.login);
+                    }
+                    if (context.payload.pull_request?.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
                     }
                   }
                   break;
@@ -565,6 +574,9 @@ jobs:
                     text = context.payload.comment.body || "";
                     if (context.payload.comment.user?.login) {
                       allowedAliases.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.discussion?.user?.login) {
+                      allowedAliases.push(context.payload.discussion.user.login);
                     }
                   }
                   break;
