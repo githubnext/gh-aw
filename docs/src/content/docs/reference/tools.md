@@ -149,7 +149,7 @@ tools:
 
 **Version Pinning**: Defaults to version 1.56.1 for stability. Set `version: "latest"` to use the latest version or specify a different version number.
 
-**Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Supports wildcards like `*.example.com`.
+**Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Domains automatically include subdomains (e.g., `example.com` includes `api.example.com`).
 
 ## Custom MCP Servers (`mcp-servers:`)
 

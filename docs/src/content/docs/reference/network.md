@@ -27,11 +27,11 @@ network:
     - node                 # Node.js/NPM ecosystem
     - "api.example.com"    # Custom domain
 
-# Domain patterns (exact match or wildcard)
+# Custom domains (automatically includes subdomains)
 network:
   allowed:
     - "api.example.com"      # Exact domain
-    - "*.trusted.com"        # Wildcard (includes nested subdomains)
+    - "trusted.com"          # Includes all *.trusted.com subdomains
 
 # No network access
 network: {}
@@ -44,7 +44,11 @@ Network permissions follow the principle of least privilege with four access lev
 1. **Default Allow List** (`network: defaults`): Basic infrastructure only
 2. **Selective Access** (`network: { allowed: [...] }`): Only listed domains/ecosystems are accessible
 3. **No Access** (`network: {}`): All network access denied
-4. **Domain Validation**: Supports exact matches and wildcard patterns (`*` matches nested subdomains)
+4. **Automatic Subdomain Matching**: AWF automatically matches all subdomains of allowed domains (e.g., `github.com` allows `api.github.com`, `raw.githubusercontent.com`, etc.)
+
+:::note
+AWF does not support wildcard syntax like `*.example.com`. Instead, listing a domain automatically includes all its subdomains. Use `example.com` to allow access to `example.com`, `api.example.com`, `sub.api.example.com`, etc.
+:::
 
 
 ## Ecosystem Identifiers
@@ -86,8 +90,13 @@ network:
 When enabled, AWF:
 - Wraps the Copilot CLI execution command
 - Enforces domain allowlisting using the `--allow-domains` flag
+- Automatically includes all subdomains (e.g., `github.com` allows `api.github.com`)
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
+
+:::caution
+AWF does not support wildcard syntax. Do not use patterns like `*.example.com`. Instead, list the base domain (e.g., `example.com`) which automatically includes all subdomains.
+:::
 
 ### Firewall Log Level
 
@@ -134,7 +143,7 @@ This configuration is useful during development or when the firewall is incompat
 
 ## Best Practices
 
-Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over broad wildcard patterns. Avoid overly permissive patterns like `"*"` or `"*.com"`.
+Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over listing individual domains. When adding custom domains, use the base domain (e.g., `trusted.com`) which automatically includes all subdomains—do not use wildcard syntax like `*.trusted.com`.
 
 ## Troubleshooting
 

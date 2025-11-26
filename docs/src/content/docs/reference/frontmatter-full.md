@@ -847,11 +847,12 @@ network: "defaults"
 # specific domains
 network:
   # List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python',
-  # 'node', '*.example.com')
+  # 'node', 'example.com'). AWF automatically includes subdomains.
   # (optional)
   allowed: []
-    # Array of Domain name or ecosystem identifier (supports wildcards like
-    # '*.example.com' and ecosystem names like 'python', 'node')
+    # Array of Domain name or ecosystem identifier. Note: AWF does not support
+    # wildcard syntax - use base domains (e.g., 'example.com') which automatically
+    # include all subdomains.
 
   # AWF (Agent Workflow Firewall) configuration for network egress control. Only
   # supported for Copilot engine.
@@ -1161,8 +1162,8 @@ tools:
     # (optional)
     # This field supports multiple formats (oneOf):
 
-    # Option 1: List of allowed domains or patterns (e.g., ['github.com',
-    # '*.example.com'])
+    # Option 1: List of allowed domains (e.g., ['github.com', 'example.com']).
+    # Domains automatically include subdomains.
     allowed_domains: []
       # Array items: string
 
