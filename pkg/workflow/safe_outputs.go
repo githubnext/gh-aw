@@ -471,6 +471,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle messages configuration
+			if messages, exists := outputMap["messages"]; exists {
+				if messagesMap, ok := messages.(map[string]any); ok {
+					config.Messages = parseMessagesConfig(messagesMap)
+				}
+			}
+
 			// Handle jobs (safe-jobs moved under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
@@ -540,6 +547,67 @@ func normalizeSafeOutputIdentifier(identifier string) string {
 		safeOutputsLog.Printf("Normalized safe output identifier: %s -> %s", identifier, normalized)
 	}
 	return normalized
+}
+
+// parseMessagesConfig parses the messages configuration from safe-outputs frontmatter
+func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
+	config := &SafeOutputMessagesConfig{}
+
+	if footer, exists := messagesMap["footer"]; exists {
+		if footerStr, ok := footer.(string); ok {
+			config.Footer = footerStr
+		}
+	}
+
+	if footerInstall, exists := messagesMap["footer-install"]; exists {
+		if footerInstallStr, ok := footerInstall.(string); ok {
+			config.FooterInstall = footerInstallStr
+		}
+	}
+
+	if stagedTitle, exists := messagesMap["staged-title"]; exists {
+		if stagedTitleStr, ok := stagedTitle.(string); ok {
+			config.StagedTitle = stagedTitleStr
+		}
+	}
+
+	if stagedDescription, exists := messagesMap["staged-description"]; exists {
+		if stagedDescriptionStr, ok := stagedDescription.(string); ok {
+			config.StagedDescription = stagedDescriptionStr
+		}
+	}
+
+	if runStarted, exists := messagesMap["run-started"]; exists {
+		if runStartedStr, ok := runStarted.(string); ok {
+			config.RunStarted = runStartedStr
+		}
+	}
+
+	if runSuccess, exists := messagesMap["run-success"]; exists {
+		if runSuccessStr, ok := runSuccess.(string); ok {
+			config.RunSuccess = runSuccessStr
+		}
+	}
+
+	if runFailure, exists := messagesMap["run-failure"]; exists {
+		if runFailureStr, ok := runFailure.(string); ok {
+			config.RunFailure = runFailureStr
+		}
+	}
+
+	return config
+}
+
+// serializeMessagesConfig converts SafeOutputMessagesConfig to JSON for passing as environment variable
+func serializeMessagesConfig(messages *SafeOutputMessagesConfig) (string, error) {
+	if messages == nil {
+		return "", nil
+	}
+	jsonBytes, err := json.Marshal(messages)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize messages config: %w", err)
+	}
+	return string(jsonBytes), nil
 }
 
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
@@ -1277,6 +1345,16 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 		data.SafeOutputs.Staged,
 		targetRepoSlug,
 	)...)
+
+	// Add messages config if present
+	if data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			safeOutputsLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
 
 	return customEnvVars
 }
