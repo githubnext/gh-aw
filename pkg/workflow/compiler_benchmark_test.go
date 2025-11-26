@@ -26,7 +26,7 @@ permissions:
 engine: claude
 tools:
   github:
-    allowed: [get_issue, add_issue_comment, list_issues]
+    allowed: [issue_read, add_issue_comment, list_issues]
   bash: ["echo", "ls", "cat"]
 timeout-minutes: 10
 ---
@@ -173,7 +173,7 @@ permissions:
 engine: claude
 tools:
   github:
-    allowed: [get_issue, add_issue_comment]
+    allowed: [issue_read, add_issue_comment]
 strict: true
 timeout-minutes: 10
 ---

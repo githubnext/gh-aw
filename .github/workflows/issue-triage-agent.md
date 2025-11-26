@@ -1,4 +1,6 @@
 ---
+timeout-minutes: 5
+strict: true
 on:
   schedule:
     - cron: "0 14 * * 1-5"

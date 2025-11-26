@@ -1,5 +1,6 @@
 ---
 description: Structural analysis of GitHub MCP tool responses with schema evaluation and usefulness ratings for agentic work
+timeout-minutes: 15
 on:
   schedule:
     - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only

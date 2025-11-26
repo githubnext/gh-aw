@@ -10,7 +10,7 @@ import (
 const (
 	sampleClaudeLog = `[{"type":"session_created","timestamp":"2024-01-15T10:00:00.000Z"}]
 [{"type":"message","timestamp":"2024-01-15T10:00:01.000Z","message":"Starting analysis"}]
-[{"type":"tool_use","timestamp":"2024-01-15T10:00:02.000Z","tool":"github.get_issue"}]
+[{"type":"tool_use","timestamp":"2024-01-15T10:00:02.000Z","tool":"github.issue_read"}]
 [{"type":"tool_result","timestamp":"2024-01-15T10:00:03.000Z"}]
 [{"type":"usage","timestamp":"2024-01-15T10:00:04.000Z","input_tokens":1000,"output_tokens":500}]
 [{"type":"message","timestamp":"2024-01-15T10:00:05.000Z","message":"Analysis complete"}]
@@ -18,7 +18,7 @@ const (
 
 	sampleCopilotLog = `2024-01-15T10:00:00.123Z [INFO] Copilot started
 2024-01-15T10:00:01.456Z [INFO] Processing request
-2024-01-15T10:00:02.789Z [DEBUG] Tool call: github.get_issue
+2024-01-15T10:00:02.789Z [DEBUG] Tool call: github.issue_read
 2024-01-15T10:00:03.012Z [DEBUG] Tool result received
 2024-01-15T10:00:04.345Z [INFO] Token usage: 1500 total
 2024-01-15T10:00:05.678Z [ERROR] Minor issue detected
@@ -28,7 +28,7 @@ const (
 tool result: [{"id": 123, "title": "Issue 1"}]
 ] exec ls -la in /tmp
 exec result: total 8
-] tool github.get_issue(...)
+] tool github.issue_read(...)
 tool result: {"id": 123, "body": "Issue content"}
 ] success in 2.5s`
 
@@ -222,7 +222,7 @@ func BenchmarkExtractJSONMetrics(b *testing.B) {
 
 // BenchmarkExtractJSONMetrics_Complex benchmarks complex JSON metrics extraction
 func BenchmarkExtractJSONMetrics_Complex(b *testing.B) {
-	jsonLine := `{"type":"result","total_input_tokens":5000,"total_output_tokens":2500,"cost":0.075,"metadata":{"tool_calls":["github.get_issue","github.add_comment"],"duration_ms":1500}}`
+	jsonLine := `{"type":"result","total_input_tokens":5000,"total_output_tokens":2500,"cost":0.075,"metadata":{"tool_calls":["github.issue_read","github.add_comment"],"duration_ms":1500}}`
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

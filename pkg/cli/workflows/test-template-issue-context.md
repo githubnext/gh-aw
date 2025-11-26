@@ -9,7 +9,7 @@ engine:
   id: copilot
 tools:
   github:
-    allowed: [get_issue, add_issue_comment]
+    allowed: [issue_read, add_issue_comment]
 ---
 
 # Test Template with Issue Context

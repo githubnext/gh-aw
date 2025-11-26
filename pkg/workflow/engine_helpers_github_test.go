@@ -50,7 +50,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				DockerImageVersion: "latest",
 				CustomArgs:         nil,
 				IncludeTypeField:   true,
-				AllowedTools:       []string{"create_issue", "get_issue"},
+				AllowedTools:       []string{"create_issue", "issue_read"},
 				EffectiveToken:     "",
 			},
 			expected: []string{
@@ -58,7 +58,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"command": "docker"`,
 				`"tools": [`,
 				`"create_issue"`,
-				`"get_issue"`,
+				`"issue_read"`,
 				// Security fix: Now uses shell environment variable (with backslash for Copilot CLI interpolation)
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},

@@ -30,7 +30,7 @@ engine:
   max-turns: 3
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Test Max Turns
@@ -51,7 +51,7 @@ permissions:
 engine: claude
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Test Without Max Turns
@@ -76,7 +76,7 @@ timeout_minutes: 15
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Test Max Turns and Timeout

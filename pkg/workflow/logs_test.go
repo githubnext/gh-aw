@@ -18,7 +18,7 @@ on: push
 engine: claude
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Test Workflow
