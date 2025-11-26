@@ -58,14 +58,14 @@ The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and re
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions): GitHub Copilot CLI (default).
+Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions): GitHub Copilot CLI (default). To authenticate with the Copilot API, you need to create a Personal Access Token (PAT) with the "Copilot Requests" permission—this permission allows your workflow to communicate with GitHub Copilot's coding agent.
 
 **For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled:
 
 1. Visit https://github.com/settings/personal-access-tokens/new
-2. Under "Resource owner", select your user account (not an organization, see note below).
-3. Under "Repository access," select "Public repositories"
-4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
+2. Under "Resource owner", select **your user account** (not an organization—organization-owned tokens cannot access Copilot)
+3. Under "Repository access", select **"Public repositories"** (required for the Copilot Requests permission to appear)
+4. Under "Permissions", expand "Account permissions" and enable **"Copilot Requests"** (read access)
 5. Generate your token
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
@@ -73,9 +73,14 @@ Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
 ```
 
-:::note
-There is an ongoing work to support authentication with the GitHub Action token. 
-Once this work is deployed, you will not need to create a token for Copilot CLI.
+:::tip[Can't find the Copilot Requests permission?]
+The "Copilot Requests" permission only appears if:
+- You have an **active GitHub Copilot subscription** (Individual, Business, or Enterprise)
+- You selected **"Public repositories"** under Repository access (step 3)
+- You selected **your user account** as Resource owner (step 2), not an organization
+- You're creating a **fine-grained token** (not a classic token)
+
+If you don't see this option after checking the above, verify your [Copilot subscription status](https://github.com/settings/copilot) or contact your GitHub administrator.
 :::
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
