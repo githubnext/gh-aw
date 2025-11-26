@@ -352,6 +352,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
+	// Generate aw_info.json with agentic run metadata (must run before workflow overview)
+	c.generateCreateAwInfo(yaml, data, engine)
+
+	// Generate workflow overview to step summary early, before prompts
+	// This reads from aw_info.json for consistent data
+	c.generateWorkflowOverviewStep(yaml, data, engine)
+
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
 
@@ -360,9 +367,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
-
-	// Generate aw_info.json with agentic run metadata
-	c.generateCreateAwInfo(yaml, data, engine)
 
 	// Upload info to artifact
 	c.generateUploadAwInfo(yaml)
@@ -915,6 +919,36 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
+	// Network configuration
+	networkMode := "defaults"
+	var allowedDomains []string
+	firewallEnabled := false
+	firewallVersion := ""
+
+	if data.NetworkPermissions != nil {
+		if data.NetworkPermissions.Mode != "" {
+			networkMode = data.NetworkPermissions.Mode
+		}
+		allowedDomains = data.NetworkPermissions.Allowed
+		if data.NetworkPermissions.Firewall != nil {
+			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
+			firewallVersion = data.NetworkPermissions.Firewall.Version
+		}
+	}
+
+	fmt.Fprintf(yaml, "              network_mode: \"%s\",\n", networkMode)
+
+	// Add allowed domains as JSON array
+	if len(allowedDomains) > 0 {
+		domainsJSON, _ := json.Marshal(allowedDomains)
+		fmt.Fprintf(yaml, "              allowed_domains: %s,\n", string(domainsJSON))
+	} else {
+		yaml.WriteString("              allowed_domains: [],\n")
+	}
+
+	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
+	fmt.Fprintf(yaml, "              firewall_version: \"%s\",\n", firewallVersion)
+
 	// Add steps object with firewall information
 	yaml.WriteString("              steps: {\n")
 
@@ -936,6 +970,56 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+}
+
+// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
+// This runs after aw_info.json is created and reads from it for consistent data display.
+// Uses HTML details/summary tags for collapsible output.
+func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+	yaml.WriteString("      - name: Generate workflow overview\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Read from aw_info.json that was created by the previous step
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            const awInfoPath = '/tmp/gh-aw/aw_info.json';\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Load aw_info.json\n")
+	yaml.WriteString("            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));\n")
+	yaml.WriteString("            \n")
+
+	// Generate HTML with details/summary for collapsible output
+	yaml.WriteString("            let networkDetails = '';\n")
+	yaml.WriteString("            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {\n")
+	yaml.WriteString("              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\\n');\n")
+	yaml.WriteString("              if (awInfo.allowed_domains.length > 10) {\n")
+	yaml.WriteString("                networkDetails += `\\n  - ... and ${awInfo.allowed_domains.length - 10} more`;\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            \n")
+	// Build summary using string concatenation to avoid YAML parsing issues with template literals
+	yaml.WriteString("            const summary = '<details>\\n' +\n")
+	yaml.WriteString("              '<summary>🤖 Agentic Workflow Run Overview</summary>\\n\\n' +\n")
+	yaml.WriteString("              '### Engine Configuration\\n' +\n")
+	yaml.WriteString("              '| Property | Value |\\n' +\n")
+	yaml.WriteString("              '|----------|-------|\\n' +\n")
+	yaml.WriteString("              `| Engine ID | ${awInfo.engine_id} |\\n` +\n")
+	yaml.WriteString("              `| Engine Name | ${awInfo.engine_name} |\\n` +\n")
+	yaml.WriteString("              `| Model | ${awInfo.model || '(default)'} |\\n` +\n")
+	yaml.WriteString("              '\\n' +\n")
+	yaml.WriteString("              '### Network Configuration\\n' +\n")
+	yaml.WriteString("              '| Property | Value |\\n' +\n")
+	yaml.WriteString("              '|----------|-------|\\n' +\n")
+	yaml.WriteString("              `| Mode | ${awInfo.network_mode || 'defaults'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\\n` +\n")
+	yaml.WriteString("              '\\n' +\n")
+	yaml.WriteString("              (networkDetails ? `#### Allowed Domains\\n${networkDetails}\\n` : '') +\n")
+	yaml.WriteString("              '</details>';\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            await core.summary.addRaw(summary).write();\n")
+	yaml.WriteString("            console.log('Generated workflow overview in step summary');\n")
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {

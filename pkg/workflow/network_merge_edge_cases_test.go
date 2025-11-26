@@ -63,9 +63,25 @@ imports:
 			t.Fatal(err)
 		}
 
-		// Count occurrences of github.com (should only appear once in the list, not duplicated)
 		lockStr := string(content)
-		count := strings.Count(lockStr, `"github.com"`)
+
+		// Extract the ALLOWED_DOMAINS line and count github.com occurrences within it
+		// The domain should only appear once in the ALLOWED_DOMAINS list (not duplicated)
+		lines := strings.Split(lockStr, "\n")
+		var allowedDomainsLine string
+		for _, line := range lines {
+			if strings.Contains(line, "ALLOWED_DOMAINS") && strings.Contains(line, "json.loads") {
+				allowedDomainsLine = line
+				break
+			}
+		}
+
+		if allowedDomainsLine == "" {
+			t.Fatal("Could not find ALLOWED_DOMAINS line in compiled workflow")
+		}
+
+		// Count github.com occurrences within the ALLOWED_DOMAINS line only
+		count := strings.Count(allowedDomainsLine, `"github.com"`)
 		if count != 1 {
 			t.Errorf("Expected github.com to appear exactly once in ALLOWED_DOMAINS, but found %d occurrences", count)
 		}
