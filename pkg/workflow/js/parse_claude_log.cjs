@@ -3,14 +3,8 @@
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
 const {
-  formatDuration,
-  formatBashCommand,
-  truncateString,
-  estimateTokens,
-  formatMcpName,
   generateConversationMarkdown,
   generateInformationSection,
-  formatMcpParameters,
   formatInitializationSummary,
   formatToolUse,
   parseLogEntries,

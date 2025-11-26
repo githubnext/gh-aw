@@ -26,15 +26,18 @@ describe("parse_codex_log.cjs", () => {
     };
     global.core = mockCore;
 
-    // Import the module
+    // Import the parse_codex_log module
     const module = await import("./parse_codex_log.cjs");
     parseCodexLog = module.parseCodexLog;
     formatCodexToolCall = module.formatCodexToolCall;
     formatCodexBashCall = module.formatCodexBashCall;
-    truncateString = module.truncateString;
-    estimateTokens = module.estimateTokens;
-    formatDuration = module.formatDuration;
     extractMCPInitialization = module.extractMCPInitialization;
+
+    // Import shared utilities from log_parser_shared.cjs
+    const sharedModule = await import("./log_parser_shared.cjs");
+    truncateString = sharedModule.truncateString;
+    estimateTokens = sharedModule.estimateTokens;
+    formatDuration = sharedModule.formatDuration;
   });
 
   describe("parseCodexLog function", () => {
