@@ -3370,7 +3370,8 @@ jobs:
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved agent logs to expected location
-          AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'awf-agent-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          # Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
+          AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
           if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
             echo "Moving agent logs from $AGENT_LOGS_DIR to /tmp/gh-aw/.agent/logs/"
             sudo mkdir -p /tmp/gh-aw/.agent/logs/
