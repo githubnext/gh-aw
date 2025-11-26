@@ -20,6 +20,36 @@
 #
 # Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates new agentic workflow markdown files based on user requests when invoked with /craft command
+# on:
+#   command:
+#     name: craft
+#     events: [issues]
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   edit:
+#   bash:
+#     - "*"
+#   github:
+#     toolsets: [default]
+# steps:
+#   - name: Install gh-aw extension
+#     run: |
+#       gh extension remove gh-aw || true
+#       gh extension install .
+# timeout-minutes: 15
+# safe-outputs:
+#   add-comment:
+#     max: 1
+#   push-to-pull-request-branch:
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

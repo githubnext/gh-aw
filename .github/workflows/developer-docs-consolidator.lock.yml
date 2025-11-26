@@ -20,6 +20,60 @@
 #
 # Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
 #
+# Original Frontmatter:
+# ```yaml
+# name: Developer Documentation Consolidator
+# description: Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
+# on:
+#   schedule:
+#     # Run daily at 3:17 AM UTC (random time to distribute load)
+#     - cron: "17 3 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+# strict: false
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# safe-outputs:
+#   create-discussion:
+#     category: "General"
+#     max: 1
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation, automation]
+#     draft: false
+#
+# tools:
+#   serena: ["go"]
+#   cache-memory:
+#     key: developer-docs-cache
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "find specs -name '*.md'"
+#     - "cat specs/*.md"
+#     - "ls -la specs"
+#     - "grep -r '*' specs"
+#     - "wc -l specs/*.md"
+#
+# timeout-minutes: 30
+#
+# imports:
+#   - shared/reporting.md
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

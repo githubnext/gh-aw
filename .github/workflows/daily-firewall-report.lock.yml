@@ -20,6 +20,45 @@
 #
 # Collects and reports on firewall log events to monitor network security and access patterns
 #
+# Original Frontmatter:
+# ```yaml
+# description: Collects and reports on firewall log events to monitor network security and access patterns
+# on:
+#   schedule:
+#     # Every day at 10am UTC
+#     - cron: "0 10 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+#
+# tracker-id: daily-firewall-report
+# timeout-minutes: 45
+#
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "audits"
+#     max: 1
+#
+# tools:
+#   github:
+#     toolsets:
+#       - default
+#       - actions
+#   bash:
+#     - "*"
+#   edit:
+#   cache-memory:
+# imports:
+#   - shared/mcp/gh-aw.md
+#   - shared/reporting.md
+#   - shared/trending-charts-simple.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/gh-aw.md

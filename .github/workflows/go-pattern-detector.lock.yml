@@ -20,6 +20,36 @@
 #
 # Detects common Go code patterns and anti-patterns to maintain code quality and consistency
 #
+# Original Frontmatter:
+# ```yaml
+# name: Go Pattern Detector
+# description: Detects common Go code patterns and anti-patterns to maintain code quality and consistency
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - '**/*.go'
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# engine: claude
+# timeout-minutes: 10
+#
+# imports:
+#   - shared/mcp/ast-grep.md
+#
+# safe-outputs:
+#   create-issue:
+#     title-prefix: "[ast-grep] "
+#     labels: [code-quality, ast-grep]
+#     max: 1
+# strict: true
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/ast-grep.md

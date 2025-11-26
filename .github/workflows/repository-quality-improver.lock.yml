@@ -20,6 +20,40 @@
 #
 # Daily analysis and improvement of repository quality focusing on different software development lifecycle areas
 #
+# Original Frontmatter:
+# ```yaml
+# description: Daily analysis and improvement of repository quality focusing on different software development lifecycle areas
+# on:
+#   schedule:
+#     - cron: "0 13 * * 1-5"  # Daily at 1 PM UTC, weekdays only
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# tools:
+#   serena: ["go"]
+#   edit:
+#   bash: ["*"]
+#   cache-memory:
+#     - id: focus-areas
+#       key: quality-focus-${{ github.workflow }}
+#   github:
+#     toolsets:
+#       - default
+# safe-outputs:
+#   create-discussion:
+#     category: "general"
+#     max: 1
+# timeout-minutes: 20
+# strict: true
+# imports:
+#   - shared/reporting.md
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

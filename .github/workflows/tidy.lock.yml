@@ -20,6 +20,68 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
+# Original Frontmatter:
+# ```yaml
+# name: Tidy
+# description: Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
+# on:
+#   workflow_dispatch:
+#   command:
+#     events: [pull_request_comment]
+#   reaction: "eyes"
+#   push:
+#     branches: [main]
+#     paths:
+#       - '**/*.go'
+#       - '**/*.js'
+#       - '**/*.cjs'
+#       - '**/*.ts'
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#
+# concurrency:
+#   group: tidy-${{ github.ref }}
+#   cancel-in-progress: true
+#
+# engine: copilot
+# timeout-minutes: 10
+#
+# network: {}
+#
+# tools:
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash: ["make:*", "git restore:*", "git status"]
+#
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[tidy] "
+#     labels: [automation, maintenance]
+#     reviewers: copilot
+#     draft: false
+#   push-to-pull-request-branch:
+#   missing-tool:
+# steps:
+#   - name: Set up Node.js
+#     uses: actions/setup-node@v6
+#     with:
+#       node-version: "24"
+#       cache: npm
+#       cache-dependency-path: pkg/workflow/js/package-lock.json
+#   - name: Set up Go
+#     uses: actions/setup-go@v5
+#     with:
+#       go-version-file: go.mod
+#       cache: true
+#   - name: Dev dependencies
+#     run: make deps-dev
+# strict: true
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

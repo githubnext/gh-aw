@@ -20,6 +20,41 @@
 #
 # Daily report analyzing repository issues with clustering, metrics, and trend charts
 #
+# Original Frontmatter:
+# ```yaml
+# description: Daily report analyzing repository issues with clustering, metrics, and trend charts
+# on:
+#   schedule:
+#     - cron: "0 6 * * *"  # Daily at 6 AM UTC
+#   workflow_dispatch:
+# permissions:
+#   contents: read
+#   actions: read
+#   issues: read
+#   pull-requests: read
+#   discussions: write
+# engine: copilot
+# tracker-id: daily-issues-report
+# tools:
+#   github:
+#     toolsets: [default, discussions]
+# safe-outputs:
+#   upload-assets:
+#   create-discussion:
+#     category: "General"
+#     title-prefix: "[daily issues] "
+#     max: 1
+#   close-discussion:
+#     max: 10
+# timeout-minutes: 30
+# imports:
+#   - shared/jqschema.md
+#   - shared/issues-data-fetch.md
+#   - shared/python-dataviz.md
+#   - shared/trends.md
+#   - shared/reporting.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md

@@ -20,6 +20,49 @@
 #
 # Automatically creates changeset files when PRs are labeled with 'changeset' or 'smoke' to document changes for release notes
 #
+# Original Frontmatter:
+# ```yaml
+# name: Changeset Generator
+# description: Automatically creates changeset files when PRs are labeled with 'changeset' or 'smoke' to document changes for release notes
+# on:
+#   pull_request:
+#     types: [labeled]
+#     names: ["changeset", "smoke"]
+#   workflow_dispatch:
+#   reaction: "rocket"
+# if: github.event.pull_request.base.ref == github.event.repository.default_branch
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   issues: read
+# engine: copilot
+# safe-outputs:
+#   push-to-pull-request-branch:
+#     commit-title-suffix: " [skip-ci]"
+#   threat-detection:
+#     engine: false
+# timeout-minutes: 20
+# network:
+#   allowed:
+#     - defaults
+#     - node
+#   firewall: true
+# tools:
+#   bash:
+#     - "*"
+#   edit:
+# imports:
+#   - shared/changeset-format.md
+#   - shared/jqschema.md
+#   - shared/safe-output-app.md
+# steps:
+#   - name: Setup changeset directory
+#     run: |
+#       mkdir -p .changeset
+#       git config user.name "github-actions[bot]"
+#       git config user.email "github-actions[bot]@users.noreply.github.com"
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/changeset-format.md

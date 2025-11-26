@@ -20,6 +20,56 @@
 #
 # Maintains and updates the documentation glossary based on codebase changes
 #
+# Original Frontmatter:
+# ```yaml
+# name: Glossary Maintainer
+# description: Maintains and updates the documentation glossary based on codebase changes
+# on:
+#   schedule:
+#     # Every weekday at 10am UTC (avoiding weekends)
+#     - cron: "0 10 * * 1-5"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+#
+# engine:
+#   id: copilot
+#
+# network:
+#   allowed:
+#     - defaults
+#     - github
+#
+# imports:
+#   - ../instructions/documentation.instructions.md
+#   - ../agents/technical-doc-writer.md
+#
+# safe-outputs:
+#   create-pull-request:
+#     title-prefix: "[docs] "
+#     labels: [documentation, glossary]
+#     draft: false
+#
+# tools:
+#   serena: ["go"]
+#   cache-memory: true
+#   github:
+#     toolsets: [default]
+#   edit:
+#   bash:
+#     - "find docs -name '*.md'"
+#     - "grep -r '*' docs"
+#     - "git log --since='24 hours ago' --oneline"
+#     - "git log --since='7 days ago' --oneline"
+#
+# timeout-minutes: 20
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - ../instructions/documentation.instructions.md

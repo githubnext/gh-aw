@@ -20,6 +20,38 @@
 #
 # Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
 #
+# Original Frontmatter:
+# ```yaml
+# description: Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
+# on:
+#   workflow_dispatch:
+#   schedule:
+#     - cron: "0 6 * * 0"  # Weekly on Sundays at 6 AM UTC
+# permissions:
+#   contents: read
+#   actions: read
+# engine: copilot
+# network:
+#   allowed:
+#     - defaults
+#     - node
+#   firewall: true
+# tools:
+#   edit:
+#   bash:
+#   github:
+#     toolsets: [actions, repos]
+# safe-outputs:
+#   create-discussion:
+#     category: "artifacts"
+#     max: 1
+# timeout-minutes: 15
+# strict: true
+# imports:
+#   - shared/reporting.md
+#   - shared/safe-output-app.md
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md

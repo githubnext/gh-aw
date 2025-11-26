@@ -20,6 +20,62 @@
 #
 # Automatically merges the main branch into pull request branches when invoked with /mergefest command
 #
+# Original Frontmatter:
+# ```yaml
+# name: Mergefest
+# description: Automatically merges the main branch into pull request branches when invoked with /mergefest command
+# on:
+#   command:
+#     name: mergefest
+#     events: [pull_request_comment]
+# permissions:
+#   contents: read
+#   pull-requests: read
+#   actions: read
+# engine: copilot
+# tools:
+#   bash:
+#     - "git fetch"
+#     - "git checkout"
+#     - "git pull"
+#     - "git merge"
+#     - "git status"
+#     - "git diff"
+#     - "git log"
+#     - "git rev-parse"
+#     - "git reset"
+#     - "git add"
+#     - "git commit"
+#     - "git config"
+#     - "git branch"
+#     - "make recompile"
+#     - "make fmt"
+#     - "make lint"
+#     - "make test-unit"
+#     - "cat"
+#     - "echo"
+#     - "ls"
+#     - "grep"
+#   edit:
+#   github:
+#     toolsets: [pull_requests, repos]
+# safe-outputs:
+#   push-to-pull-request-branch:
+# timeout-minutes: 10
+# strict: true
+# steps:
+#   - name: Setup git configuration
+#     run: |
+#       git config user.name "github-actions[bot]"
+#       git config user.email "github-actions[bot]@users.noreply.github.com"
+#
+#       # Create .gitignore to exclude workflow YAML files
+#       cat > /tmp/merge-gitignore << 'EOF'
+#       # Exclude all .yml files in .github/workflows/
+#       .github/workflows/*.yml
+#       EOF
+# ```
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR

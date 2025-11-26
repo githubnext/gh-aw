@@ -20,6 +20,27 @@
 #
 # Performs web searches using Brave search engine when invoked with /brave command in issues or PRs
 #
+# Original Frontmatter:
+# ```yaml
+# description: Performs web searches using Brave search engine when invoked with /brave command in issues or PRs
+# on:
+#   command:
+#     name: brave
+#     events: [issue_comment]
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+# engine: copilot
+# strict: true
+# imports:
+#   - shared/mcp/brave.md
+# safe-outputs:
+#   add-comment:
+#     max: 1
+# timeout-minutes: 10
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/brave.md

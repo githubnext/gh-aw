@@ -20,6 +20,52 @@
 #
 # Analyzes prompt patterns used in Copilot PR interactions to identify common usage patterns and optimization opportunities
 #
+# Original Frontmatter:
+# ```yaml
+# name: Copilot PR Prompt Pattern Analysis
+# description: Analyzes prompt patterns used in Copilot PR interactions to identify common usage patterns and optimization opportunities
+# on:
+#   schedule:
+#     # Every day at 9am UTC
+#     - cron: "0 9 * * *"
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   issues: read
+#   pull-requests: read
+#   actions: read
+#
+# engine: copilot
+#
+# network:
+#   allowed:
+#     - defaults
+#     - node
+#   firewall: true
+#
+# safe-outputs:
+#   create-discussion:
+#     title-prefix: "[prompt-analysis] "
+#     category: "audits"
+#     max: 1
+#
+# imports:
+#   - shared/jqschema.md
+#   - shared/reporting.md
+#   - shared/copilot-pr-data-fetch.md
+#
+# tools:
+#   cache-memory: true
+#   edit:
+#   github:
+#     toolsets: [default]
+#   bash: ["*"]
+#
+# timeout-minutes: 15
+#
+# ```
+#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md

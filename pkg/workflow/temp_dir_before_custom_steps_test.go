@@ -187,10 +187,10 @@ steps:
 	}
 	lockStr := string(lockContent)
 
-	// Find indices of key steps in the full content
-	tempDirIndex := strings.Index(lockStr, "Create gh-aw temp directory")
-	checkoutIndex := strings.Index(lockStr, "Checkout code")
-	customStepIndex := strings.Index(lockStr, "Custom step after checkout")
+	// Find indices of key steps in the full content (excluding comment lines where frontmatter is embedded)
+	tempDirIndex := indexInNonCommentLines(lockStr, "Create gh-aw temp directory")
+	checkoutIndex := indexInNonCommentLines(lockStr, "Checkout code")
+	customStepIndex := indexInNonCommentLines(lockStr, "Custom step after checkout")
 
 	// Verify all steps were found
 	if tempDirIndex == -1 {
