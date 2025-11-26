@@ -82,3 +82,57 @@ func TestTempDirCleanup(t *testing.T) {
 		t.Error("tempDir should have been set by subtest")
 	}
 }
+
+func TestStripYAMLCommentHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "strips comment header",
+			input: `#
+# Header comment
+# More comments
+#
+name: my-workflow
+on: push`,
+			expected: `name: my-workflow
+on: push`,
+		},
+		{
+			name:     "handles no comments",
+			input:    `name: my-workflow`,
+			expected: `name: my-workflow`,
+		},
+		{
+			name: "handles empty lines before YAML",
+			input: `#
+# Comment
+
+name: my-workflow`,
+			expected: `name: my-workflow`,
+		},
+		{
+			name:     "handles empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name: "handles only comments",
+			input: `# Only comments
+# No YAML`,
+			expected: `# Only comments
+# No YAML`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testutil.StripYAMLCommentHeader(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripYAMLCommentHeader(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

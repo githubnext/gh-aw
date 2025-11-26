@@ -30,6 +30,7 @@
 #   pull_request:
 #     types: [labeled]
 #     names: ["smoke"]
+#   reaction: "eyes"
 # permissions:
 #   contents: read
 #   pull-requests: read
@@ -53,9 +54,10 @@
 #       - github.com
 #   serena: ["go"]
 # safe-outputs:
-#     staged: true
 #     add-comment:
 #     create-issue:
+#     add-labels:
+#       allowed: [smoke-copilot]
 # timeout-minutes: 10
 # strict: true
 # ```
@@ -65,6 +67,7 @@
 # graph LR
 #   activation["activation"]
 #   add_comment["add_comment"]
+#   add_labels["add_labels"]
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   create_issue["create_issue"]
@@ -74,11 +77,14 @@
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
+#   agent --> add_labels
+#   detection --> add_labels
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_issue --> conclusion
 #   add_comment --> conclusion
+#   add_labels --> conclusion
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
@@ -105,6 +111,8 @@
 # - Bash tool test result (file content verification)
 # - Playwright test result (page title verification)
 # - Overall smoke test status for **Copilot engine**
+#
+# If all tests pass successfully, add the label `smoke-copilot` to the pull request.
 # ```
 #
 # Pinned GitHub Actions:
@@ -156,9 +164,14 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
+      comment_url: ${{ steps.react.outputs.comment-url }}
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -247,6 +260,336 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Add eyes reaction to the triggering item
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REACTION: eyes
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+        with:
+          script: |
+            async function main() {
+              const reaction = process.env.GH_AW_REACTION || "eyes";
+              const command = process.env.GH_AW_COMMAND; 
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              core.info(`Reaction type: ${reaction}`);
+              core.info(`Command name: ${command || "none"}`);
+              core.info(`Run ID: ${runId}`);
+              core.info(`Run URL: ${runUrl}`);
+              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
+              if (!validReactions.includes(reaction)) {
+                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
+                return;
+              }
+              let reactionEndpoint;
+              let commentUpdateEndpoint;
+              let shouldCreateComment = false;
+              const eventName = context.eventName;
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              try {
+                switch (eventName) {
+                  case "issues":
+                    const issueNumber = context.payload?.issue?.number;
+                    if (!issueNumber) {
+                      core.setFailed("Issue number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+                    shouldCreateComment = true;
+                    break;
+                  case "issue_comment":
+                    const commentId = context.payload?.comment?.id;
+                    const issueNumberForComment = context.payload?.issue?.number;
+                    if (!commentId) {
+                      core.setFailed("Comment ID not found in event payload");
+                      return;
+                    }
+                    if (!issueNumberForComment) {
+                      core.setFailed("Issue number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
+                    shouldCreateComment = true;
+                    break;
+                  case "pull_request":
+                    const prNumber = context.payload?.pull_request?.number;
+                    if (!prNumber) {
+                      core.setFailed("Pull request number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+                    shouldCreateComment = true;
+                    break;
+                  case "pull_request_review_comment":
+                    const reviewCommentId = context.payload?.comment?.id;
+                    const prNumberForReviewComment = context.payload?.pull_request?.number;
+                    if (!reviewCommentId) {
+                      core.setFailed("Review comment ID not found in event payload");
+                      return;
+                    }
+                    if (!prNumberForReviewComment) {
+                      core.setFailed("Pull request number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
+                    shouldCreateComment = true;
+                    break;
+                  case "discussion":
+                    const discussionNumber = context.payload?.discussion?.number;
+                    if (!discussionNumber) {
+                      core.setFailed("Discussion number not found in event payload");
+                      return;
+                    }
+                    const discussion = await getDiscussionId(owner, repo, discussionNumber);
+                    reactionEndpoint = discussion.id; 
+                    commentUpdateEndpoint = `discussion:${discussionNumber}`; 
+                    shouldCreateComment = true;
+                    break;
+                  case "discussion_comment":
+                    const discussionCommentNumber = context.payload?.discussion?.number;
+                    const discussionCommentId = context.payload?.comment?.id;
+                    if (!discussionCommentNumber || !discussionCommentId) {
+                      core.setFailed("Discussion or comment information not found in event payload");
+                      return;
+                    }
+                    const commentNodeId = context.payload?.comment?.node_id;
+                    if (!commentNodeId) {
+                      core.setFailed("Discussion comment node ID not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = commentNodeId; 
+                    commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
+                    shouldCreateComment = true;
+                    break;
+                  default:
+                    core.setFailed(`Unsupported event type: ${eventName}`);
+                    return;
+                }
+                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
+                const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
+                if (isDiscussionEvent) {
+                  await addDiscussionReaction(reactionEndpoint, reaction);
+                } else {
+                  await addReaction(reactionEndpoint, reaction);
+                }
+                if (shouldCreateComment && commentUpdateEndpoint) {
+                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
+                  await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
+                } else {
+                  core.info(`Skipping comment for event type: ${eventName}`);
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
+                core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
+              }
+            }
+            async function addReaction(endpoint, reaction) {
+              const response = await github.request("POST " + endpoint, {
+                content: reaction,
+                headers: {
+                  Accept: "application/vnd.github+json",
+                },
+              });
+              const reactionId = response.data?.id;
+              if (reactionId) {
+                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+                core.setOutput("reaction-id", reactionId.toString());
+              } else {
+                core.info(`Successfully added reaction: ${reaction}`);
+                core.setOutput("reaction-id", "");
+              }
+            }
+            async function addDiscussionReaction(subjectId, reaction) {
+              const reactionMap = {
+                "+1": "THUMBS_UP",
+                "-1": "THUMBS_DOWN",
+                laugh: "LAUGH",
+                confused: "CONFUSED",
+                heart: "HEART",
+                hooray: "HOORAY",
+                rocket: "ROCKET",
+                eyes: "EYES",
+              };
+              const reactionContent = reactionMap[reaction];
+              if (!reactionContent) {
+                throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
+              }
+              const result = await github.graphql(
+                `
+                mutation($subjectId: ID!, $content: ReactionContent!) {
+                  addReaction(input: { subjectId: $subjectId, content: $content }) {
+                    reaction {
+                      id
+                      content
+                    }
+                  }
+                }`,
+                { subjectId, content: reactionContent }
+              );
+              const reactionId = result.addReaction.reaction.id;
+              core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+              core.setOutput("reaction-id", reactionId);
+            }
+            async function getDiscussionId(owner, repo, discussionNumber) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              return {
+                id: repository.discussion.id,
+                url: repository.discussion.url,
+              };
+            }
+            async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
+              const discussion = await getDiscussionId(owner, repo, discussionNumber);
+              if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              const nodeId = context.payload?.comment?.node_id;
+              if (nodeId) {
+                return {
+                  id: nodeId,
+                  url: context.payload.comment?.html_url || discussion?.url,
+                };
+              }
+              throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
+            }
+            async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
+              try {
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                if (eventName === "discussion") {
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+                  return;
+                } else if (eventName === "discussion_comment") {
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const commentNodeId = context.payload?.comment?.node_id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+                  return;
+                }
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
+                }
+                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const createResponse = await github.request("POST " + endpoint, {
+                  body: workflowLinkText,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully created comment with workflow link`);
+                core.info(`Comment ID: ${createResponse.data.id}`);
+                core.info(`Comment URL: ${createResponse.data.html_url}`);
+                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.setOutput("comment-id", createResponse.data.id.toString());
+                core.setOutput("comment-url", createResponse.data.html_url);
+                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(
+                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+                );
+              }
+            }
+            await main();
 
   add_comment:
     needs:
@@ -295,7 +638,6 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -713,6 +1055,450 @@ jobs:
             }
             await main();
 
+  add_labels:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      labels_added: ${{ steps.add_labels.outputs.labels_added }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Add Labels
+        id: add_labels
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LABELS_ALLOWED: "smoke-copilot"
+          GH_AW_LABELS_MAX_COUNT: 3
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseAllowedItems(envValue) {
+              const trimmed = envValue?.trim();
+              if (!trimmed) {
+                return undefined;
+              }
+              return trimmed
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item);
+            }
+            function parseMaxCount(envValue, defaultValue = 3) {
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            function resolveTarget(params) {
+              const { targetConfig, item, context, itemType, supportsPR = false } = params;
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const target = targetConfig || "triggering";
+              if (target === "triggering") {
+                if (supportsPR) {
+                  if (!isIssueContext && !isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                } else {
+                  if (!isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                }
+              }
+              let itemNumber;
+              let contextType;
+              if (target === "*") {
+                const numberField = supportsPR ? item.item_number || item.pull_request_number : item.pull_request_number;
+                if (numberField) {
+                  itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    return {
+                      success: false,
+                      error: `Invalid ${supportsPR ? "item_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
+                      shouldFail: true,
+                    };
+                  }
+                  contextType = supportsPR && item.item_number ? "issue" : "pull request";
+                } else {
+                  return {
+                    success: false,
+                    error: `Target is "*" but no ${supportsPR ? "item_number" : "pull_request_number"} specified in ${itemType} item`,
+                    shouldFail: true,
+                  };
+                }
+              } else if (target !== "triggering") {
+                itemNumber = parseInt(target, 10);
+                if (isNaN(itemNumber) || itemNumber <= 0) {
+                  return {
+                    success: false,
+                    error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
+                    shouldFail: true,
+                  };
+                }
+                contextType = supportsPR ? "issue" : "pull request";
+              } else {
+                if (isIssueContext) {
+                  if (context.payload.issue) {
+                    itemNumber = context.payload.issue.number;
+                    contextType = "issue";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Issue context detected but no issue found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                } else if (isPRContext) {
+                  if (context.payload.pull_request) {
+                    itemNumber = context.payload.pull_request.number;
+                    contextType = "pull request";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Pull request context detected but no pull request found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                }
+              }
+              if (!itemNumber) {
+                return {
+                  success: false,
+                  error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+                  shouldFail: true,
+                };
+              }
+              return {
+                success: true,
+                number: itemNumber,
+                contextType: contextType || (supportsPR ? "issue" : "pull request"),
+              };
+            }
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            function loadSafeOutputsConfig() {
+              const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+              try {
+                if (!fs.existsSync(configPath)) {
+                  core.warning(`Config file not found at ${configPath}, using defaults`);
+                  return {};
+                }
+                const configContent = fs.readFileSync(configPath, "utf8");
+                return JSON.parse(configContent);
+              } catch (error) {
+                core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
+                return {};
+              }
+            }
+            function getSafeOutputConfig(outputType) {
+              const config = loadSafeOutputsConfig();
+              return config[outputType] || {};
+            }
+            function validateTitle(title, fieldName = "title") {
+              if (title === undefined || title === null) {
+                return { valid: false, error: `${fieldName} is required` };
+              }
+              if (typeof title !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              const trimmed = title.trim();
+              if (trimmed.length === 0) {
+                return { valid: false, error: `${fieldName} cannot be empty` };
+              }
+              return { valid: true, value: trimmed };
+            }
+            function validateBody(body, fieldName = "body", required = false) {
+              if (body === undefined || body === null) {
+                if (required) {
+                  return { valid: false, error: `${fieldName} is required` };
+                }
+                return { valid: true, value: "" };
+              }
+              if (typeof body !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              return { valid: true, value: body };
+            }
+            function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
+              if (!labels || !Array.isArray(labels)) {
+                return { valid: false, error: "labels must be an array" };
+              }
+              for (const label of labels) {
+                if (label && typeof label === "string" && label.startsWith("-")) {
+                  return { valid: false, error: `Label removal is not permitted. Found line starting with '-': ${label}` };
+                }
+              }
+              let validLabels = labels;
+              if (allowedLabels && allowedLabels.length > 0) {
+                validLabels = labels.filter(label => allowedLabels.includes(label));
+              }
+              const uniqueLabels = validLabels
+                .filter(label => label != null && label !== false && label !== 0)
+                .map(label => String(label).trim())
+                .filter(label => label)
+                .map(label => sanitizeLabelContent(label))
+                .filter(label => label)
+                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                .filter((label, index, arr) => arr.indexOf(label) === index);
+              if (uniqueLabels.length > maxCount) {
+                core.info(`Too many labels (${uniqueLabels.length}), limiting to ${maxCount}`);
+                return { valid: true, value: uniqueLabels.slice(0, maxCount) };
+              }
+              if (uniqueLabels.length === 0) {
+                return { valid: false, error: "No valid labels found after sanitization" };
+              }
+              return { valid: true, value: uniqueLabels };
+            }
+            function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
+              const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const labelsItem = result.items.find(item => item.type === "add_labels");
+              if (!labelsItem) {
+                core.warning("No add-labels item found in agent output");
+                return;
+              }
+              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Add Labels",
+                  description: "The following labels would be added if staged mode was disabled:",
+                  items: [labelsItem],
+                  renderItem: item => {
+                    let content = "";
+                    if (item.item_number) {
+                      content += `**Target Issue:** #${item.item_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current issue/PR\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const config = getSafeOutputConfig("add_labels");
+              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
+              if (allowedLabels) {
+                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+              } else {
+                core.info("No label restrictions - any labels are allowed");
+              }
+              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
+                return;
+              }
+              const maxCount = maxCountResult.value;
+              core.info(`Max count: ${maxCount}`);
+              const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
+              core.info(`Labels target configuration: ${labelsTarget}`);
+              const targetResult = resolveTarget({
+                targetConfig: labelsTarget,
+                item: labelsItem,
+                context,
+                itemType: "label addition",
+                supportsPR: true,
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
+                } else {
+                  core.info(targetResult.error);
+                }
+                return;
+              }
+              const itemNumber = targetResult.number;
+              const contextType = targetResult.contextType;
+              const requestedLabels = labelsItem.labels || [];
+              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+              const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+              if (!labelsResult.valid) {
+                if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
+                  core.info("No labels to add");
+                  core.setOutput("labels_added", "");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
+            `
+                    )
+                    .write();
+                  return;
+                }
+                core.setFailed(labelsResult.error || "Invalid labels");
+                return;
+              }
+              const uniqueLabels = labelsResult.value || [];
+              if (uniqueLabels.length === 0) {
+                core.info("No labels to add");
+                core.setOutput("labels_added", "");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
+            `
+                  )
+                  .write();
+                return;
+              }
+              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: itemNumber,
+                  labels: uniqueLabels,
+                });
+                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+                core.setOutput("labels_added", uniqueLabels.join("\n"));
+                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+            ${labelsListMarkdown}
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to add labels: ${errorMessage}`);
+                core.setFailed(`Failed to add labels: ${errorMessage}`);
+              }
+            }
+            await main();
+
   agent:
     needs: activation
     runs-on: ubuntu-latest
@@ -837,10 +1623,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot"],"max":3},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead.","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow.","type":"number"},"labels":{"description":"Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1640,6 +2426,8 @@ jobs:
           - Playwright test result (page title verification)
           - Overall smoke test status for **Copilot engine**
           
+          If all tests pass successfully, add the label `smoke-copilot` to the pull request.
+          
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
         env:
@@ -1869,7 +2657,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               steps: {
                 firewall: "squid"
               },
@@ -1912,7 +2700,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -4664,6 +5451,7 @@ jobs:
       - activation
       - create_issue
       - add_comment
+      - add_labels
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -5105,7 +5893,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

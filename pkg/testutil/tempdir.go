@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -63,4 +64,19 @@ func TempDir(t *testing.T, pattern string) string {
 	})
 
 	return tempDir
+}
+
+// StripYAMLCommentHeader removes the comment header from generated YAML files
+// and returns only the non-comment YAML content. This is useful for tests that
+// need to verify content without matching strings in the comment header.
+func StripYAMLCommentHeader(yamlContent string) string {
+	lines := strings.Split(yamlContent, "\n")
+	for i, line := range lines {
+		// Find the first non-comment, non-empty line (start of actual YAML)
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			return strings.Join(lines[i:], "\n")
+		}
+	}
+	return yamlContent
 }
