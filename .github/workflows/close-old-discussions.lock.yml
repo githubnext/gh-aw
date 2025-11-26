@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Automatically closes discussions created by github-actions bot that are older than 1 week
+#
 # Original Frontmatter:
 # ```yaml
 # description: Automatically closes discussions created by github-actions bot that are older than 1 week
@@ -121,8 +123,6 @@
 #     env:
 #       GH_TOKEN: ${{ github.token }}
 # ```
-#
-# Automatically closes discussions created by github-actions bot that are older than 1 week
 #
 # Job Dependency Graph:
 # ```mermaid

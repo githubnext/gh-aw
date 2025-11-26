@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
+#
 # Original Frontmatter:
 # ```yaml
 # description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
@@ -67,8 +69,6 @@
 #   - shared/mcp/gh-aw.md
 #   - shared/reporting.md
 # ```
-#
-# Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 #
 # Resolved workflow manifest:
 #   Imports:

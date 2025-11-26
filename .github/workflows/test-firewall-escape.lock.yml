@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Tests that the firewall correctly blocks forbidden domains while allowing permitted access
+#
 # Original Frontmatter:
 # ```yaml
 # name: Firewall Escape Test
@@ -79,8 +81,6 @@
 #         - File operations failed
 #
 # ```
-#
-# Tests that the firewall correctly blocks forbidden domains while allowing permitted access
 #
 # Job Dependency Graph:
 # ```mermaid

@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Identify, score, and assign issues to AI agents for efficient resolution
+#
 # Original Frontmatter:
 # ```yaml
 # name: AI Triage Campaign
@@ -54,8 +56,6 @@
 #   assign-to-agent:
 #     name: copilot
 # ```
-#
-# Identify, score, and assign issues to AI agents for efficient resolution
 #
 # Job Dependency Graph:
 # ```mermaid

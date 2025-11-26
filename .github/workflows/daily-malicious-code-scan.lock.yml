@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
+#
 # Original Frontmatter:
 # ```yaml
 # description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
@@ -42,8 +44,6 @@
 # timeout-minutes: 15
 # strict: true
 # ```
-#
-# Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 #
 # Job Dependency Graph:
 # ```mermaid

@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
+#
 # Original Frontmatter:
 # ```yaml
 # name: Documentation Unbloat
@@ -120,8 +122,6 @@
 #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #     run: npm run build
 # ```
-#
-# Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 #
 # Resolved workflow manifest:
 #   Imports:

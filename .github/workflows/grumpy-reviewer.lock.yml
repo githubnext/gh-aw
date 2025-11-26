@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
+#
 # Original Frontmatter:
 # ```yaml
 # description: Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
@@ -41,8 +43,6 @@
 #     side: "RIGHT"
 # timeout-minutes: 10
 # ```
-#
-# Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 #
 # Job Dependency Graph:
 # ```mermaid

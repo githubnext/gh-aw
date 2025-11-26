@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
+#
 # Original Frontmatter:
 # ```yaml
 # name: Developer Documentation Consolidator
@@ -71,8 +73,6 @@
 #   - shared/reporting.md
 #
 # ```
-#
-# Consolidates and organizes developer documentation from multiple sources into a unified, searchable knowledge base
 #
 # Resolved workflow manifest:
 #   Imports:

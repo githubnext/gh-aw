@@ -54,7 +54,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString("#   " + constants.CLIExtensionPrefix + " compile\n")
 	yaml.WriteString("# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md\n")
 
-	// Add original frontmatter as comment for reference
+	// Add description comment if provided
+	if data.Description != "" {
+		yaml.WriteString("#\n")
+		// Split description into lines and prefix each with "# "
+		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
+		for _, line := range descriptionLines {
+			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
+		}
+	}
+
+	// Add original frontmatter as comment for reference (after description)
 	if data.FrontmatterYAML != "" {
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Original Frontmatter:\n")
@@ -71,16 +81,6 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 			}
 		}
 		yaml.WriteString("# ```\n")
-	}
-
-	// Add description comment if provided
-	if data.Description != "" {
-		yaml.WriteString("#\n")
-		// Split description into lines and prefix each with "# "
-		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
-		for _, line := range descriptionLines {
-			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
-		}
 	}
 
 	// Add source comment if provided

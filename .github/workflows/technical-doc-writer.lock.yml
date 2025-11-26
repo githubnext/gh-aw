@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Reviews and improves technical documentation based on provided topics
+#
 # Original Frontmatter:
 # ```yaml
 # description: Reviews and improves technical documentation based on provided topics
@@ -85,8 +87,6 @@
 # timeout-minutes: 10
 #
 # ```
-#
-# Reviews and improves technical documentation based on provided topics
 #
 # Resolved workflow manifest:
 #   Imports:

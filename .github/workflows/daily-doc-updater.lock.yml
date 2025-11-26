@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Automatically reviews and updates documentation to ensure accuracy and completeness
+#
 # Original Frontmatter:
 # ```yaml
 # name: Daily Documentation Updater
@@ -63,8 +65,6 @@
 # timeout-minutes: 45
 #
 # ```
-#
-# Automatically reviews and updates documentation to ensure accuracy and completeness
 #
 # Job Dependency Graph:
 # ```mermaid

@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Analyzes prompt patterns used in Copilot PR interactions to identify common usage patterns and optimization opportunities
+#
 # Original Frontmatter:
 # ```yaml
 # name: Copilot PR Prompt Pattern Analysis
@@ -63,8 +65,6 @@
 # timeout-minutes: 15
 #
 # ```
-#
-# Analyzes prompt patterns used in Copilot PR interactions to identify common usage patterns and optimization opportunities
 #
 # Resolved workflow manifest:
 #   Imports:

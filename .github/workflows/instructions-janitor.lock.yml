@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
+#
 # Original Frontmatter:
 # ```yaml
 # name: Instructions Janitor
@@ -61,8 +63,6 @@
 # timeout-minutes: 15
 #
 # ```
-#
-# Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 #
 # Job Dependency Graph:
 # ```mermaid

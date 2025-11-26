@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
+#
 # Original Frontmatter:
 # ```yaml
 # description: Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
@@ -49,8 +51,6 @@
 #   - shared/reporting.md
 #   - shared/safe-output-app.md
 # ```
-#
-# Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
 #
 # Resolved workflow manifest:
 #   Imports:

@@ -18,6 +18,8 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Monitors and analyzes the health of safe output operations across all agentic workflows
+#
 # Original Frontmatter:
 # ```yaml
 # description: Monitors and analyzes the health of safe output operations across all agentic workflows
@@ -50,8 +52,6 @@
 #   - shared/jqschema.md
 #   - shared/reporting.md
 # ```
-#
-# Monitors and analyzes the health of safe output operations across all agentic workflows
 #
 # Resolved workflow manifest:
 #   Imports:
