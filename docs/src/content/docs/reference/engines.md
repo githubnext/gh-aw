@@ -127,9 +127,12 @@ network:
   firewall:
     log-level: info    # Options: debug, info (default), warn, error
 
-# Disable firewall (triggers warning if allowed domains are specified)
+# Disable firewall using boolean
 network:
-  allowed: ["example.com"]
+  firewall: false
+
+# Disable firewall using string (equivalent to false)
+network:
   firewall: "disable"
 
 # Custom configuration with version and arguments
@@ -140,8 +143,26 @@ network:
     args: ["--verbose"]
 ```
 
+### Disabling the Firewall
+
+To disable the firewall for any engine that supports it, set `firewall: false` in the `network` configuration. When disabling the firewall while also specifying `network.allowed` domains, you must set `strict: false` to avoid compilation errors:
+
+```yaml wrap
+strict: false
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+  firewall: false
+```
+
 :::caution
-Using `firewall: "disable"` with `network.allowed` domains will emit a warning in normal mode and an error in strict mode, as the network may not be properly sandboxed.
+When `network.allowed` domains are specified, disabling the firewall triggers:
+- A **warning** in normal mode (compilation succeeds)
+- An **error** in strict mode (compilation fails)
+
+Set `strict: false` explicitly if you need to disable the firewall while using domain allowlists.
 :::
 
 See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
