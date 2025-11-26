@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
@@ -66,15 +65,10 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	// Pass the if-no-changes configuration
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
-	// Pass the title prefix configuration
-	if data.SafeOutputs.PushToPullRequestBranch.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
-	}
-	// Pass the labels configuration
-	if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
-	}
+	// Pass the title prefix configuration using shared helper
+	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix)...)
+	// Pass the labels configuration using shared helper
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.PushToPullRequestBranch.Labels)...)
 	// Pass the commit title suffix configuration
 	if data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix))
