@@ -1686,6 +1686,125 @@
         }
       ]
     },
+    "sandbox": {
+      "description": "Sandbox runtime configuration for AI engines. Controls the execution sandbox (AWF or Sandbox Runtime). Only supported for Copilot engine.",
+      "examples": [
+        "default",
+        "sandbox-runtime",
+        {
+          "type": "sandbox-runtime",
+          "config": {
+            "network": {
+              "allowedDomains": ["github.com", "*.npmjs.org"],
+              "allowUnixSockets": ["/var/run/docker.sock"]
+            }
+          }
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["default", "sandbox-runtime"],
+          "description": "Sandbox type: 'default' uses AWF (Agent Workflow Firewall), 'sandbox-runtime' uses Anthropic Sandbox Runtime with auto-generated config"
+        },
+        {
+          "type": "object",
+          "description": "Custom sandbox runtime configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["default", "sandbox-runtime"],
+              "description": "Sandbox type to use"
+            },
+            "config": {
+              "type": "object",
+              "description": "Custom Sandbox Runtime configuration (only applies when type is 'sandbox-runtime')",
+              "properties": {
+                "network": {
+                  "type": "object",
+                  "properties": {
+                    "allowedDomains": {
+                      "type": "array",
+                      "description": "List of allowed domains (supports wildcards like '*.github.com')",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "deniedDomains": {
+                      "type": "array",
+                      "description": "List of explicitly denied domains",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "allowUnixSockets": {
+                      "type": "array",
+                      "description": "List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "allowLocalBinding": {
+                      "type": "boolean",
+                      "description": "Allow binding to local ports (default: false)"
+                    },
+                    "allowAllUnixSockets": {
+                      "type": "boolean",
+                      "description": "Allow access to all Unix sockets (default: false)"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "filesystem": {
+                  "type": "object",
+                  "properties": {
+                    "denyRead": {
+                      "type": "array",
+                      "description": "List of paths to deny read access",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "allowWrite": {
+                      "type": "array",
+                      "description": "List of paths to allow write access",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "denyWrite": {
+                      "type": "array",
+                      "description": "List of paths to deny write access",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "ignoreViolations": {
+                  "type": "object",
+                  "description": "Map of command patterns to paths that should ignore violations",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "enableWeakerNestedSandbox": {
+                  "type": "boolean",
+                  "description": "Enable weaker nested sandbox mode (recommended: true for Docker access)"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        }
+      ]
+    },
     "if": {
       "type": "string",
       "description": "Conditional execution expression",
