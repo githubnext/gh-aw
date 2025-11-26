@@ -18,7 +18,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# The Cookie Monster of issues - bundles related issues and generates fixes via pull requests
+# The Cookie Monster of issues - assigns issues to Copilot agents one at a time
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -26,22 +26,20 @@
 #   activation["activation"]
 #   add_comment["add_comment"]
 #   agent["agent"]
+#   assign_to_agent["assign_to_agent"]
 #   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   agent --> add_comment
-#   create_pull_request --> add_comment
 #   detection --> add_comment
 #   activation --> agent
+#   agent --> assign_to_agent
+#   detection --> assign_to_agent
 #   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
 #   add_comment --> conclusion
-#   agent --> create_pull_request
-#   activation --> create_pull_request
-#   detection --> create_pull_request
+#   assign_to_agent --> conclusion
 #   agent --> detection
 # ```
 #
@@ -49,11 +47,11 @@
 # ```markdown
 # # Issue Monster 🍪
 #
-# You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by bundling related ones together and generating fixes via pull requests.
+# You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
 #
 # ## Your Mission
 #
-# Find issues that can be bundled together, generate fixes for them, and create a single pull request. You work efficiently by grouping related issues but never overwhelm yourself with too many at once.
+# Find one issue that needs work and assign it to the Copilot agent for resolution. You work methodically, processing one issue at a time every hour.
 #
 # ## Current Context
 #
@@ -75,132 +73,92 @@
 # - Output a message: "🍽️ No issues available - the plate is empty!"
 # - **STOP** and do not proceed further
 #
-# ### 2. Filter Out Issues with Existing PRs
+# ### 2. Filter Out Issues Already Assigned to Copilot
 #
-# For each issue found, check if there's already an open pull request linked to it:
-# - Look for PRs that reference the issue number in the title or body
-# - Search pattern: `is:pr is:open {issue_number} in:title,body`
+# For each issue found, check if it's already assigned to Copilot:
+# - Look for issues that have Copilot as an assignee
+# - Check if there's already an open pull request linked to it
 #
-# **Skip any issue** that already has an open PR associated with it.
+# **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 #
-# ### 3. Identify Issues That Can Be Bundled Together
+# ### 3. Select One Issue to Work On
 #
-# From the remaining issues (without open PRs):
-# - **Analyze the issues** to find ones that are related or can be fixed together
-# - **Group criteria**:
-#   - Issues affecting the same file or component
-#   - Issues with similar themes (e.g., documentation, refactoring, bug fixes)
-#   - Issues that have dependencies on each other
-# - **Limit**: Select **2-4 issues maximum** to bundle together
+# From the remaining issues (without Copilot assignments or open PRs):
+# - **Select the single most appropriate issue** to assign
 # - **Priority**: Prefer issues that are:
 #   - Quick wins (small, well-defined fixes)
-#   - Related to each other
 #   - Have clear acceptance criteria
+#   - Most recently created
 #
-# **If all issues have PRs:**
+# **If all issues are already being worked on:**
 # - Output a message: "🍽️ All issues are already being worked on!"
 # - **STOP** and do not proceed further
 #
-# ### 4. Read and Understand the Issues
+# ### 4. Read and Understand the Issue
 #
-# For each selected issue:
+# For the selected issue:
 # - Read the full issue body and any comments
 # - Understand what fix is needed
 # - Identify the files that need to be modified
 #
-# ### 5. Generate Fixes Following AGENTS.md
+# ### 5. Assign Issue to Copilot Agent
 #
-# **CRITICAL**: Before making any code changes, read and follow the instructions in `AGENTS.md` at the repository root.
+# Use the `assign_to_agent` safe output to assign the Copilot agent:
 #
-# Key requirements from AGENTS.md:
-# - Run `make agent-finish` before committing (runs build, test, recompile, fmt, lint)
-# - Run `make recompile` to ensure JavaScript is properly formatted and workflows are compiled
-# - Never add lock files to .gitignore
-# - Use GitHub MCP for GitHub API access
-# - Use console formatting for user output
-# - Follow Go code style guidelines
-#
-# For each bundled issue:
-# 1. Make the necessary code changes using the edit tool
-# 2. Ensure changes follow repository conventions
-# 3. Test changes compile and pass linting
-#
-# ### 6. Create a Pull Request
-#
-# Use the `create-pull-request` safe output to create a PR with all fixes:
-#
-# **PR Details:**
-# - **Title**: Will be prefixed with "[issue monster] " automatically
-# - **Body**: Include:
-#   - List of all issues being fixed (with issue numbers)
-#   - Summary of changes made for each issue
-#   - Any notes about testing or verification
-#
-# **Example PR Body:**
-# ```markdown
-# ## 🍪 Issue Monster Fixes
-#
-# This PR bundles fixes for the following issues:
-#
-# ### Issues Fixed
-# - Fixes #123: Description of fix
-# - Fixes #456: Description of fix
-# - Fixes #789: Description of fix
-#
-# ### Changes Made
-# - File A: Description of changes
-# - File B: Description of changes
-#
-# ### Testing
-# - [ ] `make agent-finish` passes
-# - [ ] Changes verified locally
+# **Agent Output Format:**
+# ```json
+# {
+#   "type": "assign_to_agent",
+#   "issue_number": <issue_number>,
+#   "agent": "copilot"
+# }
 # ```
 #
-# ### 7. Add Comments to Each Issue
+# The Copilot agent will:
+# 1. Analyze the issue and related context
+# 2. Generate the necessary code changes
+# 3. Create a pull request with the fix
+# 4. Follow the repository's AGENTS.md guidelines
 #
-# For each issue being fixed, add a comment:
+# ### 6. Add Comment to the Issue
+#
+# Add a comment to the issue being assigned:
 #
 # ```markdown
-# 🍪 **Issue Monster is working on this!**
+# 🍪 **Issue Monster has assigned this to Copilot!**
 #
-# I've bundled this issue with related issues and created a pull request:
-# - PR: #[PR_NUMBER]
-# - Other issues in this bundle: #[OTHER_ISSUE_NUMBERS]
+# I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
+#
+# The Copilot agent will analyze the issue and create a pull request with the fix.
 #
 # Om nom nom! 🍪
 # ```
 #
 # ## Important Guidelines
 #
-# - ✅ **Bundle wisely**: Group 2-4 related issues together
-# - ✅ **Don't overdo it**: Never try to fix more than 4 issues in one PR
-# - ✅ **Follow AGENTS.md**: Always read and follow repository guidelines
-# - ✅ **Test your changes**: Ensure code compiles and tests pass
-# - ✅ **Be transparent**: Comment on all issues being worked on
-# - ❌ **Don't assign to agents**: Generate fixes directly, don't assign to copilot
-# - ❌ **Don't batch too many**: Avoid bundling more than 4 issues
+# - ✅ **One at a time**: Only assign one issue per run
+# - ✅ **Be transparent**: Comment on the issue being assigned
+# - ✅ **Check assignments**: Skip issues already assigned to Copilot
+# - ❌ **Don't batch**: Never assign more than one issue per run
 #
 # ## Success Criteria
 #
 # A successful run means:
-# 1. You found available issues with the "issue monster" label
-# 2. You filtered out issues that already have PRs
-# 3. You identified 2-4 related issues to bundle
-# 4. You read and understood each issue
-# 5. You followed AGENTS.md guidelines
-# 6. You generated fixes for all bundled issues
-# 7. You created a single pull request with all fixes
-# 8. You commented on each issue being fixed
+# 1. You found an available issue with the "issue monster" label
+# 2. You filtered out issues that are already assigned or have PRs
+# 3. You selected one appropriate issue
+# 4. You read and understood the issue
+# 5. You assigned the issue to the Copilot agent using `assign_to_agent`
+# 6. You commented on the issue being assigned
 #
 # ## Error Handling
 #
 # If anything goes wrong:
 # - **No issues found**: Output a friendly message and stop gracefully
-# - **All issues have PRs**: Output a message and stop gracefully
-# - **Build/test failures**: Fix the issues before creating the PR
+# - **All issues assigned**: Output a message and stop gracefully
 # - **API errors**: Log the error clearly
 #
-# Remember: You're the Issue Monster! Stay hungry, bundle wisely, and deliver quality fixes! 🍪 Om nom nom!
+# Remember: You're the Issue Monster! Stay hungry, work methodically, and let Copilot do the heavy lifting! 🍪 Om nom nom!
 # ```
 #
 # Pinned GitHub Actions:
@@ -217,7 +175,9 @@
 
 name: "Issue Monster"
 "on":
-  # skip-if-match: is:pr is:open in:title "[issue monster]" # Skip-if-match processed as search check in pre-activation job
+  schedule:
+  - cron: "0 * * * *"
+  # skip-if-match: is:pr is:open author:app/copilot-swe-agent # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch: null
 
 permissions:
@@ -332,7 +292,6 @@ jobs:
   add_comment:
     needs:
       - agent
-      - create_pull_request
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
@@ -372,8 +331,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Issue Monster"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -887,10 +844,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":5},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"assign_to_agent":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.","type":"string"},"branch":{"description":"Source branch name containing the changes. If omitted, uses the current working branch.","type":"string"},"labels":{"description":"Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"title":{"description":"Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_pull_request"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.","inputSchema":{"additionalProperties":false,"properties":{"agent":{"description":"Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.","type":"string"},"issue_number":{"description":"Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements.","type":["number","string"]}},"required":["issue_number"],"type":"object"},"name":"assign_to_agent"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1630,11 +1587,11 @@ jobs:
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Issue Monster 🍪
           
-          You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by bundling related ones together and generating fixes via pull requests.
+          You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
           
           ## Your Mission
           
-          Find issues that can be bundled together, generate fixes for them, and create a single pull request. You work efficiently by grouping related issues but never overwhelm yourself with too many at once.
+          Find one issue that needs work and assign it to the Copilot agent for resolution. You work methodically, processing one issue at a time every hour.
           
           ## Current Context
           
@@ -1656,132 +1613,92 @@ jobs:
           - Output a message: "🍽️ No issues available - the plate is empty!"
           - **STOP** and do not proceed further
           
-          ### 2. Filter Out Issues with Existing PRs
+          ### 2. Filter Out Issues Already Assigned to Copilot
           
-          For each issue found, check if there's already an open pull request linked to it:
-          - Look for PRs that reference the issue number in the title or body
-          - Search pattern: `is:pr is:open {issue_number} in:title,body`
+          For each issue found, check if it's already assigned to Copilot:
+          - Look for issues that have Copilot as an assignee
+          - Check if there's already an open pull request linked to it
           
-          **Skip any issue** that already has an open PR associated with it.
+          **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
           
-          ### 3. Identify Issues That Can Be Bundled Together
+          ### 3. Select One Issue to Work On
           
-          From the remaining issues (without open PRs):
-          - **Analyze the issues** to find ones that are related or can be fixed together
-          - **Group criteria**:
-            - Issues affecting the same file or component
-            - Issues with similar themes (e.g., documentation, refactoring, bug fixes)
-            - Issues that have dependencies on each other
-          - **Limit**: Select **2-4 issues maximum** to bundle together
+          From the remaining issues (without Copilot assignments or open PRs):
+          - **Select the single most appropriate issue** to assign
           - **Priority**: Prefer issues that are:
             - Quick wins (small, well-defined fixes)
-            - Related to each other
             - Have clear acceptance criteria
+            - Most recently created
           
-          **If all issues have PRs:**
+          **If all issues are already being worked on:**
           - Output a message: "🍽️ All issues are already being worked on!"
           - **STOP** and do not proceed further
           
-          ### 4. Read and Understand the Issues
+          ### 4. Read and Understand the Issue
           
-          For each selected issue:
+          For the selected issue:
           - Read the full issue body and any comments
           - Understand what fix is needed
           - Identify the files that need to be modified
           
-          ### 5. Generate Fixes Following AGENTS.md
+          ### 5. Assign Issue to Copilot Agent
           
-          **CRITICAL**: Before making any code changes, read and follow the instructions in `AGENTS.md` at the repository root.
+          Use the `assign_to_agent` safe output to assign the Copilot agent:
           
-          Key requirements from AGENTS.md:
-          - Run `make agent-finish` before committing (runs build, test, recompile, fmt, lint)
-          - Run `make recompile` to ensure JavaScript is properly formatted and workflows are compiled
-          - Never add lock files to .gitignore
-          - Use GitHub MCP for GitHub API access
-          - Use console formatting for user output
-          - Follow Go code style guidelines
-          
-          For each bundled issue:
-          1. Make the necessary code changes using the edit tool
-          2. Ensure changes follow repository conventions
-          3. Test changes compile and pass linting
-          
-          ### 6. Create a Pull Request
-          
-          Use the `create-pull-request` safe output to create a PR with all fixes:
-          
-          **PR Details:**
-          - **Title**: Will be prefixed with "[issue monster] " automatically
-          - **Body**: Include:
-            - List of all issues being fixed (with issue numbers)
-            - Summary of changes made for each issue
-            - Any notes about testing or verification
-          
-          **Example PR Body:**
-          ```markdown
-          ## 🍪 Issue Monster Fixes
-          
-          This PR bundles fixes for the following issues:
-          
-          ### Issues Fixed
-          - Fixes #123: Description of fix
-          - Fixes #456: Description of fix
-          - Fixes #789: Description of fix
-          
-          ### Changes Made
-          - File A: Description of changes
-          - File B: Description of changes
-          
-          ### Testing
-          - [ ] `make agent-finish` passes
-          - [ ] Changes verified locally
+          **Agent Output Format:**
+          ```json
+          {
+            "type": "assign_to_agent",
+            "issue_number": <issue_number>,
+            "agent": "copilot"
+          }
           ```
           
-          ### 7. Add Comments to Each Issue
+          The Copilot agent will:
+          1. Analyze the issue and related context
+          2. Generate the necessary code changes
+          3. Create a pull request with the fix
+          4. Follow the repository's AGENTS.md guidelines
           
-          For each issue being fixed, add a comment:
+          ### 6. Add Comment to the Issue
+          
+          Add a comment to the issue being assigned:
           
           ```markdown
-          🍪 **Issue Monster is working on this!**
+          🍪 **Issue Monster has assigned this to Copilot!**
           
-          I've bundled this issue with related issues and created a pull request:
-          - PR: #[PR_NUMBER]
-          - Other issues in this bundle: #[OTHER_ISSUE_NUMBERS]
+          I've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.
+          
+          The Copilot agent will analyze the issue and create a pull request with the fix.
           
           Om nom nom! 🍪
           ```
           
           ## Important Guidelines
           
-          - ✅ **Bundle wisely**: Group 2-4 related issues together
-          - ✅ **Don't overdo it**: Never try to fix more than 4 issues in one PR
-          - ✅ **Follow AGENTS.md**: Always read and follow repository guidelines
-          - ✅ **Test your changes**: Ensure code compiles and tests pass
-          - ✅ **Be transparent**: Comment on all issues being worked on
-          - ❌ **Don't assign to agents**: Generate fixes directly, don't assign to copilot
-          - ❌ **Don't batch too many**: Avoid bundling more than 4 issues
+          - ✅ **One at a time**: Only assign one issue per run
+          - ✅ **Be transparent**: Comment on the issue being assigned
+          - ✅ **Check assignments**: Skip issues already assigned to Copilot
+          - ❌ **Don't batch**: Never assign more than one issue per run
           
           ## Success Criteria
           
           A successful run means:
-          1. You found available issues with the "issue monster" label
-          2. You filtered out issues that already have PRs
-          3. You identified 2-4 related issues to bundle
-          4. You read and understood each issue
-          5. You followed AGENTS.md guidelines
-          6. You generated fixes for all bundled issues
-          7. You created a single pull request with all fixes
-          8. You commented on each issue being fixed
+          1. You found an available issue with the "issue monster" label
+          2. You filtered out issues that are already assigned or have PRs
+          3. You selected one appropriate issue
+          4. You read and understood the issue
+          5. You assigned the issue to the Copilot agent using `assign_to_agent`
+          6. You commented on the issue being assigned
           
           ## Error Handling
           
           If anything goes wrong:
           - **No issues found**: Output a friendly message and stop gracefully
-          - **All issues have PRs**: Output a message and stop gracefully
-          - **Build/test failures**: Fix the issues before creating the PR
+          - **All issues assigned**: Output a message and stop gracefully
           - **API errors**: Log the error clearly
           
-          Remember: You're the Issue Monster! Stay hungry, bundle wisely, and deliver quality fixes! 🍪 Om nom nom!
+          Remember: You're the Issue Monster! Stay hungry, work methodically, and let Copilot do the heavy lifting! 🍪 Om nom nom!
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1815,21 +1732,6 @@ jobs:
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
           </temporary-files>
-          
-          PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
           
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
@@ -2024,27 +1926,6 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
         timeout-minutes: 30
         run: |
           set -o pipefail
@@ -2053,7 +1934,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -4466,20 +4347,601 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+
+  assign_to_agent:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      assigned_agents: ${{ steps.assign_to_agent.outputs.assigned_agents }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Assign to Agent
+        id: assign_to_agent
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_DEFAULT: "copilot"
+          GH_AW_AGENT_MAX_COUNT: 1
+          GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_WORKFLOW_NAME: "Issue Monster"
+        with:
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            const AGENT_LOGIN_NAMES = {
+              copilot: "copilot-swe-agent",
+            };
+            function getAgentName(assignee) {
+              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+              if (AGENT_LOGIN_NAMES[normalized]) {
+                return normalized;
+              }
+              return null;
+            }
+            async function getAvailableAgentLogins(owner, repo) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes { ... on Bot { login __typename } }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository?.suggestedActors?.nodes || [];
+                const knownValues = Object.values(AGENT_LOGIN_NAMES);
+                const available = [];
+                for (const actor of actors) {
+                  if (actor && actor.login && knownValues.includes(actor.login)) {
+                    available.push(actor.login);
+                  }
+                }
+                return available.sort();
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                core.debug(`Failed to list available agent logins: ${msg}`);
+                return [];
+              }
+            }
+            async function findAgent(owner, repo, agentName) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes {
+                        ... on Bot {
+                          id
+                          login
+                          __typename
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository.suggestedActors.nodes;
+                const loginName = AGENT_LOGIN_NAMES[agentName];
+                if (!loginName) {
+                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  return null;
+                }
+                for (const actor of actors) {
+                  if (actor.login === loginName) {
+                    return actor.id;
+                  }
+                }
+                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
+                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+                if (available.length > 0) {
+                  core.info(`Available assignable coding agents: ${available.join(", ")}`);
+                } else {
+                  core.info("No coding agents are currently assignable in this repository.");
+                }
+                if (agentName === "copilot") {
+                  core.info(
+                    "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
+                  );
+                }
+                return null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function getIssueDetails(owner, repo, issueNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      id
+                      assignees(first: 100) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo, issueNumber });
+                const issue = response.repository.issue;
+                if (!issue || !issue.id) {
+                  core.error("Could not get issue data");
+                  return null;
+                }
+                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+                return {
+                  issueId: issue.id,
+                  currentAssignees: currentAssignees,
+                };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get issue details: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
+              const actorIds = [agentId];
+              for (const assigneeId of currentAssignees) {
+                if (assigneeId !== agentId) {
+                  actorIds.push(assigneeId);
+                }
+              }
+              const mutation = `
+                mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                  replaceActorsForAssignable(input: {
+                    assignableId: $assignableId,
+                    actorIds: $actorIds
+                  }) {
+                    __typename
+                  }
+                }
+              `;
+              try {
+                if (!ghToken) {
+                  core.error("GitHub token is not set. Cannot perform assignment mutation.");
+                  return false;
+                }
+                core.info("Using provided GitHub token for mutation");
+                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                const response = await fetch("https://api.github.com/graphql", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${ghToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    query: mutation,
+                    variables: {
+                      assignableId: issueId,
+                      actorIds: actorIds,
+                    },
+                  }),
+                }).then(res => res.json());
+                if (response.errors && response.errors.length > 0) {
+                  throw new Error(response.errors[0].message);
+                }
+                if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
+                  return true;
+                } else {
+                  core.error("Unexpected response from GitHub API");
+                  return false;
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                try {
+                  core.debug(`Raw GraphQL error message: ${errorMessage}`);
+                  if (error && typeof error === "object") {
+                    const details = {};
+                    if (error.errors) details.errors = error.errors;
+                    if (error.response) details.response = error.response;
+                    if (error.data) details.data = error.data;
+                    if (Array.isArray(error.errors)) {
+                      details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+                    }
+                    const serialized = JSON.stringify(details, (_k, v) => v, 2);
+                    if (serialized && serialized !== "{}") {
+                      core.debug(`Raw GraphQL error details: ${serialized}`);
+                      core.error("Raw GraphQL error details (for troubleshooting):");
+                      for (const line of serialized.split(/\n/)) {
+                        if (line.trim()) core.error(line);
+                      }
+                    }
+                  }
+                } catch (loggingErr) {
+                  core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
+                }
+                if (
+                  errorMessage.includes("Resource not accessible by personal access token") ||
+                  errorMessage.includes("Resource not accessible by integration") ||
+                  errorMessage.includes("Insufficient permissions to assign")
+                ) {
+                  core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
+                  try {
+                    const fallbackMutation = `
+                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        addAssigneesToAssignable(input: {
+                          assignableId: $assignableId,
+                          assigneeIds: $assigneeIds
+                        }) {
+                          clientMutationId
+                        }
+                      }
+                    `;
+                    if (!ghToken) {
+                      core.error("GitHub token is not set. Cannot perform fallback mutation.");
+                    } else {
+                      core.info("Using provided GitHub token for fallback mutation");
+                      core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+                      const fallbackResp = await fetch("https://api.github.com/graphql", {
+                        method: "POST",
+                        headers: {
+                          Authorization: `Bearer ${ghToken}`,
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          query: fallbackMutation,
+                          variables: {
+                            assignableId: issueId,
+                            assigneeIds: [agentId],
+                          },
+                        }),
+                      }).then(res => res.json());
+                      if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
+                        core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+                        return true;
+                      } else {
+                        core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
+                      }
+                    }
+                  } catch (fallbackError) {
+                    const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                    core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
+                  }
+                  logPermissionError(agentName);
+                } else {
+                  core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+                }
+                return false;
+              }
+            }
+            function logPermissionError(agentName) {
+              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+              core.error("");
+              core.error("Assigning Copilot agents requires:");
+              core.error("  1. All four workflow permissions:");
+              core.error("     - actions: write");
+              core.error("     - contents: write");
+              core.error("     - issues: write");
+              core.error("     - pull-requests: write");
+              core.error("");
+              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+              core.error("");
+              core.error("  3. Repository settings:");
+              core.error("     - Actions must have write permissions");
+              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+              core.error("     - Select: 'Read and write permissions'");
+              core.error("");
+              core.error("  4. Organization/Enterprise settings:");
+              core.error("     - Check if your org restricts bot assignments");
+              core.error("     - Verify Copilot is enabled for your repository");
+              core.error("");
+              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+            }
+            function generatePermissionErrorSummary() {
+              let content = "\n### ⚠️ Permission Requirements\n\n";
+              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+              content += "```yaml\n";
+              content += "permissions:\n";
+              content += "  actions: write\n";
+              content += "  contents: write\n";
+              content += "  issues: write\n";
+              content += "  pull-requests: write\n";
+              content += "```\n\n";
+              content += "**Token capability note:**\n";
+              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+              content += "**Recommended remediation paths:**\n";
+              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+              content +=
+                "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+              return content;
+            }
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghToken) {
+              if (!AGENT_LOGIN_NAMES[agentName]) {
+                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.warning(error);
+                return { success: false, error };
+              }
+              try {
+                core.info(`Looking for ${agentName} coding agent...`);
+                const agentId = await findAgent(owner, repo, agentName);
+                if (!agentId) {
+                  const error = `${agentName} coding agent is not available for this repository`;
+                  const available = await getAvailableAgentLogins(owner, repo);
+                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+                  return { success: false, error: enrichedError };
+                }
+                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                core.info("Getting issue details...");
+                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+                if (!issueDetails) {
+                  return { success: false, error: "Failed to get issue details" };
+                }
+                core.info(`Issue ID: ${issueDetails.issueId}`);
+                if (issueDetails.currentAssignees.includes(agentId)) {
+                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                  return { success: true };
+                }
+                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+                if (!success) {
+                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
+                }
+                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                return { success: true };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
+              if (assignItems.length === 0) {
+                core.info("No assign_to_agent items found in agent output");
+                return;
+              }
+              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Assign to Agent",
+                  description: "The following agent assignments would be made if staged mode was disabled:",
+                  items: assignItems,
+                  renderItem: item => {
+                    let content = `**Issue:** #${item.issue_number}\n`;
+                    content += `**Agent:** ${item.agent || "copilot"}\n`;
+                    content += "\n";
+                    return content;
+                  },
+                });
+                return;
+              }
+              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
+              core.info(`Default agent: ${defaultAgent}`);
+              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = assignItems.slice(0, maxCount);
+              if (assignItems.length > maxCount) {
+                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
+              let targetOwner = context.repo.owner;
+              let targetRepo = context.repo.repo;
+              if (targetRepoEnv) {
+                const parts = targetRepoEnv.split("/");
+                if (parts.length === 2) {
+                  targetOwner = parts[0];
+                  targetRepo = parts[1];
+                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+                } else {
+                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
+                }
+              }
+              const mutationToken = process.env.GH_AW_AGENT_TOKEN;
+              if (!mutationToken) {
+                core.setFailed("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
+                return;
+              }
+              const agentCache = {};
+              const results = [];
+              for (const item of itemsToProcess) {
+                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
+                const agentName = item.agent || defaultAgent;
+                if (isNaN(issueNumber) || issueNumber <= 0) {
+                  core.error(`Invalid issue_number: ${item.issue_number}`);
+                  continue;
+                }
+                if (!AGENT_LOGIN_NAMES[agentName]) {
+                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Unsupported agent: ${agentName}`,
+                  });
+                  continue;
+                }
+                try {
+                  let agentId = agentCache[agentName];
+                  if (!agentId) {
+                    core.info(`Looking for ${agentName} coding agent...`);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName);
+                    if (!agentId) {
+                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                    }
+                    agentCache[agentName] = agentId;
+                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  }
+                  core.info("Getting issue details...");
+                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
+                  }
+                  core.info(`Issue ID: ${issueDetails.issueId}`);
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: true,
+                    });
+                    continue;
+                  }
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, mutationToken);
+                  if (!success) {
+                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                  }
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: true,
+                  });
+                } catch (error) {
+                  let errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("coding agent is not available for this repository")) {
+                    try {
+                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+                      if (available.length > 0) {
+                        errorMessage += ` (available agents: ${available.join(", ")})`;
+                      }
+                    } catch (e) {
+                      core.debug("Failed to enrich unavailable agent message with available list");
+                    }
+                  }
+                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Agent Assignment\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
+                }
+                const hasPermissionError = results.some(
+                  r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
+                );
+                if (hasPermissionError) {
+                  summaryContent += generatePermissionErrorSummary();
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const assignedAgents = results
+                .filter(r => r.success)
+                .map(r => `${r.issue_number}:${r.agent}`)
+                .join("\n");
+              core.setOutput("assigned_agents", assignedAgents);
+              if (failureCount > 0) {
+                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
+              }
+            }
+            (async () => {
+              await main();
+            })();
 
   conclusion:
     needs:
       - agent
       - activation
-      - create_pull_request
       - add_comment
+      - assign_to_agent
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -4867,629 +5329,6 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_pull_request:
-    needs:
-      - agent
-      - activation
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Pull Request
-        id: create_pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[issue monster] "
-          GH_AW_PR_LABELS: "automation,issue-monster"
-          GH_AW_PR_DRAFT: "true"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Issue Monster"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message, "commit");
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              if (!commentId) {
-                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-                return;
-              }
-              core.info(`Updating activation comment ${commentId}`);
-              let repoOwner = context.repo.owner;
-              let repoName = context.repo.repo;
-              if (commentRepo) {
-                const parts = commentRepo.split("/");
-                if (parts.length === 2) {
-                  repoOwner = parts[0];
-                  repoName = parts[1];
-                } else {
-                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-                }
-              }
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const currentComment = await github.graphql(
-                    `
-                    query($commentId: ID!) {
-                      node(id: $commentId) {
-                        ... on DiscussionComment {
-                          body
-                        }
-                      }
-                    }`,
-                    { commentId: commentId }
-                  );
-                  if (!currentComment?.node?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                    return;
-                  }
-                  const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: updatedBody }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  if (!currentComment?.data?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted");
-                    return;
-                  }
-                  const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
-                }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            }
-            await main();
-
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -5528,7 +5367,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Issue Monster"
-          WORKFLOW_DESCRIPTION: "The Cookie Monster of issues - bundles related issues and generates fixes via pull requests"
+          WORKFLOW_DESCRIPTION: "The Cookie Monster of issues - assigns issues to Copilot agents one at a time"
         with:
           script: |
             const fs = require('fs');
@@ -5828,7 +5667,7 @@ jobs:
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_QUERY: "is:pr is:open in:title \"[issue monster]\""
+          GH_AW_SKIP_QUERY: "is:pr is:open author:app/copilot-swe-agent"
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
