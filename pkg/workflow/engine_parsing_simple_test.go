@@ -202,7 +202,7 @@ func TestClaudeEngine_ParseLogMetrics_WithDuration(t *testing.T) {
 //         {
 //           "type": "tool_use",
 //           "id": "tool_123",
-//           "name": "mcp__github__get_issue",
+//           "name": "mcp__github__issue_read",
 //           "input": {
 //             "owner": "test-owner",
 //             "repo": "test-repo",

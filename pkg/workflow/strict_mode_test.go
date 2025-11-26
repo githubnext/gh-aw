@@ -369,7 +369,7 @@ timeout-minutes: 10
 engine: copilot
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
   bash:
 ---
 

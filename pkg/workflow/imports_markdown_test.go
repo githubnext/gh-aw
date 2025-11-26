@@ -27,7 +27,7 @@ on: push
 tools:
   github:
     allowed:
-      - get_issue
+      - issue_read
 ---
 
 # Common Setup

@@ -37,7 +37,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "github.event.label.name == 'bug'",
 			shouldHaveIf: true,
@@ -58,7 +58,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "github.event.label.name == 'bug'",
 			shouldHaveIf: true,
@@ -79,7 +79,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "github.event.label.name == 'wontfix'",
 			shouldHaveIf: true,
@@ -100,7 +100,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "github.event.label.name == 'priority'",
 			shouldHaveIf: true,
@@ -142,7 +142,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "",
 			shouldHaveIf: false,
@@ -162,7 +162,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`,
 			expectedIf:   "",
 			shouldHaveIf: false,
@@ -231,7 +231,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---`
 
 	testFile := tmpDir + "/test-comment.md"

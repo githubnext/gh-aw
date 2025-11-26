@@ -22,7 +22,7 @@ engine: claude
 strict: false
 tools:
   github:
-    allowed: [get_issue, add_issue_comment]
+    allowed: [issue_read, add_issue_comment]
   bash: ["echo", "ls"]
   edit:
 ---

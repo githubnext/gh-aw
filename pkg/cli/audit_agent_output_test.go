@@ -384,7 +384,7 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{
 				{Name: "bash", CallCount: 10, MaxDuration: "2s"},
-				{Name: "github_get_issue", CallCount: 5, MaxDuration: "1s"},
+				{Name: "github_issue_read", CallCount: 5, MaxDuration: "1s"},
 			},
 			expectMostUsedTool: true,
 		},

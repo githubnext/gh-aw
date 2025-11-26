@@ -271,7 +271,7 @@ on: push
 engine: codex
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "codex",
 			expectConfigToml:     true,
@@ -285,7 +285,7 @@ on: push
 engine: claude
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
@@ -299,7 +299,7 @@ on: push
 engine: codex
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "codex",
 			expectConfigToml:     true,
@@ -313,7 +313,7 @@ on: push
 engine: claude
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
@@ -327,7 +327,7 @@ on: push
 engine: codex
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "codex",
 			expectConfigToml:     true,
@@ -341,7 +341,7 @@ on: push
 engine: claude
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
@@ -484,7 +484,7 @@ engine:
     enabled = true
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectConfig: `[custom_section]
 key1 = "value1"
@@ -500,7 +500,7 @@ on: push
 engine: codex
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectConfig: "",
 		},
@@ -513,7 +513,7 @@ engine:
   config: ""
 tools:
   github:
-    allowed: [get_issue, create_issue]
+    allowed: [issue_read, create_issue]
 ---`,
 			expectConfig: "",
 		},

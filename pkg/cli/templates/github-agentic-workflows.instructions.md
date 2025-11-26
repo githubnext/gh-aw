@@ -969,7 +969,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [get_issue, add_issue_comment, update_issue]
+    allowed: [issue_read, add_issue_comment, update_issue]
 timeout-minutes: 5
 ---
 

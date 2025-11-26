@@ -984,7 +984,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"github": map[string]any{
-						"allowed": []string{"list_issues", "get_issue"},
+						"allowed": []string{"list_issues", "issue_read"},
 					},
 					"bash": []string{"echo", "ls"},
 				},

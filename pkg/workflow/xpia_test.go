@@ -32,7 +32,7 @@ func TestXPIAPromptExplicitlyDisabled(t *testing.T) {
 	toolsWithDisabledPrompt := map[string]any{
 		"safety-prompt": false,
 		"github": map[string]any{
-			"allowed": []string{"get_issue"},
+			"allowed": []string{"issue_read"},
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestXPIAPromptExplicitlyEnabled(t *testing.T) {
 	toolsWithEnabledPrompt := map[string]any{
 		"safety-prompt": true,
 		"github": map[string]any{
-			"allowed": []string{"get_issue"},
+			"allowed": []string{"issue_read"},
 		},
 	}
 

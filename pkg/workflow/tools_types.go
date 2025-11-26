@@ -23,7 +23,7 @@ var toolsTypesLog = logger.New("workflow:tools_types")
 // Creating a ToolsConfig from a map[string]any:
 //
 //	toolsMap := map[string]any{
-//	    "github": map[string]any{"allowed": []any{"get_issue"}},
+//	    "github": map[string]any{"allowed": []any{"issue_read"}},
 //	    "bash":   []any{"echo", "ls"},
 //	}
 //	config, err := ParseToolsConfig(toolsMap)
