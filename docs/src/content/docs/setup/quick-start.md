@@ -60,23 +60,30 @@ The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and re
 
 Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions): GitHub Copilot CLI (default).
 
-**For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled:
+**For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled. This permission allows your workflow to communicate with GitHub Copilot's coding agent to execute AI-powered tasks.
+
+:::tip[Can't find Copilot Requests permission?]
+The "Copilot Requests" permission is only available if:
+- You have an active GitHub Copilot subscription (individual or through your organization)
+- You're creating a **fine-grained token** (not a classic token)
+- You select your **personal user account** as the Resource owner (not an organization)
+- You select **"Public repositories"** under Repository access
+
+If you still don't see this option:
+- Check your [Copilot subscription status](https://github.com/settings/copilot)
+- Contact your GitHub administrator if Copilot is managed by your organization
+:::
 
 1. Visit https://github.com/settings/personal-access-tokens/new
-2. Under "Resource owner", select your user account (not an organization, see note below).
-3. Under "Repository access," select "Public repositories"
-4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
-5. Generate your token
+2. Under "Resource owner", select your user account (not an organization).
+3. Under "Repository access," select **"Public repositories"** (required for the Copilot Requests permission to appear).
+4. Under "Permissions," click "Add permissions" and select **"Copilot Requests"**.
+5. Generate your token.
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
 ```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
 ```
-
-:::note
-There is an ongoing work to support authentication with the GitHub Action token. 
-Once this work is deployed, you will not need to create a token for Copilot CLI.
-:::
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
