@@ -934,6 +934,7 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -1382,11 +1383,11 @@ jobs:
             }
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR || "/tmp/gh-aw/mcp-logs/safeoutputs";
-            const LOG_FILE_PATH = path.join(MCP_LOG_DIR, "server.log");
+            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
+            const LOG_FILE_PATH = MCP_LOG_DIR ? path.join(MCP_LOG_DIR, "server.log") : "";
             let logFileInitialized = false;
             function initLogFile() {
-              if (logFileInitialized) return;
+              if (logFileInitialized || !MCP_LOG_DIR || !LOG_FILE_PATH) return;
               try {
                 if (!fs.existsSync(MCP_LOG_DIR)) {
                   fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
@@ -1401,13 +1402,15 @@ jobs:
               const timestamp = new Date().toISOString();
               const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
               process.stderr.write(formattedMsg);
-              if (!logFileInitialized) {
-                initLogFile();
-              }
-              if (logFileInitialized) {
-                try {
-                  fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
-                } catch {
+              if (MCP_LOG_DIR && LOG_FILE_PATH) {
+                if (!logFileInitialized) {
+                  initLogFile();
+                }
+                if (logFileInitialized) {
+                  try {
+                    fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
+                  } catch {
+                  }
                 }
               }
             };
