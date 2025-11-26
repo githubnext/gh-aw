@@ -4255,6 +4255,7 @@ jobs:
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         with:
           script: |
+            const { getAgentName, getIssueDetails, findAgent, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
             async function main() {
               const ghToken = process.env.GH_TOKEN;
               const assignee = process.env.ASSIGNEE;
@@ -4278,11 +4279,36 @@ jobs:
               }
               const trimmedAssignee = assignee.trim();
               const trimmedIssueNumber = issueNumber.trim();
+              const issueNum = parseInt(trimmedIssueNumber, 10);
               core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
               try {
-                await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
-                  env: { ...process.env, GH_TOKEN: ghToken },
-                });
+                const agentName = getAgentName(trimmedAssignee);
+                if (agentName) {
+                  core.info(`Detected coding agent: ${agentName}. Using GraphQL API for assignment.`);
+                  const owner = context.repo.owner;
+                  const repo = context.repo.repo;
+                  const agentId = await findAgent(owner, repo, agentName);
+                  if (!agentId) {
+                    throw new Error(`${agentName} coding agent is not available for this repository`);
+                  }
+                  core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  const issueDetails = await getIssueDetails(owner, repo, issueNum);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
+                  }
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${trimmedIssueNumber}`);
+                  } else {
+                    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+                    if (!success) {
+                      throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                    }
+                  }
+                } else {
+                  await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
+                    env: { ...process.env, GH_TOKEN: ghToken },
+                  });
+                }
                 core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
                 await core.summary
                   .addRaw(
