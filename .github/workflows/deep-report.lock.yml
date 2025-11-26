@@ -22,6 +22,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/jqschema.md
+#     - shared/weekly-issues-data-fetch.md
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
 #
@@ -48,6 +50,193 @@
 #
 # Original Prompt:
 # ```markdown
+# ## jqschema - JSON Schema Discovery
+#
+# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+#
+# ### Purpose
+#
+# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+# - Exploring API responses with large payloads
+# - Understanding the structure of unfamiliar data without verbose output
+# - Planning queries before fetching full data
+#
+# ### Usage
+#
+# ```bash
+# # Analyze a file
+# cat data.json | /tmp/gh-aw/jqschema.sh
+#
+# # Analyze command output
+# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+#
+# # Analyze GitHub search results
+# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+# ```
+#
+# ### How It Works
+#
+# The script transforms JSON data by:
+# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
+# 2. Reducing arrays to their first element's structure (or empty array if empty)
+# 3. Recursively processing nested structures
+# 4. Outputting compact (minified) JSON
+#
+# ### Example
+#
+# **Input:**
+# ```json
+# {
+#   "total_count": 1000,
+#   "items": [
+#     {"login": "user1", "id": 123, "verified": true},
+#     {"login": "user2", "id": 456, "verified": false}
+#   ]
+# }
+# ```
+#
+# **Output:**
+# ```json
+# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+# ```
+#
+# ### Best Practices
+#
+# **Use this script when:**
+# - You need to understand the structure of tool outputs before requesting full data
+# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+# - Exploring unfamiliar APIs or data structures
+# - Planning data extraction strategies
+#
+# **Example workflow for GitHub search tools:**
+# ```bash
+# # Step 1: Get schema with minimal data (fetch just 1 result)
+# # This helps understand the structure before requesting large datasets
+# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+#
+# # Output shows the schema:
+# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+#
+# # Step 2: Review schema to understand available fields
+#
+# # Step 3: Request full data with confidence about structure
+# # Now you know what fields are available and can query efficiently
+# ```
+#
+# **Using with GitHub MCP tools:**
+# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+# ```bash
+# # Save a minimal search result to a file
+# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+#
+# # Generate schema to understand structure
+# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+#
+# # Now you know which fields exist and can use them in your analysis
+# ```
+#
+#
+#
+# ## Weekly Issues Data
+#
+# Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+#
+# This includes issues that were created or updated within the past week, providing a focused dataset for recent activity analysis.
+#
+# ### Schema
+#
+# The weekly issues data structure is:
+#
+# ```json
+# [
+#   {
+#     "number": "number",
+#     "title": "string",
+#     "state": "string (OPEN or CLOSED)",
+#     "url": "string",
+#     "body": "string",
+#     "createdAt": "string (ISO 8601 timestamp)",
+#     "updatedAt": "string (ISO 8601 timestamp)",
+#     "closedAt": "string (ISO 8601 timestamp, null if open)",
+#     "author": {
+#       "id": "string",
+#       "login": "string",
+#       "name": "string"
+#     },
+#     "assignees": [
+#       {
+#         "id": "string",
+#         "login": "string",
+#         "name": "string"
+#       }
+#     ],
+#     "labels": [
+#       {
+#         "id": "string",
+#         "name": "string",
+#         "color": "string",
+#         "description": "string"
+#       }
+#     ],
+#     "milestone": {
+#       "id": "string",
+#       "number": "number",
+#       "title": "string",
+#       "description": "string",
+#       "dueOn": "string"
+#     },
+#     "comments": [
+#       {
+#         "id": "string",
+#         "url": "string",
+#         "body": "string",
+#         "createdAt": "string",
+#         "author": {
+#           "id": "string",
+#           "login": "string",
+#           "name": "string"
+#         }
+#       }
+#     ]
+#   }
+# ]
+# ```
+#
+# ### Usage Examples
+#
+# ```bash
+# # Get total number of issues from the last week
+# jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get only open issues
+# jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get only closed issues
+# jq '[.[] | select(.state == "CLOSED")]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get issue numbers
+# jq '[.[].number]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get issues with specific label
+# jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get issues created in the last 3 days
+# DATE_3_DAYS_AGO=$(date -d '3 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-3d '+%Y-%m-%dT%H:%M:%SZ')
+# jq --arg date "$DATE_3_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Count issues by state
+# jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get unique authors
+# jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get issues sorted by update time (most recent first)
+# jq 'sort_by(.updatedAt) | reverse' /tmp/gh-aw/weekly-issues-data/issues.json
+# ```
+#
+#
+#
 # ## Report Formatting
 #
 # Structure your report with an overview followed by detailed content:
@@ -159,6 +348,51 @@
 # - Track token usage trends across agents
 # - Monitor workflow execution times
 #
+# ### Tertiary: Repository Issues
+#
+# Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+#
+# Use this data to:
+# - Analyze recent issue activity and trends
+# - Identify commonly reported problems
+# - Track issue resolution rates
+# - Correlate issues with workflow activity
+#
+# **Data Schema:**
+# ```json
+# [
+#   {
+#     "number": "number",
+#     "title": "string",
+#     "state": "string (OPEN or CLOSED)",
+#     "url": "string",
+#     "body": "string",
+#     "createdAt": "string (ISO 8601 timestamp)",
+#     "updatedAt": "string (ISO 8601 timestamp)",
+#     "closedAt": "string (ISO 8601 timestamp, null if open)",
+#     "author": { "login": "string", "name": "string" },
+#     "labels": [{ "name": "string", "color": "string" }],
+#     "assignees": [{ "login": "string" }],
+#     "comments": [{ "body": "string", "createdAt": "string", "author": { "login": "string" } }]
+#   }
+# ]
+# ```
+#
+# **Example jq queries:**
+# ```bash
+# # Count total issues
+# jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get open issues
+# jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Count by state
+# jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+#
+# # Get unique authors
+# jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+# ```
+#
 # ## Intelligence Collection Process
 #
 # ### Step 0: Check Cache Memory
@@ -192,6 +426,16 @@
 #    - Token usage patterns
 #    - Execution time trends
 #    - Firewall activity (if enabled)
+#
+# ### Step 2.5: Analyze Repository Issues
+#
+# Load and analyze the pre-fetched issues data:
+# 1. Read `/tmp/gh-aw/weekly-issues-data/issues.json`
+# 2. Analyze:
+#    - Issue creation/closure trends over the week
+#    - Most common labels and categories
+#    - Authors and assignees activity
+#    - Issues requiring attention (unlabeled, stale, or urgent)
 #
 # ### Step 3: Cross-Reference and Analyze
 #
@@ -450,6 +694,13 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch weekly issues data
+        run: "# Create output directories\nmkdir -p /tmp/gh-aw/weekly-issues-data\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/weekly-issues-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/weekly-issues-${TODAY}.json\" ]; then\n  echo \"✓ Found cached weekly issues data from ${TODAY}\"\n  cp \"$CACHE_DIR/weekly-issues-${TODAY}.json\" /tmp/gh-aw/weekly-issues-data/issues.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\" /tmp/gh-aw/weekly-issues-data/issues-schema.json\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total issues in cache: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)\"\nelse\n  echo \"⬇ Downloading fresh weekly issues data...\"\n  \n  # Calculate date 7 days ago (cross-platform: GNU date first, BSD fallback)\n  DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')\n  \n  echo \"Fetching issues created or updated since ${DATE_7_DAYS_AGO}...\"\n  \n  # Fetch issues from the last 7 days using gh CLI\n  # Using --search with updated filter to get recent activity\n  gh issue list --repo ${{ github.repository }} \\\n    --search \"updated:>=${DATE_7_DAYS_AGO}\" \\\n    --state all \\\n    --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \\\n    --limit 500 \\\n    > /tmp/gh-aw/weekly-issues-data/issues.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > /tmp/gh-aw/weekly-issues-data/issues-schema.json\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/weekly-issues-data/issues.json \"$CACHE_DIR/weekly-issues-${TODAY}.json\"\n  cp /tmp/gh-aw/weekly-issues-data/issues-schema.json \"$CACHE_DIR/weekly-issues-${TODAY}-schema.json\"\n\n  echo \"✓ Weekly issues data saved to cache: weekly-issues-${TODAY}.json\"\n  echo \"Total issues found: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Weekly issues data available at: /tmp/gh-aw/weekly-issues-data/issues.json\"\necho \"Schema available at: /tmp/gh-aw/weekly-issues-data/issues-schema.json\""
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
@@ -474,11 +725,12 @@ jobs:
       - name: Cache memory file share data
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          key: weekly-issues-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
+            weekly-issues-data-
+            weekly-issues-
+            weekly-
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
@@ -1323,6 +1575,191 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
+          
+          
+          ## Weekly Issues Data
+          
+          Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+          
+          This includes issues that were created or updated within the past week, providing a focused dataset for recent activity analysis.
+          
+          ### Schema
+          
+          The weekly issues data structure is:
+          
+          ```json
+          [
+            {
+              "number": "number",
+              "title": "string",
+              "state": "string (OPEN or CLOSED)",
+              "url": "string",
+              "body": "string",
+              "createdAt": "string (ISO 8601 timestamp)",
+              "updatedAt": "string (ISO 8601 timestamp)",
+              "closedAt": "string (ISO 8601 timestamp, null if open)",
+              "author": {
+                "id": "string",
+                "login": "string",
+                "name": "string"
+              },
+              "assignees": [
+                {
+                  "id": "string",
+                  "login": "string",
+                  "name": "string"
+                }
+              ],
+              "labels": [
+                {
+                  "id": "string",
+                  "name": "string",
+                  "color": "string",
+                  "description": "string"
+                }
+              ],
+              "milestone": {
+                "id": "string",
+                "number": "number",
+                "title": "string",
+                "description": "string",
+                "dueOn": "string"
+              },
+              "comments": [
+                {
+                  "id": "string",
+                  "url": "string",
+                  "body": "string",
+                  "createdAt": "string",
+                  "author": {
+                    "id": "string",
+                    "login": "string",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          ]
+          ```
+          
+          ### Usage Examples
+          
+          ```bash
+          # Get total number of issues from the last week
+          jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get only open issues
+          jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get only closed issues
+          jq '[.[] | select(.state == "CLOSED")]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get issue numbers
+          jq '[.[].number]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get issues with specific label
+          jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get issues created in the last 3 days
+          DATE_3_DAYS_AGO=$(date -d '3 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-3d '+%Y-%m-%dT%H:%M:%SZ')
+          jq --arg date "$DATE_3_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Count issues by state
+          jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get unique authors
+          jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get issues sorted by update time (most recent first)
+          jq 'sort_by(.updatedAt) | reverse' /tmp/gh-aw/weekly-issues-data/issues.json
+          ```
+          
           
           
           ## Report Formatting
@@ -1436,6 +1873,51 @@ jobs:
           - Track token usage trends across agents
           - Monitor workflow execution times
           
+          ### Tertiary: Repository Issues
+          
+          Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+          
+          Use this data to:
+          - Analyze recent issue activity and trends
+          - Identify commonly reported problems
+          - Track issue resolution rates
+          - Correlate issues with workflow activity
+          
+          **Data Schema:**
+          ```json
+          [
+            {
+              "number": "number",
+              "title": "string",
+              "state": "string (OPEN or CLOSED)",
+              "url": "string",
+              "body": "string",
+              "createdAt": "string (ISO 8601 timestamp)",
+              "updatedAt": "string (ISO 8601 timestamp)",
+              "closedAt": "string (ISO 8601 timestamp, null if open)",
+              "author": { "login": "string", "name": "string" },
+              "labels": [{ "name": "string", "color": "string" }],
+              "assignees": [{ "login": "string" }],
+              "comments": [{ "body": "string", "createdAt": "string", "author": { "login": "string" } }]
+            }
+          ]
+          ```
+          
+          **Example jq queries:**
+          ```bash
+          # Count total issues
+          jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get open issues
+          jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Count by state
+          jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+          
+          # Get unique authors
+          jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+          ```
+          
           ## Intelligence Collection Process
           
           ### Step 0: Check Cache Memory
@@ -1469,6 +1951,16 @@ jobs:
              - Token usage patterns
              - Execution time trends
              - Firewall activity (if enabled)
+          
+          ### Step 2.5: Analyze Repository Issues
+          
+          Load and analyze the pre-fetched issues data:
+          1. Read `/tmp/gh-aw/weekly-issues-data/issues.json`
+          2. Analyze:
+             - Issue creation/closure trends over the week
+             - Most common labels and categories
+             - Authors and assignees activity
+             - Issues requiring attention (unlabeled, stale, or urgent)
           
           ### Step 3: Cross-Reference and Analyze
           

@@ -41,6 +41,8 @@ tools:
   edit:
 
 imports:
+  - shared/jqschema.md
+  - shared/weekly-issues-data-fetch.md
   - shared/mcp/gh-aw.md
   - shared/reporting.md
 ---
@@ -79,6 +81,51 @@ Use the gh-aw MCP server to access workflow execution logs:
 - Track token usage trends across agents
 - Monitor workflow execution times
 
+### Tertiary: Repository Issues
+
+Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+
+Use this data to:
+- Analyze recent issue activity and trends
+- Identify commonly reported problems
+- Track issue resolution rates
+- Correlate issues with workflow activity
+
+**Data Schema:**
+```json
+[
+  {
+    "number": "number",
+    "title": "string",
+    "state": "string (OPEN or CLOSED)",
+    "url": "string",
+    "body": "string",
+    "createdAt": "string (ISO 8601 timestamp)",
+    "updatedAt": "string (ISO 8601 timestamp)",
+    "closedAt": "string (ISO 8601 timestamp, null if open)",
+    "author": { "login": "string", "name": "string" },
+    "labels": [{ "name": "string", "color": "string" }],
+    "assignees": [{ "login": "string" }],
+    "comments": [{ "body": "string", "createdAt": "string", "author": { "login": "string" } }]
+  }
+]
+```
+
+**Example jq queries:**
+```bash
+# Count total issues
+jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+
+# Get open issues
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+
+# Count by state
+jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+
+# Get unique authors
+jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+```
+
 ## Intelligence Collection Process
 
 ### Step 0: Check Cache Memory
@@ -112,6 +159,16 @@ Use the gh-aw `logs` tool to:
    - Token usage patterns
    - Execution time trends
    - Firewall activity (if enabled)
+
+### Step 2.5: Analyze Repository Issues
+
+Load and analyze the pre-fetched issues data:
+1. Read `/tmp/gh-aw/weekly-issues-data/issues.json`
+2. Analyze:
+   - Issue creation/closure trends over the week
+   - Most common labels and categories
+   - Authors and assignees activity
+   - Issues requiring attention (unlabeled, stale, or urgent)
 
 ### Step 3: Cross-Reference and Analyze
 
