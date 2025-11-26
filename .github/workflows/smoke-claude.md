@@ -7,6 +7,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["smoke"]
+  reaction: "heart"
 permissions:
   contents: read
   issues: read
@@ -35,9 +36,10 @@ tools:
     - "*"
   serena: ["go"]
 safe-outputs:
-    staged: true
     add-comment:
     create-issue:
+    add-labels:
+      allowed: [smoke-claude]
 timeout-minutes: 10
 ---
 
@@ -60,3 +62,5 @@ Add a comment to the current pull request with:
 - Bash tool test result (file content verification)
 - Playwright test result (page title verification)
 - Overall smoke test status for **Claude engine**
+
+If all tests pass successfully, add the label `smoke-claude` to the pull request.
