@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -453,13 +454,11 @@ func TestUnauthorizedExpressionFuzzyMatchSuggestions(t *testing.T) {
 
 			// If no suggestions expected, verify "did you mean" is not present for that expression
 			if len(tt.expectedSuggestions) == 0 {
-				// The expression line should not have "did you mean" in it
-				lines := strings.Split(errMsg, "\n")
-				for _, line := range lines {
-					if strings.Contains(line, tt.expectedExpression) && strings.Contains(line, "did you mean:") {
-						t.Errorf("Error message for '%s' should NOT contain 'did you mean:', got: %s",
-							tt.expectedExpression, line)
-					}
+				// Check if the pattern "- <expression> (did you mean:" appears in the error message
+				pattern := fmt.Sprintf("- %s (did you mean:", tt.expectedExpression)
+				if strings.Contains(errMsg, pattern) {
+					t.Errorf("Error message for '%s' should NOT contain 'did you mean:', got: %s",
+						tt.expectedExpression, errMsg)
 				}
 			}
 		})

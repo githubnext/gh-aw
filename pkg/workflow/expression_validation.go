@@ -54,6 +54,10 @@ import (
 
 var expressionValidationLog = logger.New("workflow:expression_validation")
 
+// maxFuzzyMatchSuggestions is the maximum number of similar expressions to suggest
+// when an unauthorized expression is found
+const maxFuzzyMatchSuggestions = 3
+
 // Pre-compiled regexes for expression validation (performance optimization)
 var (
 	expressionRegex         = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
@@ -125,7 +129,7 @@ func validateExpressionSafety(markdownContent string) error {
 			unauthorizedList.WriteString(expr)
 
 			// Find closest matches using fuzzy string matching
-			closestMatches := parser.FindClosestMatches(expr, constants.AllowedExpressions, 3)
+			closestMatches := parser.FindClosestMatches(expr, constants.AllowedExpressions, maxFuzzyMatchSuggestions)
 			if len(closestMatches) > 0 {
 				unauthorizedList.WriteString(" (did you mean: ")
 				unauthorizedList.WriteString(strings.Join(closestMatches, ", "))
