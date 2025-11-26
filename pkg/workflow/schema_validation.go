@@ -17,7 +17,7 @@
 //   - sync.Once ensures schema is compiled only once
 //   - Schema is embedded in the binary as githubWorkflowSchema
 //   - Cached compiled schema is reused across all validations
-//   - YAML is converted to JSON for schema validation
+//   - YAML is parsed directly and validated without JSON conversion
 //
 // # Schema Source
 //
@@ -93,16 +93,12 @@ func getCompiledSchema() (*jsonschema.Schema, error) {
 // validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
 func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	schemaValidationLog.Print("Validating workflow YAML against GitHub Actions schema")
-	// Convert YAML to any for JSON conversion
+
+	// Parse YAML directly into any type for schema validation
+	// The jsonschema library accepts any type directly, no JSON conversion needed
 	var workflowData any
 	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
 		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
-	}
-
-	// Convert to JSON for schema validation
-	jsonData, err := json.Marshal(workflowData)
-	if err != nil {
-		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
 	}
 
 	// Get the cached compiled schema
@@ -111,13 +107,9 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 		return err
 	}
 
-	// Validate the JSON data against the schema
-	var jsonObj any
-	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
-	}
-
-	if err := schema.Validate(jsonObj); err != nil {
+	// Validate the parsed YAML data directly against the schema
+	// No JSON roundtrip required - the schema.Validate() accepts any type
+	if err := schema.Validate(workflowData); err != nil {
 		// Enhance error message with field-specific examples
 		enhancedErr := enhanceSchemaValidationError(err)
 		schemaValidationLog.Printf("Schema validation failed: %v", enhancedErr)
