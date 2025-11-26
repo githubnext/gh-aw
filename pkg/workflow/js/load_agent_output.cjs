@@ -4,6 +4,24 @@
 const fs = require("fs");
 
 /**
+ * Maximum content length to log for debugging purposes
+ * @type {number}
+ */
+const MAX_LOG_CONTENT_LENGTH = 10000;
+
+/**
+ * Truncate content for logging if it exceeds the maximum length
+ * @param {string} content - Content to potentially truncate
+ * @returns {string} Truncated content with indicator if truncated
+ */
+function truncateForLogging(content) {
+  if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+    return content;
+  }
+  return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+}
+
+/**
  * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
  *
  * This utility handles the common pattern of:
@@ -55,16 +73,18 @@ function loadAgentOutput() {
   } catch (error) {
     const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
     core.error(errorMessage);
+    core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
     return { success: false, error: errorMessage };
   }
 
   // Validate items array exists
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
     core.info("No valid items found in agent output");
+    core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
     return { success: false };
   }
 
   return { success: true, items: validatedOutput.items };
 }
 
-module.exports = { loadAgentOutput };
+module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
