@@ -1291,7 +1291,7 @@ jobs:
         # --allow-tool notion(query_database)
         # --allow-tool notion(search_pages)
         # --allow-tool safeoutputs
-        timeout-minutes: 20
+        timeout-minutes: 5
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"

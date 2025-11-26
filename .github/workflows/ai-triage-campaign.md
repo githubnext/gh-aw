@@ -1,6 +1,8 @@
 ---
 name: AI Triage Campaign
 description: Identify, score, and assign issues to AI agents for efficient resolution
+timeout-minutes: 10
+strict: true
 
 on:
   #schedule:
