@@ -3880,8 +3880,10 @@ func containsInNonCommentLines(content, search string) bool {
 	return false
 }
 
-// indexInNonCommentLines returns the index of the first occurrence of search in non-comment lines
-// Returns -1 if not found. The index is relative to the start of the non-comment content.
+// indexInNonCommentLines returns the index (relative to the original content) of the first
+// occurrence of search that appears in a non-comment line. This is used for order comparisons
+// where we need to verify step ordering while ignoring matches in comment lines (such as
+// frontmatter embedded as comments). Returns -1 if not found.
 func indexInNonCommentLines(content, search string) int {
 	lines := strings.Split(content, "\n")
 	offset := 0
