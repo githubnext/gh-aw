@@ -30,6 +30,11 @@ safe-outputs:
   add-comment:
     target: "4750"
     discussion: true
+  messages:
+    footer: "> 🪶 *Penned with care by [{workflow_name}]({run_url})*"
+    run-started: "📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}..."
+    run-success: "✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟"
+    run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
 ---
 
 # Daily Fact About gh-aw
