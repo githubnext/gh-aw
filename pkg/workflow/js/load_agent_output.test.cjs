@@ -95,7 +95,8 @@ describe("load_agent_output.cjs", () => {
 
     it("should return success: false and log error when JSON is invalid", () => {
       const invalidJsonFile = path.join(tempDir, "invalid.json");
-      fs.writeFileSync(invalidJsonFile, "{ invalid json }");
+      const invalidContent = "{ invalid json }";
+      fs.writeFileSync(invalidJsonFile, invalidContent);
       process.env.GH_AW_AGENT_OUTPUT = invalidJsonFile;
 
       const result = loadAgentOutputModule.loadAgentOutput();
@@ -103,11 +104,13 @@ describe("load_agent_output.cjs", () => {
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/Error parsing agent output JSON/);
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error parsing agent output JSON"));
+      expect(mockCore.info).toHaveBeenCalledWith(`Failed to parse content:\n${invalidContent}`);
     });
 
     it("should return success: false when items field is missing", () => {
       const noItemsFile = path.join(tempDir, "no-items.json");
-      fs.writeFileSync(noItemsFile, JSON.stringify({ other: "data" }));
+      const content = { other: "data" };
+      fs.writeFileSync(noItemsFile, JSON.stringify(content));
       process.env.GH_AW_AGENT_OUTPUT = noItemsFile;
 
       const result = loadAgentOutputModule.loadAgentOutput();
@@ -115,11 +118,13 @@ describe("load_agent_output.cjs", () => {
       expect(result.success).toBe(false);
       expect(result.items).toBeUndefined();
       expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
+      expect(mockCore.info).toHaveBeenCalledWith(`Parsed content: ${JSON.stringify(content)}`);
     });
 
     it("should return success: false when items field is not an array", () => {
       const invalidItemsFile = path.join(tempDir, "invalid-items.json");
-      fs.writeFileSync(invalidItemsFile, JSON.stringify({ items: "not-an-array" }));
+      const content = { items: "not-an-array" };
+      fs.writeFileSync(invalidItemsFile, JSON.stringify(content));
       process.env.GH_AW_AGENT_OUTPUT = invalidItemsFile;
 
       const result = loadAgentOutputModule.loadAgentOutput();
@@ -127,6 +132,7 @@ describe("load_agent_output.cjs", () => {
       expect(result.success).toBe(false);
       expect(result.items).toBeUndefined();
       expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
+      expect(mockCore.info).toHaveBeenCalledWith(`Parsed content: ${JSON.stringify(content)}`);
     });
 
     it("should return success: true with empty items array", () => {
@@ -185,6 +191,58 @@ describe("load_agent_output.cjs", () => {
 
       expect(result.success).toBe(true);
       expect(result.items).toEqual(items);
+    });
+
+    it("should truncate large content when logging JSON parse failure", () => {
+      const largeInvalidFile = path.join(tempDir, "large-invalid.json");
+      // Create content larger than MAX_LOG_CONTENT_LENGTH
+      const largeContent = "x".repeat(15000);
+      fs.writeFileSync(largeInvalidFile, largeContent);
+      process.env.GH_AW_AGENT_OUTPUT = largeInvalidFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Error parsing agent output JSON/);
+      // Verify truncation happened
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("... (truncated, total length: 15000)"));
+    });
+
+    it("should truncate large content when logging invalid items structure", () => {
+      const largeInvalidItemsFile = path.join(tempDir, "large-invalid-items.json");
+      // Create a JSON object with large string that exceeds MAX_LOG_CONTENT_LENGTH when stringified
+      const largeData = { other: "x".repeat(15000) };
+      fs.writeFileSync(largeInvalidItemsFile, JSON.stringify(largeData));
+      process.env.GH_AW_AGENT_OUTPUT = largeInvalidItemsFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      // Verify truncation happened
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("... (truncated, total length:"));
+    });
+  });
+
+  describe("truncateForLogging", () => {
+    it("should not truncate content under the limit", () => {
+      const content = "short content";
+      const result = loadAgentOutputModule.truncateForLogging(content);
+      expect(result).toBe(content);
+    });
+
+    it("should truncate content over the limit", () => {
+      const content = "x".repeat(15000);
+      const result = loadAgentOutputModule.truncateForLogging(content);
+
+      expect(result.length).toBeLessThan(content.length);
+      expect(result).toContain("... (truncated, total length: 15000)");
+      expect(result.startsWith("x".repeat(loadAgentOutputModule.MAX_LOG_CONTENT_LENGTH))).toBe(true);
+    });
+
+    it("should not truncate content exactly at the limit", () => {
+      const content = "x".repeat(loadAgentOutputModule.MAX_LOG_CONTENT_LENGTH);
+      const result = loadAgentOutputModule.truncateForLogging(content);
+      expect(result).toBe(content);
     });
   });
 });
