@@ -145,7 +145,7 @@ network:
 
 ### Disabling the Firewall
 
-To disable the firewall for the Copilot engine, set `firewall: false` in the `network` configuration. When disabling the firewall while also specifying `network.allowed` domains, you must set `strict: false` to avoid compilation errors:
+To disable the firewall for any engine that supports it, set `firewall: false` in the `network` configuration. When disabling the firewall while also specifying `network.allowed` domains, you must set `strict: false` to avoid compilation errors:
 
 ```yaml wrap
 strict: false

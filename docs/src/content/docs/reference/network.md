@@ -114,7 +114,7 @@ See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network
 
 ### Disabling the Firewall
 
-To disable the AWF firewall while using network domain allowlists, set both `firewall: false` and `strict: false`:
+To disable the firewall for any engine that supports it while using network domain allowlists, set both `firewall: false` and `strict: false`:
 
 ```yaml wrap
 strict: false
