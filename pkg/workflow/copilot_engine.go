@@ -81,6 +81,14 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
 	}
 
+	// Add Playwright browser pre-installation step if Playwright is configured and firewall is enabled
+	// This prevents timeout issues when the Playwright MCP server tries to install browsers through the firewall
+	if ShouldPreinstallPlaywrightBrowsers(workflowData) {
+		copilotLog.Print("Adding Playwright browser pre-installation step")
+		playwrightInstall := GeneratePlaywrightBrowserInstallStep()
+		steps = append(steps, playwrightInstall)
+	}
+
 	return steps
 }
 

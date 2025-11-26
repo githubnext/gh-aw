@@ -438,6 +438,13 @@ jobs:
           awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
+      - name: Pre-install Playwright browsers
+        run: |
+          echo "Installing Playwright browsers (version 0.0.48)..."
+          # Install Playwright browsers with system dependencies before firewall starts
+          # This prevents timeout issues when Playwright tries to install through the firewall
+          npx playwright@0.0.48 install --with-deps chromium
+          echo "Playwright browsers installed successfully"
       - name: Downloading container images
         run: |
           set -e
