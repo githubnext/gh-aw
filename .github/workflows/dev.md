@@ -3,6 +3,8 @@ on:
   workflow_dispatch:
 name: Dev
 description: Test workflow for development and experimentation purposes
+timeout-minutes: 5
+strict: false
 # Using experimental Claude engine for testing
 engine: claude
 permissions:
