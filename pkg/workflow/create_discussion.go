@@ -77,15 +77,10 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
 	}
 
-	// Build custom environment variables specific to create-discussion
+	// Build custom environment variables specific to create-discussion using shared helpers
 	var customEnvVars []string
-
-	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
-	}
-	if data.SafeOutputs.CreateDiscussions.Category != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
-	}
+	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", data.SafeOutputs.CreateDiscussions.TitlePrefix)...)
+	customEnvVars = append(customEnvVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", data.SafeOutputs.CreateDiscussions.Category)...)
 	discussionLog.Printf("Configured %d custom environment variables for discussion creation", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)

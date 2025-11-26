@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -66,16 +65,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 			data.Name, mainJobName, len(data.SafeOutputs.CreateIssues.Assignees), len(data.SafeOutputs.CreateIssues.Labels))
 	}
 
-	// Build custom environment variables specific to create-issue
+	// Build custom environment variables specific to create-issue using shared helpers
 	var customEnvVars []string
-
-	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
-	}
-	if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_LABELS: %q\n", labelsStr))
-	}
+	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", data.SafeOutputs.CreateIssues.TitlePrefix)...)
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", data.SafeOutputs.CreateIssues.Labels)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)

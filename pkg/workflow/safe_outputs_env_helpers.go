@@ -88,3 +88,34 @@ func (c *Compiler) getEffectiveGitHubTokenForSafeOutput(customToken string, data
 	// Otherwise use standard token resolution
 	return getEffectiveGitHubToken(customToken, data.GitHubToken)
 }
+
+// buildTitlePrefixEnvVar builds a title-prefix environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ISSUE_TITLE_PREFIX" or "GH_AW_DISCUSSION_TITLE_PREFIX".
+// Returns an empty slice if titlePrefix is empty.
+func buildTitlePrefixEnvVar(envVarName string, titlePrefix string) []string {
+	if titlePrefix == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, titlePrefix)}
+}
+
+// buildLabelsEnvVar builds a labels environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ISSUE_LABELS" or "GH_AW_PR_LABELS".
+// Returns an empty slice if labels is empty.
+func buildLabelsEnvVar(envVarName string, labels []string) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	labelsStr := strings.Join(labels, ",")
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, labelsStr)}
+}
+
+// buildCategoryEnvVar builds a category environment variable line for discussion safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_DISCUSSION_CATEGORY".
+// Returns an empty slice if category is empty.
+func buildCategoryEnvVar(envVarName string, category string) []string {
+	if category == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, category)}
+}
