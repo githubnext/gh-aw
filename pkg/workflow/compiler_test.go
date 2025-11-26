@@ -2979,27 +2979,27 @@ Test workflow with invalid reaction value.
 func TestNumericReactionParsing(t *testing.T) {
 	testCases := []struct {
 		name             string
-		reactionInYAML   string // How it appears in YAML (without quotes the parser sees int)
+		reactionInYAML   string // How it appears in YAML
 		expectedReaction string // Expected AIReaction value
 	}{
 		{
 			name:             "plus one without quotes becomes +1",
-			reactionInYAML:   "+1", // YAML parses this as int 1
+			reactionInYAML:   "+1", // YAML parses unquoted +1 as int 1
 			expectedReaction: "+1",
 		},
 		{
 			name:             "minus one without quotes becomes -1",
-			reactionInYAML:   "-1", // YAML parses this as int -1
+			reactionInYAML:   "-1", // YAML parses unquoted -1 as int -1
 			expectedReaction: "-1",
 		},
 		{
 			name:             "plus one with quotes stays +1",
-			reactionInYAML:   `"+1"`,
+			reactionInYAML:   `"+1"`, // YAML parses quoted "+1" as string "+1"
 			expectedReaction: "+1",
 		},
 		{
 			name:             "minus one with quotes stays -1",
-			reactionInYAML:   `"-1"`,
+			reactionInYAML:   `"-1"`, // YAML parses quoted "-1" as string "-1"
 			expectedReaction: "-1",
 		},
 	}
