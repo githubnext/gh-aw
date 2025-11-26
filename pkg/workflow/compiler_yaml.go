@@ -456,12 +456,16 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
+		compilerYamlLog.Printf("Skipping log parsing: engine %s has no parser script", engine.GetID())
 		return
 	}
+
+	compilerYamlLog.Printf("Generating log parsing step for engine: %s (parser=%s)", engine.GetID(), parserScriptName)
 
 	logParserScript := GetLogParserScript(parserScriptName)
 	if logParserScript == "" {
 		// Skip if parser script not found
+		compilerYamlLog.Printf("Warning: parser script %s not found, skipping log parsing", parserScriptName)
 		return
 	}
 

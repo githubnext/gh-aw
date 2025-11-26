@@ -12,19 +12,25 @@ sidebar:
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+This guide walks you through setup step-by-step, so you don't need everything upfront. Here's what you need at each stage:
 
-- [ ] **GitHub account** with access to a repository where you can:
-  - Push changes and add Actions secrets
-  - Enable GitHub Actions, Issues, and Discussions
-- [ ] **GitHub CLI (gh)** installed ([installation guide](https://cli.github.com))
-  - Verify: Run `gh --version` (requires v2.0.0 or higher)
-- [ ] **Repository permissions:** Admin or write access to your target repository
-- [ ] **Repository features enabled:** 
-  - GitHub Actions
-  - Issues or Discussions (depending on your workflow needs)
-- [ ] **Operating System:** Linux, macOS, or Windows with WSL
-- [ ] **Personal Access Token (PAT)** for GitHub Copilot CLI (a secure key for API access—you'll create this in Step 3 below)
+:::note[Must Have (before you start)]
+- **GitHub account** with access to a repository
+- **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
+  - Verify installation: Run `gh --version` (requires v2.0.0 or higher)
+  - Verify authentication: Run `gh auth status`
+- **Operating System:** Linux, macOS, or Windows with WSL
+:::
+
+:::tip[Must Configure (in your repository)]
+- **Admin or write access** to your target repository
+- **GitHub Actions** enabled
+- **Discussions** enabled (required for the sample workflow in this guide)
+:::
+
+:::caution[Will Need Later (you'll set this up in Step 3)]
+- **Personal Access Token (PAT)** with Copilot Requests permission—the guide walks you through creating this
+:::
 
 ### Step 1 — Install the extension
 
@@ -36,47 +42,56 @@ gh extension install githubnext/gh-aw
 
 If this step fails, you may need to use a personal access token or run the [install-gh-aw.sh script](https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh).
 
+### Understanding Compilation
+
+Before adding a workflow, it helps to understand how agentic workflows work.
+
+**You write** `.md` → **Compile** `gh aw compile` → **GitHub Actions runs** `.lock.yml`
+
+The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
+
+:::caution
+**Never edit `.lock.yml` files directly.** These are auto-generated files. Always edit the `.md` file and recompile with `gh aw compile` whenever you make changes.
+:::
+
 ### Step 2 — Add a sample workflow
 
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
-gh aw add githubnext/agentics/daily-team-status --pr
+gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). The [compilation](/gh-aw/reference/glossary/#compilation) process (converting markdown to GitHub Actions YAML) translates your human-friendly markdown into the YAML format that GitHub Actions can execute. Review and merge the PR into your repo.
-
-#### Why Compile?
-
-The `.md` file is human-friendly (natural language + simple config). GitHub Actions requires `.yml` format. The compile step translates your markdown into the YAML workflow file that GitHub Actions can execute.
-
-Think of it like: **Markdown** (what you write) → **YAML** (what Actions runs)
-
-:::note
-The compiled `.lock.yml` file is auto-generated—you edit the `.md` file and recompile whenever you make changes.
-:::
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
 ### Step 3 — Add an AI secret
 
 Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions): GitHub Copilot CLI (default).
 
-**For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled:
+**For GitHub Copilot CLI**, create a fine-grained [Personal Access Token (PAT)](/gh-aw/reference/glossary/#personal-access-token-pat) with the "Copilot Requests" permission enabled. This permission allows your workflow to communicate with GitHub Copilot's coding agent to execute AI-powered tasks.
+
+:::tip[Can't find Copilot Requests permission?]
+The "Copilot Requests" permission is only available if:
+- You have an active GitHub Copilot subscription (individual or through your organization)
+- You're creating a **fine-grained token** (not a classic token)
+- You select your **personal user account** as the Resource owner (not an organization)
+- You select **"Public repositories"** under Repository access
+
+If you still don't see this option:
+- Check your [Copilot subscription status](https://github.com/settings/copilot)
+- Contact your GitHub administrator if Copilot is managed by your organization
+:::
 
 1. Visit https://github.com/settings/personal-access-tokens/new
-2. Under "Resource owner", select your user account (not an organization, see note below).
-3. Under "Repository access," select "Public repositories"
-4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
-5. Generate your token
+2. Under "Resource owner", select your user account (not an organization).
+3. Under "Repository access," select **"Public repositories"** (required for the Copilot Requests permission to appear).
+4. Under "Permissions," click "Add permissions" and select **"Copilot Requests"**.
+5. Generate your token.
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
 ```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
 ```
-
-:::note
-There is an ongoing work to support authentication with the GitHub Action token. 
-Once this work is deployed, you will not need to create a token for Copilot CLI.
-:::
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 

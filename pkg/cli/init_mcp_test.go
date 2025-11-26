@@ -180,7 +180,7 @@ func TestEnsureMCPConfig_UpdatesExisting(t *testing.T) {
 
 	// Create initial mcp.json with a different server
 	initialConfig := MCPConfig{
-		Servers: map[string]MCPServerConfig{
+		Servers: map[string]VSCodeMCPServer{
 			"other-server": {
 				Command: "other-command",
 				Args:    []string{"arg1"},

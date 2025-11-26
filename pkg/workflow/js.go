@@ -14,7 +14,7 @@ var jsLog = logger.New("workflow:js")
 var createAgentTaskScript string
 
 //go:embed js/assign_issue.cjs
-var assignIssueScript string
+var assignIssueScriptSource string
 
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
@@ -28,6 +28,12 @@ func init() {
 	DefaultScriptRegistry.Register("safe_outputs_mcp_server", safeOutputsMCPServerScriptSource)
 	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
 	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
+	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
+}
+
+// getAssignIssueScript returns the bundled assign_issue script
+func getAssignIssueScript() string {
+	return DefaultScriptRegistry.Get("assign_issue")
 }
 
 // getCheckMembershipScript returns the bundled check_membership script
@@ -90,6 +96,9 @@ var loadAgentOutputScript string
 
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
+
+//go:embed js/assign_agent_helpers.cjs
+var assignAgentHelpersScript string
 
 //go:embed js/safe_output_helpers.cjs
 var safeOutputHelpersScript string
@@ -159,6 +168,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_workflow_name.cjs":      sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":           loadAgentOutputScript,
 		"staged_preview.cjs":              stagedPreviewScript,
+		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,
 		"temporary_id.cjs":                temporaryIdScript,

@@ -29,7 +29,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --create-pull-request --force
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*@v1.0.0
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
@@ -44,7 +44,7 @@ Workflow specifications:
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
-The --pr flag automatically creates a pull request with the workflow changes.
+The --create-pull-request flag (or --pr) automatically creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
@@ -54,7 +54,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			numberFlag, _ := cmd.Flags().GetInt("number")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			nameFlag, _ := cmd.Flags().GetString("name")
-			prFlag, _ := cmd.Flags().GetBool("pr")
+			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+			prFlagAlias, _ := cmd.Flags().GetBool("pr")
+			prFlag := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -95,8 +97,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add repository flag to add command
 	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")
 
-	// Add PR flag to add command
-	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
+	// Add PR flag to add command (--create-pull-request with --pr as alias)
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Add force flag to add command
 	cmd.Flags().Bool("force", false, "Overwrite existing files without confirmation")

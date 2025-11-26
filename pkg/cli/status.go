@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +14,18 @@ func NewStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [pattern]",
 		Short: "Show status of agentic workflows",
+		Long: `Show status of all agentic workflows in the repository.
+
+Displays a table with workflow name, AI engine, compilation status, enabled/disabled state,
+and time remaining until expiration (if stop-after is configured).
+
+The optional pattern argument filters workflows by name (case-insensitive substring match).
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` status                    # Show all workflow status
+  ` + constants.CLIExtensionPrefix + ` status ci-                 # Show workflows with 'ci-' in name
+  ` + constants.CLIExtensionPrefix + ` status --json              # Output in JSON format
+  ` + constants.CLIExtensionPrefix + ` status --ref main          # Show latest run status for main branch`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var pattern string
 			if len(args) > 0 {

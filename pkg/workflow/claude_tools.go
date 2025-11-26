@@ -118,7 +118,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // Why --allowed-tools instead of --tools (introduced in v2.0.31)?
 // While --tools is simpler (e.g., "Bash,Edit,Read"), it lacks the fine-grained control gh-aw requires:
 // - Specific bash commands: Bash(git:*), Bash(ls)
-// - MCP tool prefixes: mcp__github__get_issue, mcp__github__*
+// - MCP tool prefixes: mcp__github__issue_read, mcp__github__*
 // - Path-specific access: Read(/tmp/gh-aw/cache-memory/*)
 //
 // This function:

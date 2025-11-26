@@ -3504,6 +3504,14 @@
               "type": "object",
               "description": "Custom safe-output job configuration. The job name will be normalized to use underscores instead of dashes.",
               "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Display name for the job"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the safe-job (used in MCP tool registration)"
+                },
                 "runs-on": {
                   "description": "Runner specification for this job",
                   "oneOf": [

@@ -114,7 +114,7 @@ func TestAuditDataJSONIncludesInputSizes(t *testing.T) {
 	metrics := LogMetrics{
 		ToolCalls: []workflow.ToolCallInfo{
 			{
-				Name:          "github_get_issue",
+				Name:          "github_issue_read",
 				CallCount:     2,
 				MaxInputSize:  256,
 				MaxOutputSize: 1024,

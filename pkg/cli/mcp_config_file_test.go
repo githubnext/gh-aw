@@ -43,7 +43,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 		{
 			name: "adds to existing config without gh-aw server",
 			existingConfig: &MCPConfig{
-				Servers: map[string]MCPServerConfig{
+				Servers: map[string]VSCodeMCPServer{
 					"other-server": {
 						Command: "node",
 						Args:    []string{"server.js"},
@@ -67,7 +67,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 		{
 			name: "skips update when config is identical",
 			existingConfig: &MCPConfig{
-				Servers: map[string]MCPServerConfig{
+				Servers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
 						Command: "gh",
 						Args:    []string{"aw", "mcp-server"},
@@ -86,7 +86,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 		{
 			name: "updates existing config with different settings",
 			existingConfig: &MCPConfig{
-				Servers: map[string]MCPServerConfig{
+				Servers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
 						Command: "old-command",
 						Args:    []string{"old-arg"},
@@ -259,7 +259,7 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 	t.Parallel()
 
 	config := MCPConfig{
-		Servers: map[string]MCPServerConfig{
+		Servers: map[string]VSCodeMCPServer{
 			"github-agentic-workflows": {
 				Command: "gh",
 				Args:    []string{"aw", "mcp-server"},

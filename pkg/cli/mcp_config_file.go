@@ -11,8 +11,8 @@ import (
 
 var mcpConfigLog = logger.New("cli:mcp_config_file")
 
-// MCPServerConfig represents a single MCP server configuration
-type MCPServerConfig struct {
+// VSCodeMCPServer represents a single MCP server configuration for VSCode mcp.json
+type VSCodeMCPServer struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
 	CWD     string   `json:"cwd,omitempty"`
@@ -20,7 +20,7 @@ type MCPServerConfig struct {
 
 // MCPConfig represents the structure of mcp.json
 type MCPConfig struct {
-	Servers map[string]MCPServerConfig `json:"servers"`
+	Servers map[string]VSCodeMCPServer `json:"servers"`
 }
 
 // ensureMCPConfig creates or updates .vscode/mcp.json with gh-aw MCP server configuration
@@ -45,12 +45,12 @@ func ensureMCPConfig(verbose bool) error {
 		}
 	} else {
 		mcpConfigLog.Print("No existing config found, creating new one")
-		config.Servers = make(map[string]MCPServerConfig)
+		config.Servers = make(map[string]VSCodeMCPServer)
 	}
 
 	// Add or update gh-aw MCP server configuration
 	ghAwServerName := "github-agentic-workflows"
-	ghAwConfig := MCPServerConfig{
+	ghAwConfig := VSCodeMCPServer{
 		Command: "gh",
 		Args:    []string{"aw", "mcp-server"},
 		CWD:     "${workspaceFolder}",

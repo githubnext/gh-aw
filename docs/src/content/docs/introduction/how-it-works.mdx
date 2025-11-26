@@ -35,7 +35,18 @@ Traditional GitHub Actions execute pre-programmed steps. Agentic workflows use A
 
 ## Security Design
 
-Agentic workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/guides/security/) before applying changes. Critical actions can require human approval.
+Agentic workflows implement a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and malicious agents. The architecture operates across multiple layers: compilation-time validation, runtime isolation, permission separation, network controls, and output sanitization.
+
+```mermaid
+flowchart LR
+    INPUT["📥 Input"] --> COMPILE["🔒 Compile"]
+    COMPILE --> RUNTIME["⚙️ Runtime"]
+    RUNTIME --> ISOLATION["🛡️ Isolation"]
+    ISOLATION --> OUTPUT["📤 Output"]
+    OUTPUT --> ACTIONS["✅ Actions"]
+```
+
+Workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/guides/security/) before applying changes. Critical actions can require human approval. For detailed security documentation, see the [Security Architecture](/gh-aw/introduction/architecture/) page.
 
 ## Compilation
 

@@ -169,6 +169,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
 func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, appendText string, pushSecrets bool, verbose bool) error {
+	trialLog.Printf("Starting trial execution: specs=%v, logicalRepo=%s, cloneRepo=%s, hostRepo=%s, repeat=%d", workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, repeatCount)
+
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -211,6 +213,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		cloneRepoVersion = cloneRepo.Version
 		logicalRepoSlug = "" // Empty string means skip logical repo simulation
 		directTrialMode = false
+		trialLog.Printf("Using clone-repo mode: %s (version=%s)", cloneRepoSlug, cloneRepoVersion)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Clone mode: Will clone contents from %s into host repository", cloneRepoSlug)))
 	} else if logicalRepoSpec != "" {
 		// Use logical-repo mode: simulate the workflow running against the specified repo
@@ -222,6 +225,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 		logicalRepoSlug = logicalRepo.RepoSlug
 		directTrialMode = false
+		trialLog.Printf("Using logical-repo mode: %s", logicalRepoSlug)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", logicalRepoSlug)))
 	} else {
 		// No --clone-repo or --logical-repo specified
@@ -232,6 +236,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			logicalRepoSlug = ""
 			cloneRepoSlug = ""
 			directTrialMode = true
+			trialLog.Print("Using direct trial mode (no simulation)")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Direct trial mode: Workflows will be installed and run directly in the specified repository"))
 		} else {
 			// Fall back to current repository for logical-repo mode
@@ -759,6 +764,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 // For clone-repo mode, reusing an existing host repository is not allowed
 // If forceDeleteHostRepo is true, deletes the repository if it exists before creating it
 func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHostRepo bool, verbose bool) error {
+	trialLog.Printf("Ensuring trial repository: %s (cloneRepo=%s, forceDelete=%v)", repoSlug, cloneRepoSlug, forceDeleteHostRepo)
+
 	parts := strings.Split(repoSlug, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return fmt.Errorf("invalid repository slug format: %s. Expected format: owner/repo. Example: githubnext/gh-aw", repoSlug)
@@ -767,6 +774,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	// Check if repository already exists
 	cmd := exec.Command("gh", "repo", "view", repoSlug)
 	if err := cmd.Run(); err == nil {
+		trialLog.Printf("Repository %s already exists", repoSlug)
 		// Repository exists - determine what to do
 		if forceDeleteHostRepo {
 			// Force delete mode: delete the existing repository first
@@ -902,6 +910,8 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
 func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, pushSecrets bool, directTrialMode bool, verbose bool) error {
+	trialLog.Printf("Installing workflow in trial mode: workflow=%s, hostRepo=%s, directMode=%v", parsedSpec.WorkflowName, hostRepoSlug, directTrialMode)
+
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {

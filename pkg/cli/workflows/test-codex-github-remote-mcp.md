@@ -7,7 +7,7 @@ engine: codex
 tools:
   github:
     mode: remote
-    allowed: [get_repository, list_issues, get_issue]
+    allowed: [get_repository, list_issues, issue_read]
 ---
 
 # Test Codex with GitHub Remote MCP

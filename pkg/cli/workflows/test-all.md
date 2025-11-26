@@ -71,7 +71,7 @@ cache:
 # Tools configuration
 tools:
   github:
-    allowed: [get_repository, get_issue, get_pull_request, list_issues, list_commits]
+    allowed: [get_repository, issue_read, get_pull_request, list_issues, list_commits]
   edit:
   web-fetch:
   bash:

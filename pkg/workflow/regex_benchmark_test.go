@@ -80,7 +80,7 @@ func BenchmarkLogProcessingNew(b *testing.B) {
 func BenchmarkCodexLogParsingOld(b *testing.B) {
 	lines := []string{
 		"] tool github.search_issues(...)",
-		"tool github.get_issue(...)",
+		"tool github.issue_read(...)",
 		"] exec ls -la in /tmp",
 		"exec cat file.txt in /home",
 		"] success in 0.5s",
@@ -103,7 +103,7 @@ func BenchmarkCodexLogParsingOld(b *testing.B) {
 func BenchmarkCodexLogParsingNew(b *testing.B) {
 	lines := []string{
 		"] tool github.search_issues(...)",
-		"tool github.get_issue(...)",
+		"tool github.issue_read(...)",
 		"] exec ls -la in /tmp",
 		"exec cat file.txt in /home",
 		"] success in 0.5s",

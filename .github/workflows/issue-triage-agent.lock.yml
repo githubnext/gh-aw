@@ -26,17 +26,13 @@
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   detection["detection"]
-#   missing_tool["missing_tool"]
 #   agent --> add_labels
 #   detection --> add_labels
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   add_labels --> conclusion
-#   missing_tool --> conclusion
 #   agent --> detection
-#   agent --> missing_tool
-#   detection --> missing_tool
 # ```
 #
 # Original Prompt:
@@ -206,6 +202,13 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
             function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
@@ -231,10 +234,12 @@ jobs:
               } catch (error) {
                 const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
                 core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
                 return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
                 return { success: false };
               }
               return { success: true, items: validatedOutput.items };
@@ -653,7 +658,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.363
+        run: npm install -g @github/copilot@0.0.365
       - name: Downloading container images
         run: |
           set -e
@@ -1596,7 +1601,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.363",
+              agent_version: "0.0.365",
               workflow_name: "Issue Triage Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1633,7 +1638,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 20
+        timeout-minutes: 5
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -1930,7 +1935,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b"];
+                const allowedTags = ["details", "summary", "code", "em", "b", "p"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4060,7 +4065,6 @@ jobs:
       - agent
       - activation
       - add_labels
-      - missing_tool
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -4070,6 +4074,8 @@ jobs:
       pull-requests: write
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
+      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
+      total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Debug job inputs
         env:
@@ -4104,6 +4110,13 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
             function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
@@ -4129,10 +4142,12 @@ jobs:
               } catch (error) {
                 const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
                 core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
                 return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
                 return { success: false };
               }
               return { success: true, items: validatedOutput.items };
@@ -4177,6 +4192,116 @@ jobs:
               core.info(`Successfully processed ${noopItems.length} noop message(s)`);
             }
             await main();
+      - name: Record Missing Tool
+        id: missing_tool
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Issue Triage Agent"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            async function main() {
+              const fs = require("fs");
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
+              core.info("Processing missing-tool reports...");
+              if (maxReports) {
+                core.info(`Maximum reports allowed: ${maxReports}`);
+              }
+              const missingTools = [];
+              if (!agentOutputFile.trim()) {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              let agentOutput;
+              try {
+                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.info(`Agent output file not found or unreadable: ${error instanceof Error ? error.message : String(error)}`);
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              if (agentOutput.trim() === "") {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              core.info(`Agent output length: ${agentOutput.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(agentOutput);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
+              for (const entry of validatedOutput.items) {
+                if (entry.type === "missing_tool") {
+                  if (!entry.tool) {
+                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
+                    continue;
+                  }
+                  if (!entry.reason) {
+                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
+                    continue;
+                  }
+                  const missingTool = {
+                    tool: entry.tool,
+                    reason: entry.reason,
+                    alternatives: entry.alternatives || null,
+                    timestamp: new Date().toISOString(),
+                  };
+                  missingTools.push(missingTool);
+                  core.info(`Recorded missing tool: ${missingTool.tool}`);
+                  if (maxReports && missingTools.length >= maxReports) {
+                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
+                    break;
+                  }
+                }
+              }
+              core.info(`Total missing tools reported: ${missingTools.length}`);
+              core.setOutput("tools_reported", JSON.stringify(missingTools));
+              core.setOutput("total_count", missingTools.length.toString());
+              if (missingTools.length > 0) {
+                core.info("Missing tools summary:");
+                core.summary
+                  .addHeading("Missing Tools Report", 2)
+                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                missingTools.forEach((tool, index) => {
+                  core.info(`${index + 1}. Tool: ${tool.tool}`);
+                  core.info(`   Reason: ${tool.reason}`);
+                  if (tool.alternatives) {
+                    core.info(`   Alternatives: ${tool.alternatives}`);
+                  }
+                  core.info(`   Reported at: ${tool.timestamp}`);
+                  core.info("");
+                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
+                  if (tool.alternatives) {
+                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
+                  }
+                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
+                });
+                core.summary.write();
+              } else {
+                core.info("No missing tools reported in this workflow execution.");
+                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+              }
+            }
+            main().catch(error => {
+              core.error(`Error processing missing-tool reports: ${error}`);
+              core.setFailed(`Error processing missing-tool reports: ${error}`);
+            });
       - name: Update reaction comment with completion status
         id: conclusion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -4191,6 +4316,13 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
             function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
@@ -4216,10 +4348,12 @@ jobs:
               } catch (error) {
                 const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
                 core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
                 return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
                 return { success: false };
               }
               return { success: true, items: validatedOutput.items };
@@ -4504,7 +4638,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.363
+        run: npm install -g @github/copilot@0.0.365
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4579,139 +4713,4 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  missing_tool:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    timeout-minutes: 10
-    outputs:
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Record Missing Tool
-        id: missing_tool
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Issue Triage Agent"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const fs = require("fs");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              const missingTools = [];
-              if (!agentOutputFile.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              let agentOutput;
-              try {
-                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (agentOutput.trim() === "") {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Agent output length: ${agentOutput.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing_tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 2)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
 

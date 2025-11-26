@@ -28,7 +28,7 @@ permissions:
 strict: false
 tools:
   github:
-    allowed: [list_issues, get_issue]
+    allowed: [list_issues, issue_read]
 ---
 
 # Normal Expression Test Workflow

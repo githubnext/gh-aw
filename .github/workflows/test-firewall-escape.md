@@ -4,6 +4,8 @@ description: Tests that the firewall correctly blocks forbidden domains while al
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"  # Weekly on Monday at 9 AM UTC
   push:
     branches: [main]
   pull_request:
@@ -29,6 +31,7 @@ network:
   firewall: true
 
 tools:
+  cache-memory: true
   bash: [":*"]
   web-fetch:
   web-search:

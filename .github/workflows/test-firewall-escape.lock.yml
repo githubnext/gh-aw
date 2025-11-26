@@ -172,6 +172,8 @@
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
@@ -191,6 +193,8 @@ name: "Firewall Escape Test"
   push:
     branches:
     - main
+  schedule:
+  - cron: "0 9 * * 1"
   workflow_dispatch: null
 
 permissions:
@@ -323,6 +327,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -402,7 +426,7 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.363
+        run: npm install -g @github/copilot@0.0.365
       - name: Downloading container images
         run: |
           set -e
@@ -636,6 +660,31 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -774,7 +823,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.363",
+              agent_version: "0.0.365",
               workflow_name: "Firewall Escape Test",
               experimental: false,
               supports_tools_allowlist: true,
@@ -813,7 +862,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
-            -- npx -y @github/copilot@0.0.363 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location

@@ -1,5 +1,7 @@
 ---
 description: Creates weekly summary of issue activity including trends, charts, and insights every Monday
+timeout-minutes: 20
+strict: true
 on:
   schedule:
     - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC

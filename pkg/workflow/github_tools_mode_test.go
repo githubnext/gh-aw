@@ -100,7 +100,7 @@ func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
 			name: "Explicit allowed tools are preserved",
 			tools: map[string]any{
 				"github": map[string]any{
-					"allowed": []any{"get_issue", "list_issues"},
+					"allowed": []any{"issue_read", "list_issues"},
 				},
 			},
 			expectedHasAllowed: true,

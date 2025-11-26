@@ -44,6 +44,19 @@ safe-outputs:
     category: "ideas"
 ```
 
+### Discussion Comments
+
+For workflows that post updates to an existing discussion, use `add-comment` with `discussion: true` and a specific `target` discussion number:
+
+```aw wrap
+safe-outputs:
+  add-comment:
+    target: "4750"
+    discussion: true
+```
+
+This pattern is ideal for daily status posts, recurring reports, or community updates. The [daily-fact.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-fact.md) workflow demonstrates this by posting daily facts about the repository to a pinned discussion thread.
+
 ### Persistent Memory
 
 Enable `cache-memory` to maintain state at `/tmp/gh-aw/cache-memory/` across runs, useful for tracking progress, storing metrics, and building knowledge bases over time:
@@ -57,6 +70,7 @@ tools:
 
 This repository implements several DailyOps workflows demonstrating different use cases:
 
+- **daily-fact.md** - Posts daily facts about the repository to a discussion thread
 - **daily-test-improver.md** - Systematically adds tests to improve coverage incrementally
 - **daily-perf-improver.md** - Identifies and implements performance optimizations
 - **daily-doc-updater.md** - Keeps documentation synchronized with merged code changes

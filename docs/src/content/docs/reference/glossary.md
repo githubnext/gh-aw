@@ -87,6 +87,26 @@ Events that cause a workflow to run. Triggers are defined in the `on:` section o
 
 **Why it matters:** Triggers determine when your workflow activates, letting you automate responses to specific repository events.
 
+### Cron Schedule
+A time-based trigger format that specifies when scheduled workflows run. Uses standard cron syntax with five fields: minute, hour, day of month, month, and day of week. Example: `0 9 * * 1` runs every Monday at 9:00 AM UTC.
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+```
+
+**Why it matters:** Cron schedules enable automated workflows that run at specific times, such as daily reports or weekly analyses.
+
+### workflow_dispatch
+A manual trigger that allows you to run a workflow on demand from the GitHub Actions UI or via the GitHub API. Unlike automatic triggers, `workflow_dispatch` requires someone to explicitly start the workflow.
+
+```yaml
+on: workflow_dispatch
+```
+
+**Why it matters:** Manual triggers give you control over when certain workflows run, useful for deployment, maintenance, or on-demand tasks.
+
 ### Network Permissions
 Controls over what external domains and services a workflow can access. Configured using the `network:` section in frontmatter. Options include:
 - `defaults`: Access to common development infrastructure
@@ -107,6 +127,11 @@ GitHub's built-in automation platform that runs workflows in response to reposit
 
 **Why it matters:** GitHub Actions provides the underlying execution environment where agentic workflows run.
 
+### GitHub Actions Secret
+A secure, encrypted variable stored in your repository or organization settings. Secrets hold sensitive values like API keys or tokens that workflows need but shouldn't expose in code. Access secrets in workflows using `${{ secrets.SECRET_NAME }}` syntax.
+
+**Why it matters:** Secrets let workflows use sensitive credentials safely without committing them to your repository.
+
 ### YAML
 A human-friendly data format used for configuration files. YAML uses indentation and simple syntax to represent structured data. In agentic workflows, YAML appears in the frontmatter section and in the compiled `.lock.yml` files.
 
@@ -116,6 +141,11 @@ A human-friendly data format used for configuration files. YAML uses indentation
 A token that authenticates you to GitHub's APIs with specific permissions. Required for GitHub Copilot CLI to access Copilot services on your behalf. Created at github.com/settings/personal-access-tokens.
 
 **Why it matters:** The PAT allows workflows to use AI capabilities while maintaining security through token-based authentication instead of passwords.
+
+### Fine-grained Personal Access Token
+A type of GitHub Personal Access Token with granular permission control. Unlike classic tokens that grant broad access, fine-grained PATs let you specify exactly which repositories the token can access and what permissions it has (like `contents: read` or `issues: write`). Created at github.com/settings/personal-access-tokens.
+
+**Why it matters:** Fine-grained tokens follow the principle of least privilege, reducing security risks by only granting the minimum access needed for workflows to function.
 
 ## Development and Compilation
 

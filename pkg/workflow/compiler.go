@@ -1248,11 +1248,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge app from includes: %w", err)
 	}
 
-	// Ensure SafeOutputs exists and populate the Jobs field
+	// Ensure SafeOutputs exists and populate the Jobs field with merged jobs
 	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
-	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
+	// Always use the merged includedSafeJobs as it contains both main and imported jobs
+	// The mergeSafeJobsFromIncludedConfigs function already handles conflict detection
+	if workflowData.SafeOutputs != nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
 	}
 

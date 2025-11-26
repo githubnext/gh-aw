@@ -400,6 +400,32 @@ The agentic execution job automatically waits for all custom jobs to complete be
 
 Custom jobs can share data with the agentic execution through artifacts or job outputs.
 
+### Job Outputs
+
+Custom jobs can expose outputs that are accessible in the agentic execution prompt using `${{ needs.job-name.outputs.output-name }}` syntax:
+
+```yaml wrap
+jobs:
+  release:
+    needs: ["activation"]
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+      version: ${{ steps.get_release.outputs.version }}
+    steps:
+      - id: get_release
+        run: |
+          echo "release_id=${{ github.event.release.id }}" >> $GITHUB_OUTPUT
+          echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+---
+
+# Release Highlights Generator
+
+Generate release highlights for release ${{ needs.release.outputs.release_id }} (version ${{ needs.release.outputs.version }}).
+```
+
+Job outputs must be string values. Non-string outputs will trigger a warning during compilation.
+
 ## Cache Configuration (`cache:`)
 
 Cache configuration using standard GitHub Actions `actions/cache` syntax:

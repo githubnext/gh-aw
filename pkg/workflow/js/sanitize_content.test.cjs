@@ -138,7 +138,7 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["details", "summary", "code", "em", "b"];
+      const allowedTags = ["details", "summary", "code", "em", "b", "p"];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);

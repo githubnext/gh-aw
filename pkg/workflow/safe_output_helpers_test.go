@@ -679,3 +679,210 @@ func TestBuildGitHubScriptStepNoWorkingDirectory(t *testing.T) {
 		t.Error("Expected step to contain script")
 	}
 }
+
+// TestBuildTitlePrefixEnvVar verifies the helper function for building title-prefix env vars
+func TestBuildTitlePrefixEnvVar(t *testing.T) {
+	tests := []struct {
+		name        string
+		envVarName  string
+		titlePrefix string
+		expected    []string
+	}{
+		{
+			name:        "empty title prefix returns nil",
+			envVarName:  "GH_AW_ISSUE_TITLE_PREFIX",
+			titlePrefix: "",
+			expected:    nil,
+		},
+		{
+			name:        "issue title prefix",
+			envVarName:  "GH_AW_ISSUE_TITLE_PREFIX",
+			titlePrefix: "[bot] ",
+			expected:    []string{"          GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"\n"},
+		},
+		{
+			name:        "discussion title prefix",
+			envVarName:  "GH_AW_DISCUSSION_TITLE_PREFIX",
+			titlePrefix: "[analysis] ",
+			expected:    []string{"          GH_AW_DISCUSSION_TITLE_PREFIX: \"[analysis] \"\n"},
+		},
+		{
+			name:        "PR title prefix",
+			envVarName:  "GH_AW_PR_TITLE_PREFIX",
+			titlePrefix: "[auto] ",
+			expected:    []string{"          GH_AW_PR_TITLE_PREFIX: \"[auto] \"\n"},
+		},
+		{
+			name:        "title prefix with special characters",
+			envVarName:  "GH_AW_ISSUE_TITLE_PREFIX",
+			titlePrefix: "[AI-Generated] 🤖 ",
+			expected:    []string{"          GH_AW_ISSUE_TITLE_PREFIX: \"[AI-Generated] 🤖 \"\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildTitlePrefixEnvVar(tt.envVarName, tt.titlePrefix)
+
+			// Handle nil vs empty slice comparison
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Errorf("expected %v, got nil", tt.expected)
+				return
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("expected length %d, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if result[i] != expected {
+					t.Errorf("at index %d: expected %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+// TestBuildLabelsEnvVar verifies the helper function for building labels env vars
+func TestBuildLabelsEnvVar(t *testing.T) {
+	tests := []struct {
+		name       string
+		envVarName string
+		labels     []string
+		expected   []string
+	}{
+		{
+			name:       "empty labels returns nil",
+			envVarName: "GH_AW_ISSUE_LABELS",
+			labels:     []string{},
+			expected:   nil,
+		},
+		{
+			name:       "nil labels returns nil",
+			envVarName: "GH_AW_ISSUE_LABELS",
+			labels:     nil,
+			expected:   nil,
+		},
+		{
+			name:       "single label",
+			envVarName: "GH_AW_ISSUE_LABELS",
+			labels:     []string{"automation"},
+			expected:   []string{"          GH_AW_ISSUE_LABELS: \"automation\"\n"},
+		},
+		{
+			name:       "multiple labels",
+			envVarName: "GH_AW_ISSUE_LABELS",
+			labels:     []string{"automation", "ai-generated", "enhancement"},
+			expected:   []string{"          GH_AW_ISSUE_LABELS: \"automation,ai-generated,enhancement\"\n"},
+		},
+		{
+			name:       "PR labels",
+			envVarName: "GH_AW_PR_LABELS",
+			labels:     []string{"automated", "needs-review"},
+			expected:   []string{"          GH_AW_PR_LABELS: \"automated,needs-review\"\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildLabelsEnvVar(tt.envVarName, tt.labels)
+
+			// Handle nil vs empty slice comparison
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Errorf("expected %v, got nil", tt.expected)
+				return
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("expected length %d, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if result[i] != expected {
+					t.Errorf("at index %d: expected %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+// TestBuildCategoryEnvVar verifies the helper function for building category env vars
+func TestBuildCategoryEnvVar(t *testing.T) {
+	tests := []struct {
+		name       string
+		envVarName string
+		category   string
+		expected   []string
+	}{
+		{
+			name:       "empty category returns nil",
+			envVarName: "GH_AW_DISCUSSION_CATEGORY",
+			category:   "",
+			expected:   nil,
+		},
+		{
+			name:       "category by name",
+			envVarName: "GH_AW_DISCUSSION_CATEGORY",
+			category:   "General",
+			expected:   []string{"          GH_AW_DISCUSSION_CATEGORY: \"General\"\n"},
+		},
+		{
+			name:       "category by ID",
+			envVarName: "GH_AW_DISCUSSION_CATEGORY",
+			category:   "DIC_kwDOGFsHUM4BsUn3",
+			expected:   []string{"          GH_AW_DISCUSSION_CATEGORY: \"DIC_kwDOGFsHUM4BsUn3\"\n"},
+		},
+		{
+			name:       "category by numeric ID",
+			envVarName: "GH_AW_DISCUSSION_CATEGORY",
+			category:   "12345",
+			expected:   []string{"          GH_AW_DISCUSSION_CATEGORY: \"12345\"\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildCategoryEnvVar(tt.envVarName, tt.category)
+
+			// Handle nil vs empty slice comparison
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Errorf("expected %v, got nil", tt.expected)
+				return
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("expected length %d, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if result[i] != expected {
+					t.Errorf("at index %d: expected %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}

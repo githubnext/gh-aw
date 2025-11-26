@@ -668,7 +668,7 @@ func TestProcessIncludesConditionalValidation(t *testing.T) {
 	validWorkflowContent := `---
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Valid Workflow
@@ -684,7 +684,7 @@ title: Invalid Field
 on: push
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Invalid Workflow
@@ -700,7 +700,7 @@ title: Invalid Field
 on: push
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Invalid External File
@@ -717,7 +717,7 @@ applyTo: "**/*.py"
 temperature: 0.7
 tools:
   github:
-    allowed: [get_issue]
+    allowed: [issue_read]
 ---
 
 # Agent Instructions
@@ -787,7 +787,7 @@ This is just plain markdown content with no frontmatter.`
 			baseDir:      tempDir,
 			extractTools: true,
 			wantErr:      false,
-			checkContent: `{"github":{"allowed":["get_issue"]}}`,
+			checkContent: `{"github":{"allowed":["issue_read"]}}`,
 		},
 		{
 			name:         "extract tools from agent file",
@@ -795,7 +795,7 @@ This is just plain markdown content with no frontmatter.`
 			baseDir:      tempDir,
 			extractTools: true,
 			wantErr:      false,
-			checkContent: `{"github":{"allowed":["get_issue"]}}`,
+			checkContent: `{"github":{"allowed":["issue_read"]}}`,
 		},
 		{
 			name:         "extract tools from plain file (no tools)",
