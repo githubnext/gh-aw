@@ -302,10 +302,11 @@ describe("assign_agent_helpers.cjs", () => {
 
       const fetchCall = mockFetch.mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
-      // The mutation should include agent first, then existing assignees
-      expect(body.query).toContain("AGENT_456");
-      expect(body.query).toContain("USER_1");
-      expect(body.query).toContain("USER_2");
+      // The mutation should use GraphQL variables - check that variables are passed correctly
+      expect(body.variables.assignableId).toBe("ISSUE_123");
+      expect(body.variables.actorIds).toContain("AGENT_456");
+      expect(body.variables.actorIds).toContain("USER_1");
+      expect(body.variables.actorIds).toContain("USER_2");
     });
 
     it("should not duplicate agent if already in assignees", async () => {
@@ -331,9 +332,9 @@ describe("assign_agent_helpers.cjs", () => {
 
       const fetchCall = mockFetch.mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
-      // Agent should only appear once
-      const agentMatches = body.query.match(/AGENT_456/g);
-      expect(agentMatches.length).toBe(1); // Only one occurrence in the actorIds array
+      // Agent should only appear once in the variables.actorIds array
+      const agentMatches = body.variables.actorIds.filter(id => id === "AGENT_456");
+      expect(agentMatches.length).toBe(1);
     });
   });
 

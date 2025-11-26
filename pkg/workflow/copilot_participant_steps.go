@@ -96,7 +96,7 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 		steps = append(steps, fmt.Sprintf("          ISSUE_NUMBER: ${{ steps.%s.outputs.%s }}\n", config.ConditionStepID, config.ConditionOutputKey))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-		steps = append(steps, FormatJavaScriptForYAML(assignIssueScript)...)
+		steps = append(steps, FormatJavaScriptForYAML(getAssignIssueScript())...)
 
 		// Add a comment after each assignee step except the last
 		if i < len(config.Participants)-1 {

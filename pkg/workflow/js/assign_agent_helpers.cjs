@@ -40,8 +40,8 @@ function getAgentName(assignee) {
  */
 async function getAvailableAgentLogins(owner, repo) {
   const query = `
-    query {
-      repository(owner: "${owner}", name: "${repo}") {
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
         suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
           nodes { ... on Bot { login __typename } }
         }
@@ -49,7 +49,7 @@ async function getAvailableAgentLogins(owner, repo) {
     }
   `;
   try {
-    const response = await github.graphql(query);
+    const response = await github.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = [];
@@ -75,8 +75,8 @@ async function getAvailableAgentLogins(owner, repo) {
  */
 async function findAgent(owner, repo, agentName) {
   const query = `
-    query {
-      repository(owner: "${owner}", name: "${repo}") {
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
         suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
           nodes {
             ... on Bot {
@@ -91,7 +91,7 @@ async function findAgent(owner, repo, agentName) {
   `;
 
   try {
-    const response = await github.graphql(query);
+    const response = await github.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -136,9 +136,9 @@ async function findAgent(owner, repo, agentName) {
  */
 async function getIssueDetails(owner, repo, issueNumber) {
   const query = `
-    query {
-      repository(owner: "${owner}", name: "${repo}") {
-        issue(number: ${issueNumber}) {
+    query($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
           id
           assignees(first: 100) {
             nodes {
@@ -151,7 +151,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
   `;
 
   try {
-    const response = await github.graphql(query);
+    const response = await github.graphql(query, { owner, repo, issueNumber });
     const issue = response.repository.issue;
 
     if (!issue || !issue.id) {
@@ -196,10 +196,10 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
   }
 
   const mutation = `
-    mutation {
+    mutation($assignableId: ID!, $actorIds: [ID!]!) {
       replaceActorsForAssignable(input: {
-        assignableId: "${issueId}",
-        actorIds: ${JSON.stringify(actorIds)}
+        assignableId: $assignableId,
+        actorIds: $actorIds
       }) {
         __typename
       }
@@ -215,15 +215,21 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
     }
     core.info("Using provided GitHub token for mutation");
 
-    // Make raw GraphQL request with custom token
-    core.debug(`GraphQL mutation: ${mutation}`);
+    // Make raw GraphQL request with custom token using variables
+    core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
     const response = await fetch("https://api.github.com/graphql", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${ghToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query: mutation }),
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          assignableId: issueId,
+          actorIds: actorIds,
+        },
+      }),
     }).then(res => res.json());
 
     if (response.errors && response.errors.length > 0) {
@@ -278,20 +284,35 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
       // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
       core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
       try {
-        // SECURITY: Use same token for fallback mutation
-        const fallbackMutation = `mutation {\n  addAssigneesToAssignable(input:{assignableId:"${issueId}", assigneeIds:["${agentId}"]}) {\n    clientMutationId\n  }\n}`;
+        // SECURITY: Use same token for fallback mutation with GraphQL variables
+        const fallbackMutation = `
+          mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+            addAssigneesToAssignable(input: {
+              assignableId: $assignableId,
+              assigneeIds: $assigneeIds
+            }) {
+              clientMutationId
+            }
+          }
+        `;
         if (!ghToken) {
           core.error("GitHub token is not set. Cannot perform fallback mutation.");
         } else {
           core.info("Using provided GitHub token for fallback mutation");
-          core.debug(`Fallback GraphQL mutation: ${fallbackMutation}`);
+          core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
           const fallbackResp = await fetch("https://api.github.com/graphql", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${ghToken}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ query: fallbackMutation }),
+            body: JSON.stringify({
+              query: fallbackMutation,
+              variables: {
+                assignableId: issueId,
+                assigneeIds: [agentId],
+              },
+            }),
           }).then(res => res.json());
           if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
             core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
