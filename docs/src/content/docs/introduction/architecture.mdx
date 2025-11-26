@@ -32,6 +32,7 @@ flowchart TB
         PRE["Pre-Activation<br/>Role & Permission Checks"]
         ACT["Activation<br/>Content Sanitization"]
         AGENT["Agent Execution<br/>Read-Only Permissions"]
+        REDACT_MAIN["Secret Redaction<br/>Credential Protection"]
     end
 
     subgraph Isolation["🛡️ Isolation Layer"]
@@ -67,7 +68,8 @@ flowchart TB
     AGENT <--> MCP
     AGENT <--> TOOL
 
-    AGENT --> DETECT
+    AGENT --> REDACT_MAIN
+    REDACT_MAIN --> DETECT
     DETECT --> SAFE
     SAFE --> SANITIZE
 
@@ -396,6 +398,71 @@ flowchart LR
 Always use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
 </Aside>
 
+## Secret Redaction
+
+Before workflow artifacts are uploaded, all files in the `/tmp/gh-aw` directory are automatically scanned and any secret values are redacted. This prevents accidental secret leakage through logs, outputs, or artifacts.
+
+```mermaid
+flowchart LR
+    subgraph Sources["Secret Sources"]
+        YAML["Workflow YAML"]
+        ENV["Environment Variables"]
+        MCP_CONF["MCP Server Config"]
+    end
+
+    subgraph Collection["Secret Collection"]
+        SCAN["Scan for secrets.* patterns"]
+        EXTRACT["Extract secret names:<br/>SECRET_NAME_1<br/>SECRET_NAME_2"]
+    end
+
+    subgraph Redaction["Secret Redaction Step"]
+        direction TB
+        FIND["Find files in /tmp/gh-aw<br/>(.txt, .json, .log, .md, .yml)"]
+        MATCH["Match exact secret values"]
+        REPLACE["Replace with masked value:<br/>abc***** (first 3 chars + asterisks)"]
+    end
+
+    subgraph Output["Safe Artifacts"]
+        LOGS["Redacted Logs"]
+        JSON_OUT["Sanitized JSON"]
+        PROMPT["Clean Prompt Files"]
+    end
+
+    YAML --> SCAN
+    ENV --> SCAN
+    MCP_CONF --> SCAN
+
+    SCAN --> EXTRACT
+    EXTRACT --> FIND
+
+    FIND --> MATCH
+    MATCH --> REPLACE
+
+    REPLACE --> LOGS
+    REPLACE --> JSON_OUT
+    REPLACE --> PROMPT
+```
+
+**Key Features:**
+- **Automatic Detection**: Scans workflow YAML for `secrets.*` patterns and collects all secret references
+- **Exact String Matching**: Uses safe string matching (not regex) to prevent injection attacks
+- **Partial Visibility**: Shows first 3 characters followed by asterisks for debugging without exposing full secrets
+- **Custom Masking**: Supports additional custom secret masking steps via `secret-masking:` configuration
+
+**Configuration Example:**
+
+```yaml wrap
+secret-masking:
+  steps:
+    - name: Redact custom patterns
+      run: |
+        find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
+```
+
+<Aside type="tip">
+Secret redaction runs with `if: always()` to ensure secrets are never leaked even if the workflow fails.
+</Aside>
+
 ## Job Execution Flow
 
 The complete workflow execution follows a strict dependency order, ensuring security checks happen at each stage.
@@ -422,6 +489,7 @@ flowchart TB
         MCP_START["Start MCP Containers"]
         PROMPT["Generate Prompt"]
         EXECUTE["Execute AI Engine"]
+        REDACT["🔐 Secret Redaction"]
         UPLOAD["Upload Output Artifact"]
         CACHE_SAVE["Save Cache"]
     end
@@ -458,7 +526,8 @@ flowchart TB
     CACHE_RESTORE --> MCP_START
     MCP_START --> PROMPT
     PROMPT --> EXECUTE
-    EXECUTE --> UPLOAD
+    EXECUTE --> REDACT
+    REDACT --> UPLOAD
     UPLOAD --> CACHE_SAVE
     CACHE_SAVE --> DOWNLOAD_DETECT
 
@@ -487,6 +556,7 @@ flowchart TB
 | **Runtime** | Content sanitization | Prompt injection, @mention abuse |
 | **Runtime** | AWF network controls | Data exfiltration, unauthorized API calls |
 | **Runtime** | MCP sandboxing | Container escape, unauthorized tool access |
+| **Runtime** | Secret redaction | Credential leakage in logs/artifacts |
 | **Output** | Threat detection | Malicious patches, secret leaks |
 | **Output** | Permission separation | Direct write access abuse |
 | **Output** | Output sanitization | Content injection, XSS |
