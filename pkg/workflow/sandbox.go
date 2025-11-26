@@ -60,22 +60,6 @@ func isSRTEnabled(workflowData *WorkflowData) bool {
 	return enabled
 }
 
-// getSandboxConfig returns the sandbox configuration
-func getSandboxConfig(workflowData *WorkflowData) *SandboxConfig {
-	if workflowData == nil {
-		return nil
-	}
-
-	if workflowData.SandboxConfig != nil {
-		if sandboxLog.Enabled() {
-			sandboxLog.Printf("Retrieved sandbox config: type=%s", workflowData.SandboxConfig.Type)
-		}
-		return workflowData.SandboxConfig
-	}
-
-	return nil
-}
-
 // generateSRTConfigJSON generates the .srt-settings.json content
 // If custom config is provided, uses that; otherwise auto-generates based on network permissions
 func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
