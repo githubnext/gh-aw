@@ -336,5 +336,20 @@ describe("missing_tool.cjs", () => {
       expect(timestamp.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
       expect(timestamp.getTime()).toBeLessThanOrEqual(afterTime.getTime());
     });
+
+    it("should handle missing agent output file gracefully with info message", async () => {
+      // Set path to a non-existent file
+      process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/path/to/file.json";
+
+      await runScript();
+
+      // Should log info instead of failing
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output file not found or unreadable"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // Should still set outputs
+      expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "0");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("tools_reported", JSON.stringify([]));
+    });
   });
 });
