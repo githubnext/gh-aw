@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -26,6 +27,23 @@ func collectDockerImages(tools map[string]any) []string {
 				images = append(images, image)
 				imageSet[image] = true
 			}
+		}
+	}
+
+	// Check for Playwright tool (uses Docker image)
+	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright && playwrightTool != nil {
+		args := generatePlaywrightDockerArgs(playwrightTool)
+		image := "mcr.microsoft.com/playwright/mcp:" + args.ImageVersion
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+		}
+	} else if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// If playwright is present but nil, use default version
+		image := "mcr.microsoft.com/playwright/mcp:" + string(constants.DefaultPlaywrightBrowserVersion)
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
 		}
 	}
 

@@ -22,7 +22,7 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 }
 
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
-// Uses the official Playwright MCP Docker image (mcr.microsoft.com/playwright/mcp) for headless browser automation
+// Uses Docker container with the versioned Playwright MCP image for consistent browser environment
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
@@ -36,8 +36,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
 
-	// Use the official Playwright MCP Docker image
-	playwrightImage := "mcr.microsoft.com/playwright/mcp"
+	// Use Docker image version from constants
+	playwrightImage := "mcr.microsoft.com/playwright/mcp:" + args.ImageVersion
+	// Use MCP package version from constants for output-dir identification
+	_ = "@playwright/mcp@" + args.MCPPackageVersion
 
 	yaml.WriteString("              \"playwright\": {\n")
 
@@ -50,7 +52,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 
 	if inlineArgs {
 		// Inline format for Copilot
-		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"--pull=always\", \"" + playwrightImage + "\"")
+		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			yaml.WriteString(", \"--allowed-hosts\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
@@ -64,8 +66,9 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"-i\",\n")
 		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"--init\",\n")
-		yaml.WriteString("                  \"--pull=always\",\n")
-		yaml.WriteString("                  \"" + playwrightImage + "\"")
+		yaml.WriteString("                  \"" + playwrightImage + "\",\n")
+		yaml.WriteString("                  \"--output-dir\",\n")
+		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-hosts\",\n")
@@ -247,13 +250,13 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
-// Uses the official Playwright MCP Docker image (mcr.microsoft.com/playwright/mcp) for headless browser automation
+// Uses Docker container with the versioned Playwright MCP image for consistent browser environment
 func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
-	// Use the official Playwright MCP Docker image
-	playwrightImage := "mcr.microsoft.com/playwright/mcp"
+	// Use Docker image version from constants
+	playwrightImage := "mcr.microsoft.com/playwright/mcp:" + args.ImageVersion
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -263,8 +266,9 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("            \"-i\",\n")
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--init\",\n")
-	yaml.WriteString("            \"--pull=always\",\n")
-	yaml.WriteString("            \"" + playwrightImage + "\"")
+	yaml.WriteString("            \"" + playwrightImage + "\",\n")
+	yaml.WriteString("            \"--output-dir\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")
