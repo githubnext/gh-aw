@@ -43,14 +43,10 @@ If the extension installation fails (common in Codespaces outside the githubnext
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After standalone installation, the binary is available as `./gh-aw` in the current directory. To use it globally:
-
-```bash wrap
-sudo mv gh-aw /usr/local/bin/
-```
+After standalone installation, the binary is available as `./gh-aw` in the current directory.
 
 :::note[Command differences]
-When using the standalone binary, run commands as `./gh-aw` or `gh-aw` (if moved to PATH) instead of `gh aw`. For example:
+When using the standalone binary, run commands as `./gh-aw` instead of `gh aw`. For example:
 - Extension: `gh aw compile`
 - Standalone: `./gh-aw compile`
 :::

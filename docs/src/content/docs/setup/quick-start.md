@@ -47,11 +47,7 @@ If you're working in a GitHub Codespace (especially outside the githubnext organ
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After installation, run the binary directly with `./gh-aw` instead of `gh aw`. You can also move it to your PATH:
-
-```bash wrap
-sudo mv gh-aw /usr/local/bin/
-```
+After installation, run the binary directly with `./gh-aw` instead of `gh aw`.
 :::
 
 ### Understanding Compilation
