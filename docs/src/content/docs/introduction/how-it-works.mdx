@@ -35,7 +35,72 @@ Traditional GitHub Actions execute pre-programmed steps. Agentic workflows use A
 
 ## Security Design
 
-Agentic workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/guides/security/) before applying changes. Critical actions can require human approval.
+Agentic workflows implement a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and malicious agents. The architecture operates across multiple layers: compilation-time validation, runtime isolation, permission separation, network controls, and output sanitization.
+
+```mermaid
+flowchart TB
+    subgraph Input["📥 Input Layer"]
+        WF[/"Workflow (.md)"/]
+        IMPORTS[/"Imports & Includes"/]
+        EVENT[/"GitHub Event<br/>(Issue, PR, Comment)"/]
+    end
+
+    subgraph Compile["🔒 Compilation-Time Security"]
+        SCHEMA["Schema Validation"]
+        EXPR["Expression Safety Check"]
+        PIN["Action SHA Pinning"]
+        SCAN["Security Scanners<br/>(actionlint, zizmor, poutine)"]
+    end
+
+    subgraph Runtime["⚙️ Runtime Security"]
+        PRE["Pre-Activation<br/>Role & Permission Checks"]
+        ACT["Activation<br/>Content Sanitization"]
+        AGENT["Agent Execution<br/>Read-Only Permissions"]
+    end
+
+    subgraph Isolation["🛡️ Isolation Layer"]
+        AWF["Agent Workflow Firewall<br/>Network Egress Control"]
+        MCP["MCP Server Sandboxing<br/>Container Isolation"]
+        TOOL["Tool Allowlisting<br/>Explicit Permissions"]
+    end
+
+    subgraph Output["📤 Output Security"]
+        DETECT["Threat Detection<br/>AI-Powered Analysis"]
+        SAFE["Safe Outputs<br/>Permission Separation"]
+        SANITIZE["Output Sanitization<br/>Content Validation"]
+    end
+
+    subgraph Result["✅ Controlled Actions"]
+        ISSUE["Create Issue"]
+        PR["Create PR"]
+        COMMENT["Add Comment"]
+    end
+
+    WF --> SCHEMA
+    IMPORTS --> SCHEMA
+    SCHEMA --> EXPR
+    EXPR --> PIN
+    PIN --> SCAN
+    SCAN -->|".lock.yml"| PRE
+
+    EVENT --> ACT
+    PRE --> ACT
+    ACT --> AGENT
+
+    AGENT <--> AWF
+    AGENT <--> MCP
+    AGENT <--> TOOL
+
+    AGENT --> DETECT
+    DETECT --> SAFE
+    SAFE --> SANITIZE
+
+    SANITIZE --> ISSUE
+    SANITIZE --> PR
+    SANITIZE --> COMMENT
+```
+
+Workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/guides/security/) before applying changes. Critical actions can require human approval. For detailed security documentation, see the [Security Architecture](/gh-aw/introduction/architecture/) page.
 
 ## Compilation
 
