@@ -4,7 +4,10 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
-const { getSafeOutputConfig, validateLabels, validateMaxCount } = require("./safe_output_validator.cjs");
+const { validateLabels, validateMaxCount } = require("./safe_output_validator.cjs");
+
+/** Default maximum number of labels that can be added (same as compiler default in add_labels.go) */
+const DEFAULT_MAX_LABELS = 3;
 
 async function main() {
   const result = loadAgentOutput();
@@ -39,19 +42,17 @@ async function main() {
     return;
   }
 
-  // Get configuration from config.json
-  const config = getSafeOutputConfig("add_labels");
-
-  // Parse allowed labels (from env or config)
-  const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
+  // Get configuration from environment variables (set by the compiler in add_labels.go)
+  // No need to load config.json - all config is passed via env vars
+  const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED);
   if (allowedLabels) {
     core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
     core.info("No label restrictions - any labels are allowed");
   }
 
-  // Parse max count (env takes priority, then config)
-  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
+  // Parse max count from environment variable
+  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, undefined, DEFAULT_MAX_LABELS);
   if (!maxCountResult.valid) {
     core.setFailed(maxCountResult.error);
     return;

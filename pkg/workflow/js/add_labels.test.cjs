@@ -265,12 +265,14 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("Max count: 1");
+      // Default max count is 3 when GH_AW_LABELS_MAX_COUNT is not set
+      // (In production, the compiler always sets this env var)
+      expect(mockCore.info).toHaveBeenCalledWith("Max count: 3");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
         issue_number: 123,
-        labels: ["bug"], // Only first 1 due to default max count
+        labels: ["bug", "enhancement", "feature"], // First 3 due to default max count
       });
     });
   });

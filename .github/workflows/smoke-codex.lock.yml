@@ -1637,14 +1637,13 @@ jobs:
                 });
                 return;
               }
-              const config = getSafeOutputConfig("add_labels");
-              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
+              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED);
               if (allowedLabels) {
                 core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
               } else {
                 core.info("No label restrictions - any labels are allowed");
               }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
+              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, undefined, 3);
               if (!maxCountResult.valid) {
                 core.setFailed(maxCountResult.error);
                 return;
