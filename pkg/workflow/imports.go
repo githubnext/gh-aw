@@ -570,5 +570,43 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		result.RunsOn = importedConfig.RunsOn
 	}
 
+	// Merge Messages configuration at field level (main workflow entries override imported entries)
+	if importedConfig.Messages != nil {
+		if result.Messages == nil {
+			// If main has no messages, use imported messages entirely
+			result.Messages = importedConfig.Messages
+		} else {
+			// Merge individual message fields, main takes precedence
+			result.Messages = mergeMessagesConfig(result.Messages, importedConfig.Messages)
+		}
+	}
+
+	return result
+}
+
+// mergeMessagesConfig merges two SafeOutputMessagesConfig structs at the field level.
+// The result config (from main workflow) takes precedence - only empty fields are filled from imported.
+func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutputMessagesConfig {
+	if result.Footer == "" && imported.Footer != "" {
+		result.Footer = imported.Footer
+	}
+	if result.FooterInstall == "" && imported.FooterInstall != "" {
+		result.FooterInstall = imported.FooterInstall
+	}
+	if result.StagedTitle == "" && imported.StagedTitle != "" {
+		result.StagedTitle = imported.StagedTitle
+	}
+	if result.StagedDescription == "" && imported.StagedDescription != "" {
+		result.StagedDescription = imported.StagedDescription
+	}
+	if result.RunStarted == "" && imported.RunStarted != "" {
+		result.RunStarted = imported.RunStarted
+	}
+	if result.RunSuccess == "" && imported.RunSuccess != "" {
+		result.RunSuccess = imported.RunSuccess
+	}
+	if result.RunFailure == "" && imported.RunFailure != "" {
+		result.RunFailure = imported.RunFailure
+	}
 	return result
 }

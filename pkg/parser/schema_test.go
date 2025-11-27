@@ -1703,6 +1703,7 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 		"max-patch-size",
 		"jobs",
 		"runs-on",
+		"messages",
 	}
 
 	for _, meta := range metaFields {

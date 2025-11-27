@@ -218,6 +218,7 @@ var safeOutputMetaFields = map[string]bool{
 	"max-patch-size":  true,
 	"jobs":            true,
 	"runs-on":         true,
+	"messages":        true,
 }
 
 // GetSafeOutputTypeKeys returns the list of safe output type keys from the embedded main workflow schema.
