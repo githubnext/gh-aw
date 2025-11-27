@@ -43,6 +43,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.AssignToAgent != nil ||
 		safeOutputs.UpdateIssues != nil ||
+		safeOutputs.UpdatePullRequests != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
@@ -356,6 +357,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
 			if updateIssuesConfig != nil {
 				config.UpdateIssues = updateIssuesConfig
+			}
+
+			// Handle update-pull-request
+			updatePullRequestsConfig := c.parseUpdatePullRequestsConfig(outputMap)
+			if updatePullRequestsConfig != nil {
+				config.UpdatePullRequests = updatePullRequestsConfig
 			}
 
 			// Handle push-to-pull-request-branch
@@ -1011,6 +1018,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			updateConfig["max"] = maxValue
 			safeOutputsConfig["update_issue"] = updateConfig
 		}
+		if data.SafeOutputs.UpdatePullRequests != nil {
+			updatePRConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.UpdatePullRequests.Max > 0 {
+				maxValue = data.SafeOutputs.UpdatePullRequests.Max
+			}
+			updatePRConfig["max"] = maxValue
+			safeOutputsConfig["update_pull_request"] = updatePRConfig
+		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
 			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
@@ -1185,6 +1202,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true
+	}
+	if data.SafeOutputs.UpdatePullRequests != nil {
+		enabledTools["update_pull_request"] = true
 	}
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		enabledTools["push_to_pull_request_branch"] = true

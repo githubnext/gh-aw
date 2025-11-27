@@ -16,6 +16,8 @@ engine: copilot
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
+  update-pull-request:
+    title: false
   threat-detection:
     engine: false
 timeout-minutes: 20
@@ -84,6 +86,16 @@ Your task is to:
    - The `branch` parameter is optional - it will automatically detect the current PR branch
    - This tool call is REQUIRED for your changes to be pushed to the pull request
    - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
+
+6. **Append Changeset to PR Description**:
+   - After pushing the changeset file, append a summary to the pull request description
+   - Use the `update_pull_request` tool (append is the default operation):
+     ```javascript
+     update_pull_request({
+       body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
+     })
+     ```
+   - This adds a "Changeset" section at the end of the PR description
 
 ## Guidelines
 

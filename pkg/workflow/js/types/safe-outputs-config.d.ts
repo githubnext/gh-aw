@@ -110,6 +110,15 @@ interface UpdateIssueConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for updating pull requests
+ */
+interface UpdatePullRequestConfig extends SafeOutputConfig {
+  target?: string;
+  title?: boolean;
+  body?: boolean;
+}
+
+/**
  * Configuration for pushing to pull request branches
  */
 interface PushToPullRequestBranchConfig extends SafeOutputConfig {
@@ -213,6 +222,7 @@ type SpecificSafeOutputConfig =
   | AddLabelsConfig
   | AddReviewerConfig
   | UpdateIssueConfig
+  | UpdatePullRequestConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | AssignMilestoneConfig
@@ -240,6 +250,7 @@ export {
   AddLabelsConfig,
   AddReviewerConfig,
   UpdateIssueConfig,
+  UpdatePullRequestConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   AssignMilestoneConfig,

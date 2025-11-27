@@ -3335,6 +3335,47 @@
             }
           ]
         },
+        "update-pull-request": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub pull requests from agentic workflow output. Both title and body updates are enabled by default.",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "description": "Target for updates: 'triggering' (default), '*' (any PR), or explicit PR number"
+                },
+                "title": {
+                  "type": "boolean",
+                  "description": "Allow updating pull request title - defaults to true, set to false to disable"
+                },
+                "body": {
+                  "type": "boolean",
+                  "description": "Allow updating pull request body - defaults to true, set to false to disable"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of pull requests to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request updates. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable pull request updating with default configuration (title and body updates enabled)"
+            }
+          ]
+        },
         "push-to-pull-request-branch": {
           "oneOf": [
             {

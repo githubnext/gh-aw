@@ -39,6 +39,8 @@
 # safe-outputs:
 #   push-to-pull-request-branch:
 #     commit-title-suffix: " [skip-ci]"
+#   update-pull-request:
+#     title: false
 #   threat-detection:
 #     engine: false
 # timeout-minutes: 20
@@ -72,15 +74,19 @@
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   update_pull_request["update_pull_request"]
 #   pre_activation --> activation
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
+#   update_pull_request --> conclusion
 #   push_to_pull_request_branch --> conclusion
 #   agent --> detection
 #   agent --> push_to_pull_request_branch
 #   activation --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
+#   agent --> update_pull_request
+#   detection --> update_pull_request
 # ```
 #
 # Original Prompt:
@@ -283,6 +289,16 @@
 #    - The `branch` parameter is optional - it will automatically detect the current PR branch
 #    - This tool call is REQUIRED for your changes to be pushed to the pull request
 #    - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
+#
+# 6. **Append Changeset to PR Description**:
+#    - After pushing the changeset file, append a summary to the pull request description
+#    - Use the `update_pull_request` tool (append is the default operation):
+#      ```javascript
+#      update_pull_request({
+#        body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
+#      })
+#      ```
+#    - This adds a "Changeset" section at the end of the PR description
 #
 # ## Guidelines
 #
@@ -1346,10 +1362,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0}}
+          {"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_pull_request":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.","inputSchema":{"additionalProperties":false,"properties":{"branch":{"description":"Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.","type":"string"},"message":{"description":"Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).","type":"string"},"pull_request_number":{"description":"Pull request number to push changes to. Required when the workflow target is '*' (any PR).","type":["number","string"]}},"required":["message"],"type":"object"},"name":"push_to_pull_request_branch"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator.","type":"string"},"operation":{"description":"How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced.","enum":["replace","append","prepend"],"type":"string"},"pull_request_number":{"description":"Pull request number to update. Required when the workflow target is '*' (any PR).","type":["number","string"]},"title":{"description":"New pull request title to replace the existing title.","type":"string"}},"type":"object"},"name":"update_pull_request"},{"description":"Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.","inputSchema":{"additionalProperties":false,"properties":{"branch":{"description":"Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.","type":"string"},"message":{"description":"Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).","type":"string"},"pull_request_number":{"description":"Pull request number to push changes to. Required when the workflow target is '*' (any PR).","type":["number","string"]}},"required":["message"],"type":"object"},"name":"push_to_pull_request_branch"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -2395,6 +2411,16 @@ jobs:
              - This tool call is REQUIRED for your changes to be pushed to the pull request
              - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
           
+          6. **Append Changeset to PR Description**:
+             - After pushing the changeset file, append a summary to the pull request description
+             - Use the `update_pull_request` tool (append is the default operation):
+               ```javascript
+               update_pull_request({
+                 body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
+               })
+               ```
+             - This adds a "Changeset" section at the end of the PR description
+          
           ## Guidelines
           
           - **Be Accurate**: Analyze the PR content carefully to determine the correct change type
@@ -2972,6 +2998,8 @@ jobs:
                     return 1;
                   case "update_issue":
                     return 1;
+                  case "update_pull_request":
+                    return 1;
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
@@ -3441,6 +3469,42 @@ jobs:
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "update_pull_request":
+                      const hasValidPRField = item.title !== undefined || item.body !== undefined;
+                      if (!hasValidPRField) {
+                        errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+                        continue;
+                      }
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title, 256);
+                      }
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body, maxBodyLength);
+                      }
+                      if (item.operation !== undefined) {
+                        if (!["replace", "append", "prepend"].includes(item.operation)) {
+                          errors.push(`Line ${i + 1}: update_pull_request 'operation' must be one of: 'replace', 'append', 'prepend'`);
+                          continue;
+                        }
+                      }
+                      const updatePRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "update_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!updatePRNumValidation.isValid) {
+                        if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
                         continue;
                       }
                       break;
@@ -5427,6 +5491,7 @@ jobs:
     needs:
       - agent
       - activation
+      - update_pull_request
       - push_to_pull_request_branch
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -6789,4 +6854,300 @@ jobs:
               await core.summary.addRaw(summaryContent).write();
             }
             await main();
+
+  update_pull_request:
+    needs:
+      - agent
+      - detection
+    if: >
+      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_pull_request'))) &&
+      (github.event.pull_request.number)) && (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      pull_request_number: ${{ steps.update_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.update_pull_request.outputs.pull_request_url }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94 # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-pull-requests: write
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update Pull Request
+        id: update_pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_UPDATE_TITLE: false
+          GH_AW_UPDATE_BODY: true
+          GH_AW_WORKFLOW_NAME: "Changeset Generator"
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const updateItems = result.items.filter( item => item.type === "update_pull_request");
+              if (updateItems.length === 0) {
+                core.info("No update-pull-request items found in agent output");
+                return;
+              }
+              core.info(`Found ${updateItems.length} update-pull-request item(s)`);
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Update Pull Requests",
+                  description: "The following pull request updates would be applied if staged mode was disabled:",
+                  items: updateItems,
+                  renderItem: (item, index) => {
+                    let content = `### Pull Request Update ${index + 1}\n`;
+                    if (item.pull_request_number) {
+                      content += `**Target PR:** #${item.pull_request_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current pull request\n\n`;
+                    }
+                    if (item.title !== undefined) {
+                      content += `**New Title:** ${item.title}\n\n`;
+                    }
+                    if (item.body !== undefined) {
+                      const operation = item.operation || "append";
+                      content += `**Operation:** ${operation}\n`;
+                      content += `**Body Content:**\n${item.body}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
+              const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
+              const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+              core.info(`Update target configuration: ${updateTarget}`);
+              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment" ||
+                context.eventName === "pull_request_target";
+              const isIssueCommentOnPR = context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request;
+              const hasPRContext = isPRContext || isIssueCommentOnPR;
+              if (updateTarget === "triggering" && !hasPRContext) {
+                core.info('Target is "triggering" but not running in pull request context, skipping pull request update');
+                return;
+              }
+              const updatedPRs = [];
+              for (let i = 0; i < updateItems.length; i++) {
+                const updateItem = updateItems[i];
+                core.info(`Processing update-pull-request item ${i + 1}/${updateItems.length}`);
+                let prNumber;
+                if (updateTarget === "*") {
+                  if (updateItem.pull_request_number) {
+                    prNumber = parseInt(updateItem.pull_request_number, 10);
+                    if (isNaN(prNumber) || prNumber <= 0) {
+                      core.info(`Invalid PR number specified: ${updateItem.pull_request_number}`);
+                      continue;
+                    }
+                  } else {
+                    core.info('Target is "*" but no pull_request_number specified in update item');
+                    continue;
+                  }
+                } else if (updateTarget && updateTarget !== "triggering") {
+                  prNumber = parseInt(updateTarget, 10);
+                  if (isNaN(prNumber) || prNumber <= 0) {
+                    core.info(`Invalid PR number in target configuration: ${updateTarget}`);
+                    continue;
+                  }
+                } else {
+                  if (context.payload.pull_request) {
+                    prNumber = context.payload.pull_request.number;
+                  } else if (context.payload.issue && context.payload.issue.pull_request) {
+                    prNumber = context.payload.issue.number;
+                  } else {
+                    core.info("Could not determine pull request number");
+                    continue;
+                  }
+                }
+                if (!prNumber) {
+                  core.info("Could not determine pull request number");
+                  continue;
+                }
+                core.info(`Updating pull request #${prNumber}`);
+                const operation = updateItem.operation || "append";
+                core.info(`Body operation: ${operation}`);
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+                const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+                const updateData = {};
+                let hasUpdates = false;
+                if (canUpdateTitle && updateItem.title !== undefined) {
+                  const trimmedTitle = typeof updateItem.title === "string" ? updateItem.title.trim() : "";
+                  if (trimmedTitle.length > 0) {
+                    updateData.title = trimmedTitle;
+                    hasUpdates = true;
+                    core.info(`Will update title to: ${trimmedTitle}`);
+                  } else {
+                    core.info("Invalid title value: must be a non-empty string");
+                  }
+                }
+                if (canUpdateBody && updateItem.body !== undefined) {
+                  if (typeof updateItem.body === "string") {
+                    if (operation === "append" || operation === "prepend") {
+                      try {
+                        const { data: currentPR } = await github.rest.pulls.get({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          pull_number: prNumber,
+                        });
+                        const currentBody = currentPR.body || "";
+                        const aiFooter = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+                        if (operation === "prepend") {
+                          const prependSection = `${updateItem.body}${aiFooter}\n\n---\n\n`;
+                          updateData.body = prependSection + currentBody;
+                          core.info("Operation: prepend (add to start with separator)");
+                        } else {
+                          const appendSection = `\n\n---\n\n${updateItem.body}${aiFooter}`;
+                          updateData.body = currentBody + appendSection;
+                          core.info("Operation: append (add to end with separator)");
+                        }
+                      } catch (error) {
+                        core.error(`Failed to fetch current PR for ${operation} operation: ${error instanceof Error ? error.message : String(error)}`);
+                        throw error;
+                      }
+                    } else {
+                      updateData.body = updateItem.body;
+                      core.info("Operation: replace (full body replacement)");
+                    }
+                    hasUpdates = true;
+                    core.info(`Will update body (length: ${updateData.body.length})`);
+                  } else {
+                    core.info("Invalid body value: must be a string");
+                  }
+                }
+                if (!hasUpdates) {
+                  core.info("No valid updates to apply for this item");
+                  continue;
+                }
+                try {
+                  const { data: pr } = await github.rest.pulls.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    ...updateData,
+                  });
+                  core.info("Updated pull request #" + pr.number + ": " + pr.html_url);
+                  updatedPRs.push(pr);
+                  if (i === updateItems.length - 1) {
+                    core.setOutput("pull_request_number", pr.number);
+                    core.setOutput("pull_request_url", pr.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to update pull request #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (updatedPRs.length > 0) {
+                let summaryContent = "\n\n## Updated Pull Requests\n";
+                for (const pr of updatedPRs) {
+                  summaryContent += `- PR #${pr.number}: [${pr.title}](${pr.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully updated ${updatedPRs.length} pull request(s)`);
+              return updatedPRs;
+            }
+            await main();
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 

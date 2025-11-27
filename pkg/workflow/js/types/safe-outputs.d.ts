@@ -174,6 +174,21 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating a pull request
+ */
+interface UpdatePullRequestItem extends BaseSafeOutputItem {
+  type: "update_pull_request";
+  /** Optional new pull request title (always replaces existing title) */
+  title?: string;
+  /** Optional new pull request body (behavior depends on operation) */
+  body?: string;
+  /** Update operation for body: 'replace' (default), 'append', or 'prepend' */
+  operation?: "replace" | "append" | "prepend";
+  /** Optional pull request number for target "*" */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
@@ -266,6 +281,7 @@ type SafeOutputItem =
   | AddLabelsItem
   | AddReviewerItem
   | UpdateIssueItem
+  | UpdatePullRequestItem
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem
@@ -297,6 +313,7 @@ export {
   AddLabelsItem,
   AddReviewerItem,
   UpdateIssueItem,
+  UpdatePullRequestItem,
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,

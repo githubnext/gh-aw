@@ -283,6 +283,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"assign_milestone",
 		"assign_to_agent",
 		"update_issue",
+		"update_pull_request",
 		"push_to_pull_request_branch",
 		"upload_asset",
 		"update_release",

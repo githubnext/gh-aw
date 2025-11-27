@@ -33,6 +33,7 @@
         {"$ref": "#/$defs/AddLabelsOutput"},
         {"$ref": "#/$defs/AddReviewerOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
+        {"$ref": "#/$defs/UpdatePullRequestOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
@@ -201,6 +202,38 @@
             {"type": "string"}
           ],
           "description": "Issue number to update (for target '*')"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "UpdatePullRequestOutput": {
+      "title": "Update Pull Request Output",
+      "description": "Output for updating an existing pull request's title and/or body. Supports replace, append, or prepend operations for body updates. Note: The JavaScript validation ensures at least one of title or body is provided.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update_pull_request"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title for the pull request (always replaces existing title)"
+        },
+        "body": {
+          "type": "string",
+          "description": "Body content for the pull request (behavior depends on operation field)"
+        },
+        "operation": {
+          "type": "string",
+          "description": "Update operation for body: 'replace' (default), 'append', or 'prepend'",
+          "enum": ["replace", "append", "prepend"]
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number to update (for target '*')"
         }
       },
       "required": ["type"],
