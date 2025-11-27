@@ -45,7 +45,7 @@ timeout-minutes: 10
 
 # Smoke Test: Claude Engine Validation
 
-This smoke test validates Claude engine functionality by testing core capabilities:
+**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
 ## Test Requirements
 
@@ -56,11 +56,9 @@ This smoke test validates Claude engine functionality by testing core capabiliti
 
 ## Output
 
-Add a comment to the current pull request with:
-- Summary of the 2 merged PRs
-- File writing test result (success/failure)
-- Bash tool test result (file content verification)
-- Playwright test result (page title verification)
-- Overall smoke test status for **Claude engine**
+Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+- PR titles only (no descriptions)
+- ✅ or ❌ for each test result
+- Overall status: PASS or FAIL
 
-If all tests pass successfully, add the label `smoke-claude` to the pull request.
+If all tests pass, add the label `smoke-claude` to the pull request.

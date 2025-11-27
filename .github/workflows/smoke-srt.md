@@ -107,10 +107,12 @@ timeout-minutes: 5
 strict: true
 ---
 
-You are testing the Sandbox Runtime (SRT) integration. Perform the following tasks:
+**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
+
+Test the Sandbox Runtime (SRT) integration:
 
 1. Run `echo "Hello from SRT!"` using bash
 2. Check the current directory with `pwd`
 3. List files in the current directory with `ls -la`
 
-Report the results in a friendly summary. This is just a smoke test to validate that SRT is working correctly.
+Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.
