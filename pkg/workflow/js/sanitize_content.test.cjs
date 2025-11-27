@@ -484,42 +484,35 @@ describe("sanitize_content.cjs", () => {
       sanitizeContent("Visit https://evil.com/malware");
       const domains = getRedactedDomains();
       expect(domains.length).toBe(1);
-      expect(domains[0].domain).toBe("evil.com");
+      expect(domains[0]).toBe("evil.com");
     });
 
     it("should collect redacted HTTP domains", () => {
       sanitizeContent("Visit http://example.com");
       const domains = getRedactedDomains();
       expect(domains.length).toBe(1);
-      expect(domains[0].domain).toBe("example.com");
+      expect(domains[0]).toBe("example.com");
     });
 
     it("should collect redacted dangerous protocols", () => {
       sanitizeContent("Click javascript:alert(1)");
       const domains = getRedactedDomains();
       expect(domains.length).toBe(1);
-      expect(domains[0].domain).toBe("javascript:");
+      expect(domains[0]).toBe("javascript:");
     });
 
     it("should collect multiple redacted domains", () => {
       sanitizeContent("Visit https://bad1.com and http://bad2.com");
       const domains = getRedactedDomains();
       expect(domains.length).toBe(2);
-      expect(domains.map(d => d.domain)).toContain("bad1.com");
-      expect(domains.map(d => d.domain)).toContain("bad2.com");
+      expect(domains).toContain("bad1.com");
+      expect(domains).toContain("bad2.com");
     });
 
     it("should not collect allowed domains", () => {
       sanitizeContent("Visit https://github.com/repo");
       const domains = getRedactedDomains();
       expect(domains.length).toBe(0);
-    });
-
-    it("should include timestamp in collected domains", () => {
-      sanitizeContent("Visit https://evil.com");
-      const domains = getRedactedDomains();
-      expect(domains[0].timestamp).toBeDefined();
-      expect(new Date(domains[0].timestamp).toString()).not.toBe("Invalid Date");
     });
 
     it("should clear collected domains", () => {

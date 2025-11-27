@@ -7,14 +7,13 @@
 
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
- * Each entry contains: { domain: string, timestamp: string }
- * @type {Array<{domain: string, timestamp: string}>}
+ * @type {string[]}
  */
 const redactedDomains = [];
 
 /**
  * Gets the list of redacted URL domains collected during sanitization.
- * @returns {Array<{domain: string, timestamp: string}>} Array of redacted domain entries
+ * @returns {string[]} Array of redacted domain strings
  */
 function getRedactedDomains() {
   return [...redactedDomains];
@@ -49,9 +48,8 @@ function writeRedactedDomainsLog(filePath) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // Write domains to file, one per line with timestamp
-  const lines = redactedDomains.map(entry => `${entry.timestamp} ${entry.domain}`);
-  fs.writeFileSync(targetPath, lines.join("\n") + "\n");
+  // Write domains to file, one per line
+  fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
 
   return targetPath;
 }
@@ -232,7 +230,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
       const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
       core.info(`Redacted URL: ${truncated}`);
       core.debug(`Redacted URL (full): ${match}`);
-      redactedDomains.push({ domain, timestamp: new Date().toISOString() });
+      redactedDomains.push(domain);
 
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
       // and preserve those while redacting the main URL
@@ -286,7 +284,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
         const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
         core.info(`Redacted URL: ${truncated}`);
         core.debug(`Redacted URL (full): ${match}`);
-        redactedDomains.push({ domain, timestamp: new Date().toISOString() });
+        redactedDomains.push(domain);
         return "(redacted)";
       }
 
@@ -298,7 +296,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
         const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
         core.info(`Redacted URL: ${truncated}`);
         core.debug(`Redacted URL (full): ${match}`);
-        redactedDomains.push({ domain: protocol + ":", timestamp: new Date().toISOString() });
+        redactedDomains.push(protocol + ":");
         return "(redacted)";
       }
 
