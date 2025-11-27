@@ -652,6 +652,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 	case "http":
 		if url, hasURL := mcpConfig["url"]; hasURL {
 			if urlStr, ok := url.(string); ok {
+				mcpLog.Printf("Tool %s uses HTTP transport with URL: %s", toolName, urlStr)
 				config.URL = urlStr
 			} else {
 				return config, fmt.Errorf(
