@@ -85,7 +85,7 @@
 #
 # ### Step 1: Fetch Recent Issues
 #
-# Use the GitHub MCP tools to fetch the last 20 issues from the repository. For each issue, collect:
+# Use the GitHub MCP tools to search for the last 20 issues from the repository using the search filter `no:parent-issue` to exclude issues that are already sub-issues. For each issue, collect:
 # - Issue number
 # - Title
 # - Body/description
@@ -1237,7 +1237,7 @@ jobs:
           
           ### Step 1: Fetch Recent Issues
           
-          Use the GitHub MCP tools to fetch the last 20 issues from the repository. For each issue, collect:
+          Use the GitHub MCP tools to search for the last 20 issues from the repository using the search filter `no:parent-issue` to exclude issues that are already sub-issues. For each issue, collect:
           - Issue number
           - Title
           - Body/description
