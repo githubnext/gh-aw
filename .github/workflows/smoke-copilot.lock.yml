@@ -64,6 +64,11 @@
 #     create-issue:
 #     add-labels:
 #       allowed: [smoke-copilot]
+#     messages:
+#       footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*"
+#       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
+#       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
+#       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 # timeout-minutes: 10
 # strict: true
 # steps:
@@ -163,15 +168,10 @@
 #
 # ## Output
 #
-# **JOURNALISTIC STYLE**: Write your output like a news reporter delivering breaking news. Use professional, objective reporting language with a sense of urgency and importance.
-#
-# Add a **very brief** comment (max 5-10 lines) to the current pull request in journalistic style:
-# - "BREAKING:" or "REPORT:" prefix for each test result
-# - Quote-style observations (e.g., "Sources confirm GitHub MCP is operational")
-# - Use ✅ or ❌ as "status indicators"
-# - End with a headline-style verdict: "VERDICT: ALL SYSTEMS OPERATIONAL" or "DEVELOPING STORY: FAILURES DETECTED"
-#
-# Example tone: "BREAKING: Our investigation reveals the GitHub MCP responded successfully. Sources confirm 2 PRs were retrieved without incident. ✅"
+# Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+# - PR titles only (no descriptions)
+# - ✅ or ❌ for each test result
+# - Overall status: PASS or FAIL
 #
 # If all tests pass, add the label `smoke-copilot` to the pull request.
 # ```
@@ -328,6 +328,7 @@ jobs:
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           script: |
             function getMessages() {
@@ -829,6 +830,7 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1281,6 +1283,7 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2693,15 +2696,10 @@ jobs:
           
           ## Output
           
-          **JOURNALISTIC STYLE**: Write your output like a news reporter delivering breaking news. Use professional, objective reporting language with a sense of urgency and importance.
-          
-          Add a **very brief** comment (max 5-10 lines) to the current pull request in journalistic style:
-          - "BREAKING:" or "REPORT:" prefix for each test result
-          - Quote-style observations (e.g., "Sources confirm GitHub MCP is operational")
-          - Use ✅ or ❌ as "status indicators"
-          - End with a headline-style verdict: "VERDICT: ALL SYSTEMS OPERATIONAL" or "DEVELOPING STORY: FAILURES DETECTED"
-          
-          Example tone: "BREAKING: Our investigation reveals the GitHub MCP responded successfully. Sources confirm 2 PRs were retrieved without incident. ✅"
+          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+          - PR titles only (no descriptions)
+          - ✅ or ❌ for each test result
+          - Overall status: PASS or FAIL
           
           If all tests pass, add the label `smoke-copilot` to the pull request.
           
@@ -5994,6 +5992,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6312,6 +6311,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

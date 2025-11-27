@@ -103,6 +103,12 @@ sandbox:
 tools:
   bash:
   github:
+safe-outputs:
+  messages:
+    footer: "> ⚓ *Logged in the captain's journal by [{workflow_name}]({run_url})*"
+    run-started: "⚓ Ahoy! [{workflow_name}]({run_url}) sets sail on this {event_type}! All hands on deck, me hearties! 🏴‍☠️"
+    run-success: "🏴‍☠️ Yo ho ho! [{workflow_name}]({run_url}) has claimed the treasure! The voyage be a SUCCESS! ⚓"
+    run-failure: "🏴‍☠️ Blimey! [{workflow_name}]({run_url}) {status}! We've hit rough waters, mateys..."
 timeout-minutes: 5
 strict: true
 ---
@@ -115,14 +121,4 @@ Test the Sandbox Runtime (SRT) integration:
 2. Check the current directory with `pwd`
 3. List files in the current directory with `ls -la`
 
-## Output
-
-**PIRATE STYLE**: Write your output like a swashbuckling sea captain reporting to the crew. Use nautical terms and pirate speak.
-
-Output a **very brief** summary (max 3-5 lines) in pirate style:
-- Use pirate exclamations: "Ahoy!", "Arrr!", "Shiver me timbers!"
-- Nautical metaphors: "The ship be sailin' smooth!", "All hands on deck!"
-- Use ✅ or ❌ as "treasure marks"
-- End with a captain's verdict: "Yo ho ho! The voyage be a SUCCESS!" or "Blimey! We've hit rough waters!"
-
-Example tone: "Arrr! ✅ The echo command bellowed across the seven seas! The SRT treasure be secured, me hearties!"
+Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.

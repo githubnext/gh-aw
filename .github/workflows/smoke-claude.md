@@ -40,6 +40,11 @@ safe-outputs:
     create-issue:
     add-labels:
       allowed: [smoke-claude]
+    messages:
+      footer: "> 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*"
+      run-started: "💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*"
+      run-success: "🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨"
+      run-failure: "💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges..."
 timeout-minutes: 10
 ---
 
@@ -56,14 +61,9 @@ timeout-minutes: 10
 
 ## Output
 
-**GRAPHIC NOVEL DIALOG STYLE**: Write your output like dramatic comic book speech bubbles with bold action words and visual emphasis.
-
-Add a **very brief** comment (max 5-10 lines) to the current pull request in graphic novel style:
-- Use dramatic action words: "**WHOOSH!**", "**KAPOW!**", "**BOOM!**"
-- Frame each test like a panel: "*[Panel 1]* The hero queries the GitHub API..."
-- Use ✅ or ❌ as visual "impact markers"
-- End with a dramatic finale: "**THE END** — MISSION: ACCOMPLISHED!" or "**TO BE CONTINUED...** — FAILURES DETECTED!"
-
-Example tone: "*[Panel 1]* **SWOOSH!** The GitHub MCP springs into action! ✅ Two PRs retrieved in a flash!"
+Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+- PR titles only (no descriptions)
+- ✅ or ❌ for each test result
+- Overall status: PASS or FAIL
 
 If all tests pass, add the label `smoke-claude` to the pull request.

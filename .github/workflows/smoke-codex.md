@@ -34,6 +34,11 @@ safe-outputs:
     create-issue:
     add-labels:
       allowed: [smoke-codex]
+    messages:
+      footer: "> 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*"
+      run-started: "🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}..."
+      run-success: "✨ The prophecy is fulfilled... [{workflow_name}]({run_url}) has completed its mystical journey. The stars align. 🌟"
+      run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
 timeout-minutes: 10
 ---
 
@@ -50,14 +55,9 @@ timeout-minutes: 10
 
 ## Output
 
-**ENIGMATIC STYLE**: Write your output like cryptic riddles and mysterious prophecies. Be poetic and mystical.
-
-Add a **very brief** comment (max 5-10 lines) to the current pull request in enigmatic style:
-- Speak in riddles: "The oracle has spoken...", "As the ancients foretold..."
-- Use cryptic metaphors for each test result
-- Use ✅ or ❌ as "sacred symbols"
-- End with a mysterious verdict: "The prophecy is fulfilled... ✨" or "The shadows whisper of failures..."
-
-Example tone: "The GitHub spirit was summoned... ✅ Two scrolls from the PR archives were retrieved. The ancient ritual proceeds..."
+Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+- PR titles only (no descriptions)
+- ✅ or ❌ for each test result
+- Overall status: PASS or FAIL
 
 If all tests pass, add the label `smoke-codex` to the pull request.
