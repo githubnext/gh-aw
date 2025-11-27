@@ -1,6 +1,17 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * Shared update runner for safe-output scripts (update_issue, update_pull_request, etc.)
+ *
+ * This module depends on GitHub Actions environment globals provided by actions/github-script:
+ * - core: @actions/core module for logging and outputs
+ * - github: @octokit/rest instance for GitHub API calls
+ * - context: GitHub Actions context with event payload and repository info
+ *
+ * @module update_runner
+ */
+
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
