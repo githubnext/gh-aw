@@ -2423,7 +2423,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               network_mode: "defaults",
               allowed_domains: ["defaults","node","github","playwright"],
               firewall_enabled: true,
@@ -2713,42 +2713,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: "",
-              version: "",
-              agent_version: "0.0.365",
-              workflow_name: "Smoke Copilot",
-              experimental: false,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              steps: {
-                firewall: "squid"
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
