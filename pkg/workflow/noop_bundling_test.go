@@ -21,9 +21,14 @@ func TestNoOpScriptBundling(t *testing.T) {
 		t.Errorf("noop script does not contain loadAgentOutput function - bundling may have failed")
 	}
 
-	// Check that the main noop logic is present
-	if !strings.Contains(script, "No noop items found") {
-		t.Errorf("noop script does not contain expected noop logic")
+	// Check that the main noop logic is present (from the inlined safe_output_runner module)
+	if !strings.Contains(script, "itemTypePlural") {
+		t.Errorf("noop script does not contain expected noop logic (missing itemTypePlural from inlined runner)")
+	}
+
+	// Check noop-specific function is present
+	if !strings.Contains(script, "processNoopItems") {
+		t.Errorf("noop script does not contain processNoopItems function")
 	}
 
 	// Verify staged mode logic is present

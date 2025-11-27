@@ -1,48 +1,25 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 
 /**
- * Main function to handle noop safe output
- * No-op is a fallback output type that logs messages for transparency
- * without taking any GitHub API actions
+ * Render function for staged preview
+ * @param {any} item - The noop item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
  */
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+function renderNoopPreview(item, index) {
+  let content = `### Message ${index + 1}\n`;
+  content += `${item.message}\n\n`;
+  return content;
+}
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all noop items
-  const noopItems = result.items.filter(/** @param {any} item */ item => item.type === "noop");
-  if (noopItems.length === 0) {
-    core.info("No noop items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${noopItems.length} noop item(s)`);
-
-  // If in staged mode, emit step summary instead of logging
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-    summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < noopItems.length; i++) {
-      const item = noopItems[i];
-      summaryContent += `### Message ${i + 1}\n`;
-      summaryContent += `${item.message}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 No-op message preview written to step summary");
-    return;
-  }
-
+/**
+ * Process noop items - just log the messages for transparency
+ * @param {any[]} noopItems - The noop items to process
+ */
+async function processNoopItems(noopItems) {
   // Process each noop item - just log the messages for transparency
   let summaryContent = "\n\n## No-Op Messages\n\n";
   summaryContent += "The following messages were logged for transparency:\n\n";
@@ -63,6 +40,22 @@ async function main() {
   }
 
   core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+}
+
+/**
+ * Main function to handle noop safe output
+ * No-op is a fallback output type that logs messages for transparency
+ * without taking any GitHub API actions
+ */
+async function main() {
+  await runSafeOutput({
+    itemType: "noop",
+    itemTypePlural: "noop",
+    stagedTitle: "No-Op Messages",
+    stagedDescription: "The following messages would be logged if staged mode was disabled:",
+    renderStagedItem: renderNoopPreview,
+    processItems: processNoopItems,
+  });
 }
 
 await main();

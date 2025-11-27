@@ -128,7 +128,7 @@ describe("noop", () => {
     await eval(`(async () => { ${noopScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)");
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("📝 No-op message preview written to step summary"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("📝 No-Op Messages preview written to step summary"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Test message in staged mode"));
     expect(mockCore.setOutput).not.toHaveBeenCalled();

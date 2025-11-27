@@ -102,7 +102,7 @@ describe("add_reviewer", () => {
 
     await import("./add_reviewer.cjs");
 
-    expect(mockCore.warning).toHaveBeenCalledWith("No add-reviewer item found in agent output");
+    expect(mockCore.warning).toHaveBeenCalledWith("No add-reviewer items found in agent output");
   });
 
   it("should add reviewers to PR in non-staged mode", async () => {

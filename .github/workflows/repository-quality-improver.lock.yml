@@ -5212,31 +5212,72 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function runSafeOutput(options) {
+              const { itemType, itemTypePlural, warnIfNotFound = false, stagedTitle, stagedDescription, renderStagedItem, processItems } = options;
               const result = loadAgentOutput();
               if (!result.success) {
-                return;
+                return { handled: true };
               }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
+              const items = result.items.filter( item => item.type === itemType);
+              if (items.length === 0) {
+                const message = `No ${itemTypePlural} items found in agent output`;
+                if (warnIfNotFound) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
                 }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
+                return { handled: true };
               }
+              core.info(`Found ${items.length} ${itemTypePlural} item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                if (stagedTitle && stagedDescription && renderStagedItem) {
+                  await generateStagedPreview({
+                    title: stagedTitle,
+                    description: stagedDescription,
+                    items: items,
+                    renderItem: renderStagedItem,
+                  });
+                }
+                return { handled: true };
+              }
+              const processResult = await processItems(items);
+              return { handled: false, result: processResult };
+            }
+            async function runSingleItemSafeOutput(options) {
+              const { processSingleItem, ...restOptions } = options;
+              return runSafeOutput({
+                ...restOptions,
+                warnIfNotFound: options.warnIfNotFound !== undefined ? options.warnIfNotFound : true,
+                processItems: async items => {
+                  const item = items[0];
+                  core.info(`Processing ${options.itemTypePlural} item`);
+                  return processSingleItem(item);
+                },
+              });
+            }
+            function renderNoopPreview(item, index) {
+              let content = `### Message ${index + 1}\n`;
+              content += `${item.message}\n\n`;
+              return content;
+            }
+            async function processNoopItems(noopItems) {
               let summaryContent = "\n\n## No-Op Messages\n\n";
               summaryContent += "The following messages were logged for transparency:\n\n";
               for (let i = 0; i < noopItems.length; i++) {
@@ -5250,6 +5291,16 @@ jobs:
                 core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
               }
               core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+            }
+            async function main() {
+              await runSafeOutput({
+                itemType: "noop",
+                itemTypePlural: "noop",
+                stagedTitle: "No-Op Messages",
+                stagedDescription: "The following messages would be logged if staged mode was disabled:",
+                renderStagedItem: renderNoopPreview,
+                processItems: processNoopItems,
+              });
             }
             await main();
       - name: Record Missing Tool

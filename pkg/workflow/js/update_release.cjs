@@ -1,44 +1,27 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+/**
+ * Render function for staged preview
+ * @param {any} item - The update_release item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
+ */
+function renderUpdateReleasePreview(item, index) {
+  let content = `### Release Update ${index + 1}\n`;
+  content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
+  content += `**Operation:** ${item.operation}\n\n`;
+  content += `**Body Content:**\n${item.body}\n\n`;
+  return content;
+}
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all update-release items
-  const updateItems = result.items.filter(/** @param {any} item */ item => item.type === "update_release");
-  if (updateItems.length === 0) {
-    core.info("No update-release items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${updateItems.length} update-release item(s)`);
-
-  // If in staged mode, emit step summary instead of updating releases
-  if (isStaged) {
-    await generateStagedPreview({
-      title: "Update Releases",
-      description: "The following release updates would be applied if staged mode was disabled:",
-      items: updateItems,
-      renderItem: (item, index) => {
-        let content = `### Release Update ${index + 1}\n`;
-        content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
-        content += `**Operation:** ${item.operation}\n\n`;
-        content += `**Body Content:**\n${item.body}\n\n`;
-        return content;
-      },
-    });
-    return;
-  }
-
+/**
+ * Process update_release items
+ * @param {any[]} updateItems - The update_release items to process
+ */
+async function processUpdateReleaseItems(updateItems) {
   // Get workflow run URL for AI attribution
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
@@ -165,6 +148,17 @@ async function main() {
   }
 
   await core.summary.addRaw(summaryContent).write();
+}
+
+async function main() {
+  await runSafeOutput({
+    itemType: "update_release",
+    itemTypePlural: "update-release",
+    stagedTitle: "Update Releases",
+    stagedDescription: "The following release updates would be applied if staged mode was disabled:",
+    renderStagedItem: renderUpdateReleasePreview,
+    processItems: processUpdateReleaseItems,
+  });
 }
 
 // Call the main function

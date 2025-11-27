@@ -1,44 +1,33 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSingleItemSafeOutput } = require("./safe_output_runner.cjs");
 const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
 const { getSafeOutputConfig, validateLabels, validateMaxCount } = require("./safe_output_validator.cjs");
 
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
+/**
+ * Render function for staged preview
+ * @param {any} item - The add_labels item
+ * @returns {string} Markdown content for the preview
+ */
+function renderLabelsPreview(item) {
+  let content = "";
+  if (item.item_number) {
+    content += `**Target Issue:** #${item.item_number}\n\n`;
+  } else {
+    content += `**Target:** Current issue/PR\n\n`;
   }
+  if (item.labels && item.labels.length > 0) {
+    content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+  }
+  return content;
+}
 
-  const labelsItem = result.items.find(item => item.type === "add_labels");
-  if (!labelsItem) {
-    core.warning("No add-labels item found in agent output");
-    return;
-  }
-  core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
-      title: "Add Labels",
-      description: "The following labels would be added if staged mode was disabled:",
-      items: [labelsItem],
-      renderItem: item => {
-        let content = "";
-        if (item.item_number) {
-          content += `**Target Issue:** #${item.item_number}\n\n`;
-        } else {
-          content += `**Target:** Current issue/PR\n\n`;
-        }
-        if (item.labels && item.labels.length > 0) {
-          content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
-        }
-        return content;
-      },
-    });
-    return;
-  }
-
+/**
+ * Process a single add_labels item
+ * @param {any} labelsItem - The add_labels item to process
+ */
+async function processAddLabels(labelsItem) {
   // Get configuration from config.json
   const config = getSafeOutputConfig("add_labels");
 
@@ -152,4 +141,16 @@ ${labelsListMarkdown}
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }
+
+async function main() {
+  await runSingleItemSafeOutput({
+    itemType: "add_labels",
+    itemTypePlural: "add-labels",
+    stagedTitle: "Add Labels",
+    stagedDescription: "The following labels would be added if staged mode was disabled:",
+    renderStagedItem: renderLabelsPreview,
+    processSingleItem: processAddLabels,
+  });
+}
+
 await main();

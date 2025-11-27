@@ -1,38 +1,24 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
+/**
+ * Render function for staged preview
+ * @param {any} item - The assign_milestone item
+ * @returns {string} Markdown content for the preview
+ */
+function renderMilestonePreview(item) {
+  let content = `**Issue:** #${item.issue_number}\n`;
+  content += `**Milestone Number:** ${item.milestone_number}\n\n`;
+  return content;
+}
 
-  const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
-  if (milestoneItems.length === 0) {
-    core.info("No assign_milestone items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
-
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
-      title: "Assign Milestone",
-      description: "The following milestone assignments would be made if staged mode was disabled:",
-      items: milestoneItems,
-      renderItem: item => {
-        let content = `**Issue:** #${item.issue_number}\n`;
-        content += `**Milestone Number:** ${item.milestone_number}\n\n`;
-        return content;
-      },
-    });
-    return;
-  }
-
+/**
+ * Process assign_milestone items
+ * @param {any[]} milestoneItems - The assign_milestone items to process
+ */
+async function processMilestoneItems(milestoneItems) {
   // Get allowed milestones configuration
   const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
   const allowedMilestones = allowedMilestonesEnv
@@ -178,6 +164,17 @@ async function main() {
   if (failureCount > 0) {
     core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
   }
+}
+
+async function main() {
+  await runSafeOutput({
+    itemType: "assign_milestone",
+    itemTypePlural: "assign_milestone",
+    stagedTitle: "Assign Milestone",
+    stagedDescription: "The following milestone assignments would be made if staged mode was disabled:",
+    renderStagedItem: renderMilestonePreview,
+    processItems: processMilestoneItems,
+  });
 }
 
 await main();

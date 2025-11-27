@@ -1,56 +1,39 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
+/**
+ * Render function for staged preview
+ * @param {any} item - The update_issue item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
+ */
+function renderUpdateIssuePreview(item, index) {
+  let content = `### Issue Update ${index + 1}\n`;
+  if (item.issue_number) {
+    content += `**Target Issue:** #${item.issue_number}\n\n`;
+  } else {
+    content += `**Target:** Current issue\n\n`;
   }
 
-  // Find all update-issue items
-  const updateItems = result.items.filter(/** @param {any} item */ item => item.type === "update_issue");
-  if (updateItems.length === 0) {
-    core.info("No update-issue items found in agent output");
-    return;
+  if (item.title !== undefined) {
+    content += `**New Title:** ${item.title}\n\n`;
   }
-
-  core.info(`Found ${updateItems.length} update-issue item(s)`);
-
-  // If in staged mode, emit step summary instead of updating issues
-  if (isStaged) {
-    await generateStagedPreview({
-      title: "Update Issues",
-      description: "The following issue updates would be applied if staged mode was disabled:",
-      items: updateItems,
-      renderItem: (item, index) => {
-        let content = `### Issue Update ${index + 1}\n`;
-        if (item.issue_number) {
-          content += `**Target Issue:** #${item.issue_number}\n\n`;
-        } else {
-          content += `**Target:** Current issue\n\n`;
-        }
-
-        if (item.title !== undefined) {
-          content += `**New Title:** ${item.title}\n\n`;
-        }
-        if (item.body !== undefined) {
-          content += `**New Body:**\n${item.body}\n\n`;
-        }
-        if (item.status !== undefined) {
-          content += `**New Status:** ${item.status}\n\n`;
-        }
-        return content;
-      },
-    });
-    return;
+  if (item.body !== undefined) {
+    content += `**New Body:**\n${item.body}\n\n`;
   }
+  if (item.status !== undefined) {
+    content += `**New Status:** ${item.status}\n\n`;
+  }
+  return content;
+}
 
+/**
+ * Process update_issue items
+ * @param {any[]} updateItems - The update_issue items to process
+ */
+async function processUpdateIssueItems(updateItems) {
   // Get the configuration from environment variables
   const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
   const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
@@ -196,4 +179,16 @@ async function main() {
   core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
   return updatedIssues;
 }
+
+async function main() {
+  await runSafeOutput({
+    itemType: "update_issue",
+    itemTypePlural: "update-issue",
+    stagedTitle: "Update Issues",
+    stagedDescription: "The following issue updates would be applied if staged mode was disabled:",
+    renderStagedItem: renderUpdateIssuePreview,
+    processItems: processUpdateIssueItems,
+  });
+}
+
 await main();

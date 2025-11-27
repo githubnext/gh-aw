@@ -1,48 +1,36 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSingleItemSafeOutput } = require("./safe_output_runner.cjs");
 const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
 const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validator.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
+/**
+ * Render function for staged preview
+ * @param {any} item - The add_reviewer item
+ * @returns {string} Markdown content for the preview
+ */
+function renderReviewerPreview(item) {
+  let content = "";
+  if (item.pull_request_number) {
+    content += `**Target Pull Request:** #${item.pull_request_number}\n\n`;
+  } else {
+    content += `**Target:** Current pull request\n\n`;
   }
-
-  const reviewerItem = result.items.find(item => item.type === "add_reviewer");
-  if (!reviewerItem) {
-    core.warning("No add-reviewer item found in agent output");
-    return;
+  if (item.reviewers && item.reviewers.length > 0) {
+    content += `**Reviewers to add:** ${item.reviewers.join(", ")}\n\n`;
   }
-  core.info(`Found add-reviewer item with ${reviewerItem.reviewers.length} reviewers`);
+  return content;
+}
 
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
-      title: "Add Reviewers",
-      description: "The following reviewers would be added if staged mode was disabled:",
-      items: [reviewerItem],
-      renderItem: item => {
-        let content = "";
-        if (item.pull_request_number) {
-          content += `**Target Pull Request:** #${item.pull_request_number}\n\n`;
-        } else {
-          content += `**Target:** Current pull request\n\n`;
-        }
-        if (item.reviewers && item.reviewers.length > 0) {
-          content += `**Reviewers to add:** ${item.reviewers.join(", ")}\n\n`;
-        }
-        return content;
-      },
-    });
-    return;
-  }
-
+/**
+ * Process a single add_reviewer item
+ * @param {any} reviewerItem - The add_reviewer item to process
+ */
+async function processAddReviewer(reviewerItem) {
   // Get configuration from config.json
   const config = getSafeOutputConfig("add_reviewer");
 
@@ -178,6 +166,17 @@ ${reviewersListMarkdown}
     core.error(`Failed to add reviewers: ${errorMessage}`);
     core.setFailed(`Failed to add reviewers: ${errorMessage}`);
   }
+}
+
+async function main() {
+  await runSingleItemSafeOutput({
+    itemType: "add_reviewer",
+    itemTypePlural: "add-reviewer",
+    stagedTitle: "Add Reviewers",
+    stagedDescription: "The following reviewers would be added if staged mode was disabled:",
+    renderStagedItem: renderReviewerPreview,
+    processSingleItem: processAddReviewer,
+  });
 }
 
 await main();
