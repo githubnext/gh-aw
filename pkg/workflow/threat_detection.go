@@ -377,6 +377,34 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
+	// Apply default detection model if the engine provides one and no model is specified
+	detectionEngineConfig := engineConfig
+	defaultModel := engine.GetDefaultDetectionModel()
+	if defaultModel != "" {
+		if detectionEngineConfig == nil {
+			detectionEngineConfig = &EngineConfig{
+				ID:    engineSetting,
+				Model: defaultModel,
+			}
+		} else if detectionEngineConfig.Model == "" {
+			// Create a copy to avoid modifying the original config
+			detectionEngineConfig = &EngineConfig{
+				ID:            detectionEngineConfig.ID,
+				Model:         defaultModel,
+				Version:       detectionEngineConfig.Version,
+				MaxTurns:      detectionEngineConfig.MaxTurns,
+				Concurrency:   detectionEngineConfig.Concurrency,
+				UserAgent:     detectionEngineConfig.UserAgent,
+				Env:           detectionEngineConfig.Env,
+				Steps:         detectionEngineConfig.Steps,
+				ErrorPatterns: detectionEngineConfig.ErrorPatterns,
+				Config:        detectionEngineConfig.Config,
+				Args:          detectionEngineConfig.Args,
+				Firewall:      detectionEngineConfig.Firewall,
+			}
+		}
+	}
+
 	// Create minimal WorkflowData for threat detection
 	// Configure bash read tools for accessing the agent output file
 	threatDetectionData := &WorkflowData{
@@ -385,7 +413,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		},
 		SafeOutputs:  nil,
 		Network:      "",
-		EngineConfig: engineConfig,
+		EngineConfig: detectionEngineConfig,
 		AI:           engineSetting,
 	}
 

@@ -73,6 +73,10 @@ type CodingAgentEngine interface {
 
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
+
+	// GetDefaultDetectionModel returns the default model to use for threat detection
+	// If empty, no default model is applied and the engine uses its standard default
+	GetDefaultDetectionModel() string
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -156,6 +160,12 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 // GetErrorPatterns returns an empty list by default (engines can override)
 func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
+}
+
+// GetDefaultDetectionModel returns empty string by default (no default model)
+// Engines can override this to provide a cost-effective default for detection jobs
+func (e *BaseEngine) GetDefaultDetectionModel() string {
+	return ""
 }
 
 // GetLogFileForParsing returns the default log file path for parsing

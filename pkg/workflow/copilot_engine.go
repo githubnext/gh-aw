@@ -35,6 +35,12 @@ func NewCopilotEngine() *CopilotEngine {
 	}
 }
 
+// GetDefaultDetectionModel returns the default model for threat detection
+// Uses gpt-5-mini as a cost-effective model for detection tasks
+func (e *CopilotEngine) GetDefaultDetectionModel() string {
+	return constants.DefaultCopilotDetectionModel
+}
+
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
 

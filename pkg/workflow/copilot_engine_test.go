@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -35,6 +36,37 @@ func TestCopilotEngine(t *testing.T) {
 
 	if engine.SupportsMaxTurns() {
 		t.Error("Expected copilot engine to not support max-turns yet")
+	}
+}
+
+func TestCopilotEngineDefaultDetectionModel(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test that GetDefaultDetectionModel returns the expected constant
+	defaultModel := engine.GetDefaultDetectionModel()
+	if defaultModel != constants.DefaultCopilotDetectionModel {
+		t.Errorf("Expected default detection model '%s', got '%s'", constants.DefaultCopilotDetectionModel, defaultModel)
+	}
+
+	// Verify the expected value
+	if defaultModel != "gpt-5-mini" {
+		t.Errorf("Expected 'gpt-5-mini' as default detection model, got '%s'", defaultModel)
+	}
+}
+
+func TestOtherEnginesNoDefaultDetectionModel(t *testing.T) {
+	// Test that other engines return empty string for GetDefaultDetectionModel
+	engines := []CodingAgentEngine{
+		NewClaudeEngine(),
+		NewCodexEngine(),
+		NewCustomEngine(),
+	}
+
+	for _, engine := range engines {
+		defaultModel := engine.GetDefaultDetectionModel()
+		if defaultModel != "" {
+			t.Errorf("Expected engine '%s' to return empty default detection model, got '%s'", engine.GetID(), defaultModel)
+		}
 	}
 }
 
