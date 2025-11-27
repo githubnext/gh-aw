@@ -377,20 +377,20 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
-	// For copilot engine, set default model if not specified
-	// This ensures detection job uses a cost-effective model
+	// Apply default detection model if the engine provides one and no model is specified
 	detectionEngineConfig := engineConfig
-	if engineSetting == "copilot" {
+	defaultModel := engine.GetDefaultDetectionModel()
+	if defaultModel != "" {
 		if detectionEngineConfig == nil {
 			detectionEngineConfig = &EngineConfig{
-				ID:    "copilot",
-				Model: constants.DefaultCopilotDetectionModel,
+				ID:    engineSetting,
+				Model: defaultModel,
 			}
 		} else if detectionEngineConfig.Model == "" {
 			// Create a copy to avoid modifying the original config
 			detectionEngineConfig = &EngineConfig{
 				ID:            detectionEngineConfig.ID,
-				Model:         constants.DefaultCopilotDetectionModel,
+				Model:         defaultModel,
 				Version:       detectionEngineConfig.Version,
 				MaxTurns:      detectionEngineConfig.MaxTurns,
 				Concurrency:   detectionEngineConfig.Concurrency,
