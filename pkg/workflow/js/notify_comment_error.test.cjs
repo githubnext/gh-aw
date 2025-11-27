@@ -155,7 +155,8 @@ describe("notify_comment_error.cjs", () => {
           repo: "testrepo",
           comment_id: 123456,
           // Uses default pirate-themed message from messages.cjs
-          body: expect.stringContaining("completed successfully"),
+          // Default: "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰"
+          body: expect.stringContaining("found the treasure and completed successfully"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -176,7 +177,8 @@ describe("notify_comment_error.cjs", () => {
           repo: "testrepo",
           comment_id: 123456,
           // Uses default pirate-themed message from messages.cjs
-          body: expect.stringContaining("failed"),
+          // Default: "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️"
+          body: expect.stringContaining("walked the plank"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -193,8 +195,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          // Uses default pirate-themed message from messages.cjs
+          // Uses default pirate-themed message with "was cancelled" status
           body: expect.stringContaining("was cancelled"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -210,8 +213,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          // Uses default pirate-themed message from messages.cjs
+          // Uses default pirate-themed message with "timed out" status
           body: expect.stringContaining("timed out"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -227,8 +231,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          // Uses default pirate-themed message from messages.cjs
+          // Uses default pirate-themed message with "was skipped" status
           body: expect.stringContaining("was skipped"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -266,7 +271,8 @@ describe("notify_comment_error.cjs", () => {
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
           // Uses default pirate-themed message from messages.cjs
-          body: expect.stringContaining("completed successfully"),
+          // Default: "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰"
+          body: expect.stringContaining("found the treasure and completed successfully"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated discussion comment");
@@ -285,7 +291,8 @@ describe("notify_comment_error.cjs", () => {
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
           // Uses default pirate-themed message from messages.cjs
-          body: expect.stringContaining("failed"),
+          // Default: "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️"
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
