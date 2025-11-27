@@ -251,6 +251,17 @@ interface NoOpItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for linking an issue as a sub-issue of a parent issue
+ */
+interface LinkSubIssueItem extends BaseSafeOutputItem {
+  type: "link_sub_issue";
+  /** Parent issue number to link the sub-issue to */
+  parent_issue_number: number | string;
+  /** Issue number to link as a sub-issue */
+  sub_issue_number: number | string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -272,7 +283,8 @@ type SafeOutputItem =
   | AssignMilestoneItem
   | AssignToAgentItem
   | UpdateReleaseItem
-  | NoOpItem;
+  | NoOpItem
+  | LinkSubIssueItem;
 
 /**
  * Sanitized safe output items
@@ -304,6 +316,7 @@ export {
   AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,
+  LinkSubIssueItem,
   SafeOutputItem,
   SafeOutputItems,
 };

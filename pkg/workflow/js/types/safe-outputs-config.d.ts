@@ -163,6 +163,17 @@ interface NoOpConfig extends SafeOutputConfig {}
 interface MissingToolConfig extends SafeOutputConfig {}
 
 /**
+ * Configuration for link-sub-issue output
+ */
+interface LinkSubIssueConfig extends SafeOutputConfig {
+  "parent-required-labels"?: string[];
+  "parent-title-prefix"?: string;
+  "sub-required-labels"?: string[];
+  "sub-title-prefix"?: string;
+  "target-repo"?: string;
+}
+
+/**
  * Configuration for threat detection
  */
 interface ThreatDetectionConfig extends SafeOutputConfig {
@@ -220,6 +231,7 @@ type SpecificSafeOutputConfig =
   | UpdateReleaseConfig
   | NoOpConfig
   | MissingToolConfig
+  | LinkSubIssueConfig
   | ThreatDetectionConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -247,6 +259,7 @@ export {
   UpdateReleaseConfig,
   NoOpConfig,
   MissingToolConfig,
+  LinkSubIssueConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types

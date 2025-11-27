@@ -529,6 +529,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateReleaseJob.Name)
 	}
 
+	// Build link_sub_issue job if safe-outputs.link-sub-issue is configured
+	if data.SafeOutputs.LinkSubIssue != nil {
+		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build link_sub_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			linkSubIssueJob.Needs = append(linkSubIssueJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			linkSubIssueJob.If = AddDetectionSuccessCheck(linkSubIssueJob.If)
+		}
+		if err := c.jobManager.AddJob(linkSubIssueJob); err != nil {
+			return fmt.Errorf("failed to add link_sub_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, linkSubIssueJob.Name)
+	}
+
 	// Build create_agent_task job if output.create-agent-task is configured
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)
