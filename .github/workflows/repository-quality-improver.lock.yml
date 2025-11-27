@@ -5378,21 +5378,14 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            let cachedMessages = null;
-            let cacheInitialized = false;
             function getMessages() {
-              if (cacheInitialized) {
-                return cachedMessages;
-              }
               const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
               if (!messagesEnv) {
-                cacheInitialized = true;
-                cachedMessages = null;
                 return null;
               }
               try {
                 const rawMessages = JSON.parse(messagesEnv);
-                cachedMessages = {
+                return {
                   footer: rawMessages.Footer || rawMessages.footer,
                   footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
                   stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
@@ -5401,19 +5394,10 @@ jobs:
                   runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
                   runFailure: rawMessages.RunFailure || rawMessages.runFailure,
                 };
-                cacheInitialized = true;
-                core.debug(`Loaded custom messages config: ${JSON.stringify(cachedMessages)}`);
-                return cachedMessages;
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-                cacheInitialized = true;
-                cachedMessages = null;
                 return null;
               }
-            }
-            function clearMessagesCache() {
-              cachedMessages = null;
-              cacheInitialized = false;
             }
             function renderTemplate(template, context) {
               return template.replace(/\{(\w+)\}/g, (match, key) => {

@@ -46,24 +46,13 @@
  * @property {string} operation - The operation name (e.g., "Create Issues", "Add Comments")
  */
 
-// Cache for parsed messages config
-let cachedMessages = null;
-let cacheInitialized = false;
-
 /**
  * Get the safe-output messages configuration from environment variable.
- * Results are cached for performance.
  * @returns {SafeOutputMessages|null} Parsed messages config or null if not set
  */
 function getMessages() {
-  if (cacheInitialized) {
-    return cachedMessages;
-  }
-
   const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
   if (!messagesEnv) {
-    cacheInitialized = true;
-    cachedMessages = null;
     return null;
   }
 
@@ -72,7 +61,7 @@ function getMessages() {
     const rawMessages = JSON.parse(messagesEnv);
 
     // Map Go struct field names (PascalCase in JSON) to camelCase
-    cachedMessages = {
+    return {
       footer: rawMessages.Footer || rawMessages.footer,
       footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
       stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
@@ -81,23 +70,10 @@ function getMessages() {
       runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
       runFailure: rawMessages.RunFailure || rawMessages.runFailure,
     };
-    cacheInitialized = true;
-    core.debug(`Loaded custom messages config: ${JSON.stringify(cachedMessages)}`);
-    return cachedMessages;
   } catch (error) {
     core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-    cacheInitialized = true;
-    cachedMessages = null;
     return null;
   }
-}
-
-/**
- * Clear the cached messages (useful for testing)
- */
-function clearMessagesCache() {
-  cachedMessages = null;
-  cacheInitialized = false;
 }
 
 /**
@@ -347,7 +323,6 @@ function getRunFailureMessage(ctx) {
 
 module.exports = {
   getMessages,
-  clearMessagesCache,
   renderTemplate,
   getFooterMessage,
   getFooterInstallMessage,
