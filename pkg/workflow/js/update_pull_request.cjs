@@ -5,11 +5,12 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
 // Copilot suffix marker - content after this should be treated as ephemeral
-const COPILOT_SUFFIX_MARKER = "```copilot suffix";
-const COPILOT_SUFFIX_END = "```";
+// The marker is an XML comment containing "START COPILOT CODING AGENT TIPS"
+const COPILOT_SUFFIX_MARKER = "START COPILOT CODING AGENT TIPS";
 
 /**
  * Removes the copilot suffix section from a body and returns the preserved part
+ * The copilot suffix starts with an XML comment containing COPILOT_SUFFIX_MARKER
  * @param {string} body - The original body content
  * @returns {string} The body without the copilot suffix section
  */
@@ -21,15 +22,18 @@ function removeCopilotSuffix(body) {
     return body;
   }
 
-  // Find the closing backticks for the copilot suffix block
-  const suffixEnd = body.indexOf(COPILOT_SUFFIX_END, suffixStart + COPILOT_SUFFIX_MARKER.length);
-  if (suffixEnd === -1) {
-    // If no closing backticks found, remove everything from the marker
+  // Find the start of the XML comment that contains the marker
+  // Look backwards from the marker to find the opening <!--
+  const searchArea = body.substring(0, suffixStart);
+  const xmlCommentStart = searchArea.lastIndexOf("<!--");
+  
+  if (xmlCommentStart === -1) {
+    // If no XML comment found, remove everything from the marker text
     return body.substring(0, suffixStart).trimEnd();
   }
 
-  // Remove from marker to end of closing backticks, and anything after
-  return body.substring(0, suffixStart).trimEnd();
+  // Remove from the XML comment start to the end (the entire copilot suffix section)
+  return body.substring(0, xmlCommentStart).trimEnd();
 }
 
 async function main() {

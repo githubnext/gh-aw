@@ -6964,19 +6964,19 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            const COPILOT_SUFFIX_MARKER = "```copilot suffix";
-            const COPILOT_SUFFIX_END = "```";
+            const COPILOT_SUFFIX_MARKER = "START COPILOT CODING AGENT TIPS";
             function removeCopilotSuffix(body) {
               if (!body) return "";
               const suffixStart = body.indexOf(COPILOT_SUFFIX_MARKER);
               if (suffixStart === -1) {
                 return body;
               }
-              const suffixEnd = body.indexOf(COPILOT_SUFFIX_END, suffixStart + COPILOT_SUFFIX_MARKER.length);
-              if (suffixEnd === -1) {
+              const searchArea = body.substring(0, suffixStart);
+              const xmlCommentStart = searchArea.lastIndexOf("<!--");
+              if (xmlCommentStart === -1) {
                 return body.substring(0, suffixStart).trimEnd();
               }
-              return body.substring(0, suffixStart).trimEnd();
+              return body.substring(0, xmlCommentStart).trimEnd();
             }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
