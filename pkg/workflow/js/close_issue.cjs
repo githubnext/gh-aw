@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
@@ -67,24 +67,47 @@ async function closeIssue(github, owner, repo, issueNumber) {
   return issue;
 }
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+/**
+ * Render function for staged preview
+ * @param {any} item - The close_issue item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
+ */
+function renderCloseIssuePreview(item, index) {
+  // Get configuration from environment
+  const requiredLabels = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS
+    ? process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS.split(",").map(l => l.trim())
+    : [];
+  const requiredTitlePrefix = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX || "";
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
+  let content = `### Issue ${index + 1}\n`;
+
+  const issueNumber = item.issue_number;
+  if (issueNumber) {
+    const repoUrl = getRepositoryUrl();
+    const issueUrl = `${repoUrl}/issues/${issueNumber}`;
+    content += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
+  } else {
+    content += `**Target:** Current issue\n\n`;
   }
 
-  // Find all close-issue items
-  const closeIssueItems = result.items.filter(/** @param {any} item */ item => item.type === "close_issue");
-  if (closeIssueItems.length === 0) {
-    core.info("No close-issue items found in agent output");
-    return;
+  content += `**Comment:**\n${item.body || "No content provided"}\n\n`;
+
+  if (requiredLabels.length > 0) {
+    content += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
+  }
+  if (requiredTitlePrefix) {
+    content += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
   }
 
-  core.info(`Found ${closeIssueItems.length} close-issue item(s)`);
+  return content;
+}
 
+/**
+ * Process close_issue items
+ * @param {any[]} closeIssueItems - The close_issue items to process
+ */
+async function processCloseIssueItems(closeIssueItems) {
   // Get configuration from environment
   const requiredLabels = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS
     ? process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS.split(",").map(l => l.trim())
@@ -96,42 +119,6 @@ async function main() {
 
   // Check if we're in an issue context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-
-  // If in staged mode, emit step summary instead of closing issues
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
-    summaryContent += "The following issues would be closed if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < closeIssueItems.length; i++) {
-      const item = closeIssueItems[i];
-      summaryContent += `### Issue ${i + 1}\n`;
-
-      const issueNumber = item.issue_number;
-      if (issueNumber) {
-        const repoUrl = getRepositoryUrl();
-        const issueUrl = `${repoUrl}/issues/${issueNumber}`;
-        summaryContent += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
-      } else {
-        summaryContent += `**Target:** Current issue\n\n`;
-      }
-
-      summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-
-      if (requiredLabels.length > 0) {
-        summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-      }
-      if (requiredTitlePrefix) {
-        summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-      }
-
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Issue close preview written to step summary");
-    return;
-  }
 
   // Validate context based on target configuration
   if (target === "triggering" && !isIssueContext) {
@@ -253,6 +240,17 @@ async function main() {
 
   core.info(`Successfully closed ${closedIssues.length} issue(s)`);
   return closedIssues;
+}
+
+async function main() {
+  await runSafeOutput({
+    itemType: "close_issue",
+    itemTypePlural: "close-issue",
+    stagedTitle: "Close Issues",
+    stagedDescription: "The following issues would be closed if staged mode was disabled:",
+    renderStagedItem: renderCloseIssuePreview,
+    processItems: processCloseIssueItems,
+  });
 }
 
 await main();

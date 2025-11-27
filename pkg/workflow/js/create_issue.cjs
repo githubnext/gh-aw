@@ -2,56 +2,45 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
-async function main() {
+/**
+ * Render function for staged preview
+ * @param {any} item - The create_issue item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
+ */
+function renderCreateIssuePreview(item, index) {
+  let content = `### Issue ${index + 1}\n`;
+  content += `**Title:** ${item.title || "No title provided"}\n\n`;
+  if (item.temporary_id) {
+    content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+  }
+  if (item.body) {
+    content += `**Body:**\n${item.body}\n\n`;
+  }
+  if (item.labels && item.labels.length > 0) {
+    content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+  }
+  if (item.parent) {
+    content += `**Parent:** ${item.parent}\n\n`;
+  }
+  return content;
+}
+
+/**
+ * Process create_issue items
+ * @param {any[]} createIssueItems - The create_issue items to process
+ */
+async function processCreateIssueItems(createIssueItems) {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
   core.setOutput("temporary_id_map", "{}");
 
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createIssueItems = result.items.filter(item => item.type === "create_issue");
-  if (createIssueItems.length === 0) {
-    core.info("No create-issue items found in agent output");
-    return;
-  }
-  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-  if (isStaged) {
-    await generateStagedPreview({
-      title: "Create Issues",
-      description: "The following issues would be created if staged mode was disabled:",
-      items: createIssueItems,
-      renderItem: (item, index) => {
-        let content = `### Issue ${index + 1}\n`;
-        content += `**Title:** ${item.title || "No title provided"}\n\n`;
-        if (item.temporary_id) {
-          content += `**Temporary ID:** ${item.temporary_id}\n\n`;
-        }
-        if (item.body) {
-          content += `**Body:**\n${item.body}\n\n`;
-        }
-        if (item.labels && item.labels.length > 0) {
-          content += `**Labels:** ${item.labels.join(", ")}\n\n`;
-        }
-        if (item.parent) {
-          content += `**Parent:** ${item.parent}\n\n`;
-        }
-        return content;
-      },
-    });
-    return;
-  }
   const parentIssueNumber = context.payload?.issue?.number;
 
   // Map to track temporary_id -> issue_number relationships
@@ -305,6 +294,23 @@ async function main() {
 
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
+
+async function main() {
+  // Initialize outputs early in case we return before processing
+  core.setOutput("issue_number", "");
+  core.setOutput("issue_url", "");
+  core.setOutput("temporary_id_map", "{}");
+
+  await runSafeOutput({
+    itemType: "create_issue",
+    itemTypePlural: "create-issue",
+    stagedTitle: "Create Issues",
+    stagedDescription: "The following issues would be created if staged mode was disabled:",
+    renderStagedItem: renderCreateIssuePreview,
+    processItems: processCreateIssueItems,
+  });
+}
+
 (async () => {
   await main();
 })();

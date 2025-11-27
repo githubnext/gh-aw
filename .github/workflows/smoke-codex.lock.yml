@@ -5852,6 +5852,49 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            async function runSafeOutput(options) {
+              const { itemType, itemTypePlural, warnIfNotFound = false, stagedTitle, stagedDescription, renderStagedItem, processItems } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { handled: true };
+              }
+              const items = result.items.filter( item => item.type === itemType);
+              if (items.length === 0) {
+                const message = `No ${itemTypePlural} items found in agent output`;
+                if (warnIfNotFound) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { handled: true };
+              }
+              core.info(`Found ${items.length} ${itemTypePlural} item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                if (stagedTitle && stagedDescription && renderStagedItem) {
+                  await generateStagedPreview({
+                    title: stagedTitle,
+                    description: stagedDescription,
+                    items: items,
+                    renderItem: renderStagedItem,
+                  });
+                }
+                return { handled: true };
+              }
+              const processResult = await processItems(items);
+              return { handled: false, result: processResult };
+            }
+            async function runSingleItemSafeOutput(options) {
+              const { processSingleItem, ...restOptions } = options;
+              return runSafeOutput({
+                ...restOptions,
+                warnIfNotFound: options.warnIfNotFound !== undefined ? options.warnIfNotFound : true,
+                processItems: async items => {
+                  const item = items[0];
+                  core.info(`Processing ${options.itemTypePlural} item`);
+                  return processSingleItem(item);
+                },
+              });
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -5921,46 +5964,27 @@ jobs:
                 return new Map();
               }
             }
-            async function main() {
+            function renderCreateIssuePreview(item, index) {
+              let content = `### Issue ${index + 1}\n`;
+              content += `**Title:** ${item.title || "No title provided"}\n\n`;
+              if (item.temporary_id) {
+                content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+              }
+              if (item.body) {
+                content += `**Body:**\n${item.body}\n\n`;
+              }
+              if (item.labels && item.labels.length > 0) {
+                content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+              }
+              if (item.parent) {
+                content += `**Parent:** ${item.parent}\n\n`;
+              }
+              return content;
+            }
+            async function processCreateIssueItems(createIssueItems) {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
               core.setOutput("temporary_id_map", "{}");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createIssueItems = result.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Create Issues",
-                  description: "The following issues would be created if staged mode was disabled:",
-                  items: createIssueItems,
-                  renderItem: (item, index) => {
-                    let content = `### Issue ${index + 1}\n`;
-                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
-                    if (item.temporary_id) {
-                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
-                    }
-                    if (item.body) {
-                      content += `**Body:**\n${item.body}\n\n`;
-                    }
-                    if (item.labels && item.labels.length > 0) {
-                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                    }
-                    if (item.parent) {
-                      content += `**Parent:** ${item.parent}\n\n`;
-                    }
-                    return content;
-                  },
-                });
-                return;
-              }
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
               const triggeringIssueNumber =
@@ -6174,6 +6198,19 @@ jobs:
               core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
               core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("temporary_id_map", "{}");
+              await runSafeOutput({
+                itemType: "create_issue",
+                itemTypePlural: "create-issue",
+                stagedTitle: "Create Issues",
+                stagedDescription: "The following issues would be created if staged mode was disabled:",
+                renderStagedItem: renderCreateIssuePreview,
+                processItems: processCreateIssueItems,
+              });
             }
             (async () => {
               await main();
