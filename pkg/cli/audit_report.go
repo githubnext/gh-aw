@@ -18,21 +18,22 @@ var auditReportLog = logger.New("cli:audit_report")
 
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
-	Overview           OverviewData        `json:"overview"`
-	Metrics            MetricsData         `json:"metrics"`
-	KeyFindings        []Finding           `json:"key_findings,omitempty"`
-	Recommendations    []Recommendation    `json:"recommendations,omitempty"`
-	FailureAnalysis    *FailureAnalysis    `json:"failure_analysis,omitempty"`
-	PerformanceMetrics *PerformanceMetrics `json:"performance_metrics,omitempty"`
-	Jobs               []JobData           `json:"jobs,omitempty"`
-	DownloadedFiles    []FileInfo          `json:"downloaded_files"`
-	MissingTools       []MissingToolReport `json:"missing_tools,omitempty"`
-	Noops              []NoopReport        `json:"noops,omitempty"`
-	MCPFailures        []MCPFailureReport  `json:"mcp_failures,omitempty"`
-	FirewallAnalysis   *FirewallAnalysis   `json:"firewall_analysis,omitempty"`
-	Errors             []ErrorInfo         `json:"errors,omitempty"`
-	Warnings           []ErrorInfo         `json:"warnings,omitempty"`
-	ToolUsage          []ToolUsageInfo     `json:"tool_usage,omitempty"`
+	Overview                OverviewData             `json:"overview"`
+	Metrics                 MetricsData              `json:"metrics"`
+	KeyFindings             []Finding                `json:"key_findings,omitempty"`
+	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
+	FailureAnalysis         *FailureAnalysis         `json:"failure_analysis,omitempty"`
+	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
+	Jobs                    []JobData                `json:"jobs,omitempty"`
+	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
+	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
+	Noops                   []NoopReport             `json:"noops,omitempty"`
+	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
+	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
+	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis,omitempty"`
+	Errors                  []ErrorInfo              `json:"errors,omitempty"`
+	Warnings                []ErrorInfo              `json:"warnings,omitempty"`
+	ToolUsage               []ToolUsageInfo          `json:"tool_usage,omitempty"`
 }
 
 // Finding represents a key insight discovered during audit
@@ -258,21 +259,22 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	}
 
 	return AuditData{
-		Overview:           overview,
-		Metrics:            metricsData,
-		KeyFindings:        findings,
-		Recommendations:    recommendations,
-		FailureAnalysis:    failureAnalysis,
-		PerformanceMetrics: performanceMetrics,
-		Jobs:               jobs,
-		DownloadedFiles:    downloadedFiles,
-		MissingTools:       processedRun.MissingTools,
-		Noops:              processedRun.Noops,
-		MCPFailures:        processedRun.MCPFailures,
-		FirewallAnalysis:   processedRun.FirewallAnalysis,
-		Errors:             errors,
-		Warnings:           warnings,
-		ToolUsage:          toolUsage,
+		Overview:                overview,
+		Metrics:                 metricsData,
+		KeyFindings:             findings,
+		Recommendations:         recommendations,
+		FailureAnalysis:         failureAnalysis,
+		PerformanceMetrics:      performanceMetrics,
+		Jobs:                    jobs,
+		DownloadedFiles:         downloadedFiles,
+		MissingTools:            processedRun.MissingTools,
+		Noops:                   processedRun.Noops,
+		MCPFailures:             processedRun.MCPFailures,
+		FirewallAnalysis:        processedRun.FirewallAnalysis,
+		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
+		Errors:                  errors,
+		Warnings:                warnings,
+		ToolUsage:               toolUsage,
 	}
 }
 
@@ -492,6 +494,13 @@ func renderConsole(data AuditData, logsPath string) {
 		renderFirewallAnalysis(data.FirewallAnalysis)
 	}
 
+	// Redacted Domains Section
+	if data.RedactedDomainsAnalysis != nil && data.RedactedDomainsAnalysis.TotalDomains > 0 {
+		fmt.Println(console.FormatInfoMessage("## 🔒 Redacted URL Domains"))
+		fmt.Println()
+		renderRedactedDomainsAnalysis(data.RedactedDomainsAnalysis)
+	}
+
 	// Tool Usage Section - use new table rendering
 	if len(data.ToolUsage) > 0 {
 		fmt.Println(console.FormatInfoMessage("## Tool Usage"))
@@ -654,6 +663,22 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
 				fmt.Printf("    ✗ %s (%d requests)\n", domain, stats.Denied)
 			}
+		}
+		fmt.Println()
+	}
+}
+
+// renderRedactedDomainsAnalysis renders redacted domains analysis
+func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
+	// Summary statistics
+	fmt.Printf("  Total Domains Redacted: %d\n", analysis.TotalDomains)
+	fmt.Println()
+
+	// List domains
+	if len(analysis.Domains) > 0 {
+		fmt.Println("  Redacted Domains:")
+		for _, domain := range analysis.Domains {
+			fmt.Printf("    🔒 %s\n", domain)
 		}
 		fmt.Println()
 	}
