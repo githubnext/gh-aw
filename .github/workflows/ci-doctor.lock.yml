@@ -2493,7 +2493,7 @@ jobs:
               if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true });
               }
-              const lines = redactedDomains.map(entry => `${entry.timestamp} ${entry.domain} ${entry.fullUrl}`);
+              const lines = redactedDomains.map(entry => `${entry.timestamp} ${entry.domain}`);
               fs.writeFileSync(targetPath, lines.join("\n") + "\n");
               return targetPath;
             }
@@ -2589,7 +2589,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
-                  redactedDomains.push({ domain, fullUrl: match, timestamp: new Date().toISOString() });
+                  redactedDomains.push({ domain, timestamp: new Date().toISOString() });
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -2617,7 +2617,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push({ domain, fullUrl: match, timestamp: new Date().toISOString() });
+                    redactedDomains.push({ domain, timestamp: new Date().toISOString() });
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -2625,7 +2625,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push({ domain: protocol + ":", fullUrl: match, timestamp: new Date().toISOString() });
+                    redactedDomains.push({ domain: protocol + ":", timestamp: new Date().toISOString() });
                     return "(redacted)";
                   }
                   return match;

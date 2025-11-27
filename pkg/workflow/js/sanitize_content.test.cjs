@@ -485,7 +485,6 @@ describe("sanitize_content.cjs", () => {
       const domains = getRedactedDomains();
       expect(domains.length).toBe(1);
       expect(domains[0].domain).toBe("evil.com");
-      expect(domains[0].fullUrl).toBe("https://evil.com/malware");
     });
 
     it("should collect redacted HTTP domains", () => {
@@ -566,7 +565,8 @@ describe("sanitize_content.cjs", () => {
 
         const content = fs.readFileSync(testFile, "utf8");
         expect(content).toContain("evil.com");
-        expect(content).toContain("https://evil.com/malware");
+        // Should NOT contain the full URL, only the domain
+        expect(content).not.toContain("https://evil.com/malware");
       });
 
       it("should write multiple domains to log file", () => {
