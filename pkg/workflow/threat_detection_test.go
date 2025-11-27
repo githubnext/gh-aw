@@ -906,3 +906,109 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 		t.Error("Expected detection job condition to check has_patch equals 'true'")
 	}
 }
+
+// TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
+// default model gpt-5-mini for the detection job when no model is specified
+func TestCopilotDetectionDefaultModel(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name               string
+		data               *WorkflowData
+		shouldContainModel bool
+		expectedModel      string
+	}{
+		{
+			name: "copilot engine without model uses default gpt-5-mini",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			shouldContainModel: true,
+			expectedModel:      constants.DefaultCopilotDetectionModel,
+		},
+		{
+			name: "copilot engine with custom model uses specified model",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Model: "gpt-4",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			shouldContainModel: true,
+			expectedModel:      "gpt-4",
+		},
+		{
+			name: "copilot engine with threat detection engine config with custom model",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID:    "copilot",
+							Model: "gpt-4o",
+						},
+					},
+				},
+			},
+			shouldContainModel: true,
+			expectedModel:      "gpt-4o",
+		},
+		{
+			name: "copilot engine with threat detection engine config without model uses default",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID: "copilot",
+						},
+					},
+				},
+			},
+			shouldContainModel: true,
+			expectedModel:      constants.DefaultCopilotDetectionModel,
+		},
+		{
+			name: "claude engine does not add model parameter",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			shouldContainModel: false,
+			expectedModel:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildEngineSteps(tt.data)
+
+			if len(steps) == 0 {
+				t.Fatal("Expected non-empty steps")
+			}
+
+			// Join all steps to search for model content
+			allSteps := strings.Join(steps, "")
+
+			if tt.shouldContainModel {
+				// Check if the expected model is present in the steps
+				if !strings.Contains(allSteps, tt.expectedModel) {
+					t.Errorf("Expected steps to contain model %q, but it was not found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+				}
+				// Also check for --model flag
+				if !strings.Contains(allSteps, "--model") {
+					t.Errorf("Expected steps to contain --model flag, but it was not found.\nGenerated steps:\n%s", allSteps)
+				}
+			}
+		})
+	}
+}
