@@ -483,7 +483,7 @@ The workflow-id-or-file can be:
 
 Examples:
   gh aw mcp inspect                    # List workflows with MCP servers
-  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md  
+  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md
   gh aw mcp inspect daily-news --server tavily  # Inspect only the tavily server
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
