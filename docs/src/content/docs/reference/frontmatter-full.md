@@ -2073,21 +2073,19 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for updating GitHub pull requests from agentic workflow
-  # output
+  # output. Both title and body updates are enabled by default.
   update-pull-request:
     # Target for updates: 'triggering' (default), '*' (any PR), or explicit PR number
     # (optional)
     target: "example-value"
 
-    # Allow updating pull request title - presence of key indicates field can be
-    # updated
+    # Allow updating pull request title - defaults to true, set to false to disable
     # (optional)
-    title: null
+    title: true
 
-    # Allow updating pull request body - presence of key indicates field can be
-    # updated
+    # Allow updating pull request body - defaults to true, set to false to disable
     # (optional)
-    body: null
+    body: true
 
     # Maximum number of pull requests to update (default: 1)
     # (optional)
@@ -2103,7 +2101,8 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-  # Option 2: Enable pull request updating with default configuration
+  # Option 2: Enable pull request updating with default configuration (title and
+  # body updates enabled)
   update-pull-request: null
 
   # (optional)
