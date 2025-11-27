@@ -34,6 +34,8 @@ async function main() {
         return 1;
       case "update_issue":
         return 1;
+      case "update_pull_request":
+        return 1;
       case "push_to_pull_request_branch":
         return 1;
       case "create_discussion":
@@ -54,6 +56,8 @@ async function main() {
         return 1;
       case "noop":
         return 1; // Default max for noop messages
+      case "link_sub_issue":
+        return 5; // Default max for link_sub_issue
       default:
         return 1;
     }
@@ -515,6 +519,43 @@ async function main() {
             continue;
           }
           break;
+        case "update_pull_request":
+          const hasValidPRField = item.title !== undefined || item.body !== undefined;
+          if (!hasValidPRField) {
+            errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+            continue;
+          }
+          if (item.title !== undefined) {
+            if (typeof item.title !== "string") {
+              errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+              continue;
+            }
+            item.title = sanitizeContent(item.title, 256);
+          }
+          if (item.body !== undefined) {
+            if (typeof item.body !== "string") {
+              errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+              continue;
+            }
+            item.body = sanitizeContent(item.body, maxBodyLength);
+          }
+          // Validate operation field if provided
+          if (item.operation !== undefined) {
+            if (!["replace", "append", "prepend"].includes(item.operation)) {
+              errors.push(`Line ${i + 1}: update_pull_request 'operation' must be one of: 'replace', 'append', 'prepend'`);
+              continue;
+            }
+          }
+          const updatePRNumValidation = validateIssueOrPRNumber(
+            item.pull_request_number,
+            "update_pull_request 'pull_request_number'",
+            i + 1
+          );
+          if (!updatePRNumValidation.isValid) {
+            if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
+            continue;
+          }
+          break;
         case "assign_milestone":
           // Validate issue_number
           const assignMilestoneIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_milestone 'issue_number'", i + 1);
@@ -807,6 +848,25 @@ async function main() {
           item.message = sanitizeContent(item.message, 2048);
           if (item.ruleIdSuffix) {
             item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+          }
+          break;
+        case "link_sub_issue":
+          // Validate parent_issue_number (required)
+          const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+          if (!parentIssueValidation.isValid) {
+            if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
+            continue;
+          }
+          // Validate sub_issue_number (required)
+          const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+          if (!subIssueValidation.isValid) {
+            if (subIssueValidation.error) errors.push(subIssueValidation.error);
+            continue;
+          }
+          // Ensure parent and sub are different issues
+          if (parentIssueValidation.normalizedValue === subIssueValidation.normalizedValue) {
+            errors.push(`Line ${i + 1}: link_sub_issue 'parent_issue_number' and 'sub_issue_number' must be different`);
+            continue;
           }
           break;
         default:

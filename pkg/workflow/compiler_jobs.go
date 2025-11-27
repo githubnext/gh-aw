@@ -472,6 +472,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateIssueJob.Name)
 	}
 
+	// Build update_pull_request job if output.update-pull-request is configured
+	if data.SafeOutputs.UpdatePullRequests != nil {
+		updatePullRequestJob, err := c.buildCreateOutputUpdatePullRequestJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build update_pull_request job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			updatePullRequestJob.Needs = append(updatePullRequestJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			updatePullRequestJob.If = AddDetectionSuccessCheck(updatePullRequestJob.If)
+		}
+		if err := c.jobManager.AddJob(updatePullRequestJob); err != nil {
+			return fmt.Errorf("failed to add update_pull_request job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, updatePullRequestJob.Name)
+	}
+
 	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		pushToBranchJob, err := c.buildCreateOutputPushToPullRequestBranchJob(data, jobName)
@@ -527,6 +545,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add update_release job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, updateReleaseJob.Name)
+	}
+
+	// Build link_sub_issue job if safe-outputs.link-sub-issue is configured
+	if data.SafeOutputs.LinkSubIssue != nil {
+		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build link_sub_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			linkSubIssueJob.Needs = append(linkSubIssueJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			linkSubIssueJob.If = AddDetectionSuccessCheck(linkSubIssueJob.If)
+		}
+		if err := c.jobManager.AddJob(linkSubIssueJob); err != nil {
+			return fmt.Errorf("failed to add link_sub_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, linkSubIssueJob.Name)
 	}
 
 	// Build create_agent_task job if output.create-agent-task is configured

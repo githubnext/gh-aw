@@ -39,6 +39,9 @@ var assignMilestoneScriptSource string
 //go:embed js/assign_to_agent.cjs
 var assignToAgentScriptSource string
 
+//go:embed js/link_sub_issue.cjs
+var linkSubIssueScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -53,6 +56,9 @@ var closePullRequestScriptSource string
 
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
+
+//go:embed js/update_pull_request.cjs
+var updatePullRequestScriptSource string
 
 //go:embed js/update_release.cjs
 var updateReleaseScriptSource string
@@ -107,11 +113,13 @@ func init() {
 	DefaultScriptRegistry.Register("add_reviewer", addReviewerScriptSource)
 	DefaultScriptRegistry.Register("assign_milestone", assignMilestoneScriptSource)
 	DefaultScriptRegistry.Register("assign_to_agent", assignToAgentScriptSource)
+	DefaultScriptRegistry.Register("link_sub_issue", linkSubIssueScriptSource)
 	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
 	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
+	DefaultScriptRegistry.Register("update_pull_request", updatePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_release", updateReleaseScriptSource)
 	DefaultScriptRegistry.Register("create_code_scanning_alert", createCodeScanningAlertScriptSource)
 	DefaultScriptRegistry.Register("create_pr_review_comment", createPRReviewCommentScriptSource)
@@ -172,6 +180,11 @@ func getAssignToAgentScript() string {
 	return DefaultScriptRegistry.Get("assign_to_agent")
 }
 
+// getLinkSubIssueScript returns the bundled link_sub_issue script
+func getLinkSubIssueScript() string {
+	return DefaultScriptRegistry.Get("link_sub_issue")
+}
+
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script
 func getParseFirewallLogsScript() string {
 	return DefaultScriptRegistry.Get("parse_firewall_logs")
@@ -200,6 +213,11 @@ func getClosePullRequestScript() string {
 // getUpdateIssueScript returns the bundled update_issue script
 func getUpdateIssueScript() string {
 	return DefaultScriptRegistry.Get("update_issue")
+}
+
+// getUpdatePullRequestScript returns the bundled update_pull_request script
+func getUpdatePullRequestScript() string {
+	return DefaultScriptRegistry.Get("update_pull_request")
 }
 
 // getUpdateReleaseScript returns the bundled update_release script

@@ -18,36 +18,37 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
+# Daily workflow that analyzes recent issues and links related issues as sub-issues
 #
 # Original Frontmatter:
 # ```yaml
-# description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
+# description: Daily workflow that analyzes recent issues and links related issues as sub-issues
+# name: Issue Arborist
 # on:
 #   schedule:
-#     - cron: "0 3 * * *"  # Daily at 3am UTC
+#     - cron: "0 9 * * *"  # Daily at 9 AM UTC
 #   workflow_dispatch:
 # permissions:
 #   contents: read
 #   issues: read
-#   pull-requests: read
-# engine: claude
+# engine: codex
+# strict: false
+# network:
+#   allowed:
+#     - defaults
+#     - github
 # tools:
-#   cache-memory: true
-#   bash:
+#   github:
+#     toolsets:
+#       - issues
 # safe-outputs:
+#   link-sub-issue:
+#     max: 2
 #   create-discussion:
-#     category: "audits"
-#     max: 1
+#     title-prefix: "[Issue Arborist] "
+#     category: "Audits"
 # timeout-minutes: 15
-# strict: true
-# imports:
-#   - shared/reporting.md
 # ```
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/reporting.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -57,431 +58,109 @@
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
+#   link_sub_issue["link_sub_issue"]
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_discussion --> conclusion
+#   link_sub_issue --> conclusion
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
+#   agent --> link_sub_issue
+#   detection --> link_sub_issue
 # ```
 #
 # Original Prompt:
 # ```markdown
-# ## Report Formatting
+# # Issue Arborist 🌳
 #
-# Structure your report with an overview followed by detailed content:
+# You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
 #
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+# ## Task
 #
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+# Analyze the last 20 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
 #
-# **Example format:**
+# ## Process
 #
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
+# ### Step 1: Fetch Recent Issues
 #
-# Optional overview paragraph 2 with additional context or highlights.
+# Use the GitHub MCP tools to fetch the last 20 issues from the repository. For each issue, collect:
+# - Issue number
+# - Title
+# - Body/description
+# - Labels
+# - State (open/closed)
 #
-# <details>
-# <summary><b>Full Report Details</b></summary>
+# ### Step 2: Analyze Relationships
 #
-# ## Detailed Analysis
+# Examine the issues to identify potential parent-child relationships. Look for:
 #
-# Full report content with all sections, tables, and detailed information goes here.
+# 1. **Feature with Tasks**: A high-level feature request (parent) with specific implementation tasks (sub-issues)
+# 2. **Epic Patterns**: Issues with "[Epic]" or similar prefixes that encompass smaller work items
+# 3. **Bug with Root Cause**: A symptom bug (sub-issue) that relates to a root cause issue (parent)
+# 4. **Tracking Issues**: Issues that track multiple related work items
+# 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
 #
-# ### Section 1
-# [Content]
+# ### Step 3: Make Linking Decisions
 #
-# ### Section 2
-# [Content]
+# For each potential relationship, evaluate:
+# - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
+# - Are both issues in a state where linking makes sense?
+# - Would linking improve organization and traceability?
+# - Is the relationship strong enough to warrant a permanent link?
 #
-# </details>
-# `````
+# **Constraints:**
+# - Maximum 2 links per run (to avoid over-linking)
+# - Only link if confidence is high (clear relationship)
+# - Prefer linking open issues
+# - Parent issue should be broader in scope than sub-issue
 #
-# ## Reporting Workflow Run Information
+# ### Step 4: Execute Links
 #
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
+# For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
 #
-# ### 1. Workflow Run ID Formatting
+# ### Step 5: Report
 #
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+# Create a discussion summarizing your analysis with:
+# - Number of issues analyzed
+# - Relationships identified (even if not linked)
+# - Links created with reasoning
+# - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
 #
-# **Format:**
+# ## Output Format
 #
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-# # Lockfile Statistics Analysis Agent
-#
-# You are the Lockfile Statistics Analysis Agent - an expert system that performs statistical and structural analysis of agentic workflow lock files (.lock.yml) in this repository.
-#
-# ## Mission
-#
-# Analyze all .lock.yml files in the `.github/workflows/` directory to identify usage patterns, popular triggers, safe outputs, step sizes, and other interesting structural characteristics. Generate comprehensive statistical reports and publish findings to the "audits" discussion category.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Analysis Date**: $(date +%Y-%m-%d)
-# - **Lockfiles Location**: `.github/workflows/*.lock.yml`
-#
-# ## Analysis Process
-#
-# ### Phase 1: Data Collection
-#
-# 1. **Find All Lock Files**:
-#    - Use bash to find all `.lock.yml` files in `.github/workflows/`
-#    - Count total number of lock files
-#    - Record file sizes for each lock file
-#
-# 2. **Parse Lock Files**:
-#    - Read YAML content from each lock file
-#    - Extract key structural elements:
-#      - Workflow triggers (from `on:` section)
-#      - Safe outputs configuration (from job outputs and create-discussion, create-issue, add-comment, etc.)
-#      - Number of jobs
-#      - Number of steps per job
-#      - Permissions granted
-#      - Timeout configurations
-#      - Engine types (if discernible from comments or structure)
-#      - Concurrency settings
-#
-# ### Phase 2: Statistical Analysis
-#
-# Analyze the collected data to generate insights:
-#
-# #### 2.1 Trigger Analysis
-# - **Most Popular Triggers**: Count frequency of each trigger type (issues, pull_request, schedule, workflow_dispatch, etc.)
-# - **Trigger Combinations**: Identify common trigger combinations
-# - **Schedule Patterns**: Analyze cron schedule frequencies
-# - **Workflow Dispatch Usage**: Count workflows with manual trigger capability
-#
-# #### 2.2 Safe Outputs Analysis
-# - **Safe Output Types**: Count usage of different safe output types:
-#   - create-discussion
-#   - create-issue
-#   - add-comment
-#   - create-pull-request
-#   - create-pull-request-review-comment
-#   - update-issue
-#   - Others
-# - **Safe Output Combinations**: Identify workflows using multiple safe output types
-# - **Category Distribution**: For create-discussion, analyze which categories are most used
-#
-# #### 2.3 Structural Analysis
-# - **File Size Distribution**:
-#   - Average lock file size
-#   - Minimum and maximum sizes
-#   - Size distribution histogram (e.g., <10KB, 10-50KB, 50-100KB, >100KB)
-#
-# - **Job Complexity**:
-#   - Average number of jobs per workflow
-#   - Average number of steps per job
-#   - Maximum steps in a single job
-#
-# - **Permission Patterns**:
-#   - Most commonly requested permissions
-#   - Read-only vs. write permissions distribution
-#   - Workflows with minimal permissions vs. broad permissions
-#
-# #### 2.4 Interesting Patterns
-# - **MCP Server Usage**: Identify which MCP servers are most commonly configured
-# - **Tool Configurations**: Common tool allowlists
-# - **Timeout Patterns**: Average and distribution of timeout-minutes values
-# - **Concurrency Groups**: Common concurrency patterns
-# - **Engine Distribution**: If detectable, count usage of different engines (claude, copilot, codex, custom)
-#
-# ### Phase 3: Cache Memory Management
-#
-# Use the cache memory folder `/tmp/gh-aw/cache-memory/` to persist analysis scripts and successful approaches:
-#
-# 1. **Store Analysis Scripts**:
-#    - Save successful bash/python scripts for parsing YAML to `/tmp/gh-aw/cache-memory/scripts/`
-#    - Store data extraction patterns that worked well
-#    - Keep reference implementations for future runs
-#
-# 2. **Maintain Historical Data**:
-#    - Store previous analysis results in `/tmp/gh-aw/cache-memory/history/<date>.json`
-#    - Track trends over time (file count growth, size growth, pattern changes)
-#    - Compare current analysis with previous runs
-#
-# 3. **Build Pattern Library**:
-#    - Create reusable patterns for common analysis tasks
-#    - Store successful regex patterns for extracting data
-#    - Document lessons learned for future analysis
-#
-# ### Phase 4: Report Generation
-#
-# Create a comprehensive markdown report with the following structure:
+# Your discussion should include:
 #
 # ```markdown
-# # 📊 Agentic Workflow Lock File Statistics - [DATE]
+# ## 🌳 Issue Arborist Daily Report
 #
-# ## Executive Summary
+# **Date**: [Current Date]
+# **Issues Analyzed**: 20
 #
-# - **Total Lock Files**: [NUMBER]
-# - **Total Size**: [SIZE]
-# - **Average File Size**: [SIZE]
-# - **Analysis Date**: [DATE]
+# ### Links Created
 #
-# ## File Size Distribution
+# | Parent Issue | Sub-Issue | Reasoning |
+# |-------------|-----------|-----------|
+# | #X: [title] | #Y: [title] | [brief explanation] |
 #
-# | Size Range | Count | Percentage |
-# |------------|-------|------------|
-# | < 10 KB    | [N]   | [%]        |
-# | 10-50 KB   | [N]   | [%]        |
-# | 50-100 KB  | [N]   | [%]        |
-# | > 100 KB   | [N]   | [%]        |
+# ### Potential Relationships (For Manual Review)
 #
-# **Statistics**:
-# - Smallest: [FILENAME] ([SIZE])
-# - Largest: [FILENAME] ([SIZE])
+# [List any relationships you identified but didn't link, with confidence level]
 #
-# ## Trigger Analysis
+# ### Observations
 #
-# ### Most Popular Triggers
-#
-# | Trigger Type | Count | Percentage | Example Workflows |
-# |--------------|-------|------------|-------------------|
-# | [trigger]    | [N]   | [%]        | [examples]        |
-#
-# ### Common Trigger Combinations
-#
-# 1. [Combination 1]: Used in [N] workflows
-# 2. [Combination 2]: Used in [N] workflows
-# 3. ...
-#
-# ### Schedule Patterns
-#
-# | Schedule (Cron) | Count | Description |
-# |-----------------|-------|-------------|
-# | [cron]          | [N]   | [desc]      |
-#
-# ## Safe Outputs Analysis
-#
-# ### Safe Output Types Distribution
-#
-# | Type | Count | Workflows |
-# |------|-------|-----------|
-# | create-discussion | [N] | [examples] |
-# | create-issue | [N] | [examples] |
-# | add-comment | [N] | [examples] |
-# | create-pull-request | [N] | [examples] |
-#
-# ### Discussion Categories
-#
-# | Category | Count |
-# |----------|-------|
-# | [cat]    | [N]   |
-#
-# ## Structural Characteristics
-#
-# ### Job Complexity
-#
-# - **Average Jobs per Workflow**: [N]
-# - **Average Steps per Job**: [N]
-# - **Maximum Steps in Single Job**: [N] (in [WORKFLOW])
-# - **Minimum Steps**: [N]
-#
-# ### Average Lock File Structure
-#
-# Based on statistical analysis, a typical .lock.yml file has:
-# - **Size**: ~[SIZE]
-# - **Jobs**: ~[N] jobs
-# - **Steps per Job**: ~[N] steps
-# - **Permissions**: [typical permissions]
-# - **Triggers**: [most common triggers]
-# - **Timeout**: ~[N] minutes
-#
-# ## Permission Patterns
-#
-# ### Most Common Permissions
-#
-# | Permission | Count | Type (Read/Write) |
-# |------------|-------|-------------------|
-# | [perm]     | [N]   | [type]            |
-#
-# ### Permission Distribution
-#
-# - **Read-only workflows**: [N] ([%])
-# - **Write permissions**: [N] ([%])
-# - **Minimal permissions**: [N] ([%])
-#
-# ## Tool & MCP Patterns
-#
-# ### Most Used MCP Servers
-#
-# | MCP Server | Count | Workflows |
-# |------------|-------|-----------|
-# | [server]   | [N]   | [examples]|
-#
-# ### Common Tool Configurations
-#
-# - **Bash tools**: [N] workflows
-# - **GitHub API tools**: [N] workflows
-# - **Web tools (fetch/search)**: [N] workflows
-#
-# ## Interesting Findings
-#
-# [List 3-5 interesting observations or patterns found during analysis]
-#
-# 1. [Finding 1]
-# 2. [Finding 2]
-# 3. ...
-#
-# ## Historical Trends
-#
-# [If previous data available from cache]
-#
-# - **Lock File Count**: [change from previous]
-# - **Average Size**: [change from previous]
-# - **New Patterns**: [any new patterns observed]
-#
-# ## Recommendations
-#
-# 1. [Based on the analysis, suggest improvements or best practices]
-# 2. [Identify potential optimizations]
-# 3. [Note any anomalies or outliers]
-#
-# ## Methodology
-#
-# - **Analysis Tool**: Bash scripts with YAML parsing
-# - **Lock Files Analyzed**: [N]
-# - **Cache Memory**: Used for script persistence and historical data
-# - **Data Sources**: `.github/workflows/*.lock.yml`
-#
-# ---
-#
-# *Generated by Lockfile Statistics Analysis Agent on [TIMESTAMP]*
+# [Brief notes on issue organization patterns, suggestions for maintainers]
 # ```
 #
-# ## Important Guidelines
+# ## Important Notes
 #
-# ### Data Collection Quality
-# - **Be Thorough**: Parse all lock files completely
-# - **Handle Errors**: Skip corrupted or malformed files gracefully
-# - **Accurate Counting**: Ensure counts are precise and verifiable
-# - **Pattern Recognition**: Look for both common and unique patterns
-#
-# ### Analysis Quality
-# - **Statistical Rigor**: Use appropriate statistical measures
-# - **Clear Presentation**: Use tables and charts for readability
-# - **Actionable Insights**: Focus on useful findings
-# - **Historical Context**: Compare with previous runs when available
-#
-# ### Cache Memory Usage
-# - **Script Persistence**: Save working scripts for reuse
-# - **Pattern Library**: Build a library of useful patterns
-# - **Historical Tracking**: Maintain trend data over time
-# - **Lessons Learned**: Document what works well
-#
-# ### Resource Efficiency
-# - **Batch Processing**: Process files efficiently
-# - **Reuse Scripts**: Use cached scripts when available
-# - **Avoid Redundancy**: Don't re-analyze unchanged data
-# - **Optimize Parsing**: Use efficient parsing methods
-#
-# ## Technical Approach
-#
-# ### Recommended Tools
-#
-# 1. **Bash Scripts**: For file finding and basic text processing
-# 2. **yq/jq**: For YAML/JSON parsing (if available, otherwise use text processing)
-# 3. **awk/grep/sed**: For pattern matching and extraction
-# 4. **Python**: For complex data analysis if bash is insufficient
-#
-# ### Data Extraction Strategy
-#
-# ```bash
-# # Example approach for trigger extraction
-# for file in .github/workflows/*.lock.yml; do
-#   # Extract 'on:' section and parse triggers
-#   grep -A 20 "^on:" "$file" | grep -E "^  [a-z_]+:" | cut -d: -f1 | tr -d ' '
-# done | sort | uniq -c | sort -rn
-# ```
-#
-# ### Cache Memory Structure
-#
-# Organize persistent data in `/tmp/gh-aw/cache-memory/`:
-#
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── scripts/
-# │   ├── extract_triggers.sh
-# │   ├── parse_safe_outputs.sh
-# │   ├── analyze_structure.sh
-# │   └── generate_stats.py
-# ├── history/
-# │   ├── 2024-01-15.json
-# │   └── 2024-01-16.json
-# ├── patterns/
-# │   ├── trigger_patterns.txt
-# │   ├── safe_output_patterns.txt
-# │   └── mcp_patterns.txt
-# └── README.md  # Documentation of cache structure
-# ```
-#
-# ## Success Criteria
-#
-# A successful analysis:
-# - ✅ Analyzes all .lock.yml files in the repository
-# - ✅ Generates accurate statistics for all metrics
-# - ✅ Creates a comprehensive, well-formatted report
-# - ✅ Publishes findings to the "audits" discussion category
-# - ✅ Stores analysis scripts in cache memory for reuse
-# - ✅ Maintains historical trend data
-# - ✅ Provides actionable insights and recommendations
-#
-# ## Output Requirements
-#
-# Your output MUST:
-# 1. Create a discussion in the "audits" category with the complete statistical report
-# 2. Use the report template provided above
-# 3. Include actual data from all lock files
-# 4. Present findings in clear tables and structured format
-# 5. Highlight interesting patterns and anomalies
-# 6. Store successful scripts and patterns in cache memory
-#
-# Begin your analysis now. Collect the data systematically, perform thorough statistical analysis, and generate an insightful report that helps understand the structure and patterns of agentic workflows in this repository.
+# - Be conservative with linking - only link when the relationship is clear
+# - Prefer precision over recall (better to miss a link than create a wrong one)
+# - Consider that unlinking is a manual process, so be confident before linking
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
@@ -493,21 +172,20 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Lockfile Statistics Analysis Agent"
+name: "Issue Arborist"
 "on":
   schedule:
-  - cron: "0 3 * * *"
+  - cron: "0 9 * * *"
   workflow_dispatch: null
 
 permissions:
   contents: read
   issues: read
-  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Lockfile Statistics Analysis Agent"
+run-name: "Issue Arborist"
 
 jobs:
   activation:
@@ -521,7 +199,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "lockfile-stats.lock.yml"
+          GH_AW_WORKFLOW_FILE: "issue-arborist.lock.yml"
         with:
           script: |
             async function main() {
@@ -612,9 +290,8 @@ jobs:
     permissions:
       contents: read
       issues: read
-      pull-requests: read
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -631,26 +308,6 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -700,138 +357,29 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.55
-      - name: Generate Claude Settings
-        run: |
-          mkdir -p /tmp/gh-aw/.claude
-          cat > /tmp/gh-aw/.claude/settings.json << 'EOF'
-          {
-            "hooks": {
-              "PreToolUse": [
-                {
-                  "matcher": "WebFetch|WebSearch",
-                  "hooks": [
-                    {
-                      "type": "command",
-                      "command": ".claude/hooks/network_permissions.py"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-          EOF
-      - name: Generate Network Permissions Hook
-        run: |
-          mkdir -p .claude/hooks
-          cat > .claude/hooks/network_permissions.py << 'EOF'
-          #!/usr/bin/env python3
-          """
-          Network permissions validator for Claude Code engine.
-          Generated by gh-aw from workflow-level network configuration.
-          """
-          
-          import json
-          import sys
-          import urllib.parse
-          import re
-          
-          # Domain allow-list (populated during generation)
-          # JSON string is safely parsed using json.loads() to eliminate quoting vulnerabilities
-          ALLOWED_DOMAINS = json.loads('''["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]''')
-          
-          def extract_domain(url_or_query):
-              """Extract domain from URL or search query."""
-              if not url_or_query:
-                  return None
-              
-              if url_or_query.startswith(('http://', 'https://')):
-                  return urllib.parse.urlparse(url_or_query).netloc.lower()
-              
-              # Check for domain patterns in search queries
-              match = re.search(r'site:([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', url_or_query)
-              if match:
-                  return match.group(1).lower()
-              
-              return None
-          
-          def is_domain_allowed(domain):
-              """Check if domain is allowed."""
-              if not domain:
-                  # If no domain detected, allow only if not under deny-all policy
-                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
-              
-              # Empty allowed domains means deny all
-              if not ALLOWED_DOMAINS:
-                  return False
-              
-              for pattern in ALLOWED_DOMAINS:
-                  regex = pattern.replace('.', r'\.').replace('*', '.*')
-                  if re.match(f'^{regex}$', domain):
-                      return True
-              return False
-          
-          # Main logic
-          try:
-              data = json.load(sys.stdin)
-              tool_name = data.get('tool_name', '')
-              tool_input = data.get('tool_input', {})
-              
-              if tool_name not in ['WebFetch', 'WebSearch']:
-                  sys.exit(0)  # Allow other tools
-              
-              target = tool_input.get('url') or tool_input.get('query', '')
-              domain = extract_domain(target)
-              
-              # For WebSearch, apply domain restrictions consistently
-              # If no domain detected in search query, check if restrictions are in place
-              if tool_name == 'WebSearch' and not domain:
-                  # Since this hook is only generated when network permissions are configured,
-                  # empty ALLOWED_DOMAINS means deny-all policy
-                  if not ALLOWED_DOMAINS:  # Empty list means deny all
-                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
-                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
-                      sys.exit(2)  # Block under deny-all policy
-                  else:
-                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
-                      print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-                      sys.exit(2)  # Block general searches when domain allowlist is configured
-              
-              if not is_domain_allowed(domain):
-                  print(f"Network access blocked for domain: {domain}", file=sys.stderr)
-                  print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-                  sys.exit(2)  # Block with feedback to Claude
-              
-              sys.exit(0)  # Allow
-              
-          except Exception as e:
-              print(f"Network validation error: {e}", file=sys.stderr)
-              sys.exit(2)  # Block on errors
-          
-          EOF
-          chmod +x .claude/hooks/network_permissions.py
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
       - name: Downloading container images
         run: |
           set -e
@@ -840,10 +388,10 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"link_sub_issue":{"max":2},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"},{"description":"Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items.","inputSchema":{"additionalProperties":false,"properties":{"parent_issue_number":{"description":"The parent issue number to link the sub-issue to.","type":["number","string"]},"sub_issue_number":{"description":"The issue number to link as a sub-issue of the parent.","type":["number","string"]}},"required":["parent_issue_number","sub_issue_number"],"type":"object"},"name":"link_sub_issue"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1555,41 +1103,39 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
-                }
-              },
-              "safeoutputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
-                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
-                }
-              }
-            }
-          }
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
+          
+          [mcp_servers.github]
+          user_agent = "issue-arborist"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_READ_ONLY=1",
+            "-e",
+            "GITHUB_TOOLSETS=issues",
+            "ghcr.io/github/github-mcp-server:v0.23.0"
+          ]
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+          
+          [mcp_servers.safeoutputs]
+          command = "node"
+          args = [
+            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
+          ]
+          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]
           EOF
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1598,12 +1144,12 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "2.0.55",
-              workflow_name: "Lockfile Statistics Analysis Agent",
+              agent_version: "0.63.0",
+              workflow_name: "Issue Arborist",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1617,7 +1163,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: [],
+              allowed_domains: ["defaults","github"],
               firewall_enabled: false,
               firewall_version: "",
               steps: {
@@ -1678,415 +1224,91 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          ## Report Formatting
+          # Issue Arborist 🌳
           
-          Structure your report with an overview followed by detailed content:
+          You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
           
-          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          ## Task
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          Analyze the last 20 issues in repository ${GH_AW_EXPR_D892F163} and identify opportunities to link related issues as sub-issues.
           
-          **Example format:**
+          ## Process
           
-          `````markdown
-          Brief overview paragraph 1 introducing the report and its main findings.
+          ### Step 1: Fetch Recent Issues
           
-          Optional overview paragraph 2 with additional context or highlights.
+          Use the GitHub MCP tools to fetch the last 20 issues from the repository. For each issue, collect:
+          - Issue number
+          - Title
+          - Body/description
+          - Labels
+          - State (open/closed)
           
-          <details>
-          <summary><b>Full Report Details</b></summary>
+          ### Step 2: Analyze Relationships
           
-          ## Detailed Analysis
+          Examine the issues to identify potential parent-child relationships. Look for:
           
-          Full report content with all sections, tables, and detailed information goes here.
+          1. **Feature with Tasks**: A high-level feature request (parent) with specific implementation tasks (sub-issues)
+          2. **Epic Patterns**: Issues with "[Epic]" or similar prefixes that encompass smaller work items
+          3. **Bug with Root Cause**: A symptom bug (sub-issue) that relates to a root cause issue (parent)
+          4. **Tracking Issues**: Issues that track multiple related work items
+          5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
           
-          ### Section 1
-          [Content]
+          ### Step 3: Make Linking Decisions
           
-          ### Section 2
-          [Content]
+          For each potential relationship, evaluate:
+          - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
+          - Are both issues in a state where linking makes sense?
+          - Would linking improve organization and traceability?
+          - Is the relationship strong enough to warrant a permanent link?
           
-          </details>
-          `````
+          **Constraints:**
+          - Maximum 2 links per run (to avoid over-linking)
+          - Only link if confidence is high (clear relationship)
+          - Prefer linking open issues
+          - Parent issue should be broader in scope than sub-issue
           
-          ## Reporting Workflow Run Information
+          ### Step 4: Execute Links
           
-          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
           
-          ### 1. Workflow Run ID Formatting
+          ### Step 5: Report
           
-          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          Create a discussion summarizing your analysis with:
+          - Number of issues analyzed
+          - Relationships identified (even if not linked)
+          - Links created with reasoning
+          - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
           
-          **Format:**
+          ## Output Format
           
-          `````markdown
-          [§12345](https://github.com/owner/repo/actions/runs/12345)
-          `````
-          
-          **Example:**
-          
-          `````markdown
-          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          `````
-          
-          ### 2. Document References for Workflow Runs
-          
-          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-          
-          **Format:**
-          
-          `````markdown
-          ---
-          
-          **References:**
-          - [§12345](https://github.com/owner/repo/actions/runs/12345)
-          - [§12346](https://github.com/owner/repo/actions/runs/12346)
-          - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          `````
-          
-          **Guidelines:**
-          
-          - Include **maximum 3 references** to keep reports concise
-          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-          - If analyzing more than 3 runs, select the most important ones for references
-          
-          ## Footer Attribution
-          
-          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-          
-          # Lockfile Statistics Analysis Agent
-          
-          You are the Lockfile Statistics Analysis Agent - an expert system that performs statistical and structural analysis of agentic workflow lock files (.lock.yml) in this repository.
-          
-          ## Mission
-          
-          Analyze all .lock.yml files in the `.github/workflows/` directory to identify usage patterns, popular triggers, safe outputs, step sizes, and other interesting structural characteristics. Generate comprehensive statistical reports and publish findings to the "audits" discussion category.
-          
-          ## Current Context
-          
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Analysis Date**: $(date +%Y-%m-%d)
-          - **Lockfiles Location**: `.github/workflows/*.lock.yml`
-          
-          ## Analysis Process
-          
-          ### Phase 1: Data Collection
-          
-          1. **Find All Lock Files**:
-             - Use bash to find all `.lock.yml` files in `.github/workflows/`
-             - Count total number of lock files
-             - Record file sizes for each lock file
-          
-          2. **Parse Lock Files**:
-             - Read YAML content from each lock file
-             - Extract key structural elements:
-               - Workflow triggers (from `on:` section)
-               - Safe outputs configuration (from job outputs and create-discussion, create-issue, add-comment, etc.)
-               - Number of jobs
-               - Number of steps per job
-               - Permissions granted
-               - Timeout configurations
-               - Engine types (if discernible from comments or structure)
-               - Concurrency settings
-          
-          ### Phase 2: Statistical Analysis
-          
-          Analyze the collected data to generate insights:
-          
-          #### 2.1 Trigger Analysis
-          - **Most Popular Triggers**: Count frequency of each trigger type (issues, pull_request, schedule, workflow_dispatch, etc.)
-          - **Trigger Combinations**: Identify common trigger combinations
-          - **Schedule Patterns**: Analyze cron schedule frequencies
-          - **Workflow Dispatch Usage**: Count workflows with manual trigger capability
-          
-          #### 2.2 Safe Outputs Analysis
-          - **Safe Output Types**: Count usage of different safe output types:
-            - create-discussion
-            - create-issue
-            - add-comment
-            - create-pull-request
-            - create-pull-request-review-comment
-            - update-issue
-            - Others
-          - **Safe Output Combinations**: Identify workflows using multiple safe output types
-          - **Category Distribution**: For create-discussion, analyze which categories are most used
-          
-          #### 2.3 Structural Analysis
-          - **File Size Distribution**:
-            - Average lock file size
-            - Minimum and maximum sizes
-            - Size distribution histogram (e.g., <10KB, 10-50KB, 50-100KB, >100KB)
-            
-          - **Job Complexity**:
-            - Average number of jobs per workflow
-            - Average number of steps per job
-            - Maximum steps in a single job
-            
-          - **Permission Patterns**:
-            - Most commonly requested permissions
-            - Read-only vs. write permissions distribution
-            - Workflows with minimal permissions vs. broad permissions
-          
-          #### 2.4 Interesting Patterns
-          - **MCP Server Usage**: Identify which MCP servers are most commonly configured
-          - **Tool Configurations**: Common tool allowlists
-          - **Timeout Patterns**: Average and distribution of timeout-minutes values
-          - **Concurrency Groups**: Common concurrency patterns
-          - **Engine Distribution**: If detectable, count usage of different engines (claude, copilot, codex, custom)
-          
-          ### Phase 3: Cache Memory Management
-          
-          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to persist analysis scripts and successful approaches:
-          
-          1. **Store Analysis Scripts**:
-             - Save successful bash/python scripts for parsing YAML to `/tmp/gh-aw/cache-memory/scripts/`
-             - Store data extraction patterns that worked well
-             - Keep reference implementations for future runs
-          
-          2. **Maintain Historical Data**:
-             - Store previous analysis results in `/tmp/gh-aw/cache-memory/history/<date>.json`
-             - Track trends over time (file count growth, size growth, pattern changes)
-             - Compare current analysis with previous runs
-          
-          3. **Build Pattern Library**:
-             - Create reusable patterns for common analysis tasks
-             - Store successful regex patterns for extracting data
-             - Document lessons learned for future analysis
-          
-          ### Phase 4: Report Generation
-          
-          Create a comprehensive markdown report with the following structure:
+          Your discussion should include:
           
           ```markdown
-          # 📊 Agentic Workflow Lock File Statistics - [DATE]
+          ## 🌳 Issue Arborist Daily Report
           
-          ## Executive Summary
+          **Date**: [Current Date]
+          **Issues Analyzed**: 20
           
-          - **Total Lock Files**: [NUMBER]
-          - **Total Size**: [SIZE]
-          - **Average File Size**: [SIZE]
-          - **Analysis Date**: [DATE]
+          ### Links Created
           
-          ## File Size Distribution
+          | Parent Issue | Sub-Issue | Reasoning |
+          |-------------|-----------|-----------|
+          | #X: [title] | #Y: [title] | [brief explanation] |
           
-          | Size Range | Count | Percentage |
-          |------------|-------|------------|
-          | < 10 KB    | [N]   | [%]        |
-          | 10-50 KB   | [N]   | [%]        |
-          | 50-100 KB  | [N]   | [%]        |
-          | > 100 KB   | [N]   | [%]        |
+          ### Potential Relationships (For Manual Review)
           
-          **Statistics**:
-          - Smallest: [FILENAME] ([SIZE])
-          - Largest: [FILENAME] ([SIZE])
+          [List any relationships you identified but didn't link, with confidence level]
           
-          ## Trigger Analysis
+          ### Observations
           
-          ### Most Popular Triggers
-          
-          | Trigger Type | Count | Percentage | Example Workflows |
-          |--------------|-------|------------|-------------------|
-          | [trigger]    | [N]   | [%]        | [examples]        |
-          
-          ### Common Trigger Combinations
-          
-          1. [Combination 1]: Used in [N] workflows
-          2. [Combination 2]: Used in [N] workflows
-          3. ...
-          
-          ### Schedule Patterns
-          
-          | Schedule (Cron) | Count | Description |
-          |-----------------|-------|-------------|
-          | [cron]          | [N]   | [desc]      |
-          
-          ## Safe Outputs Analysis
-          
-          ### Safe Output Types Distribution
-          
-          | Type | Count | Workflows |
-          |------|-------|-----------|
-          | create-discussion | [N] | [examples] |
-          | create-issue | [N] | [examples] |
-          | add-comment | [N] | [examples] |
-          | create-pull-request | [N] | [examples] |
-          
-          ### Discussion Categories
-          
-          | Category | Count |
-          |----------|-------|
-          | [cat]    | [N]   |
-          
-          ## Structural Characteristics
-          
-          ### Job Complexity
-          
-          - **Average Jobs per Workflow**: [N]
-          - **Average Steps per Job**: [N]
-          - **Maximum Steps in Single Job**: [N] (in [WORKFLOW])
-          - **Minimum Steps**: [N]
-          
-          ### Average Lock File Structure
-          
-          Based on statistical analysis, a typical .lock.yml file has:
-          - **Size**: ~[SIZE]
-          - **Jobs**: ~[N] jobs
-          - **Steps per Job**: ~[N] steps
-          - **Permissions**: [typical permissions]
-          - **Triggers**: [most common triggers]
-          - **Timeout**: ~[N] minutes
-          
-          ## Permission Patterns
-          
-          ### Most Common Permissions
-          
-          | Permission | Count | Type (Read/Write) |
-          |------------|-------|-------------------|
-          | [perm]     | [N]   | [type]            |
-          
-          ### Permission Distribution
-          
-          - **Read-only workflows**: [N] ([%])
-          - **Write permissions**: [N] ([%])
-          - **Minimal permissions**: [N] ([%])
-          
-          ## Tool & MCP Patterns
-          
-          ### Most Used MCP Servers
-          
-          | MCP Server | Count | Workflows |
-          |------------|-------|-----------|
-          | [server]   | [N]   | [examples]|
-          
-          ### Common Tool Configurations
-          
-          - **Bash tools**: [N] workflows
-          - **GitHub API tools**: [N] workflows
-          - **Web tools (fetch/search)**: [N] workflows
-          
-          ## Interesting Findings
-          
-          [List 3-5 interesting observations or patterns found during analysis]
-          
-          1. [Finding 1]
-          2. [Finding 2]
-          3. ...
-          
-          ## Historical Trends
-          
-          [If previous data available from cache]
-          
-          - **Lock File Count**: [change from previous]
-          - **Average Size**: [change from previous]
-          - **New Patterns**: [any new patterns observed]
-          
-          ## Recommendations
-          
-          1. [Based on the analysis, suggest improvements or best practices]
-          2. [Identify potential optimizations]
-          3. [Note any anomalies or outliers]
-          
-          ## Methodology
-          
-          - **Analysis Tool**: Bash scripts with YAML parsing
-          - **Lock Files Analyzed**: [N]
-          - **Cache Memory**: Used for script persistence and historical data
-          - **Data Sources**: `.github/workflows/*.lock.yml`
-          
-          ---
-          
-          *Generated by Lockfile Statistics Analysis Agent on [TIMESTAMP]*
+          [Brief notes on issue organization patterns, suggestions for maintainers]
           ```
           
-          ## Important Guidelines
+          ## Important Notes
           
-          ### Data Collection Quality
-          - **Be Thorough**: Parse all lock files completely
-          - **Handle Errors**: Skip corrupted or malformed files gracefully
-          - **Accurate Counting**: Ensure counts are precise and verifiable
-          - **Pattern Recognition**: Look for both common and unique patterns
-          
-          ### Analysis Quality
-          - **Statistical Rigor**: Use appropriate statistical measures
-          - **Clear Presentation**: Use tables and charts for readability
-          - **Actionable Insights**: Focus on useful findings
-          - **Historical Context**: Compare with previous runs when available
-          
-          ### Cache Memory Usage
-          - **Script Persistence**: Save working scripts for reuse
-          - **Pattern Library**: Build a library of useful patterns
-          - **Historical Tracking**: Maintain trend data over time
-          - **Lessons Learned**: Document what works well
-          
-          ### Resource Efficiency
-          - **Batch Processing**: Process files efficiently
-          - **Reuse Scripts**: Use cached scripts when available
-          - **Avoid Redundancy**: Don't re-analyze unchanged data
-          - **Optimize Parsing**: Use efficient parsing methods
-          
-          ## Technical Approach
-          
-          ### Recommended Tools
-          
-          1. **Bash Scripts**: For file finding and basic text processing
-          2. **yq/jq**: For YAML/JSON parsing (if available, otherwise use text processing)
-          3. **awk/grep/sed**: For pattern matching and extraction
-          4. **Python**: For complex data analysis if bash is insufficient
-          
-          ### Data Extraction Strategy
-          
-          ```bash
-          # Example approach for trigger extraction
-          for file in .github/workflows/*.lock.yml; do
-            # Extract 'on:' section and parse triggers
-            grep -A 20 "^on:" "$file" | grep -E "^  [a-z_]+:" | cut -d: -f1 | tr -d ' '
-          done | sort | uniq -c | sort -rn
-          ```
-          
-          ### Cache Memory Structure
-          
-          Organize persistent data in `/tmp/gh-aw/cache-memory/`:
-          
-          ```
-          /tmp/gh-aw/cache-memory/
-          ├── scripts/
-          │   ├── extract_triggers.sh
-          │   ├── parse_safe_outputs.sh
-          │   ├── analyze_structure.sh
-          │   └── generate_stats.py
-          ├── history/
-          │   ├── 2024-01-15.json
-          │   └── 2024-01-16.json
-          ├── patterns/
-          │   ├── trigger_patterns.txt
-          │   ├── safe_output_patterns.txt
-          │   └── mcp_patterns.txt
-          └── README.md  # Documentation of cache structure
-          ```
-          
-          ## Success Criteria
-          
-          A successful analysis:
-          - ✅ Analyzes all .lock.yml files in the repository
-          - ✅ Generates accurate statistics for all metrics
-          - ✅ Creates a comprehensive, well-formatted report
-          - ✅ Publishes findings to the "audits" discussion category
-          - ✅ Stores analysis scripts in cache memory for reuse
-          - ✅ Maintains historical trend data
-          - ✅ Provides actionable insights and recommendations
-          
-          ## Output Requirements
-          
-          Your output MUST:
-          1. Create a discussion in the "audits" category with the complete statistical report
-          2. Use the report template provided above
-          3. Include actual data from all lock files
-          4. Present findings in clear tables and structured format
-          5. Highlight interesting patterns and anomalies
-          6. Store successful scripts and patterns in cache memory
-          
-          Begin your analysis now. Collect the data systematically, perform thorough statistical analysis, and generate an insightful report that helps understand the structure and patterns of agentic workflows in this repository.
+          - Be conservative with linking - only link when the relationship is clear
+          - Prefer precision over recall (better to miss a link than create a wrong one)
+          - Consider that unlinking is a manual process, so be confident before linking
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -2121,31 +1343,6 @@ jobs:
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
           </temporary-files>
           
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -2298,112 +1495,23 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code CLI
-        id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(date)
-        # - Bash(echo)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(ls)
-        # - Bash(pwd)
-        # - Bash(sort)
-        # - Bash(tail)
-        # - Bash(uniq)
-        # - Bash(wc)
-        # - Bash(yq)
-        # - BashOutput
-        # - Edit(/tmp/gh-aw/cache-memory/*)
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
-        # - NotebookRead
-        # - Read
-        # - Read(/tmp/gh-aw/cache-memory/*)
-        # - Task
-        # - TodoWrite
-        # - Write
-        # - Write(/tmp/gh-aw/cache-memory/*)
-        # - mcp__github__download_workflow_run_artifact
-        # - mcp__github__get_code_scanning_alert
-        # - mcp__github__get_commit
-        # - mcp__github__get_dependabot_alert
-        # - mcp__github__get_discussion
-        # - mcp__github__get_discussion_comments
-        # - mcp__github__get_file_contents
-        # - mcp__github__get_job_logs
-        # - mcp__github__get_label
-        # - mcp__github__get_latest_release
-        # - mcp__github__get_me
-        # - mcp__github__get_notification_details
-        # - mcp__github__get_pull_request
-        # - mcp__github__get_pull_request_comments
-        # - mcp__github__get_pull_request_diff
-        # - mcp__github__get_pull_request_files
-        # - mcp__github__get_pull_request_review_comments
-        # - mcp__github__get_pull_request_reviews
-        # - mcp__github__get_pull_request_status
-        # - mcp__github__get_release_by_tag
-        # - mcp__github__get_secret_scanning_alert
-        # - mcp__github__get_tag
-        # - mcp__github__get_workflow_run
-        # - mcp__github__get_workflow_run_logs
-        # - mcp__github__get_workflow_run_usage
-        # - mcp__github__issue_read
-        # - mcp__github__list_branches
-        # - mcp__github__list_code_scanning_alerts
-        # - mcp__github__list_commits
-        # - mcp__github__list_dependabot_alerts
-        # - mcp__github__list_discussion_categories
-        # - mcp__github__list_discussions
-        # - mcp__github__list_issue_types
-        # - mcp__github__list_issues
-        # - mcp__github__list_label
-        # - mcp__github__list_notifications
-        # - mcp__github__list_pull_requests
-        # - mcp__github__list_releases
-        # - mcp__github__list_secret_scanning_alerts
-        # - mcp__github__list_starred_repositories
-        # - mcp__github__list_tags
-        # - mcp__github__list_workflow_jobs
-        # - mcp__github__list_workflow_run_artifacts
-        # - mcp__github__list_workflow_runs
-        # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
-        # - mcp__github__search_code
-        # - mcp__github__search_issues
-        # - mcp__github__search_orgs
-        # - mcp__github__search_pull_requests
-        # - mcp__github__search_repositories
-        # - mcp__github__search_users
-        timeout-minutes: 15
+      - name: Run Codex
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "60000"
-          BASH_DEFAULT_TIMEOUT_MS: "60000"
-          BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-      - name: Clean up network proxy hook files
-        if: always()
-        run: |
-          rm -rf .claude/hooks/network_permissions.py || true
-          rm -rf .claude/hooks || true
-          rm -rf .claude || true
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2515,11 +1623,11 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -2532,7 +1640,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3641,6 +2749,14 @@ jobs:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -4187,85 +3303,313 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseClaudeLog,
-                parserName: "Claude",
+                parseLog: parseCodexLog,
+                parserName: "Codex",
                 supportsDirectories: false,
               });
             }
-            function parseClaudeLog(logContent) {
-              try {
-                const logEntries = parseLogEntries(logContent);
-                if (!logEntries) {
-                  return {
-                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
-                    mcpFailures: [],
-                    maxTurnsHit: false,
-                  };
+            function extractMCPInitialization(lines) {
+              const mcpServers = new Map(); 
+              let serverCount = 0;
+              let connectedCount = 0;
+              let availableTools = [];
+              for (const line of lines) {
+                if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
                 }
-                const mcpFailures = [];
-                const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
-                  formatInitCallback: initEntry => {
-                    const result = formatInitializationSummary(initEntry, {
-                      includeSlashCommands: true,
-                      mcpFailureCallback: server => {
-                        const errorDetails = [];
-                        if (server.error) {
-                          errorDetails.push(`**Error:** ${server.error}`);
-                        }
-                        if (server.stderr) {
-                          const maxStderrLength = 500;
-                          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
-                          errorDetails.push(`**Stderr:** \`${stderr}\``);
-                        }
-                        if (server.exitCode !== undefined && server.exitCode !== null) {
-                          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
-                        }
-                        if (server.command) {
-                          errorDetails.push(`**Command:** \`${server.command}\``);
-                        }
-                        if (server.message) {
-                          errorDetails.push(`**Message:** ${server.message}`);
-                        }
-                        if (server.reason) {
-                          errorDetails.push(`**Reason:** ${server.reason}`);
-                        }
-                        if (errorDetails.length > 0) {
-                          return errorDetails.map(detail => `  - ${detail}\n`).join("");
-                        }
-                        return "";
-                      },
-                    });
-                    if (result.mcpFailures) {
-                      mcpFailures.push(...result.mcpFailures);
-                    }
-                    return result;
-                  },
-                });
-                let markdown = conversationResult.markdown;
-                const lastEntry = logEntries[logEntries.length - 1];
-                markdown += generateInformationSection(lastEntry);
-                let maxTurnsHit = false;
-                const maxTurns = process.env.GH_AW_MAX_TURNS;
-                if (maxTurns && lastEntry && lastEntry.num_turns) {
-                  const configuredMaxTurns = parseInt(maxTurns, 10);
-                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
-                    maxTurnsHit = true;
+                const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
+                if (countMatch) {
+                  serverCount = parseInt(countMatch[1]);
+                }
+                const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
+                if (connectingMatch) {
+                  const serverName = connectingMatch[1];
+                  if (!mcpServers.has(serverName)) {
+                    mcpServers.set(serverName, { name: serverName, status: "connecting" });
                   }
                 }
-                return { markdown, mcpFailures, maxTurnsHit };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return {
-                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
-                  mcpFailures: [],
-                  maxTurnsHit: false,
-                };
+                const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
+                if (connectedMatch) {
+                  const serverName = connectedMatch[1];
+                  mcpServers.set(serverName, { name: serverName, status: "connected" });
+                  connectedCount++;
+                }
+                const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
+                if (failedMatch) {
+                  const serverName = failedMatch[1];
+                  const error = failedMatch[2].trim();
+                  mcpServers.set(serverName, { name: serverName, status: "failed", error });
+                }
+                const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
+                if (initFailedMatch) {
+                  const serverName = initFailedMatch[1];
+                  const existing = mcpServers.get(serverName);
+                  if (existing && existing.status !== "failed") {
+                    mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
+                  }
+                }
+                const toolsMatch = line.match(/Available tools:\s*(.+)/i);
+                if (toolsMatch) {
+                  const toolsStr = toolsMatch[1];
+                  availableTools = toolsStr
+                    .split(",")
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
+                }
               }
+              let markdown = "";
+              const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
+              if (mcpServers.size > 0) {
+                markdown += "**MCP Servers:**\n";
+                const servers = Array.from(mcpServers.values());
+                const connected = servers.filter(s => s.status === "connected");
+                const failed = servers.filter(s => s.status === "failed");
+                markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
+                markdown += `- Connected: ${connected.length}\n`;
+                if (failed.length > 0) {
+                  markdown += `- Failed: ${failed.length}\n`;
+                }
+                markdown += "\n";
+                for (const server of servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
+                  markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
+                  if (server.error) {
+                    markdown += `\n  - Error: ${server.error}`;
+                  }
+                  markdown += "\n";
+                }
+                markdown += "\n";
+              }
+              if (availableTools.length > 0) {
+                markdown += "**Available MCP Tools:**\n";
+                markdown += `- Total: ${availableTools.length} tools\n`;
+                markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
+              }
+              return {
+                hasInfo,
+                markdown,
+                servers: Array.from(mcpServers.values()),
+              };
+            }
+            function parseCodexLog(logContent) {
+              try {
+                const lines = logContent.split("\n");
+                const LOOKAHEAD_WINDOW = 50;
+                let markdown = "";
+                const mcpInfo = extractMCPInitialization(lines);
+                if (mcpInfo.hasInfo) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += mcpInfo.markdown;
+                }
+                markdown += "## 🤖 Reasoning\n\n";
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  if (
+                    line.includes("OpenAI Codex") ||
+                    line.startsWith("--------") ||
+                    line.includes("workdir:") ||
+                    line.includes("model:") ||
+                    line.includes("provider:") ||
+                    line.includes("approval:") ||
+                    line.includes("sandbox:") ||
+                    line.includes("reasoning effort:") ||
+                    line.includes("reasoning summaries:") ||
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+                  ) {
+                    continue;
+                  }
+                  if (line.trim() === "thinking") {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
+                    inThinkingSection = false;
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                    const trimmed = line.trim();
+                    markdown += `${trimmed}\n\n`;
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
+                  if (toolMatch) {
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    const params = toolMatch[3];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let jsonLines = [];
+                        let braceCount = 0;
+                        let inJson = false;
+                        for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+                            break;
+                          }
+                          for (const char of respLine) {
+                            if (char === "{") {
+                              braceCount++;
+                              inJson = true;
+                            } else if (char === "}") {
+                              braceCount--;
+                            }
+                          }
+                          if (inJson) {
+                            jsonLines.push(respLine);
+                          }
+                          if (inJson && braceCount === 0) {
+                            break;
+                          }
+                        }
+                        response = jsonLines.join("\n");
+                        break;
+                      }
+                    }
+                    markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
+                  } else if (bashMatch) {
+                    const command = bashMatch[1];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let responseLines = [];
+                        for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (
+                            respLine.includes("tool ") ||
+                            respLine.includes("exec ") ||
+                            respLine.includes("ToolCall:") ||
+                            respLine.includes("tokens used") ||
+                            respLine.includes("thinking")
+                          ) {
+                            break;
+                          }
+                          responseLines.push(respLine);
+                        }
+                        response = responseLines.join("\n").trim();
+                        break;
+                      }
+                    }
+                    markdown += formatCodexBashCall(command, response, statusIcon);
+                  }
+                }
+                markdown += "\n## 📊 Information\n\n";
+                let totalTokens = 0;
+                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
+                for (const match of tokenCountMatches) {
+                  const tokens = parseInt(match[1]);
+                  totalTokens = Math.max(totalTokens, tokens); 
+                }
+                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                if (finalTokensMatch) {
+                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                return markdown;
+              } catch (error) {
+                core.error(`Error parsing Codex log: ${error}`);
+                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
+              }
+            }
+            function formatCodexToolCall(server, toolName, params, response, statusIcon) {
+              const totalTokens = estimateTokens(params) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
+              }
+              const summary = `<code>${server}::${toolName}</code>`;
+              const sections = [];
+              if (params && params.trim()) {
+                sections.push({
+                  label: "Parameters",
+                  content: params,
+                  language: "json",
+                });
+              }
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Response",
+                  content: response,
+                  language: "json",
+                });
+              }
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
+            }
+            function formatCodexBashCall(command, response, statusIcon) {
+              const totalTokens = estimateTokens(command) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
+              }
+              const summary = `<code>bash: ${truncateString(command, 60)}</code>`;
+              const sections = [];
+              sections.push({
+                label: "Command",
+                content: command,
+                language: "bash",
+              });
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Output",
+                  content: response,
+                });
+              }
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
-                parseClaudeLog,
+                parseCodexLog,
+                formatCodexToolCall,
+                formatCodexBashCall,
+                extractMCPInitialization,
               };
             }
             main();
@@ -4281,7 +3625,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
             function main() {
@@ -4517,6 +3861,7 @@ jobs:
       - agent
       - activation
       - create_discussion
+      - link_sub_issue
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -4557,7 +3902,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4649,7 +3994,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4762,7 +4107,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -5080,8 +4425,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_CATEGORY: "audits"
-          GH_AW_WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[Issue Arborist] "
+          GH_AW_DISCUSSION_CATEGORY: "Audits"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5335,7 +4681,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -5366,8 +4712,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Lockfile Statistics Analysis Agent"
-          WORKFLOW_DESCRIPTION: "Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns"
+          WORKFLOW_NAME: "Issue Arborist"
+          WORKFLOW_DESCRIPTION: "Daily workflow that analyzes recent issues and links related issues as sub-issues"
         with:
           script: |
             const fs = require('fs');
@@ -5473,65 +4819,45 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.55
-      - name: Execute Claude Code CLI
-        id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
-        timeout-minutes: 20
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
+      - name: Run Codex
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "60000"
-          BASH_DEFAULT_TIMEOUT_MS: "60000"
-          BASH_MAX_TIMEOUT_MS: "60000"
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -5578,4 +4904,330 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  link_sub_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'link_sub_issue'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      linked_issues: ${{ steps.link_sub_issue.outputs.linked_issues }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Link Sub-Issue
+        id: link_sub_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 2
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const linkItems = result.items.filter(item => item.type === "link_sub_issue");
+              if (linkItems.length === 0) {
+                core.info("No link_sub_issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Link Sub-Issue",
+                  description: "The following sub-issue links would be created if staged mode was disabled:",
+                  items: linkItems,
+                  renderItem: item => {
+                    let content = `**Parent Issue:** #${item.parent_issue_number}\n`;
+                    content += `**Sub-Issue:** #${item.sub_issue_number}\n\n`;
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
+              const parentRequiredLabels = parentRequiredLabelsEnv
+                ? parentRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const parentTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX?.trim() || "";
+              const subRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS?.trim();
+              const subRequiredLabels = subRequiredLabelsEnv
+                ? subRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const subTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX?.trim() || "";
+              if (parentRequiredLabels.length > 0) {
+                core.info(`Parent required labels: ${JSON.stringify(parentRequiredLabels)}`);
+              }
+              if (parentTitlePrefix) {
+                core.info(`Parent title prefix: ${parentTitlePrefix}`);
+              }
+              if (subRequiredLabels.length > 0) {
+                core.info(`Sub-issue required labels: ${JSON.stringify(subRequiredLabels)}`);
+              }
+              if (subTitlePrefix) {
+                core.info(`Sub-issue title prefix: ${subTitlePrefix}`);
+              }
+              const maxCountEnv = process.env.GH_AW_LINK_SUB_ISSUE_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 5;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = linkItems.slice(0, maxCount);
+              if (linkItems.length > maxCount) {
+                core.warning(`Found ${linkItems.length} link_sub_issue items, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const results = [];
+              for (const item of itemsToProcess) {
+                const parentIssueNumber =
+                  typeof item.parent_issue_number === "number" ? item.parent_issue_number : parseInt(String(item.parent_issue_number), 10);
+                const subIssueNumber = typeof item.sub_issue_number === "number" ? item.sub_issue_number : parseInt(String(item.sub_issue_number), 10);
+                if (isNaN(parentIssueNumber) || parentIssueNumber <= 0) {
+                  core.error(`Invalid parent_issue_number: ${item.parent_issue_number}`);
+                  continue;
+                }
+                if (isNaN(subIssueNumber) || subIssueNumber <= 0) {
+                  core.error(`Invalid sub_issue_number: ${item.sub_issue_number}`);
+                  continue;
+                }
+                let parentIssue;
+                try {
+                  const parentResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parentIssueNumber,
+                  });
+                  parentIssue = parentResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch parent issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                if (parentRequiredLabels.length > 0) {
+                  const parentLabels = parentIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = parentRequiredLabels.filter(required => !parentLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Parent issue #${parentIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Parent issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (parentTitlePrefix && !parentIssue.title.startsWith(parentTitlePrefix)) {
+                  core.warning(`Parent issue #${parentIssueNumber} title does not start with "${parentTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Parent issue title does not start with "${parentTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                let subIssue;
+                try {
+                  const subResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: subIssueNumber,
+                  });
+                  subIssue = subResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch sub-issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                if (subRequiredLabels.length > 0) {
+                  const subLabels = subIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Sub-issue #${subIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (subTitlePrefix && !subIssue.title.startsWith(subTitlePrefix)) {
+                  core.warning(`Sub-issue #${subIssueNumber} title does not start with "${subTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Sub-issue title does not start with "${subTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                try {
+                  const parentNodeId = parentIssue.node_id;
+                  const subNodeId = subIssue.node_id;
+                  await github.graphql(
+                    `
+                    mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+                      addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+                        issue {
+                          id
+                          number
+                        }
+                        subIssue {
+                          id
+                          number
+                        }
+                      }
+                    }
+                  `,
+                    {
+                      parentId: parentNodeId,
+                      subIssueId: subNodeId,
+                    }
+                  );
+                  core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: true,
+                  });
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Link Sub-Issue\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully linked ${successCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to link ${failureCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const linkedIssues = results
+                .filter(r => r.success)
+                .map(r => `${r.parent_issue_number}:${r.sub_issue_number}`)
+                .join("\n");
+              core.setOutput("linked_issues", linkedIssues);
+              if (failureCount > 0 && successCount === 0) {
+                core.setFailed(`Failed to link ${failureCount} sub-issue(s)`);
+              }
+            }
+            await main();
 
