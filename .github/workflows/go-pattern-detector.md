@@ -13,6 +13,40 @@ permissions:
   issues: read
   pull-requests: read
 
+jobs:
+  ast_grep:
+    runs-on: ubuntu-latest
+    outputs:
+      found_patterns: ${{ steps.detect.outputs.found_patterns }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install ast-grep
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/ast-grep/ast-grep/main/install.sh | bash -s -- -b /usr/local/bin
+      - name: Detect Go patterns
+        id: detect
+        run: |
+          # Run ast-grep to detect json:"-" pattern in Go files
+          if ast-grep --pattern 'json:"-"' --lang go . > /tmp/ast-grep-results.txt 2>&1; then
+            if [ -s /tmp/ast-grep-results.txt ]; then
+              echo "found_patterns=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Found Go patterns matching json:\"-\""
+              cat /tmp/ast-grep-results.txt
+            else
+              echo "found_patterns=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::No Go patterns matching json:\"-\" found"
+            fi
+          else
+            # ast-grep returns non-zero when no matches found
+            echo "found_patterns=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Go patterns matching json:\"-\" found"
+          fi
+
+if: needs.ast_grep.outputs.found_patterns == 'true'
+
 engine: claude
 timeout-minutes: 10
 

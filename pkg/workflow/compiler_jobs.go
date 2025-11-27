@@ -28,6 +28,21 @@ func (c *Compiler) isActivationJobNeeded() bool {
 	return true
 }
 
+// referencesCustomJobOutputs checks if a condition string references outputs from custom jobs.
+// Returns true if the condition contains "needs.<customJobName>.outputs" patterns.
+func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[string]any) bool {
+	if condition == "" || customJobs == nil {
+		return false
+	}
+	for jobName := range customJobs {
+		// Check for patterns like "needs.ast_grep.outputs" or "needs.ast_grep.result"
+		if strings.Contains(condition, fmt.Sprintf("needs.%s.", jobName)) {
+			return true
+		}
+	}
+	return false
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
@@ -792,7 +807,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
-		if data.If != "" {
+		// Only include user's if condition if it doesn't reference custom job outputs
+		// Custom job output conditions should be applied to the agent job instead
+		if data.If != "" && !c.referencesCustomJobOutputs(data.If, data.Jobs) {
 			// Strip ${{ }} wrapper from data.If before combining
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
@@ -802,8 +819,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			activationCondition = activatedExpr.Render()
 		}
 	} else {
-		// No pre-activation check needed, use user's if condition
-		activationCondition = data.If
+		// No pre-activation check needed, use user's if condition only if it doesn't reference custom jobs
+		if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			activationCondition = data.If
+		}
 	}
 
 	// Apply workflow_run repository safety check exclusively to activation job
@@ -855,7 +874,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var jobCondition = data.If
 	if activationJobCreated {
-		jobCondition = "" // Main job depends on activation job, so no need for inline condition
+		// If the if condition references custom job outputs, keep it for the agent job
+		// Otherwise, clear it since the activation job handles the condition
+		if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			jobCondition = "" // Main job depends on activation job, so no need for inline condition
+		}
 	}
 
 	// Note: workflow_run repository safety check is applied exclusively to activation job
