@@ -1,9 +1,9 @@
 ---
-description: Automatically closes discussions created by github-actions bot that are older than 1 week
+description: Automatically closes outdated discussions - bot-created discussions older than 1 week, and daily reports superseded by fresher versions
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 6 */2 * *"  # Every 2 days at 6 AM UTC
+    - cron: "0 14 * * 1-5"  # Weekdays at 2 PM UTC
 permissions:
   contents: read
   actions: read
@@ -11,141 +11,190 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/jqschema.md
+  - shared/discussions-data-fetch.md
 tools:
   github:
     toolsets: [default, discussions]
+  bash:
+    - "jq *"
+    - "cat *"
+    - "date *"
 safe-outputs:
   close-discussion:
     max: 100
 timeout-minutes: 10
 strict: true
 steps:
-  - name: Fetch open discussions
-    id: fetch-discussions
+  - name: Analyze and filter discussions
+    id: analyze-discussions
     run: |
-      # Use GraphQL to fetch all open discussions in one query
-      # Filter to only get discussions created by github-actions[bot]
       # Calculate cutoff date (7 days ago)
-      CUTOFF_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+      CUTOFF_DATE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)
+      echo "Cutoff date for old discussions: $CUTOFF_DATE"
       
-      # Fetch discussions with pagination
-      DISCUSSIONS_FILE="/tmp/gh-aw/discussions.json"
-      echo '[]' > "$DISCUSSIONS_FILE"
+      # Check if discussions data exists
+      DISCUSSIONS_FILE="/tmp/gh-aw/discussions-data/discussions.json"
+      if [ ! -f "$DISCUSSIONS_FILE" ]; then
+        echo "No discussions data found"
+        echo '[]' > /tmp/gh-aw/old-discussions.json
+        echo '[]' > /tmp/gh-aw/superseded-reports.json
+        exit 0
+      fi
       
-      CURSOR=""
-      HAS_NEXT_PAGE=true
-      PAGE_COUNT=0
+      # 1. Find old bot-created discussions (older than 7 days, created by github-actions[bot])
+      jq --arg cutoff "$CUTOFF_DATE" '
+        [.[] | select(
+          .author == "github-actions[bot]" and 
+          .createdAt < $cutoff
+        )]
+      ' "$DISCUSSIONS_FILE" > /tmp/gh-aw/old-discussions.json
       
-      while [ "$HAS_NEXT_PAGE" = "true" ]; do
-        if [ -z "$CURSOR" ]; then
-          CURSOR_ARG=""
-        else
-          CURSOR_ARG=", after: \"$CURSOR\""
-        fi
-        
-        RESULT=$(gh api graphql -f query="
-          query {
-            repository(owner: \"${{ github.repository_owner }}\", name: \"${{ github.event.repository.name }}\") {
-              discussions(first: 100, states: OPEN${CURSOR_ARG}) {
-                pageInfo {
-                  hasNextPage
-                  endCursor
-                }
-                nodes {
-                  number
-                  title
-                  createdAt
-                  author {
-                    login
-                  }
-                }
-              }
-            }
-          }
-        ")
-        
-        # Extract discussions created by github-actions[bot]
-        echo "$RESULT" | jq -r --arg cutoff "$CUTOFF_DATE" '
-          .data.repository.discussions.nodes 
-          | map(select(
-              .author != null and 
-              .author.login == "github-actions[bot]" and 
-              .createdAt < $cutoff
-            ))
-          | map({number, title, createdAt, author: .author.login})
-        ' | jq -s 'add' > /tmp/gh-aw/temp_discussions.json
-        
-        # Merge with existing discussions
-        jq -s 'add | unique_by(.number)' "$DISCUSSIONS_FILE" /tmp/gh-aw/temp_discussions.json > /tmp/gh-aw/merged.json
-        mv /tmp/gh-aw/merged.json "$DISCUSSIONS_FILE"
-        
-        # Check if there are more pages
-        HAS_NEXT_PAGE=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')
-        CURSOR=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.endCursor')
-        
-        # Safety check - break after 10 pages (1000 discussions)
-        PAGE_COUNT=$((PAGE_COUNT + 1))
-        if [ $PAGE_COUNT -ge 10 ]; then
-          echo "Reached pagination limit (10 pages)"
-          break
-        fi
-      done
+      OLD_COUNT=$(jq 'length' /tmp/gh-aw/old-discussions.json)
+      echo "Found $OLD_COUNT old bot-created discussions (>7 days)"
       
-      # Output summary for logging
-      DISCUSSION_COUNT=$(jq 'length' "$DISCUSSIONS_FILE")
-      echo "Found $DISCUSSION_COUNT discussions to close"
+      # 2. Find superseded daily reports (reports with fresher versions)
+      # Daily reports typically have titles like "Daily Report - 2025-11-25" or "[Report] Activity Summary - Nov 25"
+      # We want to keep only the newest report of each type/category and close older ones
+      jq '
+        # Filter to only bot-created discussions with report-like titles
+        [.[] | select(
+          .author == "github-actions[bot]" and
+          (.title | test("report|summary|analysis|digest|update|insights|metrics|status"; "i"))
+        )] |
+        
+        # Group by title pattern (extract base title without date)
+        group_by(
+          .title | 
+          # Remove common date patterns from title to get base report name
+          gsub(" - [0-9]{4}-[0-9]{2}-[0-9]{2}.*$"; "") |
+          gsub(" - (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{1,2}.*$"; "") |
+          gsub(" [0-9]{4}-[0-9]{2}-[0-9]{2}$"; "") |
+          gsub(" \\([0-9]{4}-[0-9]{2}-[0-9]{2}\\)$"; "") |
+          gsub("\\[.*\\] "; "")
+        ) |
+        
+        # For each group, keep only the latest and mark others as superseded
+        map(
+          sort_by(.createdAt) | reverse |
+          # Skip the first (newest) and mark rest as superseded
+          .[1:] // []
+        ) |
+        flatten
+      ' "$DISCUSSIONS_FILE" > /tmp/gh-aw/superseded-reports.json
       
-      # Output the filtered data for the agent
-      jq -c '.[] | {number, title, createdAt}' "$DISCUSSIONS_FILE" > /tmp/gh-aw/filtered-discussions.jsonl
+      SUPERSEDED_COUNT=$(jq 'length' /tmp/gh-aw/superseded-reports.json)
+      echo "Found $SUPERSEDED_COUNT superseded daily reports"
+      
+      # 3. Mark superseded reports with a flag
+      jq 'map(. + {is_superseded_report: true})' /tmp/gh-aw/superseded-reports.json > /tmp/gh-aw/superseded-reports-flagged.json
+      
+      # 4. Mark old discussions as NOT superseded reports
+      jq 'map(. + {is_superseded_report: false})' /tmp/gh-aw/old-discussions.json > /tmp/gh-aw/old-discussions-flagged.json
+      
+      # 5. Merge and deduplicate the two lists (superseded reports take priority for the flag)
+      jq -s '
+        # Flatten both arrays
+        add | 
+        # Group by discussion number to handle duplicates
+        group_by(.number) |
+        # For each group, prefer the one marked as superseded (if any)
+        map(
+          if length == 1 then .[0]
+          else (
+            # If there are duplicates, keep the superseded version if it exists
+            if any(.is_superseded_report) then
+              (.[] | select(.is_superseded_report))
+            else
+              .[0]
+            end
+          )
+          end
+        ) |
+        # Clean up and normalize the output
+        map({
+          number,
+          title,
+          createdAt,
+          author,
+          category: (.category // "unknown"),
+          is_superseded_report
+        })
+      ' /tmp/gh-aw/old-discussions-flagged.json /tmp/gh-aw/superseded-reports-flagged.json > /tmp/gh-aw/discussions-to-close.json
+      
+      TOTAL_COUNT=$(jq 'length' /tmp/gh-aw/discussions-to-close.json)
+      echo "Total discussions to close: $TOTAL_COUNT"
+      
+      # Output for agent analysis
+      jq -c '.[]' /tmp/gh-aw/discussions-to-close.json > /tmp/gh-aw/filtered-discussions.jsonl
+      
+      # Summary for logging
+      echo ""
+      echo "=== Summary ==="
+      echo "Old bot discussions (>7 days): $OLD_COUNT"
+      echo "Superseded reports: $SUPERSEDED_COUNT"
+      echo "Total to close (deduplicated): $TOTAL_COUNT"
     env:
       GH_TOKEN: ${{ github.token }}
 ---
 
-# Close Old Discussions Created by GitHub Actions Bot
+# Close Outdated Discussions
 
-This workflow automatically closes discussions that were created by the `github-actions[bot]` user and are older than 1 week.
+This workflow automatically closes outdated discussions:
+1. **Old bot discussions**: Discussions created by `github-actions[bot]` that are older than 7 days
+2. **Superseded reports**: Daily/weekly reports that have been superseded by fresher versions with the same title pattern
 
-**Pre-filtered Discussion Data**: The workflow has already downloaded and filtered discussions using GitHub GraphQL API. The filtered data is available in `/tmp/gh-aw/filtered-discussions.jsonl` with only discussions that:
-- Were created by `github-actions[bot]`
-- Are older than 7 days (1 week)
+## Pre-filtered Discussion Data
+
+The workflow has already analyzed discussions using the shared `discussions-data-fetch.md` component. The filtered data is available in `/tmp/gh-aw/filtered-discussions.jsonl` with discussions that meet one of these criteria:
+- Created by `github-actions[bot]` AND older than 7 days
+- Is a report-type discussion (title contains "report", "summary", "analysis", etc.) that has been superseded by a newer version
+
+Each line in the JSONL file has this structure:
+```json
+{"number":123,"title":"Daily Report - 2025-11-20","createdAt":"2025-11-20T10:00:00Z","author":"github-actions[bot]","category":"General","is_superseded_report":true}
+```
 
 ## Task
 
 Read the pre-filtered discussion data from `/tmp/gh-aw/filtered-discussions.jsonl` and generate `close_discussion` outputs for each discussion.
 
-**Important**: Do NOT call the GitHub API to list discussions - the data has already been fetched and filtered in the custom step above.
+**Important**: Do NOT call the GitHub API to list discussions - the data has already been fetched and analyzed.
 
 ### Instructions
 
-1. **Read the filtered data**: Load `/tmp/gh-aw/filtered-discussions.jsonl`
-2. **Generate close outputs**: For each discussion in the file, create a `close_discussion` output:
-   - **discussion_number**: The discussion number from the data
-   - **body**: "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
-   - **reason**: "OUTDATED"
+1. **Read the filtered data**: Load `/tmp/gh-aw/filtered-discussions.jsonl` using bash `cat` command
+2. **Generate close outputs**: For each discussion in the file, create a `close_discussion` output with an appropriate closing message:
+   - For **superseded reports** (`is_superseded_report: true`): Use message like "This report has been superseded by a newer version and is now closed as outdated."
+   - For **old bot discussions**: Use message like "This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago."
+   - **reason**: Always use "OUTDATED"
 
-Output format (JSONL):
+### Output Format
+
+Output each close_discussion as a JSONL line:
 ```jsonl
-{"type":"close_discussion","discussion_number":123,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+{"type":"close_discussion","discussion_number":123,"body":"<closing message>","reason":"OUTDATED"}
 ```
 
 ### Example
 
 If `/tmp/gh-aw/filtered-discussions.jsonl` contains:
 ```jsonl
-{"number":1234,"title":"Test Discussion","createdAt":"2025-11-10T00:00:00Z"}
-{"number":1235,"title":"Another Discussion","createdAt":"2025-11-11T00:00:00Z"}
+{"number":1234,"title":"Daily Report - 2025-11-10","createdAt":"2025-11-10T00:00:00Z","author":"github-actions[bot]","is_superseded_report":true}
+{"number":1235,"title":"Weekly Analysis","createdAt":"2025-11-11T00:00:00Z","author":"github-actions[bot]","is_superseded_report":false}
 ```
 
 You should output:
 ```jsonl
-{"type":"close_discussion","discussion_number":1234,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
+{"type":"close_discussion","discussion_number":1234,"body":"This report has been superseded by a newer version and is now closed as outdated.","reason":"OUTDATED"}
 {"type":"close_discussion","discussion_number":1235,"body":"This discussion was automatically closed because it was created by the automated workflow system more than 1 week ago.","reason":"OUTDATED"}
 ```
 
 ## Notes
 
 - Maximum closures: Up to 100 discussions per run (configured via safe-outputs max)
-- Data is pre-filtered: No need to check author or age - all discussions in the file match criteria
-- If the file is empty or doesn't exist: Report that no discussions need to be closed
+- Data is pre-filtered: No need to check author or age - all discussions in the file should be closed
+- If the file is empty or doesn't exist: Use the `noop` tool to report that no discussions need to be closed
 
 Begin the task now. Read the filtered data and generate close_discussion outputs.
