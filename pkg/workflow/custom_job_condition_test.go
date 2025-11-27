@@ -70,3 +70,101 @@ func TestReferencesCustomJobOutputs(t *testing.T) {
 		})
 	}
 }
+
+func TestGetCustomJobsDependingOnPreActivation(t *testing.T) {
+	c := &Compiler{}
+
+	tests := []struct {
+		name       string
+		customJobs map[string]any
+		expected   []string
+	}{
+		{
+			name:       "nil custom jobs",
+			customJobs: nil,
+			expected:   nil,
+		},
+		{
+			name:       "empty custom jobs",
+			customJobs: map[string]any{},
+			expected:   nil,
+		},
+		{
+			name: "job with needs pre_activation as string",
+			customJobs: map[string]any{
+				"ast_grep": map[string]any{
+					"needs": "pre_activation",
+				},
+			},
+			expected: []string{"ast_grep"},
+		},
+		{
+			name: "job with needs pre_activation in array",
+			customJobs: map[string]any{
+				"ast_grep": map[string]any{
+					"needs": []any{"pre_activation"},
+				},
+			},
+			expected: []string{"ast_grep"},
+		},
+		{
+			name: "job without needs field",
+			customJobs: map[string]any{
+				"my_job": map[string]any{
+					"runs-on": "ubuntu-latest",
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "job with different needs",
+			customJobs: map[string]any{
+				"my_job": map[string]any{
+					"needs": "activation",
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "multiple jobs mixed",
+			customJobs: map[string]any{
+				"job_a": map[string]any{
+					"needs": "pre_activation",
+				},
+				"job_b": map[string]any{
+					"needs": "activation",
+				},
+				"job_c": map[string]any{
+					"needs": []any{"pre_activation", "job_a"},
+				},
+			},
+			expected: []string{"job_a", "job_c"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := c.getCustomJobsDependingOnPreActivation(tt.customJobs)
+			// Convert to maps for easier comparison (order doesn't matter)
+			resultMap := make(map[string]bool)
+			for _, r := range result {
+				resultMap[r] = true
+			}
+			expectedMap := make(map[string]bool)
+			for _, e := range tt.expected {
+				expectedMap[e] = true
+			}
+
+			if len(resultMap) != len(expectedMap) {
+				t.Errorf("getCustomJobsDependingOnPreActivation() returned %v, want %v", result, tt.expected)
+				return
+			}
+			for k := range expectedMap {
+				if !resultMap[k] {
+					t.Errorf("getCustomJobsDependingOnPreActivation() returned %v, want %v", result, tt.expected)
+					return
+				}
+			}
+		})
+	}
+}

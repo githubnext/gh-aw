@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   ast_grep:
+    needs: pre_activation
     runs-on: ubuntu-latest
     outputs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}

@@ -38,6 +38,7 @@
 #
 # jobs:
 #   ast_grep:
+#     needs: pre_activation
 #     runs-on: ubuntu-latest
 #     outputs:
 #       found_patterns: ${{ steps.detect.outputs.found_patterns }}
@@ -101,9 +102,9 @@
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
+#   ast_grep --> activation
 #   activation --> agent
-#   ast_grep --> agent
-#   activation --> ast_grep
+#   pre_activation --> ast_grep
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_issue --> conclusion
@@ -286,8 +287,10 @@ run-name: "Go Pattern Detector"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs:
+      - pre_activation
+      - ast_grep
+    if: (needs.pre_activation.outputs.activated == 'true') && (needs.ast_grep.outputs.found_patterns == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -384,10 +387,7 @@ jobs:
             });
 
   agent:
-    needs:
-      - activation
-      - ast_grep
-    if: needs.ast_grep.outputs.found_patterns == 'true'
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3890,7 +3890,7 @@ jobs:
             }
 
   ast_grep:
-    needs: activation
+    needs: pre_activation
     runs-on: ubuntu-latest
     outputs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
