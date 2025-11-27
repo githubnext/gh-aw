@@ -1484,7 +1484,7 @@ jobs:
               const configPath = "/tmp/gh-aw/safeoutputs/config.json";
               try {
                 if (!fs.existsSync(configPath)) {
-                  core.warning(`Config file not found at ${configPath}, using defaults`);
+                  core.info(`Config file not found at ${configPath}, using defaults`);
                   return {};
                 }
                 const configContent = fs.readFileSync(configPath, "utf8");

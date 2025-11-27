@@ -12,7 +12,9 @@ function loadSafeOutputsConfig() {
   const configPath = "/tmp/gh-aw/safeoutputs/config.json";
   try {
     if (!fs.existsSync(configPath)) {
-      core.warning(`Config file not found at ${configPath}, using defaults`);
+      // Config file is optional - safe-output jobs receive config via environment variables
+      // This is expected when running in a separate job from the agent
+      core.info(`Config file not found at ${configPath}, using defaults`);
       return {};
     }
     const configContent = fs.readFileSync(configPath, "utf8");
