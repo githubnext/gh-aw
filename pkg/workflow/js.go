@@ -17,7 +17,7 @@ var createAgentTaskScript string
 var assignIssueScriptSource string
 
 //go:embed js/add_reaction_and_edit_comment.cjs
-var addReactionAndEditCommentScript string
+var addReactionAndEditCommentScriptSource string
 
 //go:embed js/check_membership.cjs
 var checkMembershipScriptSource string
@@ -29,6 +29,12 @@ func init() {
 	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
 	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
 	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
+	DefaultScriptRegistry.Register("add_reaction_and_edit_comment", addReactionAndEditCommentScriptSource)
+}
+
+// getAddReactionAndEditCommentScript returns the bundled add_reaction_and_edit_comment script
+func getAddReactionAndEditCommentScript() string {
+	return DefaultScriptRegistry.Get("add_reaction_and_edit_comment")
 }
 
 // getAssignIssueScript returns the bundled assign_issue script

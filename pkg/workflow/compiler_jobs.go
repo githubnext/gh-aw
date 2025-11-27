@@ -754,8 +754,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add each line of the script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
+		// Add each line of the script with proper indentation (bundled version with messages.cjs)
+		formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
 		steps = append(steps, formattedScript...)
 
 		// Add reaction outputs
