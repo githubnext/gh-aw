@@ -10,7 +10,7 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-engine: copilot
+engine: codex
 imports:
   - shared/jqschema.md
   - shared/discussions-data-fetch.md
