@@ -4534,7 +4534,7 @@ jobs:
               const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
               let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
               if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", ctx.triggeringNumber);
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
               }
               return footer;
             }

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getRunStartedMessage } = require("./messages.cjs");
+
 async function main() {
   // Read inputs from environment variables
   const reaction = process.env.GH_AW_REACTION || "eyes";
@@ -294,11 +296,42 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     // Get workflow name from environment variable
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
 
+    // Determine the event type description
+    let eventTypeDescription;
+    switch (eventName) {
+      case "issues":
+        eventTypeDescription = "issue";
+        break;
+      case "pull_request":
+        eventTypeDescription = "pull request";
+        break;
+      case "issue_comment":
+        eventTypeDescription = "issue comment";
+        break;
+      case "pull_request_review_comment":
+        eventTypeDescription = "pull request review comment";
+        break;
+      case "discussion":
+        eventTypeDescription = "discussion";
+        break;
+      case "discussion_comment":
+        eventTypeDescription = "discussion comment";
+        break;
+      default:
+        eventTypeDescription = "event";
+    }
+
+    // Use getRunStartedMessage for the workflow link text (supports custom messages)
+    const workflowLinkText = getRunStartedMessage({
+      workflowName: workflowName,
+      runUrl: runUrl,
+      eventType: eventTypeDescription,
+    });
+
     // Handle discussion events specially
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
 
       // Create a new comment on the discussion using GraphQL
       const { repository } = await github.graphql(
@@ -340,7 +373,6 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     } else if (eventName === "discussion_comment") {
       // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
 
       // Create a new comment on the discussion using GraphQL
       const { repository } = await github.graphql(
@@ -384,27 +416,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       return;
     }
 
-    // Always create a new comment (never edit existing comments)
-    let eventTypeDescription;
-    switch (eventName) {
-      case "issues":
-        eventTypeDescription = "issue";
-        break;
-      case "pull_request":
-        eventTypeDescription = "pull request";
-        break;
-      case "issue_comment":
-        eventTypeDescription = "issue comment";
-        break;
-      case "pull_request_review_comment":
-        eventTypeDescription = "pull request review comment";
-        break;
-      default:
-        eventTypeDescription = "event";
-    }
-
-    const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
-
+    // Create a new comment for non-discussion events
     const createResponse = await github.request("POST " + endpoint, {
       body: workflowLinkText,
       headers: {

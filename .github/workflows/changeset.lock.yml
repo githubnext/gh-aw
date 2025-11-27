@@ -780,6 +780,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
         with:
           script: |
+            const { getRunStartedMessage } = require("./messages.cjs");
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
               const command = process.env.GH_AW_COMMAND; 
@@ -988,9 +989,36 @@ jobs:
             async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  case "discussion":
+                    eventTypeDescription = "discussion";
+                    break;
+                  case "discussion_comment":
+                    eventTypeDescription = "discussion comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
+                }
+                const workflowLinkText = getRunStartedMessage({
+                  workflowName: workflowName,
+                  runUrl: runUrl,
+                  eventType: eventTypeDescription,
+                });
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -1026,7 +1054,6 @@ jobs:
                   return;
                 } else if (eventName === "discussion_comment") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -1062,24 +1089,6 @@ jobs:
                   core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 }
-                let eventTypeDescription;
-                switch (eventName) {
-                  case "issues":
-                    eventTypeDescription = "issue";
-                    break;
-                  case "pull_request":
-                    eventTypeDescription = "pull request";
-                    break;
-                  case "issue_comment":
-                    eventTypeDescription = "issue comment";
-                    break;
-                  case "pull_request_review_comment":
-                    eventTypeDescription = "pull request review comment";
-                    break;
-                  default:
-                    eventTypeDescription = "event";
-                }
-                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
                 const createResponse = await github.request("POST " + endpoint, {
                   body: workflowLinkText,
                   headers: {
@@ -5621,7 +5630,7 @@ jobs:
               const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
               let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
               if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", ctx.triggeringNumber);
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
               }
               return footer;
             }

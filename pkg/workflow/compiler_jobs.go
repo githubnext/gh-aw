@@ -741,6 +741,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
+		// Pass custom messages config if present (for custom run-started messages)
+		if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
+			messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+			if err != nil {
+				compilerJobsLog.Printf("Warning: failed to serialize messages config for activation job: %v", err)
+			} else if messagesJSON != "" {
+				steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+			}
+		}
+
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 

@@ -170,11 +170,11 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         })
       );
 
-      // Verify comment was created
+      // Verify comment was created (uses default pirate-themed message from messages.cjs)
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("be settin' sail on this pull request"),
         })
       );
 
@@ -381,11 +381,11 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         })
       );
 
-      // Verify comment was created
+      // Verify comment was created (uses default pirate-themed message from messages.cjs)
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("be settin' sail on this issue"),
         })
       );
 
@@ -421,10 +421,11 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
       // Verify new comment was created on the issue, NOT on the comment
       // Should be POST to issue comments endpoint, not to the specific comment
+      // Uses default pirate-themed message from messages.cjs
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("be settin' sail on this issue comment"),
         })
       );
 
@@ -463,10 +464,11 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
       // Verify new comment was created on the PR, NOT on the review comment
       // Should be POST to PR (issues) comments endpoint, not to the specific review comment
+      // Uses default pirate-themed message from messages.cjs
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/comments",
         expect.objectContaining({
-          body: expect.stringContaining("Agentic [PR Review Bot]"),
+          body: expect.stringContaining("be settin' sail on this pull request review comment"),
         })
       );
 
@@ -533,12 +535,12 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Plus 2 more GraphQL calls for comment creation (get discussion ID + add comment)
       expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
 
-      // Verify comment was created
+      // Verify comment was created (uses default pirate-themed message from messages.cjs)
       expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("addDiscussionComment"),
         expect.objectContaining({
           dId: "D_kwDOABcD1M4AaBbC",
-          body: expect.stringContaining("Agentic [Test Workflow]"),
+          body: expect.stringContaining("be settin' sail on this discussion"),
         })
       );
 
@@ -597,11 +599,12 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       await eval(`(async () => { ${reactionScript} })()`);
 
       // Verify comment was created with replyToId parameter (threaded comment)
+      // Uses default pirate-themed message from messages.cjs
       expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("addDiscussionComment"),
         expect.objectContaining({
           dId: "D_kwDOABcD1M4AaBbC",
-          body: expect.stringContaining("Agentic [Discussion Bot]"),
+          body: expect.stringContaining("be settin' sail on this discussion comment"),
           replyToId: "DC_kwDOABcD1M4AaBbC",
         })
       );

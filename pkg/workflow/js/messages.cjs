@@ -151,7 +151,7 @@ function getFooterMessage(ctx) {
 
   // Add triggering reference if available
   if (ctx.triggeringNumber) {
-    footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", ctx.triggeringNumber);
+    footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
   }
 
   return footer;
