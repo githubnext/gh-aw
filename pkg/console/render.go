@@ -109,21 +109,27 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		}
 
 		// Render based on field type
-		if field.Kind() == reflect.Struct && field.Type().String() != "time.Time" {
-			// Nested struct - render recursively with title (but not time.Time)
+		// Check for pointer to struct (dereference to get underlying type)
+		fieldToCheck := field
+		if field.Kind() == reflect.Ptr && !field.IsNil() {
+			fieldToCheck = field.Elem()
+		}
+
+		if fieldToCheck.Kind() == reflect.Struct && fieldToCheck.Type().String() != "time.Time" {
+			// Nested struct (or pointer to struct) - render recursively with title (but not time.Time)
 			subTitle := tag.title
 			if subTitle == "" {
 				subTitle = fieldName
 			}
 			renderValue(field, subTitle, output, depth+1)
-		} else if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
+		} else if fieldToCheck.Kind() == reflect.Slice || fieldToCheck.Kind() == reflect.Array {
 			// Slice - render as table
 			sliceTitle := tag.title
 			if sliceTitle == "" {
 				sliceTitle = fieldName
 			}
 			renderValue(field, sliceTitle, output, depth+1)
-		} else if field.Kind() == reflect.Map {
+		} else if fieldToCheck.Kind() == reflect.Map {
 			// Map - render as headers
 			mapTitle := tag.title
 			if mapTitle == "" {
