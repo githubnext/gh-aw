@@ -44,28 +44,30 @@ func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[s
 	return false
 }
 
+// jobDependsOnPreActivation checks if a job config has pre_activation as a dependency.
+func jobDependsOnPreActivation(jobConfig map[string]any) bool {
+	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
+		if needsList, ok := needs.([]any); ok {
+			for _, need := range needsList {
+				if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
+					return true
+				}
+			}
+		} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
+			return true
+		}
+	}
+	return false
+}
+
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
 // These jobs run after pre_activation but before activation, and activation should depend on them.
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
 	var jobNames []string
 	for jobName, jobConfig := range customJobs {
 		if configMap, ok := jobConfig.(map[string]any); ok {
-			if needs, hasNeeds := configMap["needs"]; hasNeeds {
-				// Check if needs contains pre_activation
-				needsPreActivation := false
-				if needsList, ok := needs.([]any); ok {
-					for _, need := range needsList {
-						if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
-							needsPreActivation = true
-							break
-						}
-					}
-				} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
-					needsPreActivation = true
-				}
-				if needsPreActivation {
-					jobNames = append(jobNames, jobName)
-				}
+			if jobDependsOnPreActivation(configMap) {
+				jobNames = append(jobNames, jobName)
 			}
 		}
 	}
@@ -967,25 +969,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// so the agent job gets them transitively through activation
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
-			// Check if this job depends on pre_activation
-			dependsOnPreActivation := false
-			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if needs, hasNeeds := configMap["needs"]; hasNeeds {
-					if needsList, ok := needs.([]any); ok {
-						for _, need := range needsList {
-							if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
-								dependsOnPreActivation = true
-								break
-							}
-						}
-					} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
-						dependsOnPreActivation = true
-					}
-				}
-			}
 			// Only add as direct dependency if it doesn't depend on pre_activation
-			if !dependsOnPreActivation {
-				depends = append(depends, jobName)
+			// (jobs that depend on pre_activation are handled through activation)
+			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
+				if !jobDependsOnPreActivation(configMap) {
+					depends = append(depends, jobName)
+				}
 			}
 		}
 	}

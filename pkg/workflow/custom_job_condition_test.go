@@ -71,6 +71,71 @@ func TestReferencesCustomJobOutputs(t *testing.T) {
 	}
 }
 
+func TestJobDependsOnPreActivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobConfig map[string]any
+		expected  bool
+	}{
+		{
+			name:      "empty config",
+			jobConfig: map[string]any{},
+			expected:  false,
+		},
+		{
+			name: "needs pre_activation as string",
+			jobConfig: map[string]any{
+				"needs": "pre_activation",
+			},
+			expected: true,
+		},
+		{
+			name: "needs pre_activation in array",
+			jobConfig: map[string]any{
+				"needs": []any{"pre_activation"},
+			},
+			expected: true,
+		},
+		{
+			name: "needs pre_activation in array with others",
+			jobConfig: map[string]any{
+				"needs": []any{"other_job", "pre_activation", "another_job"},
+			},
+			expected: true,
+		},
+		{
+			name: "needs activation (not pre_activation)",
+			jobConfig: map[string]any{
+				"needs": "activation",
+			},
+			expected: false,
+		},
+		{
+			name: "needs array without pre_activation",
+			jobConfig: map[string]any{
+				"needs": []any{"activation", "other_job"},
+			},
+			expected: false,
+		},
+		{
+			name: "no needs field",
+			jobConfig: map[string]any{
+				"runs-on": "ubuntu-latest",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := jobDependsOnPreActivation(tt.jobConfig)
+			if result != tt.expected {
+				t.Errorf("jobDependsOnPreActivation(%v) = %v, want %v", tt.jobConfig, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetCustomJobsDependingOnPreActivation(t *testing.T) {
 	c := &Compiler{}
 
