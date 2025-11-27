@@ -28,8 +28,9 @@ func (c *Compiler) isActivationJobNeeded() bool {
 	return true
 }
 
-// referencesCustomJobOutputs checks if a condition string references outputs from custom jobs.
-// Returns true if the condition contains "needs.<customJobName>.outputs" patterns.
+// referencesCustomJobOutputs checks if a condition string references custom jobs.
+// Returns true if the condition contains "needs.<customJobName>." patterns, which includes
+// both outputs (needs.job.outputs.*) and results (needs.job.result).
 func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[string]any) bool {
 	if condition == "" || customJobs == nil {
 		return false
