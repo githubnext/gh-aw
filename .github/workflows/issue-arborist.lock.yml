@@ -43,7 +43,7 @@
 #       - issues
 # safe-outputs:
 #   link-sub-issue:
-#     max: 2
+#     max: 10
 #   create-discussion:
 #     title-prefix: "[Issue Arborist] "
 #     category: "Audits"
@@ -111,8 +111,8 @@
 # - Is the relationship strong enough to warrant a permanent link?
 #
 # **Constraints:**
-# - Maximum 2 links per run (to avoid over-linking)
-# - Only link if confidence is high (clear relationship)
+# - Maximum 10 links per run (to avoid over-linking)
+# - Only link if you are absolutely sure of the relationship - when in doubt, don't link
 # - Prefer linking open issues
 # - Parent issue should be broader in scope than sub-issue
 #
@@ -155,7 +155,8 @@
 #
 # ## Important Notes
 #
-# - Be conservative with linking - only link when the relationship is clear
+# - Only link issues when you are absolutely certain of the parent-child relationship
+# - Be conservative with linking - only link when the relationship is clear and unambiguous
 # - Prefer precision over recall (better to miss a link than create a wrong one)
 # - Consider that unlinking is a manual process, so be confident before linking
 # ```
@@ -388,7 +389,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"link_sub_issue":{"max":2},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"link_sub_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"},{"description":"Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items.","inputSchema":{"additionalProperties":false,"properties":{"parent_issue_number":{"description":"The parent issue number to link the sub-issue to.","type":["number","string"]},"sub_issue_number":{"description":"The issue number to link as a sub-issue of the parent.","type":["number","string"]}},"required":["parent_issue_number","sub_issue_number"],"type":"object"},"name":"link_sub_issue"}]
@@ -1262,8 +1263,8 @@ jobs:
           - Is the relationship strong enough to warrant a permanent link?
           
           **Constraints:**
-          - Maximum 2 links per run (to avoid over-linking)
-          - Only link if confidence is high (clear relationship)
+          - Maximum 10 links per run (to avoid over-linking)
+          - Only link if you are absolutely sure of the relationship - when in doubt, don't link
           - Prefer linking open issues
           - Parent issue should be broader in scope than sub-issue
           
@@ -1306,7 +1307,8 @@ jobs:
           
           ## Important Notes
           
-          - Be conservative with linking - only link when the relationship is clear
+          - Only link issues when you are absolutely certain of the parent-child relationship
+          - Be conservative with linking - only link when the relationship is clear and unambiguous
           - Prefer precision over recall (better to miss a link than create a wrong one)
           - Consider that unlinking is a manual process, so be confident before linking
           
@@ -4911,7 +4913,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 2
+          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 10
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

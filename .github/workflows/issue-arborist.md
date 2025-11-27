@@ -20,7 +20,7 @@ tools:
       - issues
 safe-outputs:
   link-sub-issue:
-    max: 2
+    max: 10
   create-discussion:
     title-prefix: "[Issue Arborist] "
     category: "Audits"
@@ -65,8 +65,8 @@ For each potential relationship, evaluate:
 - Is the relationship strong enough to warrant a permanent link?
 
 **Constraints:**
-- Maximum 2 links per run (to avoid over-linking)
-- Only link if confidence is high (clear relationship)
+- Maximum 10 links per run (to avoid over-linking)
+- Only link if you are absolutely sure of the relationship - when in doubt, don't link
 - Prefer linking open issues
 - Parent issue should be broader in scope than sub-issue
 
@@ -109,6 +109,7 @@ Your discussion should include:
 
 ## Important Notes
 
-- Be conservative with linking - only link when the relationship is clear
+- Only link issues when you are absolutely certain of the parent-child relationship
+- Be conservative with linking - only link when the relationship is clear and unambiguous
 - Prefer precision over recall (better to miss a link than create a wrong one)
 - Consider that unlinking is a manual process, so be confident before linking
