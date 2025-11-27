@@ -15,6 +15,11 @@ imports:
 safe-outputs:
   add-comment:
     max: 1
+  messages:
+    footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*"
+    run-started: "🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}..."
+    run-success: "🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆"
+    run-failure: "🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored..."
 timeout-minutes: 10
 ---
 

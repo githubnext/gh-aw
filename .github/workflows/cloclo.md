@@ -33,6 +33,11 @@ safe-outputs:
   add-comment:
     max: 1
   push-to-pull-request-branch:
+  messages:
+    footer: "> 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*"
+    run-started: "🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}..."
+    run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
+    run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"
 timeout-minutes: 20
 ---
 

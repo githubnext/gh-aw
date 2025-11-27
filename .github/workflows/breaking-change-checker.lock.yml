@@ -49,6 +49,11 @@
 #     labels: [breaking-change, automated-analysis]
 #     assignees: copilot
 #     max: 1
+#   messages:
+#     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*"
+#     run-started: "🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}..."
+#     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
+#     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 # timeout-minutes: 10
 # ```
 #
@@ -4426,6 +4431,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_TRACKER_ID: "breaking-change-checker"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"RunSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"RunFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4747,6 +4753,7 @@ jobs:
           GH_AW_ISSUE_LABELS: "breaking-change,automated-analysis"
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_TRACKER_ID: "breaking-change-checker"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"RunSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"RunFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { generateFooterWithMessages } = require("./messages.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
@@ -309,7 +309,7 @@ async function main() {
     // Add fingerprint comment if present
     body += getTrackerID("markdown");
 
-    body += generateFooter(
+    body += generateFooterWithMessages(
       workflowName,
       runUrl,
       workflowSource,
