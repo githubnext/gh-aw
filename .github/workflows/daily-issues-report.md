@@ -10,7 +10,8 @@ permissions:
   issues: read
   pull-requests: read
   discussions: write
-engine: copilot
+engine: codex
+strict: false
 tracker-id: daily-issues-report
 tools:
   github:
