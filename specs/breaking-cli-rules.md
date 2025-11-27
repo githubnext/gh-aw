@@ -261,9 +261,9 @@ When adding or modifying JSON output:
 
 Special consideration for strict mode changes:
 
+- **Making strict mode validation refuse instead of warn** is breaking (e.g., v0.30.0)
 - **Changing strict mode defaults** is breaking (e.g., v0.31.0)
 - **Adding new strict mode validations** is not breaking (strictness is opt-in initially)
-- **Making strict mode validation refuse instead of warn** is breaking (e.g., v0.30.0)
 
 ## References
 
