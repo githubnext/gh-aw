@@ -538,6 +538,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 
 // renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderCopilotMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	copilotLog.Printf("Rendering custom MCP config for tool: %s", toolName)
 	// Use the shared renderer with copilot-specific requirements
 	renderer := MCPConfigRenderer{
 		Format:                "json",

@@ -1124,6 +1124,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Check if this is a reusable workflow call
 			if uses, hasUses := configMap["uses"]; hasUses {
 				if usesStr, ok := uses.(string); ok {
+					compilerJobsLog.Printf("Custom job '%s' is a reusable workflow call: %s", jobName, usesStr)
 					job.Uses = usesStr
 
 					// Extract with parameters for reusable workflow
@@ -1168,9 +1169,11 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			if err := c.jobManager.AddJob(job); err != nil {
 				return fmt.Errorf("failed to add custom job '%s': %w", jobName, err)
 			}
+			compilerJobsLog.Printf("Successfully added custom job '%s' with %d needs dependencies", jobName, len(job.Needs))
 		}
 	}
 
+	compilerJobsLog.Print("Completed building all custom jobs")
 	return nil
 }
 
