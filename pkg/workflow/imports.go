@@ -577,29 +577,36 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			result.Messages = importedConfig.Messages
 		} else {
 			// Merge individual message fields, main takes precedence
-			if result.Messages.Footer == "" && importedConfig.Messages.Footer != "" {
-				result.Messages.Footer = importedConfig.Messages.Footer
-			}
-			if result.Messages.FooterInstall == "" && importedConfig.Messages.FooterInstall != "" {
-				result.Messages.FooterInstall = importedConfig.Messages.FooterInstall
-			}
-			if result.Messages.StagedTitle == "" && importedConfig.Messages.StagedTitle != "" {
-				result.Messages.StagedTitle = importedConfig.Messages.StagedTitle
-			}
-			if result.Messages.StagedDescription == "" && importedConfig.Messages.StagedDescription != "" {
-				result.Messages.StagedDescription = importedConfig.Messages.StagedDescription
-			}
-			if result.Messages.RunStarted == "" && importedConfig.Messages.RunStarted != "" {
-				result.Messages.RunStarted = importedConfig.Messages.RunStarted
-			}
-			if result.Messages.RunSuccess == "" && importedConfig.Messages.RunSuccess != "" {
-				result.Messages.RunSuccess = importedConfig.Messages.RunSuccess
-			}
-			if result.Messages.RunFailure == "" && importedConfig.Messages.RunFailure != "" {
-				result.Messages.RunFailure = importedConfig.Messages.RunFailure
-			}
+			result.Messages = mergeMessagesConfig(result.Messages, importedConfig.Messages)
 		}
 	}
 
+	return result
+}
+
+// mergeMessagesConfig merges two SafeOutputMessagesConfig structs at the field level.
+// The result config (from main workflow) takes precedence - only empty fields are filled from imported.
+func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutputMessagesConfig {
+	if result.Footer == "" && imported.Footer != "" {
+		result.Footer = imported.Footer
+	}
+	if result.FooterInstall == "" && imported.FooterInstall != "" {
+		result.FooterInstall = imported.FooterInstall
+	}
+	if result.StagedTitle == "" && imported.StagedTitle != "" {
+		result.StagedTitle = imported.StagedTitle
+	}
+	if result.StagedDescription == "" && imported.StagedDescription != "" {
+		result.StagedDescription = imported.StagedDescription
+	}
+	if result.RunStarted == "" && imported.RunStarted != "" {
+		result.RunStarted = imported.RunStarted
+	}
+	if result.RunSuccess == "" && imported.RunSuccess != "" {
+		result.RunSuccess = imported.RunSuccess
+	}
+	if result.RunFailure == "" && imported.RunFailure != "" {
+		result.RunFailure = imported.RunFailure
+	}
 	return result
 }
