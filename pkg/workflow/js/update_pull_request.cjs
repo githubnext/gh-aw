@@ -129,10 +129,11 @@ async function main() {
     let hasUpdates = false;
 
     if (canUpdateTitle && updateItem.title !== undefined) {
-      if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
-        updateData.title = updateItem.title.trim();
+      const trimmedTitle = typeof updateItem.title === "string" ? updateItem.title.trim() : "";
+      if (trimmedTitle.length > 0) {
+        updateData.title = trimmedTitle;
         hasUpdates = true;
-        core.info(`Will update title to: ${updateItem.title.trim()}`);
+        core.info(`Will update title to: ${trimmedTitle}`);
       } else {
         core.info("Invalid title value: must be a non-empty string");
       }
