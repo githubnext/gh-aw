@@ -570,5 +570,36 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 		result.RunsOn = importedConfig.RunsOn
 	}
 
+	// Merge Messages configuration at field level (main workflow entries override imported entries)
+	if importedConfig.Messages != nil {
+		if result.Messages == nil {
+			// If main has no messages, use imported messages entirely
+			result.Messages = importedConfig.Messages
+		} else {
+			// Merge individual message fields, main takes precedence
+			if result.Messages.Footer == "" && importedConfig.Messages.Footer != "" {
+				result.Messages.Footer = importedConfig.Messages.Footer
+			}
+			if result.Messages.FooterInstall == "" && importedConfig.Messages.FooterInstall != "" {
+				result.Messages.FooterInstall = importedConfig.Messages.FooterInstall
+			}
+			if result.Messages.StagedTitle == "" && importedConfig.Messages.StagedTitle != "" {
+				result.Messages.StagedTitle = importedConfig.Messages.StagedTitle
+			}
+			if result.Messages.StagedDescription == "" && importedConfig.Messages.StagedDescription != "" {
+				result.Messages.StagedDescription = importedConfig.Messages.StagedDescription
+			}
+			if result.Messages.RunStarted == "" && importedConfig.Messages.RunStarted != "" {
+				result.Messages.RunStarted = importedConfig.Messages.RunStarted
+			}
+			if result.Messages.RunSuccess == "" && importedConfig.Messages.RunSuccess != "" {
+				result.Messages.RunSuccess = importedConfig.Messages.RunSuccess
+			}
+			if result.Messages.RunFailure == "" && importedConfig.Messages.RunFailure != "" {
+				result.Messages.RunFailure = importedConfig.Messages.RunFailure
+			}
+		}
+	}
+
 	return result
 }
