@@ -45,7 +45,8 @@
         {"$ref": "#/$defs/UpdateReleaseOutput"},
         {"$ref": "#/$defs/AssignMilestoneOutput"},
         {"$ref": "#/$defs/AssignToAgentOutput"},
-        {"$ref": "#/$defs/NoOpOutput"}
+        {"$ref": "#/$defs/NoOpOutput"},
+        {"$ref": "#/$defs/LinkSubIssueOutput"}
       ]
     },
     "CreateIssueOutput": {
