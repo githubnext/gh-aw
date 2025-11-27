@@ -76,7 +76,7 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 }
 
 // buildLinkSubIssueJob creates the link_sub_issue job
-func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, createIssueJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.LinkSubIssue == nil {
 		return nil, fmt.Errorf("safe-outputs.link-sub-issue configuration is required")
 	}
@@ -114,6 +114,11 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX: %q\n", data.SafeOutputs.LinkSubIssue.SubTitlePrefix))
 	}
 
+	// Add environment variable for temporary ID map from create_issue job
+	if createIssueJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
+	}
+
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.LinkSubIssue.TargetRepoSlug)...)
 
@@ -128,6 +133,12 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		"linked_issues": "${{ steps.link_sub_issue.outputs.linked_issues }}",
 	}
 
+	// Build the needs list - always depend on mainJobName, and conditionally on create_issue
+	needs := []string{mainJobName}
+	if createIssueJobName != "" {
+		needs = append(needs, createIssueJobName)
+	}
+
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:        "link_sub_issue",
@@ -138,6 +149,7 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		Script:         getLinkSubIssueScript(),
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
+		Needs:          needs,
 		Token:          token,
 		Condition:      BuildSafeOutputType("link_sub_issue"),
 		TargetRepoSlug: data.SafeOutputs.LinkSubIssue.TargetRepoSlug,
