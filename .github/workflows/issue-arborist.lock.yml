@@ -383,7 +383,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.22.0
+          docker pull ghcr.io/github/github-mcp-server:v0.23.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1126,7 +1126,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=issues",
-            "ghcr.io/github/github-mcp-server:v0.22.0"
+            "ghcr.io/github/github-mcp-server:v0.23.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -1847,6 +1847,8 @@ jobs:
                     return 1;
                   case "update_issue":
                     return 1;
+                  case "update_pull_request":
+                    return 1;
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
@@ -2318,6 +2320,42 @@ jobs:
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "update_pull_request":
+                      const hasValidPRField = item.title !== undefined || item.body !== undefined;
+                      if (!hasValidPRField) {
+                        errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+                        continue;
+                      }
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title, 256);
+                      }
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body, maxBodyLength);
+                      }
+                      if (item.operation !== undefined) {
+                        if (!["replace", "append", "prepend"].includes(item.operation)) {
+                          errors.push(`Line ${i + 1}: update_pull_request 'operation' must be one of: 'replace', 'append', 'prepend'`);
+                          continue;
+                        }
+                      }
+                      const updatePRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "update_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!updatePRNumValidation.isValid) {
+                        if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
                         continue;
                       }
                       break;
@@ -4100,13 +4138,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
