@@ -28,6 +28,52 @@ func (c *Compiler) isActivationJobNeeded() bool {
 	return true
 }
 
+// referencesCustomJobOutputs checks if a condition string references custom jobs.
+// Returns true if the condition contains "needs.<customJobName>." patterns, which includes
+// both outputs (needs.job.outputs.*) and results (needs.job.result).
+func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[string]any) bool {
+	if condition == "" || customJobs == nil {
+		return false
+	}
+	for jobName := range customJobs {
+		// Check for patterns like "needs.ast_grep.outputs" or "needs.ast_grep.result"
+		if strings.Contains(condition, fmt.Sprintf("needs.%s.", jobName)) {
+			return true
+		}
+	}
+	return false
+}
+
+// jobDependsOnPreActivation checks if a job config has pre_activation as a dependency.
+func jobDependsOnPreActivation(jobConfig map[string]any) bool {
+	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
+		if needsList, ok := needs.([]any); ok {
+			for _, need := range needsList {
+				if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
+					return true
+				}
+			}
+		} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
+			return true
+		}
+	}
+	return false
+}
+
+// getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
+// These jobs run after pre_activation but before activation, and activation should depend on them.
+func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
+	var jobNames []string
+	for jobName, jobConfig := range customJobs {
+		if configMap, ok := jobConfig.(map[string]any); ok {
+			if jobDependsOnPreActivation(configMap) {
+				jobNames = append(jobNames, jobName)
+			}
+		}
+	}
+	return jobNames
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
@@ -672,7 +718,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
-	jobIfCondition := data.If
+	// Don't include conditions that reference custom job outputs (those belong on the agent job)
+	var jobIfCondition string
+	if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+		jobIfCondition = data.If
+	}
 
 	job := &Job{
 		Name:        constants.PreActivationJobName,
@@ -785,15 +835,31 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	var activationNeeds []string
 	var activationCondition string
 
+	// Find custom jobs that depend on pre_activation - these run before activation
+	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
+
 	if preActivationJobCreated {
 		// Activation job depends on pre-activation job and checks the "activated" output
 		activationNeeds = []string{constants.PreActivationJobName}
+
+		// Also depend on custom jobs that run after pre_activation but before activation
+		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
+
 		activatedExpr := BuildEquals(
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
-		if data.If != "" {
-			// Strip ${{ }} wrapper from data.If before combining
+
+		// If there are custom jobs before activation and the if condition references them,
+		// include that condition in the activation job's if clause
+		if data.If != "" && c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			// Include the custom job output condition in the activation job
+			unwrappedIf := stripExpressionWrapper(data.If)
+			ifExpr := &ExpressionNode{Expression: unwrappedIf}
+			combinedExpr := buildAnd(activatedExpr, ifExpr)
+			activationCondition = combinedExpr.Render()
+		} else if data.If != "" && !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			// Include user's if condition that doesn't reference custom jobs
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
 			combinedExpr := buildAnd(activatedExpr, ifExpr)
@@ -802,8 +868,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			activationCondition = activatedExpr.Render()
 		}
 	} else {
-		// No pre-activation check needed, use user's if condition
-		activationCondition = data.If
+		// No pre-activation check needed
+		// Add custom jobs that would run before activation as dependencies
+		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
+
+		if data.If != "" && c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			// Include the custom job output condition
+			activationCondition = data.If
+		} else if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			activationCondition = data.If
+		}
 	}
 
 	// Apply workflow_run repository safety check exclusively to activation job
@@ -853,9 +927,20 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	log.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
 
+	// Find custom jobs that depend on pre_activation - these are handled by the activation job
+	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
+
 	var jobCondition = data.If
 	if activationJobCreated {
-		jobCondition = "" // Main job depends on activation job, so no need for inline condition
+		// If the if condition references custom jobs that run before activation,
+		// the activation job handles the condition, so clear it here
+		if c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			jobCondition = "" // Activation job handles this condition
+		} else if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			jobCondition = "" // Main job depends on activation job, so no need for inline condition
+		}
+		// Note: If data.If references custom jobs that DON'T depend on pre_activation,
+		// we keep the condition on the agent job
 	}
 
 	// Note: workflow_run repository safety check is applied exclusively to activation job
@@ -879,11 +964,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
-	// Add custom jobs as dependencies if they exist
-	// This allows the agent job to wait for custom jobs to complete before running
+	// Add custom jobs as dependencies only if they don't depend on pre_activation
+	// Custom jobs that depend on pre_activation are now dependencies of activation,
+	// so the agent job gets them transitively through activation
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
-			depends = append(depends, jobName)
+			// Only add as direct dependency if it doesn't depend on pre_activation
+			// (jobs that depend on pre_activation are handled through activation)
+			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
+				if !jobDependsOnPreActivation(configMap) {
+					depends = append(depends, jobName)
+				}
+			}
 		}
 	}
 
