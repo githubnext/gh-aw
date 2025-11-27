@@ -3,41 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { isTemporaryId, normalizeTemporaryId, loadTemporaryIdMap } = require("./temporary_id.cjs");
-
-/**
- * Resolve an issue number that may be a temporary ID or an actual issue number
- * @param {any} value - The value to resolve (can be temporary ID, number, or string)
- * @param {Map<string, number>} temporaryIdMap - Map of temporary ID to issue number
- * @returns {{resolved: number|null, wasTemporaryId: boolean, errorMessage: string|null}}
- */
-function resolveIssueNumber(value, temporaryIdMap) {
-  if (value === undefined || value === null) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
-  }
-
-  // Check if it's a temporary ID
-  const valueStr = String(value);
-  if (isTemporaryId(valueStr)) {
-    const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-    if (resolvedNumber !== undefined) {
-      return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
-    }
-    return {
-      resolved: null,
-      wasTemporaryId: true,
-      errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
-    };
-  }
-
-  // It's a real issue number
-  const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
-  if (isNaN(issueNumber) || issueNumber <= 0) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
-  }
-
-  return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
-}
+const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
 
 async function main() {
   const result = loadAgentOutput();

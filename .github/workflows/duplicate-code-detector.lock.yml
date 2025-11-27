@@ -4871,6 +4871,28 @@ jobs:
                 return new Map();
               }
             }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedNumber !== undefined) {
+                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");

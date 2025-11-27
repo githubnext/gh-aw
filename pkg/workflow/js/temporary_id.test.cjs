@@ -144,4 +144,87 @@ describe("temporary_id.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalled();
     });
   });
+
+  describe("resolveIssueNumber", () => {
+    it("should return error for null value", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber(null, map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe("Issue number is missing");
+    });
+
+    it("should return error for undefined value", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber(undefined, map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe("Issue number is missing");
+    });
+
+    it("should resolve temporary ID from map", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", 100]]);
+      const result = resolveIssueNumber("aw_abc123def456", map);
+      expect(result.resolved).toBe(100);
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should return error for unresolved temporary ID", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("aw_abc123def456", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toContain("Temporary ID 'aw_abc123def456' not found in map");
+    });
+
+    it("should handle numeric issue numbers", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber(123, map);
+      expect(result.resolved).toBe(123);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should handle string issue numbers", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("456", map);
+      expect(result.resolved).toBe(456);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should return error for invalid issue number", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("invalid", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid issue number: invalid");
+    });
+
+    it("should return error for zero issue number", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber(0, map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid issue number: 0");
+    });
+
+    it("should return error for negative issue number", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber(-5, map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid issue number: -5");
+    });
+  });
 });
