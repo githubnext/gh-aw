@@ -5,35 +5,26 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 
 // Copilot suffix marker - content after this should be treated as ephemeral
-// The marker is an XML comment containing "START COPILOT CODING AGENT TIPS"
-const COPILOT_SUFFIX_MARKER = "START COPILOT CODING AGENT TIPS";
+// The marker is the full XML comment that starts the copilot tips section
+const COPILOT_SUFFIX_MARKER = "<!-- START COPILOT CODING AGENT TIPS -->";
 
 /**
  * Removes the copilot suffix section from a body and returns the preserved part
- * The copilot suffix starts with an XML comment containing COPILOT_SUFFIX_MARKER
+ * The copilot suffix starts with the full XML comment marker
  * @param {string} body - The original body content
  * @returns {string} The body without the copilot suffix section
  */
 function removeCopilotSuffix(body) {
   if (!body) return "";
 
-  const suffixStart = body.indexOf(COPILOT_SUFFIX_MARKER);
-  if (suffixStart === -1) {
+  // Search for the entire XML comment marker in one match
+  const markerIndex = body.indexOf(COPILOT_SUFFIX_MARKER);
+  if (markerIndex === -1) {
     return body;
   }
 
-  // Find the start of the XML comment that contains the marker
-  // Look backwards from the marker to find the opening <!--
-  const searchArea = body.substring(0, suffixStart);
-  const xmlCommentStart = searchArea.lastIndexOf("<!--");
-  
-  if (xmlCommentStart === -1) {
-    // If no XML comment found, remove everything from the marker text
-    return body.substring(0, suffixStart).trimEnd();
-  }
-
-  // Remove from the XML comment start to the end (the entire copilot suffix section)
-  return body.substring(0, xmlCommentStart).trimEnd();
+  // Remove from the marker to the end (the entire copilot suffix section)
+  return body.substring(0, markerIndex).trimEnd();
 }
 
 async function main() {
