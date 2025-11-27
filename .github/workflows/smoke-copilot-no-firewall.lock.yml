@@ -812,6 +812,66 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function runSafeOutput(options) {
+              const { itemType, itemTypePlural, warnIfNotFound = false, stagedTitle, stagedDescription, renderStagedItem, processItems } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { handled: true };
+              }
+              const items = result.items.filter( item => item.type === itemType);
+              if (items.length === 0) {
+                const message = `No ${itemTypePlural} items found in agent output`;
+                if (warnIfNotFound) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { handled: true };
+              }
+              core.info(`Found ${items.length} ${itemTypePlural} item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                if (stagedTitle && stagedDescription && renderStagedItem) {
+                  await generateStagedPreview({
+                    title: stagedTitle,
+                    description: stagedDescription,
+                    items: items,
+                    renderItem: renderStagedItem,
+                  });
+                }
+                return { handled: true };
+              }
+              const processResult = await processItems(items);
+              return { handled: false, result: processResult };
+            }
+            async function runSingleItemSafeOutput(options) {
+              const { processSingleItem, ...restOptions } = options;
+              return runSafeOutput({
+                ...restOptions,
+                warnIfNotFound: options.warnIfNotFound !== undefined ? options.warnIfNotFound : true,
+                processItems: async items => {
+                  const item = items[0];
+                  core.info(`Processing ${options.itemTypePlural} item`);
+                  return processSingleItem(item);
+                },
+              });
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -950,23 +1010,60 @@ jobs:
                 discussion_url: discussionUrl,
               };
             }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+            function renderAddCommentPreview(item, index) {
+              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              let content = `### Comment ${index + 1}\n`;
+              const targetNumber = item.item_number;
+              if (targetNumber) {
+                const repoUrl = getRepositoryUrl();
+                if (isDiscussion) {
+                  const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+                  content += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+                } else {
+                  const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+                  content += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+                }
+              } else {
+                if (isDiscussion) {
+                  content += `**Target:** Current discussion\n\n`;
+                } else {
+                  content += `**Target:** Current issue/PR\n\n`;
+                }
+              }
+              content += `**Body:**\n${item.body || "No content provided"}\n\n`;
+              return content;
+            }
+            function getRelatedItemsHeader() {
+              const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+              const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+              const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+              const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+              const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+              const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+              let header = "";
+              if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                header += "#### Related Items\n\n";
+                if (createdIssueUrl && createdIssueNumber) {
+                  header += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                }
+                if (createdDiscussionUrl && createdDiscussionNumber) {
+                  header += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                }
+                if (createdPullRequestUrl && createdPullRequestNumber) {
+                  header += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                }
+                header += "\n";
+              }
+              return header;
+            }
+            async function processCommentItems(commentItems) {
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
               const temporaryIdMap = loadTemporaryIdMap();
               if (temporaryIdMap.size > 0) {
                 core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
               }
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const commentItems = result.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
               function getTargetNumber(item) {
                 return item.item_number;
               }
@@ -979,55 +1076,6 @@ jobs:
                 context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "#### Related Items\n\n";
-                  if (createdIssueUrl && createdIssueNumber) {
-                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  }
-                  if (createdDiscussionUrl && createdDiscussionNumber) {
-                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  }
-                  if (createdPullRequestUrl && createdPullRequestNumber) {
-                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  }
-                  summaryContent += "\n";
-                }
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
               if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
                 core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
                 return;
@@ -1180,6 +1228,16 @@ jobs:
               }
               core.info(`Successfully created ${createdComments.length} comment(s)`);
               return createdComments;
+            }
+            async function main() {
+              await runSafeOutput({
+                itemType: "add_comment",
+                itemTypePlural: "add-comment",
+                stagedTitle: "Add Comments",
+                stagedDescription: getRelatedItemsHeader() + "The following comments would be added if staged mode was disabled:",
+                renderStagedItem: renderAddCommentPreview,
+                processItems: processCommentItems,
+              });
             }
             await main();
 
@@ -6179,9 +6237,6 @@ jobs:
               return content;
             }
             async function processCreateIssueItems(createIssueItems) {
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("temporary_id_map", "{}");
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
               const triggeringIssueNumber =

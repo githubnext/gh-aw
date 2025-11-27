@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { runSafeOutput } = require("./safe_output_runner.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
@@ -84,9 +84,73 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+/**
+ * Render function for staged preview
+ * @param {any} item - The add_comment item
+ * @param {number} index - Index of the item
+ * @returns {string} Markdown content for the preview
+ */
+function renderAddCommentPreview(item, index) {
+  const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+  const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+
+  let content = `### Comment ${index + 1}\n`;
+  const targetNumber = item.item_number;
+  if (targetNumber) {
+    const repoUrl = getRepositoryUrl();
+    if (isDiscussion) {
+      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+      content += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+    } else {
+      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+      content += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+    }
+  } else {
+    if (isDiscussion) {
+      content += `**Target:** Current discussion\n\n`;
+    } else {
+      content += `**Target:** Current issue/PR\n\n`;
+    }
+  }
+  content += `**Body:**\n${item.body || "No content provided"}\n\n`;
+  return content;
+}
+
+/**
+ * Generate staged summary header with related items
+ * @returns {string} Markdown header for staged preview
+ */
+function getRelatedItemsHeader() {
+  const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+  const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+  const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+  const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+  const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+  const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+
+  let header = "";
+  if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+    header += "#### Related Items\n\n";
+    if (createdIssueUrl && createdIssueNumber) {
+      header += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+    }
+    if (createdDiscussionUrl && createdDiscussionNumber) {
+      header += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+    }
+    if (createdPullRequestUrl && createdPullRequestNumber) {
+      header += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+    }
+    header += "\n";
+  }
+  return header;
+}
+
+/**
+ * Process add_comment items
+ * @param {any[]} commentItems - The add_comment items to process
+ */
+async function processCommentItems(commentItems) {
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
   // Load the temporary ID map from create_issue job
@@ -94,20 +158,6 @@ async function main() {
   if (temporaryIdMap.size > 0) {
     core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
   }
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all add-comment items
-  const commentItems = result.items.filter(/** @param {any} item */ item => item.type === "add_comment");
-  if (commentItems.length === 0) {
-    core.info("No add-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${commentItems.length} add-comment item(s)`);
 
   // Helper function to get the target number (issue, discussion, or pull request)
   function getTargetNumber(item) {
@@ -126,63 +176,6 @@ async function main() {
     context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
   const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-
-  // If in staged mode, emit step summary instead of creating comments
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-    summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-
-    // Show created items references if available
-    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-
-    if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-      summaryContent += "#### Related Items\n\n";
-      if (createdIssueUrl && createdIssueNumber) {
-        summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-      }
-      if (createdDiscussionUrl && createdDiscussionNumber) {
-        summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-      }
-      if (createdPullRequestUrl && createdPullRequestNumber) {
-        summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-      }
-      summaryContent += "\n";
-    }
-
-    for (let i = 0; i < commentItems.length; i++) {
-      const item = commentItems[i];
-      summaryContent += `### Comment ${i + 1}\n`;
-      const targetNumber = getTargetNumber(item);
-      if (targetNumber) {
-        const repoUrl = getRepositoryUrl();
-        if (isDiscussion) {
-          const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-          summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-        } else {
-          const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-          summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-        }
-      } else {
-        if (isDiscussion) {
-          summaryContent += `**Target:** Current discussion\n\n`;
-        } else {
-          summaryContent += `**Target:** Current issue/PR\n\n`;
-        }
-      }
-      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Comment creation preview written to step summary");
-    return;
-  }
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
@@ -381,4 +374,16 @@ async function main() {
   core.info(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
 }
+
+async function main() {
+  await runSafeOutput({
+    itemType: "add_comment",
+    itemTypePlural: "add-comment",
+    stagedTitle: "Add Comments",
+    stagedDescription: getRelatedItemsHeader() + "The following comments would be added if staged mode was disabled:",
+    renderStagedItem: renderAddCommentPreview,
+    processItems: processCommentItems,
+  });
+}
+
 await main();

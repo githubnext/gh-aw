@@ -36,11 +36,6 @@ function renderCreateIssuePreview(item, index) {
  * @param {any[]} createIssueItems - The create_issue items to process
  */
 async function processCreateIssueItems(createIssueItems) {
-  // Initialize outputs to empty strings to ensure they're always set
-  core.setOutput("issue_number", "");
-  core.setOutput("issue_url", "");
-  core.setOutput("temporary_id_map", "{}");
-
   const parentIssueNumber = context.payload?.issue?.number;
 
   // Map to track temporary_id -> issue_number relationships

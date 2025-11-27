@@ -5208,9 +5208,6 @@ jobs:
               return content;
             }
             async function processCreateIssueItems(createIssueItems) {
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("temporary_id_map", "{}");
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
               const triggeringIssueNumber =
