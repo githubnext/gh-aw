@@ -457,6 +457,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Generate Dependabot manifests if requested
 		if dependabot && !noEmit {
+			compileLog.Print("Generating Dependabot manifests for compiled workflows")
 			// Resolve workflow directory path
 			absWorkflowDir := workflowDir
 			if !filepath.IsAbs(absWorkflowDir) {

@@ -45,6 +45,26 @@ Import paths support local files (`shared/file.md`, `../file.md`), remote reposi
 
 Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 
+## Remote Repository Imports
+
+Import shared components from external repositories using the `owner/repo/path@ref` format:
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - acme-org/shared-workflows/mcp/tavily.md@v1.0.0
+  - acme-org/shared-workflows/tools/github-setup.md@main
+---
+
+# Issue Triage Workflow
+
+Analyze incoming issues using imported tools and configurations.
+```
+
+Version references support semantic tags (`@v1.0.0`), branch names (`@main`, `@develop`), or commit SHAs for immutable references. See [Packaging & Distribution](/gh-aw/guides/packaging-imports/) for installation and update workflows.
+
 ## Import Cache
 
 Remote imports are automatically cached in `.github/aw/imports/` to enable offline compilation. The cache stores imports by commit SHA, allowing different refs (branches, tags) pointing to the same commit to share cached files.

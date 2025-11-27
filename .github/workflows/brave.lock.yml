@@ -38,6 +38,11 @@
 # safe-outputs:
 #   add-comment:
 #     max: 1
+#   messages:
+#     footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*"
+#     run-started: "🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}..."
+#     run-success: "🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆"
+#     run-failure: "🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored..."
 # timeout-minutes: 10
 # ```
 #
@@ -309,6 +314,27 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const fs = require("fs");
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
             function extractDomainsFromUrl(url) {
               if (!url || typeof url !== "string") {
                 return [];
@@ -401,6 +427,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -428,6 +455,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -435,6 +463,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
                     return "(redacted)";
                   }
                   return match;
@@ -636,6 +665,10 @@ jobs:
               const sanitizedText = sanitizeContent(text, { allowedAliases });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
+              const logPath = writeRedactedDomainsLog();
+              if (logPath) {
+                core.info(`Redacted URL domains written to: ${logPath}`);
+              }
             }
             await main();
       - name: Add eyes reaction to the triggering item
@@ -646,6 +679,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: brave
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           script: |
             function getMessages() {
@@ -656,13 +690,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -1143,6 +1177,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1189,7 +1224,65 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function generateFooter(
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateFooterWithMessages(
               workflowName,
               runUrl,
               workflowSource,
@@ -1198,19 +1291,60 @@ jobs:
               triggeringPRNumber,
               triggeringDiscussionNumber
             ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              let triggeringNumber;
               if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
+                triggeringNumber = triggeringIssueNumber;
               } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
+                triggeringNumber = triggeringPRNumber;
               } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
               }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
               }
               footer += "\n";
               return footer;
+            }
+            function getStagedTitle(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
+              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+            }
+            function getStagedDescription(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
+              return messages?.stagedDescription
+                ? renderTemplate(messages.stagedDescription, templateContext)
+                : renderTemplate(defaultDescription, templateContext);
+            }
+            function getRunStartedMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
+              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunSuccessMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
+              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
+              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function getTrackerID(format) {
               const trackerID = process.env.GH_AW_TRACKER_ID || "";
@@ -1504,7 +1638,7 @@ jobs:
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 body += getTrackerID("markdown");
-                body += generateFooter(
+                body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
                   workflowSource,
@@ -1659,7 +1793,7 @@ jobs:
         run: |
           set -e
           docker pull docker.io/mcp/brave-search
-          docker pull ghcr.io/github/github-mcp-server:v0.22.0
+          docker pull ghcr.io/github/github-mcp-server:v0.23.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2414,7 +2548,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.22.0"
+                  "ghcr.io/github/github-mcp-server:v0.23.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -3007,6 +3141,26 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
             function extractDomainsFromUrl(url) {
               if (!url || typeof url !== "string") {
                 return [];
@@ -3099,6 +3253,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -3126,6 +3281,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -3133,6 +3289,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
                     return "(redacted)";
                   }
                   return match;
@@ -3207,6 +3364,8 @@ jobs:
                     return 1;
                   case "update_issue":
                     return 1;
+                  case "update_pull_request":
+                    return 1;
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
@@ -3227,6 +3386,8 @@ jobs:
                     return 1;
                   case "noop":
                     return 1; 
+                  case "link_sub_issue":
+                    return 5; 
                   default:
                     return 1;
                 }
@@ -3679,6 +3840,42 @@ jobs:
                         continue;
                       }
                       break;
+                    case "update_pull_request":
+                      const hasValidPRField = item.title !== undefined || item.body !== undefined;
+                      if (!hasValidPRField) {
+                        errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+                        continue;
+                      }
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title, 256);
+                      }
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body, maxBodyLength);
+                      }
+                      if (item.operation !== undefined) {
+                        if (!["replace", "append", "prepend"].includes(item.operation)) {
+                          errors.push(`Line ${i + 1}: update_pull_request 'operation' must be one of: 'replace', 'append', 'prepend'`);
+                          continue;
+                        }
+                      }
+                      const updatePRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "update_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!updatePRNumValidation.isValid) {
+                        if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
+                        continue;
+                      }
+                      break;
                     case "assign_milestone":
                       const assignMilestoneIssueValidation = validateIssueOrPRNumber(item.issue_number, "assign_milestone 'issue_number'", i + 1);
                       if (!assignMilestoneIssueValidation.isValid) {
@@ -3954,6 +4151,22 @@ jobs:
                         item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
                       }
                       break;
+                    case "link_sub_issue":
+                      const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+                      if (!parentIssueValidation.isValid) {
+                        if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
+                        continue;
+                      }
+                      const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+                      if (!subIssueValidation.isValid) {
+                        if (subIssueValidation.error) errors.push(subIssueValidation.error);
+                        continue;
+                      }
+                      if (parentIssueValidation.normalizedValue === subIssueValidation.normalizedValue) {
+                        errors.push(`Line ${i + 1}: link_sub_issue 'parent_issue_number' and 'sub_issue_number' must be different`);
+                        continue;
+                      }
+                      break;
                     default:
                       const jobOutputType = expectedOutputTypes[itemType];
                       if (!jobOutputType) {
@@ -4035,6 +4248,7 @@ jobs:
           name: agent_outputs
           path: |
             /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
@@ -5576,6 +5790,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5630,13 +5845,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);

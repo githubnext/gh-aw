@@ -1991,6 +1991,47 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Enable sub-issue linking with default configuration
+  link-sub-issue: null
+
+  # Option 2: Configuration for linking issues as sub-issues from agentic workflow
+  # output
+  link-sub-issue:
+    # Maximum number of sub-issue links to create (default: 5)
+    # (optional)
+    max: 1
+
+    # Optional list of labels that parent issues must have to be eligible for linking
+    # (optional)
+    parent-required-labels: []
+      # Array of strings
+
+    # Optional title prefix that parent issues must have to be eligible for linking
+    # (optional)
+    parent-title-prefix: "example-value"
+
+    # Optional list of labels that sub-issues must have to be eligible for linking
+    # (optional)
+    sub-required-labels: []
+      # Array of strings
+
+    # Optional title prefix that sub-issues must have to be eligible for linking
+    # (optional)
+    sub-title-prefix: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository sub-issue linking.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for updating GitHub issues from agentic workflow output
   update-issue:
     # Allow updating issue status (open/closed) - presence of key indicates field can
@@ -2027,6 +2068,43 @@ safe-outputs:
 
   # Option 2: Enable issue updating with default configuration
   update-issue: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for updating GitHub pull requests from agentic workflow
+  # output
+  update-pull-request:
+    # Target for updates: 'triggering' (default), '*' (any PR), or explicit PR number
+    # (optional)
+    target: "example-value"
+
+    # Allow updating pull request title - presence of key indicates field can be
+    # updated
+    # (optional)
+    title: null
+
+    # Allow updating pull request body - presence of key indicates field can be
+    # updated
+    # (optional)
+    body: null
+
+    # Maximum number of pull requests to update (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository pull request
+    # updates. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable pull request updating with default configuration
+  update-pull-request: null
 
   # (optional)
   # This field supports multiple formats (oneOf):

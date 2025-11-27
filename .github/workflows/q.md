@@ -33,6 +33,11 @@ safe-outputs:
     reviewers: copilot
     draft: false
     if-no-changes: "ignore"
+  messages:
+    footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*"
+    run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
+    run-success: "🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫"
+    run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
 timeout-minutes: 15
 strict: true
 ---

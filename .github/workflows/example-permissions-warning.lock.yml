@@ -274,7 +274,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.22.0
+          docker pull ghcr.io/github/github-mcp-server:v0.23.0
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -295,7 +295,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
                   "GITHUB_TOOLSETS=repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.22.0"
+                  "ghcr.io/github/github-mcp-server:v0.23.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -724,6 +724,7 @@ jobs:
           name: agent_outputs
           path: |
             /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()

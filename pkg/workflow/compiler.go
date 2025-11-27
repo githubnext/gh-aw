@@ -274,11 +274,13 @@ type SafeOutputsConfig struct {
 	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
 	AssignToAgent                   *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
+	UpdatePullRequests              *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`    // Update GitHub release descriptions
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
+	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`    // Link issues as sub-issues
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
@@ -295,13 +297,13 @@ type SafeOutputsConfig struct {
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages
 type SafeOutputMessagesConfig struct {
-	Footer            string `yaml:"footer,omitempty"`             // Custom footer message template
-	FooterInstall     string `yaml:"footer-install,omitempty"`     // Custom installation instructions template
-	StagedTitle       string `yaml:"staged-title,omitempty"`       // Custom staged mode title template
-	StagedDescription string `yaml:"staged-description,omitempty"` // Custom staged mode description template
-	RunStarted        string `yaml:"run-started,omitempty"`        // Custom workflow activation message template
-	RunSuccess        string `yaml:"run-success,omitempty"`        // Custom workflow success message template
-	RunFailure        string `yaml:"run-failure,omitempty"`        // Custom workflow failure message template
+	Footer            string `yaml:"footer,omitempty" json:"footer,omitempty"`                        // Custom footer message template
+	FooterInstall     string `yaml:"footer-install,omitempty" json:"footerInstall,omitempty"`         // Custom installation instructions template
+	StagedTitle       string `yaml:"staged-title,omitempty" json:"stagedTitle,omitempty"`             // Custom staged mode title template
+	StagedDescription string `yaml:"staged-description,omitempty" json:"stagedDescription,omitempty"` // Custom staged mode description template
+	RunStarted        string `yaml:"run-started,omitempty" json:"runStarted,omitempty"`               // Custom workflow activation message template
+	RunSuccess        string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`               // Custom workflow success message template
+	RunFailure        string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`               // Custom workflow failure message template
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

@@ -174,6 +174,21 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating a pull request
+ */
+interface UpdatePullRequestItem extends BaseSafeOutputItem {
+  type: "update_pull_request";
+  /** Optional new pull request title (always replaces existing title) */
+  title?: string;
+  /** Optional new pull request body (behavior depends on operation) */
+  body?: string;
+  /** Update operation for body: 'replace' (default), 'append', or 'prepend' */
+  operation?: "replace" | "append" | "prepend";
+  /** Optional pull request number for target "*" */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
@@ -251,6 +266,17 @@ interface NoOpItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for linking an issue as a sub-issue of a parent issue
+ */
+interface LinkSubIssueItem extends BaseSafeOutputItem {
+  type: "link_sub_issue";
+  /** Parent issue number to link the sub-issue to */
+  parent_issue_number: number | string;
+  /** Issue number to link as a sub-issue */
+  sub_issue_number: number | string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -266,13 +292,15 @@ type SafeOutputItem =
   | AddLabelsItem
   | AddReviewerItem
   | UpdateIssueItem
+  | UpdatePullRequestItem
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem
   | AssignMilestoneItem
   | AssignToAgentItem
   | UpdateReleaseItem
-  | NoOpItem;
+  | NoOpItem
+  | LinkSubIssueItem;
 
 /**
  * Sanitized safe output items
@@ -297,6 +325,7 @@ export {
   AddLabelsItem,
   AddReviewerItem,
   UpdateIssueItem,
+  UpdatePullRequestItem,
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
@@ -304,6 +333,7 @@ export {
   AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,
+  LinkSubIssueItem,
   SafeOutputItem,
   SafeOutputItems,
 };

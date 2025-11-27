@@ -21,6 +21,11 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
+  messages:
+    footer: "> 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*"
+    run-started: "🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}..."
+    run-success: "🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅"
+    run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
 imports:
   - shared/reporting.md
