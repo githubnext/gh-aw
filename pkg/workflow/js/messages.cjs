@@ -57,18 +57,18 @@ function getMessages() {
   }
 
   try {
-    // Parse JSON, converting camelCase keys from Go struct
+    // Parse JSON with camelCase keys from Go struct (using json struct tags)
     const rawMessages = JSON.parse(messagesEnv);
 
-    // Map Go struct field names (PascalCase in JSON) to camelCase
+    // Use camelCase keys directly from Go struct JSON serialization
     return {
-      footer: rawMessages.Footer || rawMessages.footer,
-      footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-      stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-      stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-      runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-      runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-      runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+      footer: rawMessages.footer,
+      footerInstall: rawMessages.footerInstall,
+      stagedTitle: rawMessages.stagedTitle,
+      stagedDescription: rawMessages.stagedDescription,
+      runStarted: rawMessages.runStarted,
+      runSuccess: rawMessages.runSuccess,
+      runFailure: rawMessages.runFailure,
     };
   } catch (error) {
     core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);

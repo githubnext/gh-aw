@@ -328,7 +328,7 @@ jobs:
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           script: |
             function getMessages() {
@@ -339,13 +339,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -830,7 +830,7 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -885,13 +885,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -1382,7 +1382,7 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5867,7 +5867,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  ls -la /tmp/gh-aw/playwright-debug-logs/\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}
@@ -6129,7 +6129,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6184,13 +6184,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -6448,7 +6448,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"RunSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"RunFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

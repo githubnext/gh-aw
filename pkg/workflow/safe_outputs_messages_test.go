@@ -112,12 +112,15 @@ func TestSerializeMessagesConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("Should serialize messages config to JSON", func(t *testing.T) {
+	t.Run("Should serialize messages config to JSON with camelCase keys", func(t *testing.T) {
 		config := &SafeOutputMessagesConfig{
 			Footer:            "> Custom footer",
 			FooterInstall:     "> Install instructions",
 			StagedTitle:       "## Preview",
 			StagedDescription: "Description",
+			RunStarted:        "Started",
+			RunSuccess:        "Success",
+			RunFailure:        "Failure",
 		}
 
 		result, err := serializeMessagesConfig(config)
@@ -133,6 +136,37 @@ func TestSerializeMessagesConfig(t *testing.T) {
 
 		if parsed.Footer != "> Custom footer" {
 			t.Errorf("Expected Footer to be preserved, got %q", parsed.Footer)
+		}
+
+		// Verify JSON uses camelCase keys (not PascalCase)
+		if !strings.Contains(result, `"footer"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'footer', got: %s", result)
+		}
+		if !strings.Contains(result, `"footerInstall"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'footerInstall', got: %s", result)
+		}
+		if !strings.Contains(result, `"stagedTitle"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'stagedTitle', got: %s", result)
+		}
+		if !strings.Contains(result, `"stagedDescription"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'stagedDescription', got: %s", result)
+		}
+		if !strings.Contains(result, `"runStarted"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'runStarted', got: %s", result)
+		}
+		if !strings.Contains(result, `"runSuccess"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'runSuccess', got: %s", result)
+		}
+		if !strings.Contains(result, `"runFailure"`) {
+			t.Errorf("Expected JSON to contain camelCase key 'runFailure', got: %s", result)
+		}
+
+		// Verify JSON does NOT use PascalCase keys
+		if strings.Contains(result, `"Footer"`) {
+			t.Errorf("Expected JSON to NOT contain PascalCase key 'Footer', got: %s", result)
+		}
+		if strings.Contains(result, `"FooterInstall"`) {
+			t.Errorf("Expected JSON to NOT contain PascalCase key 'FooterInstall', got: %s", result)
 		}
 	})
 

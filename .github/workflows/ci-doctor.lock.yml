@@ -439,7 +439,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/ea350161ad5dcc9624cf510f134c6a9e39a6f94d/workflows/ci-doctor.md"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"RunSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"RunFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -494,13 +494,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -5088,7 +5088,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"RunSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"RunFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5143,13 +5143,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -5410,7 +5410,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/ea350161ad5dcc9624cf510f134c6a9e39a6f94d/workflows/ci-doctor.md"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"RunSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"RunFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

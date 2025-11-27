@@ -809,7 +809,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: craft
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           script: |
             function getMessages() {
@@ -820,13 +820,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -1307,7 +1307,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1362,13 +1362,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -6027,7 +6027,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6082,13 +6082,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);

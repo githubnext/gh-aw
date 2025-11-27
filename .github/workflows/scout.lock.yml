@@ -935,7 +935,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: scout
           GH_AW_WORKFLOW_NAME: "Scout"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"RunSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"RunFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"runSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"runFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
         with:
           script: |
             function getMessages() {
@@ -946,13 +946,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -1433,7 +1433,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Scout"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"RunSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"RunFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"runSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"runFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1488,13 +1488,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -6087,7 +6087,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Scout"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"RunSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"RunFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"runSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"runFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6142,13 +6142,13 @@ jobs:
               try {
                 const rawMessages = JSON.parse(messagesEnv);
                 return {
-                  footer: rawMessages.Footer || rawMessages.footer,
-                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
-                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
-                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
-                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
-                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
