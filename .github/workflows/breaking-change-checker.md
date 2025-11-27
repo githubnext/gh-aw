@@ -26,6 +26,11 @@ safe-outputs:
     labels: [breaking-change, automated-analysis]
     assignees: copilot
     max: 1
+  messages:
+    footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*"
+    run-started: "🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}..."
+    run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
+    run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
 ---
 

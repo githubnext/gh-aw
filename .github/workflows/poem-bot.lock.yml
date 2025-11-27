@@ -120,6 +120,13 @@
 #   # Missing tool reporting
 #   missing-tool:
 #
+#   # Custom messages in poetic style
+#   messages:
+#     footer: "> 🪶 *Verses penned by [{workflow_name}]({run_url})*"
+#     run-started: "🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}..."
+#     run-success: "🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏"
+#     run-failure: "🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung..."
+#
 # # Global timeout
 # timeout-minutes: 10
 # strict: true
@@ -708,6 +715,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: poem-bot
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           script: |
             function getMessages() {
@@ -1213,6 +1221,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1259,7 +1268,65 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function generateFooter(
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.Footer || rawMessages.footer,
+                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
+                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
+                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
+                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
+                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateFooterWithMessages(
               workflowName,
               runUrl,
               workflowSource,
@@ -1268,19 +1335,60 @@ jobs:
               triggeringPRNumber,
               triggeringDiscussionNumber
             ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              let triggeringNumber;
               if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
+                triggeringNumber = triggeringIssueNumber;
               } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
+                triggeringNumber = triggeringPRNumber;
               } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
               }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
               }
               footer += "\n";
               return footer;
+            }
+            function getStagedTitle(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
+              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+            }
+            function getStagedDescription(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
+              return messages?.stagedDescription
+                ? renderTemplate(messages.stagedDescription, templateContext)
+                : renderTemplate(defaultDescription, templateContext);
+            }
+            function getRunStartedMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
+              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunSuccessMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
+              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
+              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function getTrackerID(format) {
               const trackerID = process.env.GH_AW_TRACKER_ID || "";
@@ -1574,7 +1682,7 @@ jobs:
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 body += getTrackerID("markdown");
-                body += generateFooter(
+                body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
                   workflowSource,
@@ -1666,6 +1774,7 @@ jobs:
           GH_AW_LABELS_MAX_COUNT: 5
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6123,6 +6232,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6444,6 +6554,7 @@ jobs:
           GH_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6884,6 +6995,7 @@ jobs:
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7261,6 +7373,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8764,6 +8877,7 @@ jobs:
           GH_AW_UPDATE_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9042,6 +9156,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

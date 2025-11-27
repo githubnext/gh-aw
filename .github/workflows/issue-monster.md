@@ -24,6 +24,11 @@ safe-outputs:
     max: 1
   add-comment:
     max: 1
+  messages:
+    footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*"
+    run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
+    run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issue! That was DELICIOUS! Me want MORE! 😋"
+    run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
 ---
 
 # Issue Monster 🍪

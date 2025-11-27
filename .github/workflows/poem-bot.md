@@ -97,6 +97,13 @@ safe-outputs:
   # Missing tool reporting
   missing-tool:
 
+  # Custom messages in poetic style
+  messages:
+    footer: "> 🪶 *Verses penned by [{workflow_name}]({run_url})*"
+    run-started: "🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}..."
+    run-success: "🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏"
+    run-failure: "🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung..."
+
 # Global timeout
 timeout-minutes: 10
 strict: true

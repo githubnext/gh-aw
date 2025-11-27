@@ -71,6 +71,11 @@ safe-outputs:
   add-comment:
     max: 1
   upload-assets:
+  messages:
+    footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*"
+    run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
+    run-success: "🗜️ Docs on a diet! [{workflow_name}]({run_url}) has removed the bloat. Lean and mean! 💪"
+    run-failure: "📦 Unbloating paused! [{workflow_name}]({run_url}) {status}. The docs remain... fluffy."
 
 # Timeout (based on avg 6.8min runtime + buffer)
 timeout-minutes: 12
