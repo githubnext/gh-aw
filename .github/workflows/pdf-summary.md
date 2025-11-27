@@ -35,6 +35,11 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
+  messages:
+    footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*"
+    run-started: "📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}..."
+    run-success: "📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨"
+    run-failure: "📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized..."
 
 timeout-minutes: 15
 strict: true

@@ -48,6 +48,11 @@
 #   add-comment:
 #     max: 1
 #   push-to-pull-request-branch:
+#   messages:
+#     footer: "> ⚒️ *Crafted with care by [{workflow_name}]({run_url})*"
+#     run-started: "🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}..."
+#     run-success: "⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️"
+#     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
 # ```
 #
 # Job Dependency Graph:
@@ -804,6 +809,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: craft
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           script: |
             function getMessages() {
@@ -1301,6 +1307,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5982,6 +5989,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Workflow Craft Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"RunSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"RunFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

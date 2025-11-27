@@ -46,6 +46,11 @@
 # safe-outputs:
 #   add-comment:
 #     max: 1
+#   messages:
+#     footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*"
+#     run-started: "📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}..."
+#     run-success: "🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅"
+#     run-failure: "📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete..."
 # timeout-minutes: 10
 # ```
 #
@@ -749,6 +754,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: archie
           GH_AW_WORKFLOW_NAME: "Archie"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}...\",\"RunSuccess\":\"🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅\",\"RunFailure\":\"📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete...\"}"
         with:
           script: |
             function getMessages() {
@@ -1246,6 +1252,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Archie"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}...\",\"RunSuccess\":\"🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅\",\"RunFailure\":\"📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5883,6 +5890,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Archie"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}...\",\"RunSuccess\":\"🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅\",\"RunFailure\":\"📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

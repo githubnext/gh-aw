@@ -54,6 +54,11 @@
 #   add-comment:
 #     max: 1
 #   push-to-pull-request-branch:
+#   messages:
+#     footer: "> 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*"
+#     run-started: "🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}..."
+#     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
+#     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"
 # timeout-minutes: 20
 # ```
 #
@@ -855,6 +860,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: cloclo
           GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"RunSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"RunFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
           script: |
             function getMessages() {
@@ -1355,6 +1361,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"RunSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"RunFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5935,6 +5942,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"RunSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"RunFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6289,6 +6297,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"RunSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"RunFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

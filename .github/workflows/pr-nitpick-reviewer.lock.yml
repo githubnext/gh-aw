@@ -44,6 +44,11 @@
 #   create-pull-request-review-comment:
 #     max: 10
 #     side: "RIGHT"
+#   messages:
+#     footer: "> 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*"
+#     run-started: "🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}..."
+#     run-success: "🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅"
+#     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 # timeout-minutes: 15
 # imports:
 #   - shared/reporting.md
@@ -687,6 +692,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: nit
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"RunSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"RunFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           script: |
             function getMessages() {
@@ -1187,6 +1193,7 @@ jobs:
           GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
           GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"RunSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"RunFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6072,6 +6079,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"RunSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"RunFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6391,6 +6399,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[nitpick-report] "
           GH_AW_DISCUSSION_CATEGORY: "General"
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"RunSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"RunFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6673,6 +6682,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"RunSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"RunFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

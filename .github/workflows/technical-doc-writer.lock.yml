@@ -58,6 +58,11 @@
 #     reviewers: copilot
 #     draft: false
 #   upload-assets:
+#   messages:
+#     footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*"
+#     run-started: "✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}..."
+#     run-success: "📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨"
+#     run-failure: "✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank..."
 #
 # steps:
 #   - name: Setup Node.js
@@ -698,6 +703,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"RunSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"RunFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5927,6 +5933,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"RunSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"RunFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6279,6 +6286,7 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"RunSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"RunFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7151,6 +7159,7 @@ jobs:
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"RunSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"RunFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

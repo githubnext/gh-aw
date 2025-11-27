@@ -120,6 +120,13 @@
 #   # Missing tool reporting
 #   missing-tool:
 #
+#   # Custom messages in poetic style
+#   messages:
+#     footer: "> 🪶 *Verses penned by [{workflow_name}]({run_url})*"
+#     run-started: "🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}..."
+#     run-success: "🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏"
+#     run-failure: "🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung..."
+#
 # # Global timeout
 # timeout-minutes: 10
 # strict: true
@@ -708,6 +715,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: poem-bot
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           script: |
             function getMessages() {
@@ -1213,6 +1221,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1765,6 +1774,7 @@ jobs:
           GH_AW_LABELS_MAX_COUNT: 5
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6222,6 +6232,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6543,6 +6554,7 @@ jobs:
           GH_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6983,6 +6995,7 @@ jobs:
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7360,6 +7373,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8863,6 +8877,7 @@ jobs:
           GH_AW_UPDATE_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9141,6 +9156,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"RunSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"RunFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

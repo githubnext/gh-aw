@@ -56,6 +56,11 @@
 #     reviewers: copilot
 #     draft: false
 #     if-no-changes: "ignore"
+#   messages:
+#     footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*"
+#     run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
+#     run-success: "🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫"
+#     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
 # timeout-minutes: 15
 # strict: true
 # ```
@@ -969,6 +974,7 @@ jobs:
           GH_AW_REACTION: "rocket"
           GH_AW_COMMAND: q
           GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"RunSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"RunFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           script: |
             function getMessages() {
@@ -1469,6 +1475,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"RunSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"RunFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6369,6 +6376,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Q"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"RunSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"RunFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6723,6 +6731,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"RunSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"RunFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

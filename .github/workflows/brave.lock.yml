@@ -38,6 +38,11 @@
 # safe-outputs:
 #   add-comment:
 #     max: 1
+#   messages:
+#     footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*"
+#     run-started: "🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}..."
+#     run-success: "🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆"
+#     run-failure: "🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored..."
 # timeout-minutes: 10
 # ```
 #
@@ -646,6 +651,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: brave
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"RunSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"RunFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           script: |
             function getMessages() {
@@ -1143,6 +1149,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"RunSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"RunFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5675,6 +5682,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"RunSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"RunFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

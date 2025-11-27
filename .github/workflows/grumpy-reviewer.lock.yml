@@ -41,6 +41,11 @@
 #   create-pull-request-review-comment:
 #     max: 5
 #     side: "RIGHT"
+#   messages:
+#     footer: "> 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*"
+#     run-started: "😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time."
+#     run-success: "😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄"
+#     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."
 # timeout-minutes: 10
 # ```
 #
@@ -679,6 +684,7 @@ jobs:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: grumpy
           GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time.\",\"RunSuccess\":\"😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄\",\"RunFailure\":\"😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse...\"}"
         with:
           script: |
             function getMessages() {
@@ -1176,6 +1182,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time.\",\"RunSuccess\":\"😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄\",\"RunFailure\":\"😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5753,6 +5760,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time.\",\"RunSuccess\":\"😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄\",\"RunFailure\":\"😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6072,6 +6080,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time.\",\"RunSuccess\":\"😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄\",\"RunFailure\":\"😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -46,6 +46,11 @@
 #   add-comment:
 #     max: 1
 #     target: "*"
+#   messages:
+#     footer: "> 🦅 *Observed from above by [{workflow_name}]({run_url})*"
+#     run-started: "🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above..."
+#     run-success: "🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯"
+#     run-failure: "🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet..."
 # timeout-minutes: 10
 # strict: true
 # ```
@@ -359,6 +364,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Dev Hawk"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🦅 *Observed from above by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above...\",\"RunSuccess\":\"🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯\",\"RunFailure\":\"🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4877,6 +4883,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Dev Hawk"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"Footer\":\"\\u003e 🦅 *Observed from above by [{workflow_name}]({run_url})*\",\"FooterInstall\":\"\",\"StagedTitle\":\"\",\"StagedDescription\":\"\",\"RunStarted\":\"🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above...\",\"RunSuccess\":\"🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯\",\"RunFailure\":\"🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

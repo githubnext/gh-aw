@@ -23,6 +23,11 @@ safe-outputs:
   add-comment:
     max: 1
     target: "*"
+  messages:
+    footer: "> 🦅 *Observed from above by [{workflow_name}]({run_url})*"
+    run-started: "🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above..."
+    run-success: "🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯"
+    run-failure: "🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet..."
 timeout-minutes: 10
 strict: true
 ---
