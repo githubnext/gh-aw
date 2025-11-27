@@ -277,6 +277,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
 	}
 
+	// Analyze redacted domains if available
+	redactedDomainsAnalysis, err := analyzeRedactedDomains(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
+	}
+
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
 	if err != nil && verbose {
@@ -285,12 +291,13 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
-		Run:              run,
-		FirewallAnalysis: firewallAnalysis,
-		MissingTools:     missingTools,
-		Noops:            noops,
-		MCPFailures:      mcpFailures,
-		JobDetails:       jobDetails,
+		Run:                     run,
+		FirewallAnalysis:        firewallAnalysis,
+		RedactedDomainsAnalysis: redactedDomainsAnalysis,
+		MissingTools:            missingTools,
+		Noops:                   noops,
+		MCPFailures:             mcpFailures,
+		JobDetails:              jobDetails,
 	}
 
 	// Build structured audit data
@@ -342,18 +349,19 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 
 	// Save run summary for caching future audit runs
 	summary := &RunSummary{
-		CLIVersion:       GetVersion(),
-		RunID:            run.DatabaseID,
-		ProcessedAt:      time.Now(),
-		Run:              run,
-		Metrics:          metrics,
-		AccessAnalysis:   accessAnalysis,
-		FirewallAnalysis: firewallAnalysis,
-		MissingTools:     missingTools,
-		Noops:            noops,
-		MCPFailures:      mcpFailures,
-		ArtifactsList:    artifacts,
-		JobDetails:       jobDetails,
+		CLIVersion:              GetVersion(),
+		RunID:                   run.DatabaseID,
+		ProcessedAt:             time.Now(),
+		Run:                     run,
+		Metrics:                 metrics,
+		AccessAnalysis:          accessAnalysis,
+		FirewallAnalysis:        firewallAnalysis,
+		RedactedDomainsAnalysis: redactedDomainsAnalysis,
+		MissingTools:            missingTools,
+		Noops:                   noops,
+		MCPFailures:             mcpFailures,
+		ArtifactsList:           artifacts,
+		JobDetails:              jobDetails,
 	}
 
 	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {

@@ -19,16 +19,17 @@ var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary           LogsSummary          `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs              []RunData            `json:"runs" console:"title:Workflow Logs Overview"`
-	ToolUsage         []ToolUsageSummary   `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
-	ErrorsAndWarnings []ErrorSummary       `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
-	MissingTools      []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
-	MCPFailures       []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
-	AccessLog         *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
-	FirewallLog       *FirewallLogSummary  `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
-	Continuation      *ContinuationData    `json:"continuation,omitempty" console:"-"`
-	LogsLocation      string               `json:"logs_location" console:"-"`
+	Summary           LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
+	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
+	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
+	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
+	LogsLocation      string                     `json:"logs_location" console:"-"`
 }
 
 // ContinuationData provides parameters to continue querying when timeout is reached
@@ -210,6 +211,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build firewall log summary
 	firewallLog := buildFirewallLogSummary(processedRuns)
 
+	// Build redacted domains summary
+	redactedDomains := buildRedactedDomainsSummary(processedRuns)
+
 	absOutputDir, _ := filepath.Abs(outputDir)
 
 	return LogsData{
@@ -221,6 +225,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		MCPFailures:       mcpFailures,
 		AccessLog:         accessLog,
 		FirewallLog:       firewallLog,
+		RedactedDomains:   redactedDomains,
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}
@@ -544,6 +549,43 @@ func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
 		DeniedDomains:    deniedDomains,
 		RequestsByDomain: allRequestsByDomain,
 		ByWorkflow:       byWorkflow,
+	}
+}
+
+// buildRedactedDomainsSummary aggregates redacted domains data across all runs
+func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsLogSummary {
+	allDomainsSet := make(map[string]bool)
+	byWorkflow := make(map[string]*RedactedDomainsAnalysis)
+	hasData := false
+
+	for _, pr := range processedRuns {
+		if pr.RedactedDomainsAnalysis == nil {
+			continue
+		}
+		hasData = true
+		byWorkflow[pr.Run.WorkflowName] = pr.RedactedDomainsAnalysis
+
+		// Collect all unique domains
+		for _, domain := range pr.RedactedDomainsAnalysis.Domains {
+			allDomainsSet[domain] = true
+		}
+	}
+
+	if !hasData {
+		return nil
+	}
+
+	// Convert set to sorted slice
+	var allDomains []string
+	for domain := range allDomainsSet {
+		allDomains = append(allDomains, domain)
+	}
+	sort.Strings(allDomains)
+
+	return &RedactedDomainsLogSummary{
+		TotalDomains: len(allDomains),
+		Domains:      allDomains,
+		ByWorkflow:   byWorkflow,
 	}
 }
 
