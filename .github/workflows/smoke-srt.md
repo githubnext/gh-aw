@@ -103,6 +103,12 @@ sandbox:
 tools:
   bash:
   github:
+safe-outputs:
+  messages:
+    footer: "> ⚓ *Logged in the captain's journal by [{workflow_name}]({run_url})*"
+    run-started: "⚓ Ahoy! [{workflow_name}]({run_url}) sets sail on this {event_type}! All hands on deck, me hearties! 🏴‍☠️"
+    run-success: "🏴‍☠️ Yo ho ho! [{workflow_name}]({run_url}) has claimed the treasure! The voyage be a SUCCESS! ⚓"
+    run-failure: "🏴‍☠️ Blimey! [{workflow_name}]({run_url}) {status}! We've hit rough waters, mateys..."
 timeout-minutes: 5
 strict: true
 ---
