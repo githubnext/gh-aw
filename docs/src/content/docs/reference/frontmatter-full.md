@@ -1587,6 +1587,12 @@ safe-outputs:
     # (optional)
     category: null
 
+    # Optional list of labels to attach to created discussions. Also used for matching
+    # when close-older-discussions is enabled.
+    # (optional)
+    labels: []
+      # Array of strings
+
     # Maximum number of discussions to create (default: 1)
     # (optional)
     max: 1
@@ -1602,8 +1608,9 @@ safe-outputs:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
     # When true, automatically close older discussions matching the same title prefix
-    # as 'outdated' with a comment linking to the new discussion. Maximum 10
-    # discussions will be closed. Only runs if discussion creation succeeds.
+    # or labels as 'outdated' with a comment linking to the new discussion. Requires
+    # title-prefix or labels to be set. Maximum 10 discussions will be closed. Only
+    # runs if discussion creation succeeds.
     # (optional)
     close-older-discussions: true
 

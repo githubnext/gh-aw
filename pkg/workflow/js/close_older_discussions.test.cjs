@@ -38,7 +38,7 @@ describe("close_older_discussions.cjs", () => {
         },
       });
 
-      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", "DIC_test123", 1);
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", [], "DIC_test123", 1);
 
       expect(result).toEqual([]);
     });
@@ -55,6 +55,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Old Report 1",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -63,6 +64,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] New Report",
               url: "https://github.com/testowner/testrepo/discussions/10",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
@@ -74,6 +76,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_test123",
         10 // Exclude discussion #10
       );
@@ -94,6 +97,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Open Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -102,13 +106,14 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Closed Report",
               url: "https://github.com/testowner/testrepo/discussions/6",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: true, // Already closed
             },
           ],
         },
       });
 
-      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", "DIC_test123", 10);
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", [], "DIC_test123", 10);
 
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(5);
@@ -126,6 +131,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Matching Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -134,13 +140,56 @@ describe("close_older_discussions.cjs", () => {
               title: "[daily-report] Non-matching Report", // Different prefix
               url: "https://github.com/testowner/testrepo/discussions/6",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
         },
       });
 
-      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", "DIC_test123", 10);
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", [], "DIC_test123", 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+    });
+
+    it("should filter by labels", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_haslabels",
+              number: 5,
+              title: "Report with labels",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [{ name: "weekly-report" }, { name: "automation" }] },
+              closed: false,
+            },
+            {
+              id: "D_nolabels",
+              number: 6,
+              title: "Report without required labels",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [{ name: "other-label" }] },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(
+        mockGithub,
+        "testowner",
+        "testrepo",
+        "", // No title prefix
+        ["weekly-report", "automation"], // Filter by labels
+        "DIC_test123",
+        10
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(5);
@@ -158,6 +207,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Report in right category",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_reports" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -166,6 +216,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Report in wrong category",
               url: "https://github.com/testowner/testrepo/discussions/6",
               category: { id: "DIC_general" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
@@ -177,6 +228,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_reports", // Filter by specific category
         10
       );
@@ -197,6 +249,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Report 1",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_reports" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -205,6 +258,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Report 2",
               url: "https://github.com/testowner/testrepo/discussions/6",
               category: { id: "DIC_general" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
@@ -216,11 +270,64 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         undefined, // No category filter
         10
       );
 
       expect(result).toHaveLength(2);
+    });
+
+    it("should match by both title prefix and labels when both specified", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_both",
+              number: 5,
+              title: "[weekly-report] With labels",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [{ name: "automation" }] },
+              closed: false,
+            },
+            {
+              id: "D_titleonly",
+              number: 6,
+              title: "[weekly-report] No labels",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [] },
+              closed: false,
+            },
+            {
+              id: "D_labelonly",
+              number: 7,
+              title: "Different title with labels",
+              url: "https://github.com/testowner/testrepo/discussions/7",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [{ name: "automation" }] },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(
+        mockGithub,
+        "testowner",
+        "testrepo",
+        "[weekly-report] ",
+        ["automation"],
+        "DIC_test123",
+        10
+      );
+
+      // Only discussion #5 has both the title prefix AND the label
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
     });
   });
 
@@ -238,6 +345,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Old Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
@@ -269,6 +377,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_test123",
         { number: 10, url: "https://github.com/testowner/testrepo/discussions/10" },
         "Test Workflow",
@@ -290,6 +399,7 @@ describe("close_older_discussions.cjs", () => {
         title: `[weekly-report] Old Report ${i + 1}`,
         url: `https://github.com/testowner/testrepo/discussions/${i + 1}`,
         category: { id: "DIC_test123" },
+        labels: { nodes: [] },
         closed: false,
       }));
 
@@ -319,6 +429,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_test123",
         { number: 100, url: "https://github.com/testowner/testrepo/discussions/100" },
         "Test Workflow",
@@ -345,6 +456,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_test123",
         { number: 10, url: "https://github.com/testowner/testrepo/discussions/10" },
         "Test Workflow",
@@ -368,6 +480,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Will Fail",
               url: "https://github.com/testowner/testrepo/discussions/5",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
             {
@@ -376,6 +489,7 @@ describe("close_older_discussions.cjs", () => {
               title: "[weekly-report] Will Succeed",
               url: "https://github.com/testowner/testrepo/discussions/6",
               category: { id: "DIC_test123" },
+              labels: { nodes: [] },
               closed: false,
             },
           ],
@@ -402,6 +516,7 @@ describe("close_older_discussions.cjs", () => {
         "testowner",
         "testrepo",
         "[weekly-report] ",
+        [],
         "DIC_test123",
         { number: 10, url: "https://github.com/testowner/testrepo/discussions/10" },
         "Test Workflow",
@@ -411,6 +526,57 @@ describe("close_older_discussions.cjs", () => {
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(6);
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to close discussion #5"));
+    });
+
+    it("should close discussions by labels only", async () => {
+      const { closeOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      // Mock search response
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_labeled",
+              number: 5,
+              title: "Some Report with Labels",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              category: { id: "DIC_test123" },
+              labels: { nodes: [{ name: "weekly-report" }, { name: "automation" }] },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      // Mock add comment response
+      mockGithub.graphql.mockResolvedValueOnce({
+        addDiscussionComment: {
+          comment: { id: "DC_comment1", url: "https://github.com/testowner/testrepo/discussions/5#comment-1" },
+        },
+      });
+
+      // Mock close discussion response
+      mockGithub.graphql.mockResolvedValueOnce({
+        closeDiscussion: {
+          discussion: { id: "D_labeled", url: "https://github.com/testowner/testrepo/discussions/5" },
+        },
+      });
+
+      const result = await closeOlderDiscussions(
+        mockGithub,
+        "testowner",
+        "testrepo",
+        "", // No title prefix
+        ["weekly-report", "automation"], // Labels only
+        "DIC_test123",
+        { number: 10, url: "https://github.com/testowner/testrepo/discussions/10" },
+        "Test Workflow",
+        "https://github.com/testowner/testrepo/actions/runs/123"
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("labels: [weekly-report, automation]"));
     });
   });
 

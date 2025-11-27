@@ -2758,6 +2758,13 @@
                   "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["General", "audits", 123456789]
                 },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of labels to attach to created discussions. Also used for matching when close-older-discussions is enabled - discussions must have ALL specified labels (AND logic)."
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of discussions to create (default: 1)",
@@ -2774,7 +2781,7 @@
                 },
                 "close-older-discussions": {
                   "type": "boolean",
-                  "description": "When true, automatically close older discussions matching the same title prefix as 'outdated' with a comment linking to the new discussion. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
+                  "description": "When true, automatically close older discussions matching the same title prefix or labels as 'outdated' with a comment linking to the new discussion. Requires title-prefix or labels to be set. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
                   "default": false
                 }
               },
@@ -2793,6 +2800,11 @@
                 },
                 {
                   "title-prefix": "[weekly-report] ",
+                  "category": "reports",
+                  "close-older-discussions": true
+                },
+                {
+                  "labels": ["weekly-report", "automation"],
                   "category": "reports",
                   "close-older-discussions": true
                 }

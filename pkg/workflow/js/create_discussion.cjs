@@ -128,6 +128,13 @@ async function main() {
   // Get configuration for close-older-discussions
   const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
   const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+  const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+  const labels = labelsEnvVar
+    ? labelsEnvVar
+        .split(",")
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+    : [];
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -199,8 +206,9 @@ async function main() {
         core.setOutput("discussion_url", discussion.url);
       }
 
-      // Close older discussions if enabled and title prefix is set
-      if (closeOlderEnabled && titlePrefix) {
+      // Close older discussions if enabled and title prefix or labels are set
+      const hasMatchingCriteria = titlePrefix || labels.length > 0;
+      if (closeOlderEnabled && hasMatchingCriteria) {
         core.info("close-older-discussions is enabled, searching for older discussions to close...");
         try {
           const closedDiscussions = await closeOlderDiscussions(
@@ -208,6 +216,7 @@ async function main() {
             context.repo.owner,
             context.repo.repo,
             titlePrefix,
+            labels,
             categoryId,
             { number: discussion.number, url: discussion.url },
             workflowName,
@@ -222,8 +231,8 @@ async function main() {
           // Log error but don't fail the workflow - closing older discussions is a nice-to-have
           core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
         }
-      } else if (closeOlderEnabled && !titlePrefix) {
-        core.warning("close-older-discussions is enabled but no title-prefix is set - skipping close older discussions");
+      } else if (closeOlderEnabled && !hasMatchingCriteria) {
+        core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
       }
     } catch (error) {
       core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);

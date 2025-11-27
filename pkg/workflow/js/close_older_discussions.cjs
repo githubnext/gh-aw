@@ -9,20 +9,37 @@ const { getCloseOlderDiscussionMessage } = require("./messages.cjs");
 const MAX_CLOSE_COUNT = 10;
 
 /**
- * Search for open discussions with a matching title prefix
+ * Search for open discussions with a matching title prefix and/or labels
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} titlePrefix - Title prefix to match
+ * @param {string} titlePrefix - Title prefix to match (empty string to skip prefix matching)
+ * @param {string[]} labels - Labels to match (empty array to skip label matching)
  * @param {string|undefined} categoryId - Optional category ID to filter by
  * @param {number} excludeNumber - Discussion number to exclude (the newly created one)
  * @returns {Promise<Array<{id: string, number: number, title: string, url: string}>>} Matching discussions
  */
-async function searchOlderDiscussions(github, owner, repo, titlePrefix, categoryId, excludeNumber) {
-  // GraphQL search query for open discussions with title prefix
-  // Note: GitHub search doesn't support exact prefix matching, so we search for the prefix
-  // and filter client-side
-  const searchQuery = `repo:${owner}/${repo} is:open in:title "${titlePrefix}"`;
+async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+  // Build GraphQL search query
+  // Search for open discussions, optionally with title prefix or labels
+  let searchQuery = `repo:${owner}/${repo} is:open`;
+
+  if (titlePrefix) {
+    // Escape quotes in title prefix to prevent query injection
+    const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+    searchQuery += ` in:title "${escapedPrefix}"`;
+  }
+
+  // Add label filters to the search query
+  // Note: GitHub search uses AND logic for multiple labels, so discussions must have ALL labels.
+  // We add each label as a separate filter and also validate client-side for extra safety.
+  if (labels && labels.length > 0) {
+    for (const label of labels) {
+      // Escape quotes in label names to prevent query injection
+      const escapedLabel = label.replace(/"/g, '\\"');
+      searchQuery += ` label:"${escapedLabel}"`;
+    }
+  }
 
   const result = await github.graphql(
     `
@@ -37,6 +54,11 @@ async function searchOlderDiscussions(github, owner, repo, titlePrefix, category
             category {
               id
             }
+            labels(first: 100) {
+              nodes {
+                name
+              }
+            }
             closed
           }
         }
@@ -50,19 +72,40 @@ async function searchOlderDiscussions(github, owner, repo, titlePrefix, category
   }
 
   // Filter results:
-  // 1. Must have title starting with the prefix
-  // 2. Must not be the excluded discussion (newly created one)
-  // 3. Must not be already closed
-  // 4. If categoryId is specified, must match
+  // 1. Must not be the excluded discussion (newly created one)
+  // 2. Must not be already closed
+  // 3. If titlePrefix is specified, must have title starting with the prefix
+  // 4. If labels are specified, must have ALL specified labels (AND logic, not OR)
+  // 5. If categoryId is specified, must match
   return result.search.nodes
     .filter(
-      /** @param {any} d */ d =>
-        d &&
-        d.title &&
-        d.title.startsWith(titlePrefix) &&
-        d.number !== excludeNumber &&
-        !d.closed &&
-        (!categoryId || (d.category && d.category.id === categoryId))
+      /** @param {any} d */ d => {
+        if (!d || d.number === excludeNumber || d.closed) {
+          return false;
+        }
+
+        // Check title prefix if specified
+        if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+          return false;
+        }
+
+        // Check labels if specified - requires ALL labels to match (AND logic)
+        // This is intentional: we only want to close discussions that have ALL the specified labels
+        if (labels && labels.length > 0) {
+          const discussionLabels = d.labels?.nodes?.map((/** @type {{name: string}} */ l) => l.name) || [];
+          const hasAllLabels = labels.every(label => discussionLabels.includes(label));
+          if (!hasAllLabels) {
+            return false;
+          }
+        }
+
+        // Check category if specified
+        if (categoryId && (!d.category || d.category.id !== categoryId)) {
+          return false;
+        }
+
+        return true;
+      }
     )
     .map(
       /** @param {any} d */ d => ({
@@ -122,21 +165,26 @@ async function closeDiscussionAsOutdated(github, discussionId) {
 }
 
 /**
- * Close older discussions that match the title prefix
+ * Close older discussions that match the title prefix and/or labels
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} titlePrefix - Title prefix to match
+ * @param {string} titlePrefix - Title prefix to match (empty string to skip)
+ * @param {string[]} labels - Labels to match (empty array to skip)
  * @param {string|undefined} categoryId - Optional category ID to filter by
  * @param {{number: number, url: string}} newDiscussion - The newly created discussion
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
  */
-async function closeOlderDiscussions(github, owner, repo, titlePrefix, categoryId, newDiscussion, workflowName, runUrl) {
-  core.info(`Searching for older discussions with title prefix: "${titlePrefix}"`);
+async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+  // Build search criteria description for logging
+  const searchCriteria = [];
+  if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
+  if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
+  core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
 
-  const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, categoryId, newDiscussion.number);
+  const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
 
   if (olderDiscussions.length === 0) {
     core.info("No older discussions found to close");
