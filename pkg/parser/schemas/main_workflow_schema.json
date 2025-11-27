@@ -2771,6 +2771,11 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "close-older-discussions": {
+                  "type": "boolean",
+                  "description": "When true, automatically close older discussions matching the same title prefix as 'outdated' with a comment linking to the new discussion. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -2785,6 +2790,11 @@
                 },
                 {
                   "category": "General"
+                },
+                {
+                  "title-prefix": "[weekly-report] ",
+                  "category": "reports",
+                  "close-older-discussions": true
                 }
               ]
             },

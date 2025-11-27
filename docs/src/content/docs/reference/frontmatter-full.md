@@ -1601,6 +1601,12 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # When true, automatically close older discussions matching the same title prefix
+    # as 'outdated' with a comment linking to the new discussion. Maximum 10
+    # discussions will be closed. Only runs if discussion creation succeeds.
+    # (optional)
+    close-older-discussions: true
+
   # Option 2: Enable discussion creation with default configuration
   create-discussion: null
 
