@@ -48,12 +48,12 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 	return nil
 }
 
-// enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
+// enableFirewallByDefault enables firewall by default for engines that support it
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
-func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
-	// Only apply to copilot engine
-	if engineID != "copilot" {
+func enableFirewallByDefault(engine CodingAgentEngine, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
+	// Only apply to engines that support firewall
+	if engine == nil || !engine.SupportsFirewall() {
 		return
 	}
 
@@ -76,10 +76,10 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 
 	// Check if network restrictions are present (allowed domains specified)
 	if len(networkPermissions.Allowed) > 0 {
-		// Enable firewall by default for copilot engine with network restrictions
+		// Enable firewall by default for engines with network restrictions
 		networkPermissions.Firewall = &FirewallConfig{
 			Enabled: true,
 		}
-		firewallLog.Print("Enabled firewall by default for copilot engine with network restrictions")
+		firewallLog.Printf("Enabled firewall by default for %s engine with network restrictions", engine.GetID())
 	}
 }
