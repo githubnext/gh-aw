@@ -287,3 +287,183 @@ func TestConclusionJobIntegration(t *testing.T) {
 		}
 	}
 }
+
+func TestConclusionJobWithMessages(t *testing.T) {
+	// Test that the conclusion job includes custom messages when configured
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "eyes",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+			Messages: &SafeOutputMessagesConfig{
+				Footer:     "> Custom footer message",
+				RunSuccess: "✅ Custom success: [{workflow_name}]({run_url})",
+				RunFailure: "❌ Custom failure: [{workflow_name}]({run_url}) {status}",
+			},
+		},
+	}
+
+	// Build the conclusion job
+	safeOutputJobNames := []string{"add_comment", "missing_tool"}
+	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	// Convert job to YAML string for checking
+	jobYAML := strings.Join(job.Steps, "")
+
+	// Check that GH_AW_SAFE_OUTPUT_MESSAGES environment variable is declared in env section
+	envVarDeclaration := "          GH_AW_SAFE_OUTPUT_MESSAGES: "
+	if !strings.Contains(jobYAML, envVarDeclaration) {
+		t.Error("Expected GH_AW_SAFE_OUTPUT_MESSAGES environment variable to be declared when messages are configured")
+	}
+
+	// Check that the messages contain expected values
+	if !strings.Contains(jobYAML, "Custom footer message") {
+		t.Error("Expected custom footer message to be included in the conclusion job")
+	}
+	if !strings.Contains(jobYAML, "Custom success") {
+		t.Error("Expected custom success message to be included in the conclusion job")
+	}
+	if !strings.Contains(jobYAML, "Custom failure") {
+		t.Error("Expected custom failure message to be included in the conclusion job")
+	}
+}
+
+func TestConclusionJobWithoutMessages(t *testing.T) {
+	// Test that the conclusion job does NOT include messages env var when not configured
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "eyes",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+			// Messages intentionally nil
+		},
+	}
+
+	// Build the conclusion job
+	safeOutputJobNames := []string{"add_comment", "missing_tool"}
+	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	// Convert job to YAML string for checking
+	jobYAML := strings.Join(job.Steps, "")
+
+	// Check that GH_AW_SAFE_OUTPUT_MESSAGES environment variable is NOT set in env section
+	// Note: The script itself contains references to GH_AW_SAFE_OUTPUT_MESSAGES (for parsing),
+	// but the env: section should not have it when messages are not configured
+	// We look for the env var declaration pattern which has a colon followed by a value
+	// The bundled script has references like "process.env.GH_AW_SAFE_OUTPUT_MESSAGES" which we don't want to match
+	envVarDeclaration := "          GH_AW_SAFE_OUTPUT_MESSAGES: "
+	if strings.Contains(jobYAML, envVarDeclaration) {
+		t.Error("Expected GH_AW_SAFE_OUTPUT_MESSAGES environment variable to NOT be declared when messages are not configured")
+	}
+}
+
+func TestActivationJobWithMessages(t *testing.T) {
+	// Test that the activation job includes custom messages when configured
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "eyes",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+			Messages: &SafeOutputMessagesConfig{
+				Footer:     "> Custom footer message",
+				RunStarted: "🚀 [{workflow_name}]({run_url}) starting on {event_type}",
+				RunSuccess: "✅ Custom success: [{workflow_name}]({run_url})",
+				RunFailure: "❌ Custom failure: [{workflow_name}]({run_url}) {status}",
+			},
+		},
+	}
+
+	// Build the activation job
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("Failed to build activation job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected activation job to be created")
+	}
+
+	// Convert job to YAML string for checking
+	jobYAML := strings.Join(job.Steps, "")
+
+	// Check that GH_AW_SAFE_OUTPUT_MESSAGES environment variable is declared
+	envVarDeclaration := "          GH_AW_SAFE_OUTPUT_MESSAGES: "
+	if !strings.Contains(jobYAML, envVarDeclaration) {
+		t.Error("Expected GH_AW_SAFE_OUTPUT_MESSAGES environment variable to be declared when messages are configured")
+	}
+
+	// Check that the messages contain expected values
+	if !strings.Contains(jobYAML, "Custom footer message") {
+		t.Error("Expected custom footer message to be included in the activation job")
+	}
+	if !strings.Contains(jobYAML, "starting on") {
+		t.Error("Expected custom run-started message to be included in the activation job")
+	}
+}
+
+func TestActivationJobWithoutMessages(t *testing.T) {
+	// Test that the activation job does NOT include messages env var when not configured
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "eyes",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+			// Messages intentionally nil
+		},
+	}
+
+	// Build the activation job
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("Failed to build activation job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected activation job to be created")
+	}
+
+	// Convert job to YAML string for checking
+	jobYAML := strings.Join(job.Steps, "")
+
+	// Check that GH_AW_SAFE_OUTPUT_MESSAGES environment variable is NOT declared
+	// Note: The script itself contains references to GH_AW_SAFE_OUTPUT_MESSAGES (for parsing),
+	// but the env: section should not have it when messages are not configured
+	envVarDeclaration := "          GH_AW_SAFE_OUTPUT_MESSAGES: "
+	if strings.Contains(jobYAML, envVarDeclaration) {
+		t.Error("Expected GH_AW_SAFE_OUTPUT_MESSAGES environment variable to NOT be declared when messages are not configured")
+	}
+}

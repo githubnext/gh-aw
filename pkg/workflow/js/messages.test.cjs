@@ -7,7 +7,7 @@
  * - Footer message generation (default and custom)
  * - Installation instructions generation
  * - Staged mode title and description generation
- * - Caching behavior
+ * - Run status messages (started, success, failure)
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -33,8 +33,7 @@ describe("messages.cjs", () => {
 
   describe("getMessages", () => {
     it("should return null when env var is not set", async () => {
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getMessages } = await import("./messages.cjs");
       const result = getMessages();
       expect(result).toBeNull();
     });
@@ -47,8 +46,7 @@ describe("messages.cjs", () => {
         StagedDescription: "Preview of {operation}:",
       });
 
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getMessages } = await import("./messages.cjs");
       const result = getMessages();
 
       expect(result).toEqual({
@@ -65,8 +63,7 @@ describe("messages.cjs", () => {
         footerInstall: "> Custom install",
       });
 
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getMessages } = await import("./messages.cjs");
       const result = getMessages();
 
       expect(result.footer).toBe("> Custom footer");
@@ -76,39 +73,19 @@ describe("messages.cjs", () => {
     it("should handle invalid JSON gracefully", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = "not valid json";
 
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getMessages } = await import("./messages.cjs");
       const result = getMessages();
 
       expect(result).toBeNull();
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES"));
     });
 
-    it("should cache results after first call", async () => {
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "cached value",
-      });
-
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
-
-      const result1 = getMessages();
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "new value",
-      });
-      const result2 = getMessages();
-
-      expect(result1.footer).toBe("cached value");
-      expect(result2.footer).toBe("cached value"); // Should still be cached
-    });
-
-    it("should clear cache when clearMessagesCache is called", async () => {
+    it("should read fresh env var value on each call (no caching)", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         Footer: "first value",
       });
 
-      const { getMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getMessages } = await import("./messages.cjs");
 
       const result1 = getMessages();
       expect(result1.footer).toBe("first value");
@@ -116,7 +93,6 @@ describe("messages.cjs", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         Footer: "second value",
       });
-      clearMessagesCache();
 
       const result2 = getMessages();
       expect(result2.footer).toBe("second value");
@@ -176,8 +152,7 @@ describe("messages.cjs", () => {
 
   describe("getFooterMessage", () => {
     it("should return default footer when no custom config", async () => {
-      const { getFooterMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterMessage } = await import("./messages.cjs");
 
       const result = getFooterMessage({
         workflowName: "Test Workflow",
@@ -188,8 +163,7 @@ describe("messages.cjs", () => {
     });
 
     it("should append triggering number when provided", async () => {
-      const { getFooterMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterMessage } = await import("./messages.cjs");
 
       const result = getFooterMessage({
         workflowName: "Test Workflow",
@@ -207,8 +181,7 @@ describe("messages.cjs", () => {
         Footer: "> Custom: [{workflow_name}]({run_url})",
       });
 
-      const { getFooterMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterMessage } = await import("./messages.cjs");
 
       const result = getFooterMessage({
         workflowName: "Custom Workflow",
@@ -223,8 +196,7 @@ describe("messages.cjs", () => {
         Footer: "> {workflowName} ({workflow_name})",
       });
 
-      const { getFooterMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterMessage } = await import("./messages.cjs");
 
       const result = getFooterMessage({
         workflowName: "Test",
@@ -237,8 +209,7 @@ describe("messages.cjs", () => {
 
   describe("getFooterInstallMessage", () => {
     it("should return empty string when no workflow source", async () => {
-      const { getFooterInstallMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterInstallMessage } = await import("./messages.cjs");
 
       const result = getFooterInstallMessage({
         workflowName: "Test",
@@ -249,8 +220,7 @@ describe("messages.cjs", () => {
     });
 
     it("should return default install message when source is provided", async () => {
-      const { getFooterInstallMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterInstallMessage } = await import("./messages.cjs");
 
       const result = getFooterInstallMessage({
         workflowName: "Test",
@@ -268,8 +238,7 @@ describe("messages.cjs", () => {
         FooterInstall: "> Install: `gh aw add {workflow_source}`",
       });
 
-      const { getFooterInstallMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getFooterInstallMessage } = await import("./messages.cjs");
 
       const result = getFooterInstallMessage({
         workflowName: "Test",
@@ -284,8 +253,7 @@ describe("messages.cjs", () => {
 
   describe("generateFooterWithMessages", () => {
     it("should generate complete default footer", async () => {
-      const { generateFooterWithMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { generateFooterWithMessages } = await import("./messages.cjs");
 
       const result = generateFooterWithMessages(
         "Test Workflow",
@@ -302,8 +270,7 @@ describe("messages.cjs", () => {
     });
 
     it("should include triggering issue number", async () => {
-      const { generateFooterWithMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { generateFooterWithMessages } = await import("./messages.cjs");
 
       const result = generateFooterWithMessages(
         "Test Workflow",
@@ -319,8 +286,7 @@ describe("messages.cjs", () => {
     });
 
     it("should include triggering PR number when no issue", async () => {
-      const { generateFooterWithMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { generateFooterWithMessages } = await import("./messages.cjs");
 
       const result = generateFooterWithMessages(
         "Test Workflow",
@@ -336,8 +302,7 @@ describe("messages.cjs", () => {
     });
 
     it("should include triggering discussion number", async () => {
-      const { generateFooterWithMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { generateFooterWithMessages } = await import("./messages.cjs");
 
       const result = generateFooterWithMessages(
         "Test Workflow",
@@ -353,8 +318,7 @@ describe("messages.cjs", () => {
     });
 
     it("should include installation instructions when source is provided", async () => {
-      const { generateFooterWithMessages, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { generateFooterWithMessages } = await import("./messages.cjs");
 
       const result = generateFooterWithMessages(
         "Test Workflow",
@@ -372,8 +336,7 @@ describe("messages.cjs", () => {
 
   describe("getStagedTitle", () => {
     it("should return default staged title", async () => {
-      const { getStagedTitle, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getStagedTitle } = await import("./messages.cjs");
 
       const result = getStagedTitle({ operation: "Create Issues" });
 
@@ -385,8 +348,7 @@ describe("messages.cjs", () => {
         StagedTitle: "## 🔍 Preview: {operation}",
       });
 
-      const { getStagedTitle, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getStagedTitle } = await import("./messages.cjs");
 
       const result = getStagedTitle({ operation: "Add Comments" });
 
@@ -396,8 +358,7 @@ describe("messages.cjs", () => {
 
   describe("getStagedDescription", () => {
     it("should return default staged description", async () => {
-      const { getStagedDescription, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getStagedDescription } = await import("./messages.cjs");
 
       const result = getStagedDescription({ operation: "Create Issues" });
 
@@ -409,8 +370,7 @@ describe("messages.cjs", () => {
         StagedDescription: "Preview of {operation} - nothing will be created:",
       });
 
-      const { getStagedDescription, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getStagedDescription } = await import("./messages.cjs");
 
       const result = getStagedDescription({ operation: "pull requests" });
 
@@ -420,8 +380,7 @@ describe("messages.cjs", () => {
 
   describe("getRunStartedMessage", () => {
     it("should return default run-started message", async () => {
-      const { getRunStartedMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunStartedMessage } = await import("./messages.cjs");
 
       const result = getRunStartedMessage({
         workflowName: "Test Workflow",
@@ -437,8 +396,7 @@ describe("messages.cjs", () => {
         RunStarted: "[{workflow_name}]({run_url}) started for {event_type}",
       });
 
-      const { getRunStartedMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunStartedMessage } = await import("./messages.cjs");
 
       const result = getRunStartedMessage({
         workflowName: "Custom Bot",
@@ -452,8 +410,7 @@ describe("messages.cjs", () => {
 
   describe("getRunSuccessMessage", () => {
     it("should return default run-success message", async () => {
-      const { getRunSuccessMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunSuccessMessage } = await import("./messages.cjs");
 
       const result = getRunSuccessMessage({
         workflowName: "Test Workflow",
@@ -470,8 +427,7 @@ describe("messages.cjs", () => {
         RunSuccess: "✅ [{workflow_name}]({run_url}) finished!",
       });
 
-      const { getRunSuccessMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunSuccessMessage } = await import("./messages.cjs");
 
       const result = getRunSuccessMessage({
         workflowName: "Custom Bot",
@@ -484,8 +440,7 @@ describe("messages.cjs", () => {
 
   describe("getRunFailureMessage", () => {
     it("should return default run-failure message", async () => {
-      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunFailureMessage } = await import("./messages.cjs");
 
       const result = getRunFailureMessage({
         workflowName: "Test Workflow",
@@ -503,8 +458,7 @@ describe("messages.cjs", () => {
         RunFailure: "❌ [{workflow_name}]({run_url}) {status}.",
       });
 
-      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunFailureMessage } = await import("./messages.cjs");
 
       const result = getRunFailureMessage({
         workflowName: "Custom Bot",
@@ -516,8 +470,7 @@ describe("messages.cjs", () => {
     });
 
     it("should handle cancelled status", async () => {
-      const { getRunFailureMessage, clearMessagesCache } = await import("./messages.cjs");
-      clearMessagesCache();
+      const { getRunFailureMessage } = await import("./messages.cjs");
 
       const result = getRunFailureMessage({
         workflowName: "Test Workflow",

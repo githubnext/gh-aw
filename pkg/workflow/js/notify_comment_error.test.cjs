@@ -154,8 +154,9 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("✅"),
-          body: expect.stringContaining("completed successfully"),
+          // Uses default pirate-themed message from messages.cjs
+          // Default: "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰"
+          body: expect.stringContaining("found the treasure and completed successfully"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -175,9 +176,9 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("❌"),
-          body: expect.stringContaining("failed"),
-          body: expect.stringContaining("wasn't able to produce a result"),
+          // Uses default pirate-themed message from messages.cjs
+          // Default: "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️"
+          body: expect.stringContaining("walked the plank"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -194,8 +195,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("🚫"),
+          // Uses default pirate-themed message with "was cancelled" status
           body: expect.stringContaining("was cancelled"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -211,8 +213,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏱️"),
+          // Uses default pirate-themed message with "timed out" status
           body: expect.stringContaining("timed out"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -228,8 +231,9 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏭️"),
+          // Uses default pirate-themed message with "was skipped" status
           body: expect.stringContaining("was skipped"),
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });
@@ -266,8 +270,9 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("✅"),
-          body: expect.stringContaining("completed successfully"),
+          // Uses default pirate-themed message from messages.cjs
+          // Default: "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰"
+          body: expect.stringContaining("found the treasure and completed successfully"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated discussion comment");
@@ -285,8 +290,9 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("❌"),
-          body: expect.stringContaining("failed"),
+          // Uses default pirate-themed message from messages.cjs
+          // Default: "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️"
+          body: expect.stringContaining("walked the plank"),
         })
       );
     });

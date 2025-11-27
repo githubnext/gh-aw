@@ -125,6 +125,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
+	// Pass custom messages config if present
+	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			notifyCommentLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
+
 	// Get token from config
 	var token string
 	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
