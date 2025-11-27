@@ -209,7 +209,7 @@
     },
     "UpdatePullRequestOutput": {
       "title": "Update Pull Request Output",
-      "description": "Output for updating an existing pull request's title and/or body. Note: The JavaScript validation ensures at least one of title or body is provided.",
+      "description": "Output for updating an existing pull request's title and/or body. Supports replace, append, or prepend operations for body updates. Note: The JavaScript validation ensures at least one of title or body is provided.",
       "type": "object",
       "properties": {
         "type": {
@@ -217,11 +217,16 @@
         },
         "title": {
           "type": "string",
-          "description": "New title for the pull request"
+          "description": "New title for the pull request (always replaces existing title)"
         },
         "body": {
           "type": "string",
-          "description": "New body content for the pull request"
+          "description": "Body content for the pull request (behavior depends on operation field)"
+        },
+        "operation": {
+          "type": "string",
+          "description": "Update operation for body: 'replace' (default), 'append', or 'prepend'",
+          "enum": ["replace", "append", "prepend"]
         },
         "pull_request_number": {
           "oneOf": [

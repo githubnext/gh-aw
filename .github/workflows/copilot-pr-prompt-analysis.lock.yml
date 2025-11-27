@@ -3151,6 +3151,12 @@ jobs:
                         }
                         item.body = sanitizeContent(item.body, maxBodyLength);
                       }
+                      if (item.operation !== undefined) {
+                        if (!["replace", "append", "prepend"].includes(item.operation)) {
+                          errors.push(`Line ${i + 1}: update_pull_request 'operation' must be one of: 'replace', 'append', 'prepend'`);
+                          continue;
+                        }
+                      }
                       const updatePRNumValidation = validateIssueOrPRNumber(
                         item.pull_request_number,
                         "update_pull_request 'pull_request_number'",
