@@ -40,7 +40,7 @@
 #   push-to-pull-request-branch:
 #     commit-title-suffix: " [skip-ci]"
 #   update-pull-request:
-#     body:
+#     title: false
 #   threat-detection:
 #     engine: false
 # timeout-minutes: 20
@@ -292,11 +292,10 @@
 #
 # 6. **Append Changeset to PR Description**:
 #    - After pushing the changeset file, append a summary to the pull request description
-#    - Use the `update_pull_request` tool with operation "append":
+#    - Use the `update_pull_request` tool (append is the default operation):
 #      ```javascript
 #      update_pull_request({
-#        body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>",
-#        operation: "append"
+#        body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
 #      })
 #      ```
 #    - This adds a "Changeset" section at the end of the PR description
@@ -2414,11 +2413,10 @@ jobs:
           
           6. **Append Changeset to PR Description**:
              - After pushing the changeset file, append a summary to the pull request description
-             - Use the `update_pull_request` tool with operation "append":
+             - Use the `update_pull_request` tool (append is the default operation):
                ```javascript
                update_pull_request({
-                 body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>",
-                 operation: "append"
+                 body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
                })
                ```
              - This adds a "Changeset" section at the end of the PR description
@@ -6994,7 +6992,7 @@ jobs:
                       content += `**New Title:** ${item.title}\n\n`;
                     }
                     if (item.body !== undefined) {
-                      const operation = item.operation || "replace";
+                      const operation = item.operation || "append";
                       content += `**Operation:** ${operation}\n`;
                       content += `**Body Content:**\n${item.body}\n\n`;
                     }
@@ -7056,7 +7054,7 @@ jobs:
                   continue;
                 }
                 core.info(`Updating pull request #${prNumber}`);
-                const operation = updateItem.operation || "replace";
+                const operation = updateItem.operation || "append";
                 core.info(`Body operation: ${operation}`);
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
                 const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;

@@ -40,7 +40,7 @@ async function main() {
           content += `**New Title:** ${item.title}\n\n`;
         }
         if (item.body !== undefined) {
-          const operation = item.operation || "replace";
+          const operation = item.operation || "append";
           content += `**Operation:** ${operation}\n`;
           content += `**Body Content:**\n${item.body}\n\n`;
         }
@@ -125,8 +125,8 @@ async function main() {
 
     core.info(`Updating pull request #${prNumber}`);
 
-    // Determine operation (default to 'replace')
-    const operation = updateItem.operation || "replace";
+    // Determine operation (default to 'append')
+    const operation = updateItem.operation || "append";
     core.info(`Body operation: ${operation}`);
 
     // Get workflow run URL for AI attribution

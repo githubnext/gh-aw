@@ -8,8 +8,8 @@ import (
 type UpdatePullRequestsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	Target               string `yaml:"target,omitempty"`      // Target for updates: "triggering" (default), "*" (any PR), or explicit PR number
-	Title                *bool  `yaml:"title,omitempty"`       // Allow updating PR title - presence indicates field can be updated
-	Body                 *bool  `yaml:"body,omitempty"`        // Allow updating PR body - presence indicates field can be updated
+	Title                *bool  `yaml:"title,omitempty"`       // Allow updating PR title - defaults to true, set to false to disable
+	Body                 *bool  `yaml:"body,omitempty"`        // Allow updating PR body - defaults to true, set to false to disable
 	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository PR updates
 }
 
@@ -19,10 +19,14 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 		return nil, fmt.Errorf("safe-outputs.update-pull-request configuration is required")
 	}
 
+	// Default to true for both title and body unless explicitly set to false
+	canUpdateTitle := data.SafeOutputs.UpdatePullRequests.Title == nil || *data.SafeOutputs.UpdatePullRequests.Title
+	canUpdateBody := data.SafeOutputs.UpdatePullRequests.Body == nil || *data.SafeOutputs.UpdatePullRequests.Body
+
 	// Build custom environment variables specific to update-pull-request
 	customEnvVars := []string{
-		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdatePullRequests.Title != nil),
-		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdatePullRequests.Body != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", canUpdateTitle),
+		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", canUpdateBody),
 	}
 
 	if data.SafeOutputs.UpdatePullRequests.Target != "" {
@@ -81,14 +85,20 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 				}
 			}
 
-			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["title"]; exists {
-				updatePullRequestsConfig.Title = new(bool)
+			// Parse title - boolean to enable/disable (defaults to true if nil or not set)
+			if titleVal, exists := configMap["title"]; exists {
+				if titleBool, ok := titleVal.(bool); ok {
+					updatePullRequestsConfig.Title = &titleBool
+				}
+				// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
 			}
 
-			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["body"]; exists {
-				updatePullRequestsConfig.Body = new(bool)
+			// Parse body - boolean to enable/disable (defaults to true if nil or not set)
+			if bodyVal, exists := configMap["body"]; exists {
+				if bodyBool, ok := bodyVal.(bool); ok {
+					updatePullRequestsConfig.Body = &bodyBool
+				}
+				// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
 			}
 
 			// Parse common base fields with default max of 1

@@ -17,7 +17,7 @@ safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
   update-pull-request:
-    body:
+    title: false
   threat-detection:
     engine: false
 timeout-minutes: 20
@@ -89,11 +89,10 @@ Your task is to:
 
 6. **Append Changeset to PR Description**:
    - After pushing the changeset file, append a summary to the pull request description
-   - Use the `update_pull_request` tool with operation "append":
+   - Use the `update_pull_request` tool (append is the default operation):
      ```javascript
      update_pull_request({
-       body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>",
-       operation: "append"
+       body: "## Changeset\n\n- **Type**: <patch|minor|major>\n- **Description**: <brief description of changes>"
      })
      ```
    - This adds a "Changeset" section at the end of the PR description
