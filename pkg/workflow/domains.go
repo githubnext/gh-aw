@@ -169,3 +169,29 @@ func GetCopilotAllowedDomains(network *NetworkPermissions) string {
 	// Join with commas for AWF --allow-domains flag
 	return strings.Join(domains, ",")
 }
+
+// GetClaudeAllowedDomains returns allowed domains for Claude engine with AWF
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+// Note: Claude uses API key authentication, so no default domains are needed (unlike Copilot)
+func GetClaudeAllowedDomains(network *NetworkPermissions) string {
+	domainMap := make(map[string]bool)
+
+	// Add NetworkPermissions domains (if specified)
+	if network != nil && len(network.Allowed) > 0 {
+		// Expand ecosystem identifiers and add individual domains
+		expandedDomains := GetAllowedDomains(network)
+		for _, domain := range expandedDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Convert to sorted slice for consistent output
+	domains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		domains = append(domains, domain)
+	}
+	SortStrings(domains)
+
+	// Join with commas for AWF --allow-domains flag
+	return strings.Join(domains, ",")
+}

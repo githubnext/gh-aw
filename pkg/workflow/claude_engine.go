@@ -28,6 +28,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxTurns:       true, // Claude supports max-turns feature
 			supportsWebFetch:       true, // Claude has built-in WebFetch support
 			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			supportsFirewall:       true, // Claude supports AWF firewall
 		},
 	}
 }
@@ -35,33 +36,44 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
-	// Use base installation steps (secret validation + npm install)
-	steps := GetBaseInstallationSteps(EngineInstallConfig{
-		Secrets:         []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
-		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
-		NpmPackage:      "@anthropic-ai/claude-code",
-		Version:         string(constants.DefaultClaudeCodeVersion),
-		Name:            "Claude Code",
-		CliName:         "claude",
-		InstallStepName: "Install Claude Code CLI",
-	}, workflowData)
+	var steps []GitHubActionStep
 
-	// Check if network permissions are configured (only for Claude engine)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// Generate network hook generator and settings generator
-		hookGenerator := &NetworkHookGenerator{}
-		settingsGenerator := &ClaudeSettingsGenerator{}
+	// Add secret validation step - Claude supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY as fallback
+	secretValidation := GenerateMultiSecretValidationStep(
+		[]string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+		"Claude Code",
+		"https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+	)
+	steps = append(steps, secretValidation)
 
-		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
+	// Use shared helper for standard npm installation
+	npmSteps := BuildStandardNpmEngineInstallSteps(
+		"@anthropic-ai/claude-code",
+		string(constants.DefaultClaudeCodeVersion),
+		"Install Claude Code CLI",
+		"claude",
+		workflowData,
+	)
 
-		// Add settings generation step
-		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
-		steps = append(steps, settingsStep)
+	// Install Node.js setup (first npm step)
+	steps = append(steps, npmSteps[0])
 
-		// Add hook generation step
-		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
-		steps = append(steps, hookStep)
+	// Add AWF installation steps only if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		// Install AWF after Node.js setup but before Claude CLI installation
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfVersion string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+		}
+
+		// Install AWF binary
+		awfInstall := generateAWFInstallationStep(awfVersion)
+		steps = append(steps, awfInstall)
 	}
+
+	// Install Claude CLI (remaining npm steps)
+	steps = append(steps, npmSteps[1:]...)
 
 	return steps
 }
@@ -126,11 +138,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add output format for structured output
 	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
 
-	// Add network settings if configured
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
-	}
-
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
@@ -189,10 +196,45 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Join command parts with proper escaping using shellJoinArgs helper
 	// This handles already-quoted arguments correctly and prevents double-escaping
-	command := shellJoinArgs(commandParts)
+	claudeCommand := shellJoinArgs(commandParts)
 
-	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
-	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
+	// Conditionally wrap with AWF if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		// Build the AWF-wrapped command
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfLogLevel = "info"
+		if firewallConfig != nil && firewallConfig.LogLevel != "" {
+			awfLogLevel = firewallConfig.LogLevel
+		}
+
+		// Get allowed domains (claude defaults + network permissions)
+		allowedDomains := GetClaudeAllowedDomains(workflowData.NetworkPermissions)
+
+		// Build AWF arguments
+		var awfArgs []string
+		awfArgs = append(awfArgs, "--env-all")
+		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
+
+		// Add mount arguments
+		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
+		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
+
+		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+
+		// Add custom args if specified
+		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
+			awfArgs = append(awfArgs, firewallConfig.Args...)
+		}
+
+		// Build the full AWF command with multiline formatting
+		stepLines = append(stepLines, fmt.Sprintf("          sudo -E awf %s \\", shellJoinArgs(awfArgs)))
+		stepLines = append(stepLines, fmt.Sprintf("            -- %s \\", claudeCommand))
+		stepLines = append(stepLines, fmt.Sprintf("            2>&1 | tee %s", shellEscapeArg(logFile)))
+	} else {
+		// Run claude command without AWF wrapper
+		stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", claudeCommand, logFile))
+	}
 
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
@@ -277,17 +319,27 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add cleanup step for network proxy hook files (if proxy was enabled)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		cleanupStep := GitHubActionStep{
-			"      - name: Clean up network proxy hook files",
-			"        if: always()",
-			"        run: |",
-			"          rm -rf .claude/hooks/network_permissions.py || true",
-			"          rm -rf .claude/hooks || true",
-			"          rm -rf .claude || true",
-		}
-		steps = append(steps, cleanupStep)
+	return steps
+}
+
+// GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
+func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Only add Squid logs collection and upload steps if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		claudeLog.Printf("Adding Squid logs collection steps for workflow: %s", workflowData.Name)
+		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
+		steps = append(steps, squidLogsCollection)
+
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		steps = append(steps, squidLogsUpload)
+
+		// Add firewall log parsing step to create step summary
+		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
+		steps = append(steps, firewallLogParsing)
+	} else {
+		claudeLog.Print("Firewall disabled, skipping Squid logs collection")
 	}
 
 	return steps
