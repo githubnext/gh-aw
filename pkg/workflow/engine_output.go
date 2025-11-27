@@ -9,6 +9,9 @@ import (
 
 var engineOutputLog = logger.New("workflow:engine_output")
 
+// RedactedURLsLogPath is the path where redacted URL domains are logged during sanitization
+const RedactedURLsLogPath = "/tmp/gh-aw/redacted-urls.log"
+
 // generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/gh-aw/ files
 // Returns the YAML string and whether a cleanup step was generated
 func generateCleanupStep(outputFiles []string) (string, bool) {
@@ -48,6 +51,10 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 		engineOutputLog.Print("No engine output files to collect")
 		return
 	}
+
+	// Add redacted URLs log file to the output files list
+	// This file is created during content sanitization if any URLs were redacted
+	outputFiles = append(outputFiles, RedactedURLsLogPath)
 
 	engineOutputLog.Printf("Generating engine output collection step for %d files", len(outputFiles))
 

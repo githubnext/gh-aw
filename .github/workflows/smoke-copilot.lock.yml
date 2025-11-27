@@ -3181,6 +3181,26 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
             function extractDomainsFromUrl(url) {
               if (!url || typeof url !== "string") {
                 return [];
@@ -3273,6 +3293,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -3300,6 +3321,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -3307,6 +3329,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
                     return "(redacted)";
                   }
                   return match;
@@ -4265,6 +4288,7 @@ jobs:
           name: agent_outputs
           path: |
             /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
@@ -5885,7 +5909,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  ls -la /tmp/gh-aw/playwright-debug-logs/\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}

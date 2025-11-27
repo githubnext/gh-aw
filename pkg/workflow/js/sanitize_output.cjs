@@ -6,7 +6,7 @@
  * @param {string} content - The content to sanitize
  * @returns {string} The sanitized content
  */
-const { sanitizeContent } = require("./sanitize_content.cjs");
+const { sanitizeContent, writeRedactedDomainsLog } = require("./sanitize_content.cjs");
 
 async function main() {
   const fs = require("fs");
@@ -31,6 +31,12 @@ async function main() {
     const sanitizedContent = sanitizeContent(outputContent);
     core.info(`Collected agentic output (sanitized): ${sanitizedContent.substring(0, 200)}${sanitizedContent.length > 200 ? "..." : ""}`);
     core.setOutput("output", sanitizedContent);
+  }
+
+  // Write redacted URL domains to log file if any were collected
+  const logPath = writeRedactedDomainsLog();
+  if (logPath) {
+    core.info(`Redacted URL domains written to: ${logPath}`);
   }
 }
 

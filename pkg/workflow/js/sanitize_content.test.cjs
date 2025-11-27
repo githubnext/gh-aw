@@ -463,4 +463,137 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("Already `@user` and `@other`");
     });
   });
+
+  describe("redacted domains collection", () => {
+    let getRedactedDomains;
+    let clearRedactedDomains;
+    let writeRedactedDomainsLog;
+    const fs = require("fs");
+    const path = require("path");
+
+    beforeEach(async () => {
+      const module = await import("./sanitize_content.cjs");
+      getRedactedDomains = module.getRedactedDomains;
+      clearRedactedDomains = module.clearRedactedDomains;
+      writeRedactedDomainsLog = module.writeRedactedDomainsLog;
+      // Clear collected domains before each test
+      clearRedactedDomains();
+    });
+
+    it("should collect redacted HTTPS domains", () => {
+      sanitizeContent("Visit https://evil.com/malware");
+      const domains = getRedactedDomains();
+      expect(domains.length).toBe(1);
+      expect(domains[0]).toBe("evil.com");
+    });
+
+    it("should collect redacted HTTP domains", () => {
+      sanitizeContent("Visit http://example.com");
+      const domains = getRedactedDomains();
+      expect(domains.length).toBe(1);
+      expect(domains[0]).toBe("example.com");
+    });
+
+    it("should collect redacted dangerous protocols", () => {
+      sanitizeContent("Click javascript:alert(1)");
+      const domains = getRedactedDomains();
+      expect(domains.length).toBe(1);
+      expect(domains[0]).toBe("javascript:");
+    });
+
+    it("should collect multiple redacted domains", () => {
+      sanitizeContent("Visit https://bad1.com and http://bad2.com");
+      const domains = getRedactedDomains();
+      expect(domains.length).toBe(2);
+      expect(domains).toContain("bad1.com");
+      expect(domains).toContain("bad2.com");
+    });
+
+    it("should not collect allowed domains", () => {
+      sanitizeContent("Visit https://github.com/repo");
+      const domains = getRedactedDomains();
+      expect(domains.length).toBe(0);
+    });
+
+    it("should clear collected domains", () => {
+      sanitizeContent("Visit https://evil.com");
+      expect(getRedactedDomains().length).toBe(1);
+      clearRedactedDomains();
+      expect(getRedactedDomains().length).toBe(0);
+    });
+
+    it("should return a copy of domains array", () => {
+      sanitizeContent("Visit https://evil.com");
+      const domains1 = getRedactedDomains();
+      const domains2 = getRedactedDomains();
+      expect(domains1).not.toBe(domains2);
+      expect(domains1).toEqual(domains2);
+    });
+
+    describe("writeRedactedDomainsLog", () => {
+      const testDir = "/tmp/gh-aw-test-redacted";
+      const testFile = `${testDir}/redacted-urls.log`;
+
+      afterEach(() => {
+        // Clean up test files
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+        if (fs.existsSync(testDir)) {
+          fs.rmdirSync(testDir, { recursive: true });
+        }
+      });
+
+      it("should return null when no domains collected", () => {
+        const result = writeRedactedDomainsLog(testFile);
+        expect(result).toBeNull();
+        expect(fs.existsSync(testFile)).toBe(false);
+      });
+
+      it("should write domains to log file", () => {
+        sanitizeContent("Visit https://evil.com/malware");
+        const result = writeRedactedDomainsLog(testFile);
+        expect(result).toBe(testFile);
+        expect(fs.existsSync(testFile)).toBe(true);
+
+        const content = fs.readFileSync(testFile, "utf8");
+        expect(content).toContain("evil.com");
+        // Should NOT contain the full URL, only the domain
+        expect(content).not.toContain("https://evil.com/malware");
+      });
+
+      it("should write multiple domains to log file", () => {
+        sanitizeContent("Visit https://bad1.com and http://bad2.com");
+        writeRedactedDomainsLog(testFile);
+
+        const content = fs.readFileSync(testFile, "utf8");
+        const lines = content.trim().split("\n");
+        expect(lines.length).toBe(2);
+        expect(content).toContain("bad1.com");
+        expect(content).toContain("bad2.com");
+      });
+
+      it("should create directory if it does not exist", () => {
+        const nestedFile = `${testDir}/nested/redacted-urls.log`;
+        sanitizeContent("Visit https://evil.com");
+        writeRedactedDomainsLog(nestedFile);
+        expect(fs.existsSync(nestedFile)).toBe(true);
+
+        // Clean up nested directory
+        fs.unlinkSync(nestedFile);
+        fs.rmdirSync(path.dirname(nestedFile));
+      });
+
+      it("should use default path when not specified", () => {
+        const defaultPath = "/tmp/gh-aw/redacted-urls.log";
+        sanitizeContent("Visit https://evil.com");
+        const result = writeRedactedDomainsLog();
+        expect(result).toBe(defaultPath);
+        expect(fs.existsSync(defaultPath)).toBe(true);
+
+        // Clean up
+        fs.unlinkSync(defaultPath);
+      });
+    });
+  });
 });

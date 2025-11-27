@@ -523,6 +523,27 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const fs = require("fs");
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
             function extractDomainsFromUrl(url) {
               if (!url || typeof url !== "string") {
                 return [];
@@ -615,6 +636,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -642,6 +664,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -649,6 +672,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
                     return "(redacted)";
                   }
                   return match;
@@ -850,6 +874,10 @@ jobs:
               const sanitizedText = sanitizeContent(text, { allowedAliases });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
+              const logPath = writeRedactedDomainsLog();
+              if (logPath) {
+                core.info(`Redacted URL domains written to: ${logPath}`);
+              }
             }
             await main();
       - name: Add eyes reaction to the triggering item
@@ -3788,6 +3816,26 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
             function extractDomainsFromUrl(url) {
               if (!url || typeof url !== "string") {
                 return [];
@@ -3880,6 +3928,7 @@ jobs:
                   const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                   core.info(`Redacted URL: ${truncated}`);
                   core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -3907,6 +3956,7 @@ jobs:
                     const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
@@ -3914,6 +3964,7 @@ jobs:
                     const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                     core.info(`Redacted URL: ${truncated}`);
                     core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
                     return "(redacted)";
                   }
                   return match;
