@@ -837,9 +837,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		c.IncrementWarningCount()
 	}
 
-	// Enable firewall by default for copilot engine when network restrictions are present
+	// Enable firewall by default for engines that support it when network restrictions are present
 	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
-	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
+	enableFirewallByDefault(agenticEngine, networkPermissions, sandboxConfig)
 
 	// Save the initial strict mode state again for network support check
 	// (it was restored after validateStrictMode but we need it again)
