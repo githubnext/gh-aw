@@ -33,6 +33,7 @@
         {"$ref": "#/$defs/AddLabelsOutput"},
         {"$ref": "#/$defs/AddReviewerOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
+        {"$ref": "#/$defs/UpdatePullRequestOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
@@ -201,6 +202,33 @@
             {"type": "string"}
           ],
           "description": "Issue number to update (for target '*')"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "UpdatePullRequestOutput": {
+      "title": "Update Pull Request Output",
+      "description": "Output for updating an existing pull request's title and/or body. Note: The JavaScript validation ensures at least one of title or body is provided.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update_pull_request"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title for the pull request"
+        },
+        "body": {
+          "type": "string",
+          "description": "New body content for the pull request"
+        },
+        "pull_request_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Pull request number to update (for target '*')"
         }
       },
       "required": ["type"],

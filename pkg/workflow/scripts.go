@@ -54,6 +54,9 @@ var closePullRequestScriptSource string
 //go:embed js/update_issue.cjs
 var updateIssueScriptSource string
 
+//go:embed js/update_pull_request.cjs
+var updatePullRequestScriptSource string
+
 //go:embed js/update_release.cjs
 var updateReleaseScriptSource string
 
@@ -112,6 +115,7 @@ func init() {
 	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
 	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
+	DefaultScriptRegistry.Register("update_pull_request", updatePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_release", updateReleaseScriptSource)
 	DefaultScriptRegistry.Register("create_code_scanning_alert", createCodeScanningAlertScriptSource)
 	DefaultScriptRegistry.Register("create_pr_review_comment", createPRReviewCommentScriptSource)
@@ -200,6 +204,11 @@ func getClosePullRequestScript() string {
 // getUpdateIssueScript returns the bundled update_issue script
 func getUpdateIssueScript() string {
 	return DefaultScriptRegistry.Get("update_issue")
+}
+
+// getUpdatePullRequestScript returns the bundled update_pull_request script
+func getUpdatePullRequestScript() string {
+	return DefaultScriptRegistry.Get("update_pull_request")
 }
 
 // getUpdateReleaseScript returns the bundled update_release script

@@ -3282,6 +3282,8 @@ jobs:
                     return 1;
                   case "update_issue":
                     return 1;
+                  case "update_pull_request":
+                    return 1;
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
@@ -3751,6 +3753,36 @@ jobs:
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "update_pull_request":
+                      const hasValidPRField = item.title !== undefined || item.body !== undefined;
+                      if (!hasValidPRField) {
+                        errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+                        continue;
+                      }
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title, 256);
+                      }
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body, maxBodyLength);
+                      }
+                      const updatePRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "update_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!updatePRNumValidation.isValid) {
+                        if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
                         continue;
                       }
                       break;
@@ -5730,7 +5762,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  ls -la /tmp/gh-aw/playwright-debug-logs/\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}

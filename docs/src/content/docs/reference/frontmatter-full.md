@@ -2031,6 +2031,43 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for updating GitHub pull requests from agentic workflow
+  # output
+  update-pull-request:
+    # Target for updates: 'triggering' (default), '*' (any PR), or explicit PR number
+    # (optional)
+    target: "example-value"
+
+    # Allow updating pull request title - presence of key indicates field can be
+    # updated
+    # (optional)
+    title: null
+
+    # Allow updating pull request body - presence of key indicates field can be
+    # updated
+    # (optional)
+    body: null
+
+    # Maximum number of pull requests to update (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository pull request
+    # updates. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable pull request updating with default configuration
+  update-pull-request: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Use default configuration (branch: 'triggering', if-no-changes:
   # 'warn')
   push-to-pull-request-branch: null

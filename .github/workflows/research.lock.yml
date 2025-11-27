@@ -1955,6 +1955,8 @@ jobs:
                     return 1;
                   case "update_issue":
                     return 1;
+                  case "update_pull_request":
+                    return 1;
                   case "push_to_pull_request_branch":
                     return 1;
                   case "create_discussion":
@@ -2424,6 +2426,36 @@ jobs:
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
+                        continue;
+                      }
+                      break;
+                    case "update_pull_request":
+                      const hasValidPRField = item.title !== undefined || item.body !== undefined;
+                      if (!hasValidPRField) {
+                        errors.push(`Line ${i + 1}: update_pull_request requires at least one of: 'title' or 'body' fields`);
+                        continue;
+                      }
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title, 256);
+                      }
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== "string") {
+                          errors.push(`Line ${i + 1}: update_pull_request 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body, maxBodyLength);
+                      }
+                      const updatePRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "update_pull_request 'pull_request_number'",
+                        i + 1
+                      );
+                      if (!updatePRNumValidation.isValid) {
+                        if (updatePRNumValidation.error) errors.push(updatePRNumValidation.error);
                         continue;
                       }
                       break;

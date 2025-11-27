@@ -448,6 +448,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.AssignToAgent != nil
 	case "update-issue":
 		return config.UpdateIssues != nil
+	case "update-pull-request":
+		return config.UpdatePullRequests != nil
 	case "push-to-pull-request-branch":
 		return config.PushToPullRequestBranch != nil
 	case "upload-assets":
@@ -524,6 +526,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.UpdateIssues == nil && importedConfig.UpdateIssues != nil {
 		result.UpdateIssues = importedConfig.UpdateIssues
+	}
+	if result.UpdatePullRequests == nil && importedConfig.UpdatePullRequests != nil {
+		result.UpdatePullRequests = importedConfig.UpdatePullRequests
 	}
 	if result.PushToPullRequestBranch == nil && importedConfig.PushToPullRequestBranch != nil {
 		result.PushToPullRequestBranch = importedConfig.PushToPullRequestBranch
