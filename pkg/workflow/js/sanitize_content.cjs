@@ -6,6 +6,57 @@
  */
 
 /**
+ * Module-level set to collect redacted URL domains across sanitization calls.
+ * Each entry contains: { domain: string, fullUrl: string, timestamp: string }
+ * @type {Array<{domain: string, fullUrl: string, timestamp: string}>}
+ */
+const redactedDomains = [];
+
+/**
+ * Gets the list of redacted URL domains collected during sanitization.
+ * @returns {Array<{domain: string, fullUrl: string, timestamp: string}>} Array of redacted domain entries
+ */
+function getRedactedDomains() {
+  return [...redactedDomains];
+}
+
+/**
+ * Clears the list of redacted URL domains.
+ * Useful for testing or resetting state between operations.
+ */
+function clearRedactedDomains() {
+  redactedDomains.length = 0;
+}
+
+/**
+ * Writes the collected redacted URL domains to a log file.
+ * Only creates the file if there are redacted domains.
+ * @param {string} [filePath] - Path to write the log file. Defaults to /tmp/gh-aw/redacted-urls.log
+ * @returns {string|null} The file path if written, null if no domains to write
+ */
+function writeRedactedDomainsLog(filePath) {
+  if (redactedDomains.length === 0) {
+    return null;
+  }
+
+  const fs = require("fs");
+  const path = require("path");
+  const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+
+  // Ensure directory exists
+  const dir = path.dirname(targetPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  // Write domains to file, one per line with timestamp
+  const lines = redactedDomains.map(entry => `${entry.timestamp} ${entry.domain} ${entry.fullUrl}`);
+  fs.writeFileSync(targetPath, lines.join("\n") + "\n");
+
+  return targetPath;
+}
+
+/**
  * Extract domains from a URL and return an array of domain variations
  * @param {string} url - The URL to extract domains from
  * @returns {string[]} Array of domain variations
@@ -176,11 +227,12 @@ function sanitizeContent(content, maxLengthOrOptions) {
         return match; // Keep allowed URLs as-is
       }
 
-      // Log the redaction
+      // Log the redaction and collect the domain
       const domain = hostname;
       const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
       core.info(`Redacted URL: ${truncated}`);
       core.debug(`Redacted URL (full): ${match}`);
+      redactedDomains.push({ domain, fullUrl: match, timestamp: new Date().toISOString() });
 
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
       // and preserve those while redacting the main URL
@@ -227,24 +279,26 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
       // Redact if it has :// (definite protocol)
       if (match.includes("://")) {
-        // Log the redaction
+        // Log the redaction and collect the domain
         // Extract domain from URL
         const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
         const domain = domainMatch ? domainMatch[1] : match;
         const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
         core.info(`Redacted URL: ${truncated}`);
         core.debug(`Redacted URL (full): ${match}`);
+        redactedDomains.push({ domain, fullUrl: match, timestamp: new Date().toISOString() });
         return "(redacted)";
       }
 
       // Redact well-known dangerous protocols like javascript:, data:, etc.
       const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
       if (dangerousProtocols.includes(protocol.toLowerCase())) {
-        // Log the redaction
+        // Log the redaction and collect the domain
         // For dangerous protocols without ://, show protocol and beginning of content
         const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
         core.info(`Redacted URL: ${truncated}`);
         core.debug(`Redacted URL (full): ${match}`);
+        redactedDomains.push({ domain: protocol + ":", fullUrl: match, timestamp: new Date().toISOString() });
         return "(redacted)";
       }
 
@@ -347,4 +401,4 @@ function sanitizeContent(content, maxLengthOrOptions) {
   }
 }
 
-module.exports = { sanitizeContent };
+module.exports = { sanitizeContent, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };

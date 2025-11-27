@@ -785,6 +785,7 @@ jobs:
           name: agent_outputs
           path: |
             /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()

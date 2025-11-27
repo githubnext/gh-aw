@@ -553,3 +553,57 @@ func TestGenerateCleanupStep(t *testing.T) {
 
 	t.Log("Successfully verified generateCleanupStep function behavior in all scenarios")
 }
+
+func TestRedactedURLsLogPathIncludedInEngineOutput(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "redacted-urls-test")
+
+	// Test that redacted URLs log path is included in Copilot engine output collection
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: copilot
+---
+
+# Test Redacted URLs Log Collection
+
+This workflow tests that the redacted URLs log file is included in artifact uploads.
+`
+
+	testFile := filepath.Join(tmpDir, "test-redacted-urls.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Verify that Upload engine output files step exists
+	if !strings.Contains(lockStr, "- name: Upload engine output files") {
+		t.Error("Expected 'Upload engine output files' step to be in generated workflow")
+	}
+
+	// Verify that the redacted URLs log path is included in the artifact paths
+	if !strings.Contains(lockStr, RedactedURLsLogPath) {
+		t.Errorf("Expected '%s' to be included in artifact upload paths", RedactedURLsLogPath)
+	}
+
+	t.Log("Successfully verified that redacted URLs log path is included in engine output collection")
+}
