@@ -213,7 +213,7 @@
 #
 # # Smoke Test: Claude Engine Validation
 #
-# This smoke test validates Claude engine functionality by testing core capabilities:
+# **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 #
 # ## Test Requirements
 #
@@ -224,14 +224,12 @@
 #
 # ## Output
 #
-# Add a comment to the current pull request with:
-# - Summary of the 2 merged PRs
-# - File writing test result (success/failure)
-# - Bash tool test result (file content verification)
-# - Playwright test result (page title verification)
-# - Overall smoke test status for **Claude engine**
+# Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+# - PR titles only (no descriptions)
+# - ✅ or ❌ for each test result
+# - Overall status: PASS or FAIL
 #
-# If all tests pass successfully, add the label `smoke-claude` to the pull request.
+# If all tests pass, add the label `smoke-claude` to the pull request.
 # ```
 #
 # Pinned GitHub Actions:
@@ -2646,7 +2644,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               network_mode: "defaults",
               allowed_domains: ["defaults","github","playwright"],
               firewall_enabled: false,
@@ -2822,7 +2820,7 @@ jobs:
           
           # Smoke Test: Claude Engine Validation
           
-          This smoke test validates Claude engine functionality by testing core capabilities:
+          **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
           
           ## Test Requirements
           
@@ -2833,14 +2831,12 @@ jobs:
           
           ## Output
           
-          Add a comment to the current pull request with:
-          - Summary of the 2 merged PRs
-          - File writing test result (success/failure)
-          - Bash tool test result (file content verification)
-          - Playwright test result (page title verification)
-          - Overall smoke test status for **Claude engine**
+          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+          - PR titles only (no descriptions)
+          - ✅ or ❌ for each test result
+          - Overall status: PASS or FAIL
           
-          If all tests pass successfully, add the label `smoke-claude` to the pull request.
+          If all tests pass, add the label `smoke-claude` to the pull request.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -3047,42 +3043,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
-              model: "",
-              version: "",
-              agent_version: "2.0.54",
-              workflow_name: "Smoke Claude",
-              experimental: true,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              steps: {
-                firewall: ""
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5

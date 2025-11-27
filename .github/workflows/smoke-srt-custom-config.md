@@ -105,10 +105,12 @@ timeout-minutes: 5
 strict: true
 ---
 
-You are testing the Sandbox Runtime (SRT) with custom configuration. Perform the following tasks:
+**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
+
+Test the Sandbox Runtime (SRT) with custom configuration:
 
 1. Run `echo "Testing SRT with custom config"` using bash
 2. Verify you can access GitHub by running a simple github tool operation
 3. Check the environment with `env | grep -i copilot`
 
-Report your findings. This validates that SRT works with custom configuration.
+Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.

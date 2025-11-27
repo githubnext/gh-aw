@@ -94,7 +94,7 @@
 # ```markdown
 # # Smoke Test: Copilot Engine Validation (No Firewall)
 #
-# This smoke test validates Copilot engine functionality by testing core capabilities:
+# **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 #
 # ## Test Requirements
 #
@@ -105,14 +105,12 @@
 #
 # ## Output
 #
-# Add a comment to the current pull request with:
-# - Summary of the 2 merged PRs
-# - File writing test result (success/failure)
-# - Bash tool test result (file content verification)
-# - Playwright test result (page title verification)
-# - Overall smoke test status for **Copilot engine** (no firewall variant)
+# Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+# - PR titles only (no descriptions)
+# - ✅ or ❌ for each test result
+# - Overall status: PASS or FAIL
 #
-# If all tests pass successfully, add the label `smoke-copilot-no-firewall` to the pull request.
+# If all tests pass, add the label `smoke-copilot-no-firewall` to the pull request.
 # ```
 #
 # Pinned GitHub Actions:
@@ -2415,7 +2413,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               network_mode: "defaults",
               allowed_domains: ["defaults","node","github","playwright"],
               firewall_enabled: false,
@@ -2480,7 +2478,7 @@ jobs:
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           # Smoke Test: Copilot Engine Validation (No Firewall)
           
-          This smoke test validates Copilot engine functionality by testing core capabilities:
+          **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
           
           ## Test Requirements
           
@@ -2491,14 +2489,12 @@ jobs:
           
           ## Output
           
-          Add a comment to the current pull request with:
-          - Summary of the 2 merged PRs
-          - File writing test result (success/failure)
-          - Bash tool test result (file content verification)
-          - Playwright test result (page title verification)
-          - Overall smoke test status for **Copilot engine** (no firewall variant)
+          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+          - PR titles only (no descriptions)
+          - ✅ or ❌ for each test result
+          - Overall status: PASS or FAIL
           
-          If all tests pass successfully, add the label `smoke-copilot-no-firewall` to the pull request.
+          If all tests pass, add the label `smoke-copilot-no-firewall` to the pull request.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -2705,42 +2701,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Generate agentic run info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: "",
-              version: "",
-              agent_version: "0.0.365",
-              workflow_name: "Smoke Copilot No Firewall",
-              experimental: false,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              steps: {
-                firewall: ""
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
