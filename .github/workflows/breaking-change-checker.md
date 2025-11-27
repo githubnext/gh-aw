@@ -165,7 +165,8 @@ List the commits that were analyzed with their details.
 Complete the following items to address these breaking changes:
 
 - [ ] **Review all breaking changes detected** - Verify each change is correctly categorized
-- [ ] **Add major changeset with migration guidance** - Create a changeset file documenting each breaking change with clear migration instructions
+- [ ] **Create a changeset file in `.changeset/` directory** - Create a file like `major-breaking-change-description.md` with the change details. Specify the semver bump type (`major`, `minor`, or `patch`) in the YAML frontmatter of the changeset file. The release script determines the overall version bump by selecting the highest-priority bump type across all changesets. See [specs/changesets.md](specs/changesets.md) for format details.
+- [ ] **Add migration guidance to changeset** - Include clear migration instructions in the changeset file showing users how to update their workflows
 - [ ] **Document breaking changes in CHANGELOG.md** - Add entries under "Breaking Changes" section with user-facing descriptions
 - [ ] **Verify backward compatibility was considered** - Confirm that alternatives to breaking were evaluated
 
