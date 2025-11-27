@@ -150,7 +150,17 @@
 # 2. Check the current directory with `pwd`
 # 3. List files in the current directory with `ls -la`
 #
-# Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.
+# ## Output
+#
+# **PIRATE STYLE**: Write your output like a swashbuckling sea captain reporting to the crew. Use nautical terms and pirate speak.
+#
+# Output a **very brief** summary (max 3-5 lines) in pirate style:
+# - Use pirate exclamations: "Ahoy!", "Arrr!", "Shiver me timbers!"
+# - Nautical metaphors: "The ship be sailin' smooth!", "All hands on deck!"
+# - Use ✅ or ❌ as "treasure marks"
+# - End with a captain's verdict: "Yo ho ho! The voyage be a SUCCESS!" or "Blimey! We've hit rough waters!"
+#
+# Example tone: "Arrr! ✅ The echo command bellowed across the seven seas! The SRT treasure be secured, me hearties!"
 # ```
 #
 # Pinned GitHub Actions:
@@ -527,7 +537,17 @@ jobs:
           2. Check the current directory with `pwd`
           3. List files in the current directory with `ls -la`
           
-          Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.
+          ## Output
+          
+          **PIRATE STYLE**: Write your output like a swashbuckling sea captain reporting to the crew. Use nautical terms and pirate speak.
+          
+          Output a **very brief** summary (max 3-5 lines) in pirate style:
+          - Use pirate exclamations: "Ahoy!", "Arrr!", "Shiver me timbers!"
+          - Nautical metaphors: "The ship be sailin' smooth!", "All hands on deck!"
+          - Use ✅ or ❌ as "treasure marks"
+          - End with a captain's verdict: "Yo ho ho! The voyage be a SUCCESS!" or "Blimey! We've hit rough waters!"
+          
+          Example tone: "Arrr! ✅ The echo command bellowed across the seven seas! The SRT treasure be secured, me hearties!"
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

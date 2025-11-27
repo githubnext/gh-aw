@@ -110,9 +110,14 @@ post-steps:
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
+**JOURNALISTIC STYLE**: Write your output like a news reporter delivering breaking news. Use professional, objective reporting language with a sense of urgency and importance.
+
+Add a **very brief** comment (max 5-10 lines) to the current pull request in journalistic style:
+- "BREAKING:" or "REPORT:" prefix for each test result
+- Quote-style observations (e.g., "Sources confirm GitHub MCP is operational")
+- Use ✅ or ❌ as "status indicators"
+- End with a headline-style verdict: "VERDICT: ALL SYSTEMS OPERATIONAL" or "DEVELOPING STORY: FAILURES DETECTED"
+
+Example tone: "BREAKING: Our investigation reveals the GitHub MCP responded successfully. Sources confirm 2 PRs were retrieved without incident. ✅"
 
 If all tests pass, add the label `smoke-copilot` to the pull request.

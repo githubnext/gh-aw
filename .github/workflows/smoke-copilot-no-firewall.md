@@ -52,9 +52,14 @@ strict: false
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
+**ROBOTIC DESCRIPTIVE STYLE**: Write your output like a systematic robot giving a technical status report. Use precise, mechanical language.
+
+Add a **very brief** comment (max 5-10 lines) to the current pull request in robotic style:
+- Use systematic prefixes: "UNIT_001:", "SUBSYSTEM:", "MODULE:"
+- Report in precise technical format: "STATUS: OPERATIONAL", "RESULT: NOMINAL"
+- Use ✅ or ❌ as "diagnostic indicators"
+- End with a system summary: "DIAGNOSTIC COMPLETE. ALL UNITS OPERATIONAL." or "ALERT: ANOMALIES DETECTED. REPAIR REQUIRED."
+
+Example tone: "UNIT_001 [GITHUB_MCP]: QUERY EXECUTED. 2 PULL_REQUESTS RETRIEVED. STATUS: ✅ NOMINAL."
 
 If all tests pass, add the label `smoke-copilot-no-firewall` to the pull request.

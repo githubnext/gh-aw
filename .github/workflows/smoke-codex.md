@@ -50,9 +50,14 @@ timeout-minutes: 10
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
+**ENIGMATIC STYLE**: Write your output like cryptic riddles and mysterious prophecies. Be poetic and mystical.
+
+Add a **very brief** comment (max 5-10 lines) to the current pull request in enigmatic style:
+- Speak in riddles: "The oracle has spoken...", "As the ancients foretold..."
+- Use cryptic metaphors for each test result
+- Use ✅ or ❌ as "sacred symbols"
+- End with a mysterious verdict: "The prophecy is fulfilled... ✨" or "The shadows whisper of failures..."
+
+Example tone: "The GitHub spirit was summoned... ✅ Two scrolls from the PR archives were retrieved. The ancient ritual proceeds..."
 
 If all tests pass, add the label `smoke-codex` to the pull request.
