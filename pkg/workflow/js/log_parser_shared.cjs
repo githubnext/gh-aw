@@ -461,12 +461,14 @@ function formatToolUse(toolUse, toolResult, options = {}) {
   // Format metadata (duration and tokens)
   let metadata = "";
   if (toolResult && toolResult.duration_ms) {
-    metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+    metadata += `<code>${formatDuration(toolResult.duration_ms)}</code> `;
   }
   if (totalTokens > 0) {
-    metadata += ` <code>~${totalTokens}t</code>`;
+    metadata += `<code>~${totalTokens}t</code>`;
   }
+  metadata = metadata.trim();
 
+  // Build the summary based on tool type
   switch (toolName) {
     case "Bash":
       const command = input.command || "";
@@ -476,16 +478,16 @@ function formatToolUse(toolUse, toolResult, options = {}) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
+        summary = `${description}: <code>${formattedCommand}</code>`;
       } else {
-        summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
+        summary = `<code>${formattedCommand}</code>`;
       }
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
-      summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
+      summary = `Read <code>${relativePath}</code>`;
       break;
 
     case "Write":
@@ -493,19 +495,19 @@ function formatToolUse(toolUse, toolResult, options = {}) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
+      summary = `Write <code>${writeRelativePath}</code>`;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
+      summary = `Search for <code>${truncateString(query, 80)}</code>`;
       break;
 
     case "LS":
       const lsPath = input.path || "";
       const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
+      summary = `LS: ${lsRelativePath || lsPath}`;
       break;
 
     default:
@@ -513,7 +515,7 @@ function formatToolUse(toolUse, toolResult, options = {}) {
       if (toolName.startsWith("mcp__")) {
         const mcpName = formatMcpName(toolName);
         const params = formatMcpParameters(input);
-        summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
+        summary = `${mcpName}(${params})`;
       } else {
         // Generic tool formatting - show the tool name and main parameters
         const keys = Object.keys(input);
@@ -523,48 +525,58 @@ function formatToolUse(toolUse, toolResult, options = {}) {
           const value = String(input[mainParam] || "");
 
           if (value) {
-            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
+            summary = `${toolName}: ${truncateString(value, 100)}`;
           } else {
-            summary = `${statusIcon} ${toolName}${metadata}`;
+            summary = toolName;
           }
         } else {
-          summary = `${statusIcon} ${toolName}${metadata}`;
+          summary = toolName;
         }
       }
   }
 
-  // Format with HTML details tag if we have output
+  // Build sections for formatToolCallAsDetails
+  /** @type {Array<{label: string, content: string, language?: string}>} */
+  const sections = [];
+
+  // For Copilot: include detailed parameters section
+  if (includeDetailedParameters) {
+    const inputKeys = Object.keys(input);
+    if (inputKeys.length > 0) {
+      sections.push({
+        label: "Parameters",
+        content: JSON.stringify(input, null, 2),
+        language: "json",
+      });
+    }
+  }
+
+  // Add response section if we have details
   if (details && details.trim()) {
-    // Build the details content based on configuration
-    let detailsContent = "";
-
-    // For Copilot: include detailed parameters section
     if (includeDetailedParameters) {
-      const inputKeys = Object.keys(input);
-      if (inputKeys.length > 0) {
-        detailsContent += "**Parameters:**\n\n";
-        detailsContent += "``````json\n";
-        detailsContent += JSON.stringify(input, null, 2);
-        detailsContent += "\n``````\n\n";
-      }
-
-      detailsContent += "**Response:**\n\n";
-      detailsContent += "``````\n";
-      detailsContent += details;
-      detailsContent += "\n``````";
+      // For Copilot: full response
+      sections.push({
+        label: "Response",
+        content: details,
+      });
     } else {
-      // For Claude: simpler details format
-      // Truncate details if too long
+      // For Claude: simpler details format, truncate if too long
       const maxDetailsLength = 500;
       const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-      detailsContent = `\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\``;
+      sections.push({
+        label: "Output",
+        content: truncatedDetails,
+      });
     }
-
-    return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
-  } else {
-    // No details, just show summary
-    return `${summary}\n\n`;
   }
+
+  // Use the shared formatToolCallAsDetails helper
+  return formatToolCallAsDetails({
+    summary,
+    statusIcon,
+    sections,
+    metadata: metadata || undefined,
+  });
 }
 
 /**
@@ -633,6 +645,81 @@ function parseLogEntries(logContent) {
   return logEntries;
 }
 
+/**
+ * Generic helper to format a tool call as an HTML details section.
+ * This is a reusable helper for all code engines (Claude, Copilot, Codex).
+ *
+ * @param {Object} options - Configuration options
+ * @param {string} options.summary - The summary text to show in the collapsed state (e.g., "✅ github::list_issues")
+ * @param {string} [options.statusIcon] - Status icon (✅, ❌, or ❓). If not provided, should be included in summary.
+ * @param {Array<{label: string, content: string, language?: string}>} [options.sections] - Array of content sections to show in expanded state
+ * @param {string} [options.metadata] - Optional metadata to append to summary (e.g., "~100t", "5s")
+ * @returns {string} Formatted HTML details string or plain summary if no sections provided
+ *
+ * @example
+ * // Basic usage with sections
+ * formatToolCallAsDetails({
+ *   summary: "✅ github::list_issues",
+ *   metadata: "~100t",
+ *   sections: [
+ *     { label: "Parameters", content: '{"state":"open"}', language: "json" },
+ *     { label: "Response", content: '{"items":[]}', language: "json" }
+ *   ]
+ * });
+ *
+ * @example
+ * // Bash command usage
+ * formatToolCallAsDetails({
+ *   summary: "✅ <code>ls -la</code>",
+ *   sections: [
+ *     { label: "Command", content: "ls -la", language: "bash" },
+ *     { label: "Output", content: "file1.txt\nfile2.txt" }
+ *   ]
+ * });
+ */
+function formatToolCallAsDetails(options) {
+  const { summary, statusIcon, sections, metadata } = options;
+
+  // Build the full summary line
+  let fullSummary = summary;
+  if (statusIcon && !summary.startsWith(statusIcon)) {
+    fullSummary = `${statusIcon} ${summary}`;
+  }
+  if (metadata) {
+    fullSummary += ` ${metadata}`;
+  }
+
+  // If no sections or all sections are empty, just return the summary
+  const hasContent = sections && sections.some(s => s.content && s.content.trim());
+  if (!hasContent) {
+    return `${fullSummary}\n\n`;
+  }
+
+  // Build the details content
+  let detailsContent = "";
+  for (const section of sections) {
+    if (!section.content || !section.content.trim()) {
+      continue;
+    }
+
+    detailsContent += `**${section.label}:**\n\n`;
+
+    // Use 6 backticks to avoid conflicts with content that may contain 3 or 5 backticks
+    if (section.language) {
+      detailsContent += `\`\`\`\`\`\`${section.language}\n`;
+    } else {
+      detailsContent += "``````\n";
+    }
+    detailsContent += section.content;
+    detailsContent += "\n``````\n\n";
+  }
+
+  // Remove trailing newlines from details content
+  detailsContent = detailsContent.trimEnd();
+
+  return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+}
+
 // Export functions
 module.exports = {
   formatDuration,
@@ -646,4 +733,5 @@ module.exports = {
   formatInitializationSummary,
   formatToolUse,
   parseLogEntries,
+  formatToolCallAsDetails,
 };

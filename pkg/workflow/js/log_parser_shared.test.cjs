@@ -859,4 +859,136 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toBe("");
     });
   });
+
+  describe("formatToolCallAsDetails", () => {
+    it("should format tool call with sections as HTML details", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "<code>github::list_issues</code>",
+        statusIcon: "✅",
+        sections: [
+          { label: "Parameters", content: '{"state":"open"}', language: "json" },
+          { label: "Response", content: '{"items":[]}', language: "json" },
+        ],
+      });
+
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>");
+      expect(result).toContain("✅");
+      expect(result).toContain("github::list_issues");
+      expect(result).toContain("**Parameters:**");
+      expect(result).toContain("**Response:**");
+      expect(result).toContain("```json");
+      expect(result).toContain("</details>");
+    });
+
+    it("should return summary only when no sections provided", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "<code>github::ping</code>",
+        statusIcon: "✅",
+      });
+
+      expect(result).not.toContain("<details>");
+      expect(result).toContain("✅");
+      expect(result).toContain("github::ping");
+    });
+
+    it("should return summary only when sections are empty", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "<code>github::ping</code>",
+        statusIcon: "✅",
+        sections: [
+          { label: "Response", content: "" },
+          { label: "Error", content: "   " },
+        ],
+      });
+
+      expect(result).not.toContain("<details>");
+      expect(result).toContain("✅");
+      expect(result).toContain("github::ping");
+    });
+
+    it("should include metadata in summary", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "<code>github::list_issues</code>",
+        statusIcon: "✅",
+        metadata: "<code>~100t</code>",
+        sections: [{ label: "Response", content: '{"items":[]}' }],
+      });
+
+      expect(result).toContain("~100t");
+    });
+
+    it("should skip status icon if already in summary", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "✅ <code>github::list_issues</code>",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: '{"items":[]}' }],
+      });
+
+      // Should not have double status icon
+      expect(result.match(/✅/g)).toHaveLength(1);
+    });
+
+    it("should format bash command correctly", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "<code>bash: ls -la</code>",
+        statusIcon: "✅",
+        sections: [
+          { label: "Command", content: "ls -la", language: "bash" },
+          { label: "Output", content: "file1.txt\nfile2.txt" },
+        ],
+      });
+
+      expect(result).toContain("<details>");
+      expect(result).toContain("**Command:**");
+      expect(result).toContain("```bash");
+      expect(result).toContain("**Output:**");
+      expect(result).toContain("file1.txt");
+    });
+
+    it("should handle sections without language", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "Tool output",
+        statusIcon: "✅",
+        sections: [{ label: "Output", content: "Plain text output" }],
+      });
+
+      expect(result).toContain("<details>");
+      expect(result).toContain("**Output:**");
+      expect(result).toContain("``````\n");
+      expect(result).toContain("Plain text output");
+    });
+
+    it("should skip empty sections", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [
+          { label: "Parameters", content: '{"key":"value"}', language: "json" },
+          { label: "Response", content: "" },
+          { label: "Error", content: null },
+        ],
+      });
+
+      expect(result).toContain("**Parameters:**");
+      expect(result).not.toContain("**Response:**");
+      expect(result).not.toContain("**Error:**");
+    });
+  });
 });
