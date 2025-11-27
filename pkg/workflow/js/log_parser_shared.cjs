@@ -633,6 +633,81 @@ function parseLogEntries(logContent) {
   return logEntries;
 }
 
+/**
+ * Generic helper to format a tool call as an HTML details section.
+ * This is a reusable helper for all code engines (Claude, Copilot, Codex).
+ *
+ * @param {Object} options - Configuration options
+ * @param {string} options.summary - The summary text to show in the collapsed state (e.g., "✅ github::list_issues")
+ * @param {string} [options.statusIcon] - Status icon (✅, ❌, or ❓). If not provided, should be included in summary.
+ * @param {Array<{label: string, content: string, language?: string}>} [options.sections] - Array of content sections to show in expanded state
+ * @param {string} [options.metadata] - Optional metadata to append to summary (e.g., "~100t", "5s")
+ * @returns {string} Formatted HTML details string or plain summary if no sections provided
+ *
+ * @example
+ * // Basic usage with sections
+ * formatToolCallAsDetails({
+ *   summary: "✅ github::list_issues",
+ *   metadata: "~100t",
+ *   sections: [
+ *     { label: "Parameters", content: '{"state":"open"}', language: "json" },
+ *     { label: "Response", content: '{"items":[]}', language: "json" }
+ *   ]
+ * });
+ *
+ * @example
+ * // Bash command usage
+ * formatToolCallAsDetails({
+ *   summary: "✅ <code>ls -la</code>",
+ *   sections: [
+ *     { label: "Command", content: "ls -la", language: "bash" },
+ *     { label: "Output", content: "file1.txt\nfile2.txt" }
+ *   ]
+ * });
+ */
+function formatToolCallAsDetails(options) {
+  const { summary, statusIcon, sections, metadata } = options;
+
+  // Build the full summary line
+  let fullSummary = summary;
+  if (statusIcon && !summary.startsWith(statusIcon)) {
+    fullSummary = `${statusIcon} ${summary}`;
+  }
+  if (metadata) {
+    fullSummary += ` ${metadata}`;
+  }
+
+  // If no sections or all sections are empty, just return the summary
+  const hasContent = sections && sections.some(s => s.content && s.content.trim());
+  if (!hasContent) {
+    return `${fullSummary}\n\n`;
+  }
+
+  // Build the details content
+  let detailsContent = "";
+  for (const section of sections) {
+    if (!section.content || !section.content.trim()) {
+      continue;
+    }
+
+    detailsContent += `**${section.label}:**\n\n`;
+
+    // Use 6 backticks to avoid conflicts with content that may contain 3 or 5 backticks
+    if (section.language) {
+      detailsContent += `\`\`\`\`\`\`${section.language}\n`;
+    } else {
+      detailsContent += "``````\n";
+    }
+    detailsContent += section.content;
+    detailsContent += "\n``````\n\n";
+  }
+
+  // Remove trailing newlines from details content
+  detailsContent = detailsContent.trimEnd();
+
+  return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+}
+
 // Export functions
 module.exports = {
   formatDuration,
@@ -646,4 +721,5 @@ module.exports = {
   formatInitializationSummary,
   formatToolUse,
   parseLogEntries,
+  formatToolCallAsDetails,
 };

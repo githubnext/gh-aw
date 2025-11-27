@@ -3429,6 +3429,36 @@ jobs:
               }
               return logEntries;
             }
+            function formatToolCallAsDetails(options) {
+              const { summary, statusIcon, sections, metadata } = options;
+              let fullSummary = summary;
+              if (statusIcon && !summary.startsWith(statusIcon)) {
+                fullSummary = `${statusIcon} ${summary}`;
+              }
+              if (metadata) {
+                fullSummary += ` ${metadata}`;
+              }
+              const hasContent = sections && sections.some(s => s.content && s.content.trim());
+              if (!hasContent) {
+                return `${fullSummary}\n\n`;
+              }
+              let detailsContent = "";
+              for (const section of sections) {
+                if (!section.content || !section.content.trim()) {
+                  continue;
+                }
+                detailsContent += `**${section.label}:**\n\n`;
+                if (section.language) {
+                  detailsContent += `\`\`\`\`\`\`${section.language}\n`;
+                } else {
+                  detailsContent += "``````\n";
+                }
+                detailsContent += section.content;
+                detailsContent += "\n``````\n\n";
+              }
+              detailsContent = detailsContent.trimEnd();
+              return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,

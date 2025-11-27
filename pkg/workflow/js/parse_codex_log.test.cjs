@@ -215,12 +215,24 @@ x`;
       expect(result).toContain("```json");
     });
 
-    it("should format tool call without response", () => {
+    it("should format tool call without response - shows parameters in details", () => {
       const result = formatCodexToolCall("github", "create_issue", '{"title":"Test"}', "", "❌");
 
-      expect(result).not.toContain("<details>");
+      // With the new consistent behavior, tool calls always use details when there are parameters
+      expect(result).toContain("<details>");
       expect(result).toContain("github::create_issue");
       expect(result).toContain("❌");
+      expect(result).toContain("Parameters:");
+      expect(result).not.toContain("Response:");
+    });
+
+    it("should format tool call without any content - no details", () => {
+      const result = formatCodexToolCall("github", "ping", "", "", "✅");
+
+      // When there are no parameters and no response, no details section
+      expect(result).not.toContain("<details>");
+      expect(result).toContain("github::ping");
+      expect(result).toContain("✅");
     });
 
     it("should include token estimate", () => {
@@ -241,12 +253,15 @@ x`;
       expect(result).toContain("Output:");
     });
 
-    it("should format bash call without output", () => {
+    it("should format bash call without output - shows command in details", () => {
       const result = formatCodexBashCall("mkdir test_dir", "", "✅");
 
-      expect(result).not.toContain("<details>");
+      // With the new consistent behavior, bash calls always include the command in details
+      expect(result).toContain("<details>");
       expect(result).toContain("bash: mkdir test_dir");
       expect(result).toContain("✅");
+      expect(result).toContain("Command:");
+      expect(result).not.toContain("Output:");
     });
 
     it("should truncate long commands", () => {

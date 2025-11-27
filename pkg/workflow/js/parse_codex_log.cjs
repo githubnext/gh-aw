@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { truncateString, estimateTokens, formatDuration } = require("./log_parser_shared.cjs");
+const { truncateString, estimateTokens, formatToolCallAsDetails } = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
@@ -367,6 +367,7 @@ function parseCodexLog(logContent) {
 
 /**
  * Format a Codex tool call with HTML details
+ * Uses the shared formatToolCallAsDetails helper for consistent rendering across all engines.
  * @param {string} server - The server name (e.g., "github", "time")
  * @param {string} toolName - The tool name (e.g., "list_pull_requests")
  * @param {string} params - The parameters as JSON string
@@ -381,41 +382,41 @@ function formatCodexToolCall(server, toolName, params, response, statusIcon) {
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
-    metadata = ` <code>~${totalTokens}t</code>`;
+    metadata = `<code>~${totalTokens}t</code>`;
   }
 
-  const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
+  const summary = `<code>${server}::${toolName}</code>`;
 
-  // If no response, just show the summary
-  if (!response || response.trim() === "") {
-    return `${summary}\n\n`;
-  }
+  // Build sections array
+  const sections = [];
 
-  // Build the details content with parameters and response
-  let details = "";
-
-  // Add parameters section
   if (params && params.trim()) {
-    details += "**Parameters:**\n\n";
-    details += "``````json\n";
-    details += params;
-    details += "\n``````\n\n";
+    sections.push({
+      label: "Parameters",
+      content: params,
+      language: "json",
+    });
   }
 
-  // Add response section
   if (response && response.trim()) {
-    details += "**Response:**\n\n";
-    details += "``````json\n";
-    details += response;
-    details += "\n``````";
+    sections.push({
+      label: "Response",
+      content: response,
+      language: "json",
+    });
   }
 
-  // Return formatted HTML details
-  return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
+  return formatToolCallAsDetails({
+    summary,
+    statusIcon,
+    metadata,
+    sections,
+  });
 }
 
 /**
  * Format a Codex bash call with HTML details
+ * Uses the shared formatToolCallAsDetails helper for consistent rendering across all engines.
  * @param {string} command - The bash command
  * @param {string} response - The response as plain text
  * @param {string} statusIcon - The status icon (✅, ❌, or ❓)
@@ -428,35 +429,33 @@ function formatCodexBashCall(command, response, statusIcon) {
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
-    metadata = ` <code>~${totalTokens}t</code>`;
+    metadata = `<code>~${totalTokens}t</code>`;
   }
 
-  const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
+  const summary = `<code>bash: ${truncateString(command, 60)}</code>`;
 
-  // If no response, just show the summary
-  if (!response || response.trim() === "") {
-    return `${summary}\n\n`;
-  }
+  // Build sections array
+  const sections = [];
 
-  // Build the details content with command and response
-  let details = "";
+  sections.push({
+    label: "Command",
+    content: command,
+    language: "bash",
+  });
 
-  // Add command section
-  details += "**Command:**\n\n";
-  details += "``````bash\n";
-  details += command;
-  details += "\n``````\n\n";
-
-  // Add response section
   if (response && response.trim()) {
-    details += "**Output:**\n\n";
-    details += "``````\n";
-    details += response;
-    details += "\n``````";
+    sections.push({
+      label: "Output",
+      content: response,
+    });
   }
 
-  // Return formatted HTML details
-  return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
+  return formatToolCallAsDetails({
+    summary,
+    statusIcon,
+    metadata,
+    sections,
+  });
 }
 
 // Export for testing
