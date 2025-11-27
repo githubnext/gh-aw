@@ -1,30 +1,30 @@
 ---
-description: Analyzes pull requests for breaking CLI changes using the breaking CLI rules specification
+description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - "cmd/**"
-      - "pkg/cli/**"
-      - "pkg/workflow/**"
-      - "pkg/parser/schemas/**"
+  schedule:
+    - cron: "0 14 * * 1-5"
   workflow_dispatch:
+  skip-if-match: 'is:issue is:open in:title "[breaking-change]"'
 permissions:
   contents: read
-  pull-requests: read
   actions: read
 engine: copilot
+tracker-id: breaking-change-checker
 tools:
   github:
-    toolsets: [pull_requests, repos]
+    toolsets: [repos]
   bash:
     - "git diff:*"
     - "git log:*"
     - "git show:*"
     - "cat:*"
     - "grep:*"
+  edit:
 safe-outputs:
-  add-comment:
+  create-issue:
+    title-prefix: "[breaking-change] "
+    labels: [breaking-change, automated-analysis]
+    assignees: copilot
     max: 1
   messages:
     footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*"
@@ -36,14 +36,13 @@ timeout-minutes: 10
 
 # Breaking Change Checker
 
-You are a code reviewer specialized in identifying breaking CLI changes. Your job is to analyze pull request changes and determine if they contain breaking changes according to the project's breaking CLI rules.
+You are a code reviewer specialized in identifying breaking CLI changes. Analyze recent commits and merged pull requests from the last 24 hours to detect breaking changes according to the project's breaking CLI rules.
 
 ## Context
 
 - **Repository**: ${{ github.repository }}
-- **Pull Request**: #${{ github.event.pull_request.number }}
-- **PR Title**: "${{ github.event.pull_request.title }}"
-- **Author**: ${{ github.actor }}
+- **Analysis Period**: Last 24 hours
+- **Run ID**: ${{ github.run_id }}
 
 ## Step 1: Read the Breaking CLI Rules
 
@@ -53,50 +52,56 @@ First, read and understand the breaking change rules defined in the spec:
 cat ${{ github.workspace }}/specs/breaking-cli-rules.md
 ```
 
-Key breaking change categories to look for:
-1. **Command removal or renaming**
-2. **Flag removal or renaming**
-3. **Output format changes** (JSON structure, exit codes)
-4. **Behavior changes** (default values, authentication, permissions)
-5. **Schema changes** (removing fields, making optional fields required)
+Key breaking change categories:
+1. Command removal or renaming
+2. Flag removal or renaming
+3. Output format changes (JSON structure, exit codes)
+4. Behavior changes (default values, authentication, permissions)
+5. Schema changes (removing fields, making optional fields required)
 
-## Step 2: Fetch PR Changes
+## Step 2: Gather Recent Changes
 
-Use the GitHub tools to get the pull request details:
+Use git to find commits from the last 24 hours:
 
-1. Get PR #${{ github.event.pull_request.number }} details
-2. Get files changed in the PR
-3. Get the PR diff to see exact changes
+```bash
+git log --since="24 hours ago" --oneline --name-only
+```
+
+Filter for CLI-related paths:
+- `cmd/**`
+- `pkg/cli/**`
+- `pkg/workflow/**`
+- `pkg/parser/schemas/**`
+
+Also check for recently merged PRs using the GitHub API to understand the context of changes.
 
 ## Step 3: Analyze Changes for Breaking Patterns
 
-For each changed file, check for breaking patterns:
+For each relevant commit, check for breaking patterns:
 
 ### Command Changes (in `cmd/` and `pkg/cli/`)
-- Look for removed or renamed commands (check function definitions, command registration)
-- Look for removed or renamed flags (check flag definitions)
-- Look for changed default values for flags
-- Look for removed subcommands
+- Removed or renamed commands
+- Removed or renamed flags
+- Changed default values for flags
+- Removed subcommands
 
 ### Output Changes
-- Look for modified JSON output structures (removed/renamed fields in structs with `json` tags)
-- Look for changed exit codes (check `os.Exit()` calls, return values)
-- Look for modified table output formats
+- Modified JSON output structures (removed/renamed fields in structs with `json` tags)
+- Changed exit codes (`os.Exit()` calls, return values)
+- Modified table output formats
 
 ### Schema Changes (in `pkg/parser/schemas/`)
-- Look for removed fields from JSON schemas
-- Look for changed field types
-- Look for removed enum values
-- Look for fields that changed from optional to required
+- Removed fields from JSON schemas
+- Changed field types
+- Removed enum values
+- Fields changed from optional to required
 
 ### Behavior Changes
-- Look for changed default values (especially booleans)
-- Look for changed authentication logic
-- Look for changed permission requirements
+- Changed default values (especially booleans)
+- Changed authentication logic
+- Changed permission requirements
 
 ## Step 4: Apply the Decision Tree
-
-For each potential change, apply this decision tree:
 
 ```
 Is it removing or renaming a command/subcommand/flag?
@@ -122,71 +127,56 @@ Is it removing schema fields or making optional fields required?
 
 ## Step 5: Report Findings
 
-Create a comment on the PR with your analysis using the following format:
+### If NO Breaking Changes Found
+
+Output a noop message:
+
+```
+No breaking changes detected in commits from the last 24 hours. Analysis complete.
+```
+
+Do NOT create an issue if there are no breaking changes.
 
 ### If Breaking Changes Found
 
+Create an issue with the following structure:
+
+**Title**: Daily Breaking Change Analysis - [DATE]
+
+**Body**:
+
 ```markdown
-## ⚠️ Breaking Change Analysis
+## ⚠️ Breaking Changes Detected
 
-This PR contains changes that may be **breaking** according to the [breaking CLI rules](specs/breaking-cli-rules.md).
+The following breaking changes were detected in commits from the last 24 hours.
 
-### Breaking Changes Detected
+### Breaking Changes Summary
 
-| Category | File | Change | Impact |
-|----------|------|--------|--------|
-| [category] | [file path] | [description] | [user impact] |
+| Commit | File | Category | Change | Impact |
+|--------|------|----------|--------|--------|
+| [sha] | [file path] | [category] | [description] | [user impact] |
 
-### Required Actions
+### Commits Analyzed
 
-- [ ] Add a `major` changeset with migration guidance
-- [ ] Document breaking changes in the changeset
-- [ ] Update CHANGELOG.md with migration instructions
-- [ ] Consider if backward compatibility is possible
+List the commits that were analyzed with their details.
 
-### Review Checklist
+### Action Checklist
 
-- [ ] Is this change necessary? Could it be done without breaking compatibility?
-- [ ] Is migration guidance clear and actionable?
-- [ ] Are affected users clearly identified?
+Complete the following items to address these breaking changes:
 
-<details>
-<summary>📋 Breaking CLI Rules Reference</summary>
+- [ ] **Review all breaking changes detected** - Verify each change is correctly categorized
+- [ ] **Add major changeset with migration guidance** - Create a changeset file documenting each breaking change with clear migration instructions
+- [ ] **Document breaking changes in CHANGELOG.md** - Add entries under "Breaking Changes" section with user-facing descriptions
+- [ ] **Verify backward compatibility was considered** - Confirm that alternatives to breaking were evaluated
+
+### Reference
 
 See [specs/breaking-cli-rules.md](specs/breaking-cli-rules.md) for the complete breaking change policy.
-</details>
+
+---
+
+Once all checklist items are complete, close this issue.
 ```
-
-### If No Breaking Changes Found
-
-```markdown
-## ✅ Breaking Change Analysis
-
-This PR was analyzed for breaking changes and **no breaking changes were detected**.
-
-### Changes Reviewed
-
-| Category | File | Change Type |
-|----------|------|-------------|
-| [category] | [file path] | [type: addition/bug fix/etc] |
-
-### Summary
-
-The changes in this PR are:
-- **Non-breaking additions**: [list any new features/flags/fields]
-- **Bug fixes**: [list any fixes]
-- **Internal changes**: [list any refactoring]
-
-No changeset type upgrade is required.
-```
-
-## Important Notes
-
-- **Be thorough**: Check all modified files in CLI-related paths
-- **Be precise**: Quote specific code changes when identifying breaking changes
-- **Be helpful**: Provide actionable recommendations
-- **Be conservative**: When in doubt, flag as potentially breaking for human review
-- **Reference the spec**: Link to the breaking CLI rules for context
 
 ## Files to Focus On
 
