@@ -728,11 +728,13 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 		if existing, exists := requirements[runtimeID]; exists {
 			// Override version for existing requirement
 			if hasVersion {
+				runtimeSetupLog.Printf("Overriding version for runtime %s: %s", runtimeID, version)
 				existing.Version = version
 			}
 
 			// If action-repo or action-version is specified, create a custom Runtime
 			if actionRepo != "" || actionVersion != "" {
+				runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
 				// Clone the existing runtime to avoid modifying the global knownRuntimes
 				customRuntime := &Runtime{
 					ID:              existing.Runtime.ID,
