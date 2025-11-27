@@ -48,6 +48,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
 		safeOutputs.NoOp != nil ||
+		safeOutputs.LinkSubIssue != nil ||
 		len(safeOutputs.Jobs) > 0
 
 	if safeOutputsLog.Enabled() {
@@ -381,6 +382,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
 			if updateReleaseConfig != nil {
 				config.UpdateRelease = updateReleaseConfig
+			}
+
+			// Handle link-sub-issue
+			linkSubIssueConfig := c.parseLinkSubIssueConfig(outputMap)
+			if linkSubIssueConfig != nil {
+				config.LinkSubIssue = linkSubIssueConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)
@@ -1081,6 +1088,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			updateReleaseConfig["max"] = maxValue
 			safeOutputsConfig["update_release"] = updateReleaseConfig
 		}
+		if data.SafeOutputs.LinkSubIssue != nil {
+			linkSubIssueConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 5 // default
+			if data.SafeOutputs.LinkSubIssue.Max > 0 {
+				maxValue = data.SafeOutputs.LinkSubIssue.Max
+			}
+			linkSubIssueConfig["max"] = maxValue
+			safeOutputsConfig["link_sub_issue"] = linkSubIssueConfig
+		}
 		if data.SafeOutputs.NoOp != nil {
 			noopConfig := map[string]any{}
 			// Always include max (use configured value or default)
@@ -1220,6 +1237,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.NoOp != nil {
 		enabledTools["noop"] = true
+	}
+	if data.SafeOutputs.LinkSubIssue != nil {
+		enabledTools["link_sub_issue"] = true
 	}
 
 	// Filter tools to only include enabled ones

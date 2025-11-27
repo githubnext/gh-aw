@@ -46,7 +46,8 @@
         {"$ref": "#/$defs/UpdateReleaseOutput"},
         {"$ref": "#/$defs/AssignMilestoneOutput"},
         {"$ref": "#/$defs/AssignToAgentOutput"},
-        {"$ref": "#/$defs/NoOpOutput"}
+        {"$ref": "#/$defs/NoOpOutput"},
+        {"$ref": "#/$defs/LinkSubIssueOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -594,6 +595,32 @@
         }
       },
       "required": ["type", "message"],
+      "additionalProperties": false
+    },
+    "LinkSubIssueOutput": {
+      "title": "Link Sub-Issue Output",
+      "description": "Output for linking an issue as a sub-issue of a parent issue",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "link_sub_issue"
+        },
+        "parent_issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Parent issue number to link the sub-issue to"
+        },
+        "sub_issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to link as a sub-issue"
+        }
+      },
+      "required": ["type", "parent_issue_number", "sub_issue_number"],
       "additionalProperties": false
     }
   }

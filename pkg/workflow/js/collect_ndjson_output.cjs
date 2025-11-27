@@ -56,6 +56,8 @@ async function main() {
         return 1;
       case "noop":
         return 1; // Default max for noop messages
+      case "link_sub_issue":
+        return 5; // Default max for link_sub_issue
       default:
         return 1;
     }
@@ -846,6 +848,25 @@ async function main() {
           item.message = sanitizeContent(item.message, 2048);
           if (item.ruleIdSuffix) {
             item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+          }
+          break;
+        case "link_sub_issue":
+          // Validate parent_issue_number (required)
+          const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+          if (!parentIssueValidation.isValid) {
+            if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
+            continue;
+          }
+          // Validate sub_issue_number (required)
+          const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+          if (!subIssueValidation.isValid) {
+            if (subIssueValidation.error) errors.push(subIssueValidation.error);
+            continue;
+          }
+          // Ensure parent and sub are different issues
+          if (parentIssueValidation.normalizedValue === subIssueValidation.normalizedValue) {
+            errors.push(`Line ${i + 1}: link_sub_issue 'parent_issue_number' and 'sub_issue_number' must be different`);
+            continue;
           }
           break;
         default:

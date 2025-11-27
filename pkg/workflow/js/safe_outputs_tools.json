@@ -485,5 +485,24 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "link_sub_issue",
+    "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["parent_issue_number", "sub_issue_number"],
+      "properties": {
+        "parent_issue_number": {
+          "type": ["number", "string"],
+          "description": "The parent issue number to link the sub-issue to."
+        },
+        "sub_issue_number": {
+          "type": ["number", "string"],
+          "description": "The issue number to link as a sub-issue of the parent."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

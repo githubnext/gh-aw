@@ -39,6 +39,9 @@ var assignMilestoneScriptSource string
 //go:embed js/assign_to_agent.cjs
 var assignToAgentScriptSource string
 
+//go:embed js/link_sub_issue.cjs
+var linkSubIssueScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -110,6 +113,7 @@ func init() {
 	DefaultScriptRegistry.Register("add_reviewer", addReviewerScriptSource)
 	DefaultScriptRegistry.Register("assign_milestone", assignMilestoneScriptSource)
 	DefaultScriptRegistry.Register("assign_to_agent", assignToAgentScriptSource)
+	DefaultScriptRegistry.Register("link_sub_issue", linkSubIssueScriptSource)
 	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
@@ -174,6 +178,11 @@ func getAssignMilestoneScript() string {
 // getAssignToAgentScript returns the bundled assign_to_agent script
 func getAssignToAgentScript() string {
 	return DefaultScriptRegistry.Get("assign_to_agent")
+}
+
+// getLinkSubIssueScript returns the bundled link_sub_issue script
+func getLinkSubIssueScript() string {
+	return DefaultScriptRegistry.Get("link_sub_issue")
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script
