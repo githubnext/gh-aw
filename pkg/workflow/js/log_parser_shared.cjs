@@ -461,12 +461,14 @@ function formatToolUse(toolUse, toolResult, options = {}) {
   // Format metadata (duration and tokens)
   let metadata = "";
   if (toolResult && toolResult.duration_ms) {
-    metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+    metadata += `<code>${formatDuration(toolResult.duration_ms)}</code> `;
   }
   if (totalTokens > 0) {
-    metadata += ` <code>~${totalTokens}t</code>`;
+    metadata += `<code>~${totalTokens}t</code>`;
   }
+  metadata = metadata.trim();
 
+  // Build the summary based on tool type
   switch (toolName) {
     case "Bash":
       const command = input.command || "";
@@ -476,16 +478,16 @@ function formatToolUse(toolUse, toolResult, options = {}) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
+        summary = `${description}: <code>${formattedCommand}</code>`;
       } else {
-        summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
+        summary = `<code>${formattedCommand}</code>`;
       }
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
-      summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
+      summary = `Read <code>${relativePath}</code>`;
       break;
 
     case "Write":
@@ -493,19 +495,19 @@ function formatToolUse(toolUse, toolResult, options = {}) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
+      summary = `Write <code>${writeRelativePath}</code>`;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
+      summary = `Search for <code>${truncateString(query, 80)}</code>`;
       break;
 
     case "LS":
       const lsPath = input.path || "";
       const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
+      summary = `LS: ${lsRelativePath || lsPath}`;
       break;
 
     default:
@@ -513,7 +515,7 @@ function formatToolUse(toolUse, toolResult, options = {}) {
       if (toolName.startsWith("mcp__")) {
         const mcpName = formatMcpName(toolName);
         const params = formatMcpParameters(input);
-        summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
+        summary = `${mcpName}(${params})`;
       } else {
         // Generic tool formatting - show the tool name and main parameters
         const keys = Object.keys(input);
@@ -523,48 +525,58 @@ function formatToolUse(toolUse, toolResult, options = {}) {
           const value = String(input[mainParam] || "");
 
           if (value) {
-            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
+            summary = `${toolName}: ${truncateString(value, 100)}`;
           } else {
-            summary = `${statusIcon} ${toolName}${metadata}`;
+            summary = toolName;
           }
         } else {
-          summary = `${statusIcon} ${toolName}${metadata}`;
+          summary = toolName;
         }
       }
   }
 
-  // Format with HTML details tag if we have output
+  // Build sections for formatToolCallAsDetails
+  /** @type {Array<{label: string, content: string, language?: string}>} */
+  const sections = [];
+
+  // For Copilot: include detailed parameters section
+  if (includeDetailedParameters) {
+    const inputKeys = Object.keys(input);
+    if (inputKeys.length > 0) {
+      sections.push({
+        label: "Parameters",
+        content: JSON.stringify(input, null, 2),
+        language: "json",
+      });
+    }
+  }
+
+  // Add response section if we have details
   if (details && details.trim()) {
-    // Build the details content based on configuration
-    let detailsContent = "";
-
-    // For Copilot: include detailed parameters section
     if (includeDetailedParameters) {
-      const inputKeys = Object.keys(input);
-      if (inputKeys.length > 0) {
-        detailsContent += "**Parameters:**\n\n";
-        detailsContent += "``````json\n";
-        detailsContent += JSON.stringify(input, null, 2);
-        detailsContent += "\n``````\n\n";
-      }
-
-      detailsContent += "**Response:**\n\n";
-      detailsContent += "``````\n";
-      detailsContent += details;
-      detailsContent += "\n``````";
+      // For Copilot: full response
+      sections.push({
+        label: "Response",
+        content: details,
+      });
     } else {
-      // For Claude: simpler details format
-      // Truncate details if too long
+      // For Claude: simpler details format, truncate if too long
       const maxDetailsLength = 500;
       const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-      detailsContent = `\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\``;
+      sections.push({
+        label: "Output",
+        content: truncatedDetails,
+      });
     }
-
-    return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
-  } else {
-    // No details, just show summary
-    return `${summary}\n\n`;
   }
+
+  // Use the shared formatToolCallAsDetails helper
+  return formatToolCallAsDetails({
+    summary,
+    statusIcon,
+    sections,
+    metadata: metadata || undefined,
+  });
 }
 
 /**

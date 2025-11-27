@@ -34,7 +34,9 @@ I'll help you try to call the `draw_pelican` tool. Let me first check if there's
 <details>
 <summary>✅ Read <code>/tmp/gh-aw/cache-memory/plan.md</code> <code>~274t</code></summary>
 
-`````
+**Output:**
+
+``````
      1→# Execution Plan: Draw Pelican Tool
      2→
      3→## Objective
@@ -49,7 +51,7 @@ I'll help you try to call the `draw_pelican` tool. Let me first check if there's
     12→## Discoveries
     13→- Previous attempt confirmed `draw_pelican` tool does not exist
     14→- Need to report missing functionali...
-`````
+``````
 </details>
 
 I can see there's an existing execution plan indicating that the `draw_pelican` tool was already confirmed to be missing and has been reported. Based on the plan, this task has already been attempted and the missing tool functionality was reported.
@@ -59,9 +61,11 @@ Let me confirm the current status by attempting to call the tool to see what hap
 <details>
 <summary>✅ safe_outputs::missing-tool(tool: draw_pelican, reason: Tool needed to draw/create pelican artwo..., alternatives: Could potentially use text-based art gen...) <code>~96t</code></summary>
 
-`````
+**Output:**
+
+``````
 success
-`````
+``````
 </details>
 
 Now let me update the execution plan to reflect the current attempt:
@@ -69,7 +73,9 @@ Now let me update the execution plan to reflect the current attempt:
 <details>
 <summary>✅ Write <code>/tmp/gh-aw/cache-memory/plan.md</code> <code>~651t</code></summary>
 
-`````
+**Output:**
+
+``````
 The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
      1→# Execution Plan: Draw Pelican Tool
      2→
@@ -81,7 +87,7 @@ The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of 
      8→2. ✓ Read existing plan
      9→3. ✓ Confirm tool is missing (attempted call - tool does not exist)
     10→4. ✓ Report missing...
-`````
+``````
 </details>
 
 ## Summary
