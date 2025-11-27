@@ -4476,6 +4476,144 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            let cachedMessages = null;
+            let cacheInitialized = false;
+            function getMessages() {
+              if (cacheInitialized) {
+                return cachedMessages;
+              }
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                cacheInitialized = true;
+                cachedMessages = null;
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                cachedMessages = {
+                  footer: rawMessages.Footer || rawMessages.footer,
+                  footerInstall: rawMessages.FooterInstall || rawMessages.footerInstall,
+                  stagedTitle: rawMessages.StagedTitle || rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.StagedDescription || rawMessages.stagedDescription,
+                  runStarted: rawMessages.RunStarted || rawMessages.runStarted,
+                  runSuccess: rawMessages.RunSuccess || rawMessages.runSuccess,
+                  runFailure: rawMessages.RunFailure || rawMessages.runFailure,
+                };
+                cacheInitialized = true;
+                core.debug(`Loaded custom messages config: ${JSON.stringify(cachedMessages)}`);
+                return cachedMessages;
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                cacheInitialized = true;
+                cachedMessages = null;
+                return null;
+              }
+            }
+            function clearMessagesCache() {
+              cachedMessages = null;
+              cacheInitialized = false;
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", ctx.triggeringNumber);
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getStagedTitle(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
+              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+            }
+            function getStagedDescription(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
+              return messages?.stagedDescription
+                ? renderTemplate(messages.stagedDescription, templateContext)
+                : renderTemplate(defaultDescription, templateContext);
+            }
+            function getRunStartedMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
+              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunSuccessMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
+              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
+              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -4520,26 +4658,28 @@ jobs:
               const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
               let message;
               if (agentConclusion === "success") {
-                statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-              } else if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                message = getRunSuccessMessage({
+                  workflowName,
+                  runUrl,
+                });
               } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+                let statusText;
+                if (agentConclusion === "cancelled") {
+                  statusText = "was cancelled";
+                } else if (agentConclusion === "skipped") {
+                  statusText = "was skipped";
+                } else if (agentConclusion === "timed_out") {
+                  statusText = "timed out";
+                } else {
+                  statusText = "failed";
+                }
+                message = getRunFailureMessage({
+                  workflowName,
+                  runUrl,
+                  status: statusText,
+                });
               }
               if (noopMessages.length > 0) {
                 message += "\n\n";

@@ -154,7 +154,7 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("✅"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("completed successfully"),
         })
       );
@@ -175,9 +175,8 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("❌"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("failed"),
-          body: expect.stringContaining("wasn't able to produce a result"),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -194,7 +193,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("🚫"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("was cancelled"),
         })
       );
@@ -211,7 +210,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏱️"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("timed out"),
         })
       );
@@ -228,7 +227,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏭️"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("was skipped"),
         })
       );
@@ -266,7 +265,7 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("✅"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("completed successfully"),
         })
       );
@@ -285,7 +284,7 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("❌"),
+          // Uses default pirate-themed message from messages.cjs
           body: expect.stringContaining("failed"),
         })
       );

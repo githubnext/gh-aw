@@ -847,12 +847,11 @@ network: "defaults"
 # specific domains
 network:
   # List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python',
-  # 'node', 'example.com'). AWF automatically includes subdomains.
+  # 'node', '*.example.com')
   # (optional)
   allowed: []
-    # Array of Domain name or ecosystem identifier. Note: AWF does not support
-    # wildcard syntax - use base domains (e.g., 'example.com') which automatically
-    # include all subdomains.
+    # Array of Domain name or ecosystem identifier (supports wildcards like
+    # '*.example.com' and ecosystem names like 'python', 'node')
 
   # AWF (Agent Workflow Firewall) configuration for network egress control. Only
   # supported for Copilot engine.
@@ -885,6 +884,75 @@ network:
     # AWF log level (default: info). Valid values: debug, info, warn, error
     # (optional)
     log-level: "debug"
+
+# Sandbox runtime configuration for AI engines. Controls the execution sandbox
+# (AWF or Sandbox Runtime). Only supported for Copilot engine.
+# (optional)
+# This field supports multiple formats (oneOf):
+
+# Option 1: Sandbox type: 'default' uses AWF (Agent Workflow Firewall),
+# 'sandbox-runtime' uses Anthropic Sandbox Runtime with auto-generated config
+sandbox: "default"
+
+# Option 2: Custom sandbox runtime configuration
+sandbox:
+  # Sandbox type to use
+  type: "default"
+
+  # Custom Sandbox Runtime configuration (only applies when type is
+  # 'sandbox-runtime')
+  # (optional)
+  config:
+    # (optional)
+    network:
+      # List of allowed domains (supports wildcards like '*.github.com')
+      # (optional)
+      allowedDomains: []
+        # Array of strings
+
+      # List of explicitly denied domains
+      # (optional)
+      deniedDomains: []
+        # Array of strings
+
+      # List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])
+      # (optional)
+      allowUnixSockets: []
+        # Array of strings
+
+      # Allow binding to local ports (default: false)
+      # (optional)
+      allowLocalBinding: true
+
+      # Allow access to all Unix sockets (default: false)
+      # (optional)
+      allowAllUnixSockets: true
+
+    # (optional)
+    filesystem:
+      # List of paths to deny read access
+      # (optional)
+      denyRead: []
+        # Array of strings
+
+      # List of paths to allow write access
+      # (optional)
+      allowWrite: []
+        # Array of strings
+
+      # List of paths to deny write access
+      # (optional)
+      denyWrite: []
+        # Array of strings
+
+    # Map of command patterns to paths that should ignore violations
+    # (optional)
+    ignoreViolations:
+      {}
+
+    # Enable weaker nested sandbox mode (recommended: true for Docker access)
+    # (optional)
+    enableWeakerNestedSandbox: true
 
 # Conditional execution expression
 # (optional)
@@ -1162,8 +1230,8 @@ tools:
     # (optional)
     # This field supports multiple formats (oneOf):
 
-    # Option 1: List of allowed domains (e.g., ['github.com', 'example.com']).
-    # Domains automatically include subdomains.
+    # Option 1: List of allowed domains or patterns (e.g., ['github.com',
+    # '*.example.com'])
     allowed_domains: []
       # Array items: string
 

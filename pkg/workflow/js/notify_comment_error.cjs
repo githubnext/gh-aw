@@ -6,6 +6,7 @@
 // It also processes noop messages and adds them to the activation comment.
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getRunSuccessMessage, getRunFailureMessage } = require("./messages.cjs");
 
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -66,29 +67,32 @@ async function main() {
 
   core.info(`Updating comment in ${repoOwner}/${repoName}`);
 
-  // Determine the message based on agent conclusion
-  let statusEmoji = "❌";
-  let statusText = "failed";
+  // Determine the message based on agent conclusion using custom messages if configured
   let message;
 
   if (agentConclusion === "success") {
-    statusEmoji = "✅";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-  } else if (agentConclusion === "cancelled") {
-    statusEmoji = "🚫";
-    statusText = "was cancelled";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-  } else if (agentConclusion === "skipped") {
-    statusEmoji = "⏭️";
-    statusText = "was skipped";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-  } else if (agentConclusion === "timed_out") {
-    statusEmoji = "⏱️";
-    statusText = "timed out";
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    message = getRunSuccessMessage({
+      workflowName,
+      runUrl,
+    });
   } else {
-    // Default to failure message
-    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+    // Determine status text based on conclusion type
+    let statusText;
+    if (agentConclusion === "cancelled") {
+      statusText = "was cancelled";
+    } else if (agentConclusion === "skipped") {
+      statusText = "was skipped";
+    } else if (agentConclusion === "timed_out") {
+      statusText = "timed out";
+    } else {
+      statusText = "failed";
+    }
+
+    message = getRunFailureMessage({
+      workflowName,
+      runUrl,
+      status: statusText,
+    });
   }
 
   // Add noop messages to the comment if any
