@@ -445,3 +445,72 @@ func TestFormatNumber(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderStruct_PointerToStruct tests that pointer-to-struct fields are rendered as nested structs, not raw data
+func TestRenderStruct_PointerToStruct(t *testing.T) {
+	type Inner struct {
+		Name  string `console:"header:Name"`
+		Value int    `console:"header:Value"`
+	}
+
+	type Outer struct {
+		Title string `console:"header:Title"`
+		Inner *Inner `console:"title:Inner Section"`
+	}
+
+	data := Outer{
+		Title: "Test Title",
+		Inner: &Inner{
+			Name:  "test-name",
+			Value: 42,
+		},
+	}
+
+	output := RenderStruct(data)
+
+	// Check that inner struct is rendered properly, not as raw data
+	if !strings.Contains(output, "Inner Section") {
+		t.Errorf("Output should contain nested struct title 'Inner Section', got:\n%s", output)
+	}
+	if !strings.Contains(output, "Name") {
+		t.Errorf("Output should contain inner field 'Name', got:\n%s", output)
+	}
+	if !strings.Contains(output, "test-name") {
+		t.Errorf("Output should contain inner value 'test-name', got:\n%s", output)
+	}
+	if !strings.Contains(output, "42") {
+		t.Errorf("Output should contain inner value '42', got:\n%s", output)
+	}
+	// Ensure it's NOT rendered as raw data structure
+	if strings.Contains(output, "{test-name") || strings.Contains(output, "&{") {
+		t.Errorf("Output should NOT contain raw struct representation, got:\n%s", output)
+	}
+}
+
+// TestRenderStruct_NilPointerToStruct tests that nil pointer-to-struct fields are handled gracefully
+func TestRenderStruct_NilPointerToStruct(t *testing.T) {
+	type Inner struct {
+		Name string `console:"header:Name"`
+	}
+
+	type Outer struct {
+		Title string `console:"header:Title"`
+		Inner *Inner `console:"title:Inner Section,omitempty"`
+	}
+
+	data := Outer{
+		Title: "Test Title",
+		Inner: nil,
+	}
+
+	output := RenderStruct(data)
+
+	// Should contain title but not the nil inner
+	if !strings.Contains(output, "Title") {
+		t.Errorf("Output should contain 'Title', got:\n%s", output)
+	}
+	// Should not crash and should not contain inner section when nil and omitempty
+	if strings.Contains(output, "Inner Section") {
+		t.Errorf("Output should NOT contain 'Inner Section' when nil and omitempty, got:\n%s", output)
+	}
+}
