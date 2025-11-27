@@ -5140,6 +5140,41 @@ jobs:
                   });
                   continue;
                 }
+                try {
+                  const parentCheckQuery = `
+                    query($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        issue(number: $number) {
+                          parent {
+                            number
+                            title
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const parentCheckResult = await github.graphql(parentCheckQuery, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    number: subIssueNumber,
+                  });
+                  const existingParent = parentCheckResult?.repository?.issue?.parent;
+                  if (existingParent) {
+                    core.warning(
+                      `Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`
+                    );
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
+                    });
+                    continue;
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Could not check if sub-issue #${subIssueNumber} has a parent: ${errorMessage}. Proceeding with link attempt.`);
+                }
                 if (subRequiredLabels.length > 0) {
                   const subLabels = subIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
                   const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
