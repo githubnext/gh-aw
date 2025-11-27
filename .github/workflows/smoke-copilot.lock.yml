@@ -1666,6 +1666,7 @@ jobs:
               }
               return { valid: true, value: parsed };
             }
+            const DEFAULT_MAX_LABELS = 3;
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -1703,7 +1704,7 @@ jobs:
               } else {
                 core.info("No label restrictions - any labels are allowed");
               }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, undefined, 3);
+              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, undefined, DEFAULT_MAX_LABELS);
               if (!maxCountResult.valid) {
                 core.setFailed(maxCountResult.error);
                 return;
