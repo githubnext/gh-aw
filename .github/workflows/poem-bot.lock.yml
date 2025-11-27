@@ -9049,41 +9049,100 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            async function main() {
+            function resolveTargetNumber(params) {
+              const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
+              if (updateTarget === "*") {
+                const explicitNumber = item[numberField];
+                if (explicitNumber) {
+                  const parsed = parseInt(explicitNumber, 10);
+                  if (isNaN(parsed) || parsed <= 0) {
+                    return { success: false, error: `Invalid ${numberField} specified: ${explicitNumber}` };
+                  }
+                  return { success: true, number: parsed };
+                } else {
+                  return { success: false, error: `Target is "*" but no ${numberField} specified in update item` };
+                }
+              } else if (updateTarget && updateTarget !== "triggering") {
+                const parsed = parseInt(updateTarget, 10);
+                if (isNaN(parsed) || parsed <= 0) {
+                  return { success: false, error: `Invalid ${displayName} number in target configuration: ${updateTarget}` };
+                }
+                return { success: true, number: parsed };
+              } else {
+                if (isValidContext && contextNumber) {
+                  return { success: true, number: contextNumber };
+                }
+                return { success: false, error: `Could not determine ${displayName} number` };
+              }
+            }
+            function buildUpdateData(params) {
+              const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+              const updateData = {};
+              let hasUpdates = false;
+              const logMessages = [];
+              if (supportsStatus && canUpdateStatus && item.status !== undefined) {
+                if (item.status === "open" || item.status === "closed") {
+                  updateData.state = item.status;
+                  hasUpdates = true;
+                  logMessages.push(`Will update status to: ${item.status}`);
+                } else {
+                  logMessages.push(`Invalid status value: ${item.status}. Must be 'open' or 'closed'`);
+                }
+              }
+              if (canUpdateTitle && item.title !== undefined) {
+                const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
+                if (trimmedTitle.length > 0) {
+                  updateData.title = trimmedTitle;
+                  hasUpdates = true;
+                  logMessages.push(`Will update title to: ${trimmedTitle}`);
+                } else {
+                  logMessages.push("Invalid title value: must be a non-empty string");
+                }
+              }
+              if (canUpdateBody && item.body !== undefined) {
+                if (typeof item.body === "string") {
+                  updateData.body = item.body;
+                  hasUpdates = true;
+                  logMessages.push(`Will update body (length: ${item.body.length})`);
+                } else {
+                  logMessages.push("Invalid body value: must be a string");
+                }
+              }
+              return { hasUpdates, updateData, logMessages };
+            }
+            async function runUpdateWorkflow(config) {
+              const {
+                itemType,
+                displayName,
+                displayNamePlural,
+                numberField,
+                outputNumberKey,
+                outputUrlKey,
+                isValidContext,
+                getContextNumber,
+                supportsStatus,
+                supportsOperation,
+                renderStagedItem,
+                executeUpdate,
+                getSummaryLine,
+              } = config;
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
               }
-              const updateItems = result.items.filter( item => item.type === "update_issue");
+              const updateItems = result.items.filter( item => item.type === itemType);
               if (updateItems.length === 0) {
-                core.info("No update-issue items found in agent output");
+                core.info(`No ${itemType} items found in agent output`);
                 return;
               }
-              core.info(`Found ${updateItems.length} update-issue item(s)`);
+              core.info(`Found ${updateItems.length} ${itemType} item(s)`);
               if (isStaged) {
                 await generateStagedPreview({
-                  title: "Update Issues",
-                  description: "The following issue updates would be applied if staged mode was disabled:",
+                  title: `Update ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}`,
+                  description: `The following ${displayName} updates would be applied if staged mode was disabled:`,
                   items: updateItems,
-                  renderItem: (item, index) => {
-                    let content = `### Issue Update ${index + 1}\n`;
-                    if (item.issue_number) {
-                      content += `**Target Issue:** #${item.issue_number}\n\n`;
-                    } else {
-                      content += `**Target:** Current issue\n\n`;
-                    }
-                    if (item.title !== undefined) {
-                      content += `**New Title:** ${item.title}\n\n`;
-                    }
-                    if (item.body !== undefined) {
-                      content += `**New Body:**\n${item.body}\n\n`;
-                    }
-                    if (item.status !== undefined) {
-                      content += `**New Status:** ${item.status}\n\n`;
-                    }
-                    return content;
-                  },
+                  renderItem: renderStagedItem,
                 });
                 return;
               }
@@ -9092,112 +9151,129 @@ jobs:
               const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
               const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
               core.info(`Update target configuration: ${updateTarget}`);
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              if (updateTarget === "triggering" && !isIssueContext) {
-                core.info('Target is "triggering" but not running in issue context, skipping issue update');
+              if (supportsStatus) {
+                core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              } else {
+                core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              }
+              const contextIsValid = isValidContext(context.eventName, context.payload);
+              const contextNumber = getContextNumber(context.payload);
+              if (updateTarget === "triggering" && !contextIsValid) {
+                core.info(`Target is "triggering" but not running in ${displayName} context, skipping ${displayName} update`);
                 return;
               }
-              const updatedIssues = [];
+              const updatedItems = [];
               for (let i = 0; i < updateItems.length; i++) {
                 const updateItem = updateItems[i];
-                core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
-                let issueNumber;
-                if (updateTarget === "*") {
-                  if (updateItem.issue_number) {
-                    issueNumber = parseInt(updateItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
-                      continue;
-                    }
-                  } else {
-                    core.info('Target is "*" but no issue_number specified in update item');
-                    continue;
-                  }
-                } else if (updateTarget && updateTarget !== "triggering") {
-                  issueNumber = parseInt(updateTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${updateTarget}`);
-                    continue;
-                  }
-                } else {
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else {
-                    core.info("Could not determine issue number");
-                    continue;
-                  }
-                }
-                if (!issueNumber) {
-                  core.info("Could not determine issue number");
+                core.info(`Processing ${itemType} item ${i + 1}/${updateItems.length}`);
+                const targetResult = resolveTargetNumber({
+                  updateTarget,
+                  item: updateItem,
+                  numberField,
+                  isValidContext: contextIsValid,
+                  contextNumber,
+                  displayName,
+                });
+                if (!targetResult.success) {
+                  core.info(targetResult.error);
                   continue;
                 }
-                core.info(`Updating issue #${issueNumber}`);
-                const updateData = {};
-                let hasUpdates = false;
-                if (canUpdateStatus && updateItem.status !== undefined) {
-                  if (updateItem.status === "open" || updateItem.status === "closed") {
-                    updateData.state = updateItem.status;
-                    hasUpdates = true;
-                    core.info(`Will update status to: ${updateItem.status}`);
-                  } else {
-                    core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
-                  }
+                const targetNumber = targetResult.number;
+                core.info(`Updating ${displayName} #${targetNumber}`);
+                const { hasUpdates, updateData, logMessages } = buildUpdateData({
+                  item: updateItem,
+                  canUpdateStatus,
+                  canUpdateTitle,
+                  canUpdateBody,
+                  supportsStatus,
+                });
+                for (const msg of logMessages) {
+                  core.info(msg);
                 }
-                if (canUpdateTitle && updateItem.title !== undefined) {
-                  if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
-                    updateData.title = updateItem.title.trim();
-                    hasUpdates = true;
-                    core.info(`Will update title to: ${updateItem.title.trim()}`);
-                  } else {
-                    core.info("Invalid title value: must be a non-empty string");
-                  }
-                }
-                if (canUpdateBody && updateItem.body !== undefined) {
-                  if (typeof updateItem.body === "string") {
-                    updateData.body = updateItem.body;
-                    hasUpdates = true;
-                    core.info(`Will update body (length: ${updateItem.body.length})`);
-                  } else {
-                    core.info("Invalid body value: must be a string");
-                  }
+                if (supportsOperation && canUpdateBody && updateItem.body !== undefined && typeof updateItem.body === "string") {
+                  updateData._operation = updateItem.operation || "replace";
+                  updateData._rawBody = updateItem.body;
                 }
                 if (!hasUpdates) {
                   core.info("No valid updates to apply for this item");
                   continue;
                 }
                 try {
-                  const { data: issue } = await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    ...updateData,
-                  });
-                  core.info("Updated issue #" + issue.number + ": " + issue.html_url);
-                  updatedIssues.push(issue);
+                  const updatedItem = await executeUpdate(github, context, targetNumber, updateData);
+                  core.info(`Updated ${displayName} #${updatedItem.number}: ${updatedItem.html_url}`);
+                  updatedItems.push(updatedItem);
                   if (i === updateItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput(outputNumberKey, updatedItem.number);
+                    core.setOutput(outputUrlKey, updatedItem.html_url);
                   }
                 } catch (error) {
-                  core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  core.error(`✗ Failed to update ${displayName} #${targetNumber}: ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }
-              if (updatedIssues.length > 0) {
-                let summaryContent = "\n\n## Updated Issues\n";
-                for (const issue of updatedIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+              if (updatedItems.length > 0) {
+                let summaryContent = `\n\n## Updated ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}\n`;
+                for (const item of updatedItems) {
+                  summaryContent += getSummaryLine(item);
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
-              return updatedIssues;
+              core.info(`Successfully updated ${updatedItems.length} ${displayName}(s)`);
+              return updatedItems;
+            }
+            function isIssueContext(eventName, _payload) {
+              return eventName === "issues" || eventName === "issue_comment";
+            }
+            function getIssueNumber(payload) {
+              return payload.issue?.number;
+            }
+            function renderStagedItem(item, index) {
+              let content = `### Issue Update ${index + 1}\n`;
+              if (item.issue_number) {
+                content += `**Target Issue:** #${item.issue_number}\n\n`;
+              } else {
+                content += `**Target:** Current issue\n\n`;
+              }
+              if (item.title !== undefined) {
+                content += `**New Title:** ${item.title}\n\n`;
+              }
+              if (item.body !== undefined) {
+                content += `**New Body:**\n${item.body}\n\n`;
+              }
+              if (item.status !== undefined) {
+                content += `**New Status:** ${item.status}\n\n`;
+              }
+              return content;
+            }
+            async function executeIssueUpdate(github, context, issueNumber, updateData) {
+              const { _operation, _rawBody, ...apiData } = updateData;
+              const { data: issue } = await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                ...apiData,
+              });
+              return issue;
+            }
+            function getSummaryLine(issue) {
+              return `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+            }
+            async function main() {
+              return await runUpdateWorkflow({
+                itemType: "update_issue",
+                displayName: "issue",
+                displayNamePlural: "issues",
+                numberField: "issue_number",
+                outputNumberKey: "issue_number",
+                outputUrlKey: "issue_url",
+                isValidContext: isIssueContext,
+                getContextNumber: getIssueNumber,
+                supportsStatus: true,
+                supportsOperation: false,
+                renderStagedItem,
+                executeUpdate: executeIssueUpdate,
+                getSummaryLine,
+              });
             }
             await main();
 

@@ -1,199 +1,100 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { runUpdateWorkflow } = require("./update_runner.cjs");
+
+/**
+ * Check if the current context is a valid issue context
+ * @param {string} eventName - GitHub event name
+ * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
+ * @returns {boolean} Whether context is valid for issue updates
+ */
+function isIssueContext(eventName, _payload) {
+  return eventName === "issues" || eventName === "issue_comment";
+}
+
+/**
+ * Get issue number from the context payload
+ * @param {any} payload - GitHub event payload
+ * @returns {number|undefined} Issue number or undefined
+ */
+function getIssueNumber(payload) {
+  return payload.issue?.number;
+}
+
+/**
+ * Render a staged preview item for issue updates
+ * @param {any} item - Update item
+ * @param {number} index - Item index (0-based)
+ * @returns {string} Markdown content for the preview
+ */
+function renderStagedItem(item, index) {
+  let content = `### Issue Update ${index + 1}\n`;
+  if (item.issue_number) {
+    content += `**Target Issue:** #${item.issue_number}\n\n`;
+  } else {
+    content += `**Target:** Current issue\n\n`;
+  }
+
+  if (item.title !== undefined) {
+    content += `**New Title:** ${item.title}\n\n`;
+  }
+  if (item.body !== undefined) {
+    content += `**New Body:**\n${item.body}\n\n`;
+  }
+  if (item.status !== undefined) {
+    content += `**New Status:** ${item.status}\n\n`;
+  }
+  return content;
+}
+
+/**
+ * Execute the issue update API call
+ * @param {any} github - GitHub API client
+ * @param {any} context - GitHub Actions context
+ * @param {number} issueNumber - Issue number to update
+ * @param {any} updateData - Data to update
+ * @returns {Promise<any>} Updated issue
+ */
+async function executeIssueUpdate(github, context, issueNumber, updateData) {
+  // Remove internal fields used for operation handling
+  const { _operation, _rawBody, ...apiData } = updateData;
+
+  const { data: issue } = await github.rest.issues.update({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issueNumber,
+    ...apiData,
+  });
+
+  return issue;
+}
+
+/**
+ * Generate summary line for an updated issue
+ * @param {any} issue - Updated issue
+ * @returns {string} Markdown summary line
+ */
+function getSummaryLine(issue) {
+  return `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+}
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all update-issue items
-  const updateItems = result.items.filter(/** @param {any} item */ item => item.type === "update_issue");
-  if (updateItems.length === 0) {
-    core.info("No update-issue items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${updateItems.length} update-issue item(s)`);
-
-  // If in staged mode, emit step summary instead of updating issues
-  if (isStaged) {
-    await generateStagedPreview({
-      title: "Update Issues",
-      description: "The following issue updates would be applied if staged mode was disabled:",
-      items: updateItems,
-      renderItem: (item, index) => {
-        let content = `### Issue Update ${index + 1}\n`;
-        if (item.issue_number) {
-          content += `**Target Issue:** #${item.issue_number}\n\n`;
-        } else {
-          content += `**Target:** Current issue\n\n`;
-        }
-
-        if (item.title !== undefined) {
-          content += `**New Title:** ${item.title}\n\n`;
-        }
-        if (item.body !== undefined) {
-          content += `**New Body:**\n${item.body}\n\n`;
-        }
-        if (item.status !== undefined) {
-          content += `**New Status:** ${item.status}\n\n`;
-        }
-        return content;
-      },
-    });
-    return;
-  }
-
-  // Get the configuration from environment variables
-  const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
-  const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
-  const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
-  const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
-
-  core.info(`Update target configuration: ${updateTarget}`);
-  core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
-
-  // Check if we're in an issue context
-  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-
-  // Validate context based on target configuration
-  if (updateTarget === "triggering" && !isIssueContext) {
-    core.info('Target is "triggering" but not running in issue context, skipping issue update');
-    return;
-  }
-
-  const updatedIssues = [];
-
-  // Process each update item
-  for (let i = 0; i < updateItems.length; i++) {
-    const updateItem = updateItems[i];
-    core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
-
-    // Determine the issue number for this update
-    let issueNumber;
-
-    if (updateTarget === "*") {
-      // For target "*", we need an explicit issue number from the update item
-      if (updateItem.issue_number) {
-        issueNumber = parseInt(updateItem.issue_number, 10);
-        if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
-          continue;
-        }
-      } else {
-        core.info('Target is "*" but no issue_number specified in update item');
-        continue;
-      }
-    } else if (updateTarget && updateTarget !== "triggering") {
-      // Explicit issue number specified in target
-      issueNumber = parseInt(updateTarget, 10);
-      if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(`Invalid issue number in target configuration: ${updateTarget}`);
-        continue;
-      }
-    } else {
-      // Default behavior: use triggering issue
-      if (isIssueContext) {
-        if (context.payload.issue) {
-          issueNumber = context.payload.issue.number;
-        } else {
-          core.info("Issue context detected but no issue found in payload");
-          continue;
-        }
-      } else {
-        core.info("Could not determine issue number");
-        continue;
-      }
-    }
-
-    if (!issueNumber) {
-      core.info("Could not determine issue number");
-      continue;
-    }
-
-    core.info(`Updating issue #${issueNumber}`);
-
-    // Build the update object based on allowed fields and provided values
-    /** @type {any} */
-    const updateData = {};
-    let hasUpdates = false;
-
-    if (canUpdateStatus && updateItem.status !== undefined) {
-      // Validate status value
-      if (updateItem.status === "open" || updateItem.status === "closed") {
-        updateData.state = updateItem.status;
-        hasUpdates = true;
-        core.info(`Will update status to: ${updateItem.status}`);
-      } else {
-        core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
-      }
-    }
-
-    if (canUpdateTitle && updateItem.title !== undefined) {
-      if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
-        updateData.title = updateItem.title.trim();
-        hasUpdates = true;
-        core.info(`Will update title to: ${updateItem.title.trim()}`);
-      } else {
-        core.info("Invalid title value: must be a non-empty string");
-      }
-    }
-
-    if (canUpdateBody && updateItem.body !== undefined) {
-      if (typeof updateItem.body === "string") {
-        updateData.body = updateItem.body;
-        hasUpdates = true;
-        core.info(`Will update body (length: ${updateItem.body.length})`);
-      } else {
-        core.info("Invalid body value: must be a string");
-      }
-    }
-
-    if (!hasUpdates) {
-      core.info("No valid updates to apply for this item");
-      continue;
-    }
-
-    try {
-      // Update the issue using GitHub API
-      const { data: issue } = await github.rest.issues.update({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: issueNumber,
-        ...updateData,
-      });
-
-      core.info("Updated issue #" + issue.number + ": " + issue.html_url);
-      updatedIssues.push(issue);
-
-      // Set output for the last updated issue (for backward compatibility)
-      if (i === updateItems.length - 1) {
-        core.setOutput("issue_number", issue.number);
-        core.setOutput("issue_url", issue.html_url);
-      }
-    } catch (error) {
-      core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
-    }
-  }
-
-  // Write summary for all updated issues
-  if (updatedIssues.length > 0) {
-    let summaryContent = "\n\n## Updated Issues\n";
-    for (const issue of updatedIssues) {
-      summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-    }
-    await core.summary.addRaw(summaryContent).write();
-  }
-
-  core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
-  return updatedIssues;
+  return await runUpdateWorkflow({
+    itemType: "update_issue",
+    displayName: "issue",
+    displayNamePlural: "issues",
+    numberField: "issue_number",
+    outputNumberKey: "issue_number",
+    outputUrlKey: "issue_url",
+    isValidContext: isIssueContext,
+    getContextNumber: getIssueNumber,
+    supportsStatus: true,
+    supportsOperation: false,
+    renderStagedItem,
+    executeUpdate: executeIssueUpdate,
+    getSummaryLine,
+  });
 }
+
 await main();
