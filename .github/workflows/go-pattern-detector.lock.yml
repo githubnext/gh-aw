@@ -5144,7 +5144,6 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    if: needs.ast_grep.outputs.found_patterns == 'true'
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}

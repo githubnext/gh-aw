@@ -687,7 +687,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
-	jobIfCondition := data.If
+	// Don't include conditions that reference custom job outputs (those belong on the agent job)
+	var jobIfCondition string
+	if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+		jobIfCondition = data.If
+	}
 
 	job := &Job{
 		Name:        constants.PreActivationJobName,
