@@ -38,12 +38,12 @@ describe("messages.cjs", () => {
       expect(result).toBeNull();
     });
 
-    it("should parse valid JSON config with PascalCase keys (Go struct)", async () => {
+    it("should parse valid JSON config with camelCase keys (Go struct)", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "> Custom footer by [{workflow_name}]({run_url})",
-        FooterInstall: "> Custom install: `gh aw add {workflow_source}`",
-        StagedTitle: "## Custom Preview: {operation}",
-        StagedDescription: "Preview of {operation}:",
+        footer: "> Custom footer by [{workflow_name}]({run_url})",
+        footerInstall: "> Custom install: `gh aw add {workflow_source}`",
+        stagedTitle: "## Custom Preview: {operation}",
+        stagedDescription: "Preview of {operation}:",
       });
 
       const { getMessages } = await import("./messages.cjs");
@@ -57,7 +57,7 @@ describe("messages.cjs", () => {
       });
     });
 
-    it("should parse valid JSON config with camelCase keys", async () => {
+    it("should parse valid JSON config with partial camelCase keys", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         footer: "> Custom footer",
         footerInstall: "> Custom install",
@@ -82,7 +82,7 @@ describe("messages.cjs", () => {
 
     it("should read fresh env var value on each call (no caching)", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "first value",
+        footer: "first value",
       });
 
       const { getMessages } = await import("./messages.cjs");
@@ -91,7 +91,7 @@ describe("messages.cjs", () => {
       expect(result1.footer).toBe("first value");
 
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "second value",
+        footer: "second value",
       });
 
       const result2 = getMessages();
@@ -178,7 +178,7 @@ describe("messages.cjs", () => {
 
     it("should use custom footer template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "> Custom: [{workflow_name}]({run_url})",
+        footer: "> Custom: [{workflow_name}]({run_url})",
       });
 
       const { getFooterMessage } = await import("./messages.cjs");
@@ -193,7 +193,7 @@ describe("messages.cjs", () => {
 
     it("should support both snake_case and camelCase in custom templates", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        Footer: "> {workflowName} ({workflow_name})",
+        footer: "> {workflowName} ({workflow_name})",
       });
 
       const { getFooterMessage } = await import("./messages.cjs");
@@ -235,7 +235,7 @@ describe("messages.cjs", () => {
 
     it("should use custom install template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        FooterInstall: "> Install: `gh aw add {workflow_source}`",
+        footerInstall: "> Install: `gh aw add {workflow_source}`",
       });
 
       const { getFooterInstallMessage } = await import("./messages.cjs");
@@ -345,7 +345,7 @@ describe("messages.cjs", () => {
 
     it("should use custom staged title template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        StagedTitle: "## 🔍 Preview: {operation}",
+        stagedTitle: "## 🔍 Preview: {operation}",
       });
 
       const { getStagedTitle } = await import("./messages.cjs");
@@ -367,7 +367,7 @@ describe("messages.cjs", () => {
 
     it("should use custom staged description template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        StagedDescription: "Preview of {operation} - nothing will be created:",
+        stagedDescription: "Preview of {operation} - nothing will be created:",
       });
 
       const { getStagedDescription } = await import("./messages.cjs");
@@ -393,7 +393,7 @@ describe("messages.cjs", () => {
 
     it("should use custom run-started template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        RunStarted: "[{workflow_name}]({run_url}) started for {event_type}",
+        runStarted: "[{workflow_name}]({run_url}) started for {event_type}",
       });
 
       const { getRunStartedMessage } = await import("./messages.cjs");
@@ -424,7 +424,7 @@ describe("messages.cjs", () => {
 
     it("should use custom run-success template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        RunSuccess: "✅ [{workflow_name}]({run_url}) finished!",
+        runSuccess: "✅ [{workflow_name}]({run_url}) finished!",
       });
 
       const { getRunSuccessMessage } = await import("./messages.cjs");
@@ -455,7 +455,7 @@ describe("messages.cjs", () => {
 
     it("should use custom run-failure template", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        RunFailure: "❌ [{workflow_name}]({run_url}) {status}.",
+        runFailure: "❌ [{workflow_name}]({run_url}) {status}.",
       });
 
       const { getRunFailureMessage } = await import("./messages.cjs");

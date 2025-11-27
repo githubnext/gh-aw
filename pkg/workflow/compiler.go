@@ -295,13 +295,13 @@ type SafeOutputsConfig struct {
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages
 type SafeOutputMessagesConfig struct {
-	Footer            string `yaml:"footer,omitempty"`             // Custom footer message template
-	FooterInstall     string `yaml:"footer-install,omitempty"`     // Custom installation instructions template
-	StagedTitle       string `yaml:"staged-title,omitempty"`       // Custom staged mode title template
-	StagedDescription string `yaml:"staged-description,omitempty"` // Custom staged mode description template
-	RunStarted        string `yaml:"run-started,omitempty"`        // Custom workflow activation message template
-	RunSuccess        string `yaml:"run-success,omitempty"`        // Custom workflow success message template
-	RunFailure        string `yaml:"run-failure,omitempty"`        // Custom workflow failure message template
+	Footer            string `yaml:"footer,omitempty" json:"footer,omitempty"`                         // Custom footer message template
+	FooterInstall     string `yaml:"footer-install,omitempty" json:"footerInstall,omitempty"`          // Custom installation instructions template
+	StagedTitle       string `yaml:"staged-title,omitempty" json:"stagedTitle,omitempty"`              // Custom staged mode title template
+	StagedDescription string `yaml:"staged-description,omitempty" json:"stagedDescription,omitempty"` // Custom staged mode description template
+	RunStarted        string `yaml:"run-started,omitempty" json:"runStarted,omitempty"`                // Custom workflow activation message template
+	RunSuccess        string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`                // Custom workflow success message template
+	RunFailure        string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`                // Custom workflow failure message template
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior
