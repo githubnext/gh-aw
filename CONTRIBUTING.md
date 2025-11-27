@@ -201,6 +201,20 @@ When adding validation logic, follow the established architecture:
 
 For detailed validation architecture and decision tree, see [specs/validation-architecture.md](specs/validation-architecture.md).
 
+#### CLI Breaking Changes
+
+When modifying CLI commands, flags, or output formats, evaluate whether the change is breaking:
+
+- **Breaking**: Removing/renaming commands or flags, changing JSON output structure, altering default behavior
+- **Non-breaking**: Adding new commands/flags, adding new output fields, bug fixes
+
+For breaking changes:
+- Use `major` changeset type
+- Provide migration guidance in the changeset
+- Document in CHANGELOG.md
+
+For detailed guidelines and decision tree, see [specs/breaking-cli-rules.md](specs/breaking-cli-rules.md).
+
 ### Documentation
 
 - Update documentation for any new features
