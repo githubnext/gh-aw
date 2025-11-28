@@ -1588,7 +1588,8 @@ safe-outputs:
     category: null
 
     # Optional list of labels to attach to created discussions. Also used for matching
-    # when close-older-discussions is enabled.
+    # when close-older-discussions is enabled - discussions must have ALL specified
+    # labels (AND logic).
     # (optional)
     labels: []
       # Array of strings

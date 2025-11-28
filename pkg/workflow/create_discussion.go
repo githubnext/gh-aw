@@ -88,7 +88,7 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 }
 
 // buildCreateOutputDiscussionJob creates the create_discussion job
-func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string, createIssueJobName string) (*Job, error) {
 	discussionLog.Printf("Building create_discussion job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
@@ -106,6 +106,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_DISCUSSIONS: \"true\"\n")
 	}
 
+	// Add environment variable for temporary ID map from create_issue job
+	if createIssueJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
+	}
+
 	discussionLog.Printf("Configured %d custom environment variables for discussion creation", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)
@@ -115,6 +120,12 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	outputs := map[string]string{
 		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
+	}
+
+	// Build the needs list - always depend on mainJobName, and conditionally on create_issue
+	needs := []string{mainJobName}
+	if createIssueJobName != "" {
+		needs = append(needs, createIssueJobName)
 	}
 
 	// Use the shared builder function to create the job
@@ -127,6 +138,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		Script:         getCreateDiscussionScript(),
 		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
 		Outputs:        outputs,
+		Needs:          needs,
 		Token:          data.SafeOutputs.CreateDiscussions.GitHubToken,
 		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
 	})

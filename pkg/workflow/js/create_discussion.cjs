@@ -4,11 +4,18 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
+
+  // Load the temporary ID map from create_issue job
+  const temporaryIdMap = loadTemporaryIdMap();
+  if (temporaryIdMap.size > 0) {
+    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+  }
 
   const result = loadAgentOutput();
   if (!result.success) {
@@ -150,10 +157,12 @@ async function main() {
     core.info(
       `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
     );
-    let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
-    let bodyLines = createDiscussionItem.body.split("\n");
+    // Replace temporary ID references in title
+    let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap) : "";
+    // Replace temporary ID references in body
+    let bodyLines = replaceTemporaryIdReferences(createDiscussionItem.body, temporaryIdMap).split("\n");
     if (!title) {
-      title = createDiscussionItem.body || "Agent Output";
+      title = replaceTemporaryIdReferences(createDiscussionItem.body, temporaryIdMap) || "Agent Output";
     }
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
