@@ -1242,7 +1242,7 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 		enabledTools["link_sub_issue"] = true
 	}
 
-	// Filter tools to only include enabled ones
+	// Filter tools to only include enabled ones and enhance descriptions
 	var filteredTools []map[string]any
 	for _, tool := range allTools {
 		toolName, ok := tool["name"].(string)
@@ -1250,7 +1250,19 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 			continue
 		}
 		if enabledTools[toolName] {
-			filteredTools = append(filteredTools, tool)
+			// Create a copy of the tool to avoid modifying the original
+			enhancedTool := make(map[string]any)
+			for k, v := range tool {
+				enhancedTool[k] = v
+			}
+
+			// Enhance the description with configuration details
+			if description, ok := enhancedTool["description"].(string); ok {
+				enhancedDescription := enhanceToolDescription(toolName, description, data.SafeOutputs)
+				enhancedTool["description"] = enhancedDescription
+			}
+
+			filteredTools = append(filteredTools, enhancedTool)
 		}
 	}
 
