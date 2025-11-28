@@ -6505,6 +6505,10 @@ jobs:
                 : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
+            const GRAPHQL_DELAY_MS = 500;
+            function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
             async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
               let searchQuery = `repo:${owner}/${repo} is:open`;
               if (titlePrefix) {
@@ -6622,7 +6626,8 @@ jobs:
                 core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
               }
               const closedDiscussions = [];
-              for (const discussion of discussionsToClose) {
+              for (let i = 0; i < discussionsToClose.length; i++) {
+                const discussion = discussionsToClose[i];
                 try {
                   const closingMessage = getCloseOlderDiscussionMessage({
                     newDiscussionUrl: newDiscussion.url,
@@ -6641,6 +6646,9 @@ jobs:
                   core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
                 } catch (error) {
                   core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                if (i < discussionsToClose.length - 1) {
+                  await delay(GRAPHQL_DELAY_MS);
                 }
               }
               return closedDiscussions;
