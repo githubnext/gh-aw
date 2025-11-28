@@ -150,15 +150,15 @@ async function addDiscussionComment(github, discussionId, message) {
 async function closeDiscussionAsOutdated(github, discussionId) {
   const result = await github.graphql(
     `
-    mutation($dId: ID!, $reason: DiscussionCloseReason!) {
-      closeDiscussion(input: { discussionId: $dId, reason: $reason }) {
+    mutation($dId: ID!) {
+      closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
         discussion { 
           id
           url
         }
       }
     }`,
-    { dId: discussionId, reason: "OUTDATED" }
+    { dId: discussionId }
   );
 
   return result.closeDiscussion.discussion;
