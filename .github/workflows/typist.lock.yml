@@ -5616,9 +5616,73 @@ jobs:
               }
               return closedDiscussions;
             }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedNumber !== undefined) {
+                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+            }
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
@@ -5748,12 +5812,13 @@ jobs:
               for (let i = 0; i < createDiscussionItems.length; i++) {
                 const createDiscussionItem = createDiscussionItems[i];
                 core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}`
                 );
-                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
-                let bodyLines = createDiscussionItem.body.split("\n");
+                let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap) : "";
+                const bodyText = createDiscussionItem.body || "";
+                let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap).split("\n");
                 if (!title) {
-                  title = createDiscussionItem.body || "Agent Output";
+                  title = replaceTemporaryIdReferences(bodyText, temporaryIdMap) || "Agent Output";
                 }
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;

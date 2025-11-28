@@ -234,7 +234,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build create_discussion job if output.create_discussion is configured
 	if data.SafeOutputs.CreateDiscussions != nil {
-		createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName)
+		createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName, createIssueJobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_discussion job: %w", err)
 		}
