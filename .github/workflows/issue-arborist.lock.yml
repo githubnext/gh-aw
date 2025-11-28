@@ -47,6 +47,7 @@
 #   create-discussion:
 #     title-prefix: "[Issue Arborist] "
 #     category: "Audits"
+#     close-older-discussions: true
 # timeout-minutes: 15
 # ```
 #
@@ -4439,6 +4440,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "[Issue Arborist] "
           GH_AW_DISCUSSION_CATEGORY: "Audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
