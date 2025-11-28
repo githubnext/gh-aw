@@ -168,6 +168,9 @@ var generateGitPatchJSScript string
 //go:embed js/temporary_id.cjs
 var temporaryIdScript string
 
+//go:embed js/update_runner.cjs
+var updateRunnerScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -197,6 +200,7 @@ func GetJavaScriptSources() map[string]string {
 		"get_current_branch.cjs":          getCurrentBranchScript,
 		"get_base_branch.cjs":             getBaseBranchScript,
 		"generate_git_patch.cjs":          generateGitPatchJSScript,
+		"update_runner.cjs":               updateRunnerScript,
 	}
 }
 
