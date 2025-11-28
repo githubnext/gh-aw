@@ -30,7 +30,7 @@ jobs:
               const query = `
                 query($owner: String!, $repo: String!, $cursor: String) {
                   repository(owner: $owner, name: $repo) {
-                    discussions(first: 100, after: $cursor, states: OPEN) {
+                    discussions(first: 100, after: $cursor, states: [OPEN]) {
                       pageInfo {
                         hasNextPage
                         endCursor
