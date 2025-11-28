@@ -196,15 +196,16 @@ type SkipIfMatchConfig struct {
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
-	TrialMode           bool     // whether the workflow is running in trial mode
-	TrialLogicalRepo    string   // target repository slug for trial mode (owner/repo)
-	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
-	FrontmatterYAML     string   // raw frontmatter YAML content (rendered as comment in lock file for reference)
-	Description         string   // optional description rendered as comment in lock file
-	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	TrackerID           string   // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
-	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
-	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
+	TrialMode           bool           // whether the workflow is running in trial mode
+	TrialLogicalRepo    string         // target repository slug for trial mode (owner/repo)
+	FrontmatterName     string         // name field from frontmatter (for code scanning alert driver default)
+	FrontmatterYAML     string         // raw frontmatter YAML content (rendered as comment in lock file for reference)
+	Description         string         // optional description rendered as comment in lock file
+	Source              string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	TrackerID           string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
+	ImportedFiles       []string       // list of files imported via imports field (rendered as comment in lock file)
+	IncludedFiles       []string       // list of files included via @include directives (rendered as comment in lock file)
+	ImportInputs        map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
 	On                  string
 	Permissions         string
 	Network             string // top-level network permissions configuration
@@ -1048,6 +1049,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		TrackerID:           trackerID,
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
+		ImportInputs:        importsResult.ImportInputs,
 		Tools:               tools,
 		ParsedTools:         NewTools(tools),
 		Runtimes:            runtimes,
