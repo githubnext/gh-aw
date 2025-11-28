@@ -173,6 +173,52 @@ tools:
     toolsets: [repos, issues]
 ```
 
+## MCP Registry
+
+The GitHub MCP registry provides a centralized catalog of MCP servers that you can add to your workflows with a single command.
+
+### Adding Servers from the Registry
+
+Use `gh aw mcp add` to discover and add MCP servers:
+
+```bash
+# Browse available MCP servers
+gh aw mcp add
+
+# Add a specific server to your workflow
+gh aw mcp add my-workflow makenotion/notion-mcp-server
+
+# Add with a custom tool ID
+gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion
+```
+
+The command automatically:
+1. Searches the registry (default: `https://api.mcp.github.com/v0`)
+2. Adds the server configuration to your workflow
+3. Recompiles the workflow
+
+### Registry-based Configuration
+
+Reference registry servers directly in your workflow:
+
+```yaml wrap
+mcp-servers:
+  markitdown:
+    registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
+    container: "ghcr.io/microsoft/markitdown"
+    allowed: ["*"]
+```
+
+The `registry` field provides metadata for tooling while the `container` or `command` fields specify how to run the server.
+
+### Using a Custom Registry
+
+For enterprise or private registries:
+
+```bash
+gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1
+```
+
 ## Custom MCP Servers
 
 Extend your workflows with third-party MCP servers for services like databases, APIs, and specialized tools.
