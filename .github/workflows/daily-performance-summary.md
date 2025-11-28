@@ -1,8 +1,8 @@
 ---
-description: Monthly project performance summary with trend charts using Skillz MCP server
+description: Daily project performance summary (30-day window) with trend charts using Skillz MCP server
 on:
   schedule:
-    - cron: "0 8 1 * *"  # First day of each month at 8 AM UTC
+    - cron: "0 8 * * *"  # Daily at 8 AM UTC
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,7 +12,7 @@ permissions:
   discussions: write
 engine: copilot
 strict: false
-tracker-id: monthly-performance-summary
+tracker-id: daily-performance-summary
 tools:
   github:
     toolsets: [default, discussions]
@@ -20,7 +20,7 @@ safe-outputs:
   upload-assets:
   create-discussion:
     category: "General"
-    title-prefix: "[monthly performance] "
+    title-prefix: "[daily performance] "
     max: 1
     close-older-discussions: true
   close-discussion:
@@ -32,72 +32,84 @@ imports:
   - shared/reporting.md
 ---
 
-# Monthly Project Performance Summary Generator
+# Daily Project Performance Summary Generator (Powered by Skillz)
 
-You are an expert analyst that generates comprehensive monthly performance summaries using the repository's GitHub skills (PRs, issues, discussions) and creates trend visualizations.
+You are an expert analyst that generates comprehensive daily performance summaries using the **Skillz MCP server** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
+
+**IMPORTANT**: This workflow demonstrates the power of Skillz - a custom skills-based MCP server that exposes repository-specific tools. All data gathering MUST be done through the skillz tools.
 
 ## Mission
 
-Generate a monthly performance summary for the project over the last 30 days:
-1. Query PRs, issues, and discussions using the skillz MCP tools
+Generate a daily performance summary analyzing the last 30 days of project activity:
+1. **Use Skillz tools exclusively** to query PRs, issues, and discussions
 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 3. Generate trend charts showing project activity and performance
 4. Create a discussion with the comprehensive performance report
-5. Close previous monthly performance discussions
+5. Close previous daily performance discussions
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Report Period**: Last 30 days
+- **Report Period**: Last 30 days (updated daily)
 
-## Phase 1: Gather Data Using Skills
+## Phase 1: Gather Data Using Skillz MCP Tools
 
-Use the skillz MCP server to query GitHub data. The skills are available and authenticated with GitHub token.
+**CRITICAL**: Use the skillz MCP server tools to query GitHub data. The skills are located in `.github/skills/` and are exposed as MCP tools by the skillz server.
 
-### 1.1 Query Pull Requests
+### Available Skillz Tools
 
-Use the `github-pr-query` skill to get PR data:
+The skillz MCP server exposes these repository skills as callable tools:
+- **github-pr-query** - Query pull requests with jq filtering
+- **github-issue-query** - Query issues with jq filtering  
+- **github-discussion-query** - Query discussions with jq filtering
+
+### 1.1 Query Pull Requests with Skillz
+
+**Use the `github-pr-query` skillz tool** to get PR data:
 
 ```bash
+# SKILLZ TOOL: github-pr-query
 # Get all PRs from last 30 days (open and closed)
 cd ${{ github.workspace }}/.github/skills/github-pr-query
 ./query-prs.sh --state all --limit 100 --jq '.'
 ```
 
-Save the output for analysis. Key fields to extract:
+The skillz tool provides:
 - PR count by state (open, closed, merged)
 - Time to merge for merged PRs
 - Authors contributing PRs
 - Review decision distribution
 
-### 1.2 Query Issues
+### 1.2 Query Issues with Skillz
 
-Use the `github-issue-query` skill to get issue data:
+**Use the `github-issue-query` skillz tool** to get issue data:
 
 ```bash
+# SKILLZ TOOL: github-issue-query
 # Get all issues from last 30 days
 cd ${{ github.workspace }}/.github/skills/github-issue-query
 ./query-issues.sh --state all --limit 100 --jq '.'
 ```
 
-Save the output for analysis. Key fields to extract:
+The skillz tool provides:
 - Issue count by state (open, closed)
 - Time to close for closed issues
 - Label distribution
 - Authors creating issues
 
-### 1.3 Query Discussions
+### 1.3 Query Discussions with Skillz
 
-Use the `github-discussion-query` skill to get discussion data:
+**Use the `github-discussion-query` skillz tool** to get discussion data:
 
 ```bash
+# SKILLZ TOOL: github-discussion-query
 # Get recent discussions
 cd ${{ github.workspace }}/.github/skills/github-discussion-query
 ./query-discussions.sh --limit 50 --jq '.'
 ```
 
-Save the output for analysis. Key fields to extract:
+The skillz tool provides:
 - Discussion count by category
 - Answered vs unanswered discussions
 - Active discussion authors
@@ -371,11 +383,11 @@ Collect the returned URLs for embedding in the discussion.
 
 ## Phase 5: Close Previous Discussions
 
-Before creating the new discussion, find and close previous monthly performance discussions:
+Before creating the new discussion, find and close previous daily performance discussions:
 
-1. Search for discussions with title prefix "[monthly performance]"
+1. Search for discussions with title prefix "[daily performance]"
 2. Close each found discussion with reason "OUTDATED"
-3. Add a closing comment: "This discussion has been superseded by a newer monthly performance report."
+3. Add a closing comment: "This discussion has been superseded by a newer daily performance report."
 
 ## Phase 6: Create Discussion Report
 
@@ -383,7 +395,7 @@ Create a new discussion with the comprehensive performance report.
 
 ### Discussion Format
 
-**Title**: `[monthly performance] Monthly Performance Summary - YYYY-MM`
+**Title**: `[daily performance] Daily Performance Summary - YYYY-MM-DD`
 
 **Body**:
 
@@ -449,19 +461,27 @@ Brief 2-3 paragraph executive summary highlighting:
 </details>
 
 ---
-*Report generated automatically by the Monthly Performance Summary workflow*
+*Report generated automatically by the Daily Performance Summary workflow*
 *Data source: ${{ github.repository }} - Last 30 days*
-*Powered by GitHub Skills (skillz MCP server)*
+*Powered by **Skillz MCP Server** - GitHub Skills exposed as MCP tools*
 ```
 
 ## Success Criteria
 
 A successful run will:
-- ✅ Query PR, issue, and discussion data using skillz
-- ✅ Calculate comprehensive performance metrics
+- ✅ **Query data using Skillz tools** (github-pr-query, github-issue-query, github-discussion-query)
+- ✅ Calculate comprehensive performance metrics from skillz output
 - ✅ Generate 3 high-quality trend charts
 - ✅ Upload charts as assets
-- ✅ Close previous monthly performance discussions
+- ✅ Close previous daily performance discussions
 - ✅ Create a new discussion with the complete report
 
-Begin your analysis now. Use the skills to gather data, run Python analysis, generate charts, and create the discussion report.
+## Skillz Usage Reminder
+
+This workflow demonstrates the Skillz MCP server pattern:
+1. Skills are defined in `.github/skills/` as directories with `SKILL.md` and helper scripts
+2. The skillz MCP server mounts these skills and exposes them as callable tools
+3. Each skill can have its own jq-based filtering for efficient data querying
+4. Skills are authenticated with `GH_TOKEN` and `GITHUB_TOKEN` for GitHub API access
+
+Begin your analysis now. **Use the skillz tools** to gather data, run Python analysis, generate charts, and create the discussion report.
