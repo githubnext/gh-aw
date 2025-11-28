@@ -149,10 +149,10 @@ func (e *ExpressionExtractor) GetMappings() []*ExpressionMapping {
 	return result
 }
 
-// agenticsInputsExprRegex matches ${{ github.agentics.inputs.<key> }} expressions
-var agenticsInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.agentics\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
+// awInputsExprRegex matches ${{ github.aw.inputs.<key> }} expressions
+var awInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
 
-// SubstituteImportInputs replaces ${{ github.agentics.inputs.<key> }} expressions
+// SubstituteImportInputs replaces ${{ github.aw.inputs.<key> }} expressions
 // with the corresponding values from the importInputs map.
 // This is called before expression extraction to inject import input values.
 func SubstituteImportInputs(content string, importInputs map[string]any) string {
@@ -162,9 +162,9 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 
 	expressionExtractionLog.Printf("Substituting import inputs: %d inputs available", len(importInputs))
 
-	result := agenticsInputsExprRegex.ReplaceAllStringFunc(content, func(match string) string {
+	result := awInputsExprRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the key name from the expression
-		matches := agenticsInputsExprRegex.FindStringSubmatch(match)
+		matches := awInputsExprRegex.FindStringSubmatch(match)
 		if len(matches) < 2 {
 			return match
 		}
@@ -173,7 +173,7 @@ func SubstituteImportInputs(content string, importInputs map[string]any) string 
 		if value, exists := importInputs[key]; exists {
 			// Convert value to string
 			strValue := fmt.Sprintf("%v", value)
-			expressionExtractionLog.Printf("Substituting github.agentics.inputs.%s with value: %s", key, strValue)
+			expressionExtractionLog.Printf("Substituting github.aw.inputs.%s with value: %s", key, strValue)
 			return strValue
 		}
 

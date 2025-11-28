@@ -9,7 +9,7 @@
     },
     "inputs": {
       "type": "object",
-      "description": "Input parameters for the shared workflow. Uses the same schema as workflow_dispatch inputs. Values can be referenced in the workflow using ${{ github.agentics.inputs.<key> }} expressions.",
+      "description": "Input parameters for the shared workflow. Uses the same schema as workflow_dispatch inputs. Values can be referenced in the workflow using ${{ github.aw.inputs.<key> }} expressions.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

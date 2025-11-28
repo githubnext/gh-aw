@@ -22,7 +22,7 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_AW_DISCUSSIONS_COUNT: ${{ github.agentics.inputs.count }}
+      GH_AW_DISCUSSIONS_COUNT: ${{ github.aw.inputs.count }}
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/discussions-data

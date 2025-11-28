@@ -205,7 +205,7 @@ type WorkflowData struct {
 	TrackerID           string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles       []string       // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string       // list of files included via @include directives (rendered as comment in lock file)
-	ImportInputs        map[string]any // input values from imports with inputs (for github.agentics.inputs.* substitution)
+	ImportInputs        map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
 	On                  string
 	Permissions         string
 	Network             string // top-level network permissions configuration

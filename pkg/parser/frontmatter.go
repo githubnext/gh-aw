@@ -96,10 +96,20 @@ type ImportsResult struct {
 	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
 }
 
+// ImportInputDefinition defines an input parameter for a shared workflow import.
+// Uses the same schema as workflow_dispatch inputs.
+type ImportInputDefinition struct {
+	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
+	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
+	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
+	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
+	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
+}
+
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)
 type ImportSpec struct {
 	Path   string         // Import path (required)
-	Inputs map[string]any // Optional input values to pass to the imported workflow
+	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
 }
 
 // ProcessImportsFromFrontmatter processes imports field from frontmatter

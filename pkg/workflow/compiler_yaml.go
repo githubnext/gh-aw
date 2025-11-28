@@ -675,7 +675,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
 	// Substitute import inputs before expression extraction
-	// This replaces ${{ github.agentics.inputs.<key> }} with actual values from imports
+	// This replaces ${{ github.aw.inputs.<key> }} with actual values from imports
 	if len(data.ImportInputs) > 0 {
 		cleanedMarkdownContent = SubstituteImportInputs(cleanedMarkdownContent, data.ImportInputs)
 	}

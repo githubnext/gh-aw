@@ -36,7 +36,7 @@ inputs:
 
 # Data Fetch Instructions
 
-Fetch ${{ github.agentics.inputs.count }} items from the ${{ github.agentics.inputs.category }} category.
+Fetch ${{ github.aw.inputs.count }} items from the ${{ github.aw.inputs.category }} category.
 `
 	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
 		t.Fatalf("Failed to write shared file: %v", err)
@@ -105,11 +105,11 @@ This workflow tests import with inputs.
 		}
 
 		// Check that the agentics.inputs expressions are NOT in the prompt (they should be substituted)
-		if strings.Contains(promptSection, "github.agentics.inputs.count") {
-			t.Error("Prompt section should not contain unsubstituted github.agentics.inputs.count expression")
+		if strings.Contains(promptSection, "github.aw.inputs.count") {
+			t.Error("Prompt section should not contain unsubstituted github.aw.inputs.count expression")
 		}
-		if strings.Contains(promptSection, "github.agentics.inputs.category") {
-			t.Error("Prompt section should not contain unsubstituted github.agentics.inputs.category expression")
+		if strings.Contains(promptSection, "github.aw.inputs.category") {
+			t.Error("Prompt section should not contain unsubstituted github.aw.inputs.category expression")
 		}
 	} else {
 		t.Error("Could not find prompt heredoc section in lock file")
@@ -183,12 +183,12 @@ This workflow tests that string imports still work.
 	}
 }
 
-// TestImportInputsExpressionValidation tests that github.agentics.inputs expressions are allowed
+// TestImportInputsExpressionValidation tests that github.aw.inputs expressions are allowed
 func TestImportInputsExpressionValidation(t *testing.T) {
 	// This test just verifies the expression is allowed in the markdown content
-	content := "Process ${{ github.agentics.inputs.limit }} items."
+	content := "Process ${{ github.aw.inputs.limit }} items."
 	err := workflow.ValidateExpressionSafetyPublic(content)
 	if err != nil {
-		t.Errorf("Expression validation should allow github.agentics.inputs.* expressions: %v", err)
+		t.Errorf("Expression validation should allow github.aw.inputs.* expressions: %v", err)
 	}
 }
