@@ -8,6 +8,10 @@ sidebar:
 > [!WARNING]
 > GitHub Agentic Workflows is a research demonstrator, and not for production use.
 
+:::tip[Quick Start]
+For a quick security verification, see the [Security Checklist](/gh-aw/guides/security-checklist/). For specific topics, see [Prompt Injection Prevention](/gh-aw/guides/prompt-injection/) and [Supply Chain Security](/gh-aw/guides/supply-chain-security/).
+:::
+
 Security is foundational -- Agentic Workflows inherits GitHub Actions' sandboxing model, scoped permissions, and auditable execution. The attack surface of agentic automation can be subtle (prompt injection, tool invocation side‑effects, data exfiltration), so we bias toward explicit constraints over implicit trust: least‑privilege tokens, allow‑listed tools, and execution paths that always leave human‑visible artifacts (comments, PRs, logs) instead of silent mutation.
 
 A core reason for building Agentic Workflows as a research demonstrator is to closely track emerging security controls in agentic engines under near‑identical inputs, so differences in behavior and guardrails are comparable. Alongside engine evolution, we are working on our own mechanisms:
@@ -396,6 +400,9 @@ network: {}
 
 ## See also
 
+- [Security Checklist](/gh-aw/guides/security-checklist/) - Quick reference checklist for securing workflows
+- [Prompt Injection Prevention](/gh-aw/guides/prompt-injection/) - Protect against AI manipulation attacks
+- [Supply Chain Security](/gh-aw/guides/supply-chain-security/) - Dependency pinning and verification
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
