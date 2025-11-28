@@ -375,11 +375,15 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 			continue
 		}
 
-		// Check for conflicts with top-level config (only for safe output types, not meta fields)
+		// Check for conflicts and remove types already defined in top-level config
+		// Main workflow definitions take precedence over imports (override behavior)
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
-					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in both the main workflow and an imported workflow. Remove the duplicate definition from one of the workflows", key)
+					// Main workflow overrides imported definition - remove from imported config
+					importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
+					delete(config, key)
+					continue
 				}
 				if importedDefinedTypes[key] {
 					return nil, fmt.Errorf("safe-outputs conflict: '%s' is defined in multiple imported workflows. Each safe-output type can only be defined once", key)

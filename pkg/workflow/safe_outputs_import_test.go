@@ -141,8 +141,8 @@ imports:
 	assert.Equal(t, 3, workflowData.SafeOutputs.AddComments.Max)
 }
 
-// TestSafeOutputsImportConflict tests that a conflict error is returned when the same safe-output type is defined in both main and imported workflow
-func TestSafeOutputsImportConflict(t *testing.T) {
+// TestSafeOutputsImportOverride tests that when the same safe-output type is defined in both main and imported workflow, the main workflow's definition takes precedence
+func TestSafeOutputsImportOverride(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
 
 	// Create a temporary directory for test files
@@ -165,7 +165,7 @@ safe-outputs:
 	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
 	require.NoError(t, err, "Failed to write shared file")
 
-	// Create main workflow that also defines create-issue (conflict)
+	// Create main workflow that also defines create-issue (main overrides imported)
 	mainWorkflow := `---
 on: issues
 permissions:
@@ -177,7 +177,7 @@ safe-outputs:
     title-prefix: "[main] "
 ---
 
-# Main Workflow with Conflict
+# Main Workflow with Override
 `
 
 	mainFile := filepath.Join(workflowsDir, "main.md")
@@ -191,11 +191,14 @@ safe-outputs:
 	require.NoError(t, err, "Failed to change directory")
 	defer func() { _ = os.Chdir(oldDir) }()
 
-	// Parse the main workflow - should fail with conflict error
-	_, err = compiler.ParseWorkflowFile("main.md")
-	require.Error(t, err, "Expected conflict error")
-	assert.Contains(t, err.Error(), "safe-outputs conflict")
-	assert.Contains(t, err.Error(), "create-issue")
+	// Parse the main workflow - should succeed with main's definition taking precedence
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Should not return error - main workflow overrides imported")
+
+	// Verify the main workflow's configuration took precedence
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should be present")
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present")
+	assert.Equal(t, "[main] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix, "Main workflow's title-prefix should override imported")
 }
 
 // TestSafeOutputsImportConflictBetweenImports tests that a conflict error is returned when the same safe-output type is defined in multiple imported workflows
@@ -436,15 +439,15 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 			expectedTypes: []string{"create-issue"},
 		},
 		{
-			name: "conflict: create-issue in both",
+			name: "override: main workflow overrides imported create-issue",
 			topConfig: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{TitlePrefix: "[top] "},
 			},
 			importedJSON: []string{
 				`{"create-issue":{"title-prefix":"[imported] "}}`,
 			},
-			expectError:   true,
-			errorContains: "safe-outputs conflict",
+			expectError:   false,
+			expectedTypes: []string{"create-issue"},
 		},
 		{
 			name:      "conflict: same type in multiple imports",
