@@ -138,6 +138,7 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 
 // collectRequiredPermissions collects all required permissions for the given toolsets
 func collectRequiredPermissions(toolsets []string, readOnly bool) map[PermissionScope]PermissionLevel {
+	permissionsValidatorLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
 	required := make(map[PermissionScope]PermissionLevel)
 
 	for _, toolset := range toolsets {
@@ -168,6 +169,7 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 
 // checkMissingPermissions checks if all required permissions are granted
 func checkMissingPermissions(permissions *Permissions, required map[PermissionScope]PermissionLevel, toolsets []string, result *PermissionsValidationResult) {
+	permissionsValidatorLog.Printf("Checking missing permissions: required_count=%d, toolsets=%v", len(required), toolsets)
 	for scope, requiredLevel := range required {
 		grantedLevel, granted := permissions.Get(scope)
 

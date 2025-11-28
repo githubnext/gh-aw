@@ -232,14 +232,16 @@ func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map
 
 // hasIssueTrigger checks if the workflow has an issue trigger in its 'on' section
 func (c *Compiler) hasIssueTrigger(onSection string) bool {
-	// Look for 'issues:', 'issue:', or 'issue_comment:' in the on section
-	return strings.Contains(onSection, "issues:") ||
+	hasIssue := strings.Contains(onSection, "issues:") ||
 		strings.Contains(onSection, "issue:") ||
 		strings.Contains(onSection, "issue_comment:")
+	toolsLog.Printf("Checking for issue trigger: has_issue=%t", hasIssue)
+	return hasIssue
 }
 
 // injectWorkflowDispatchForIssue adds workflow_dispatch trigger with issue_number input
 func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
+	toolsLog.Print("Injecting workflow_dispatch trigger for issue workflows")
 	// Parse the existing on section to understand its structure
 	var onData map[string]any
 	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {

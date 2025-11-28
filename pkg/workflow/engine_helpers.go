@@ -24,6 +24,7 @@ var engineHelpersLog = logger.New("workflow:engine_helpers")
 //	identifier := ExtractAgentIdentifier(".github/agents/my-agent.md")
 //	// Returns: "my-agent"
 func ExtractAgentIdentifier(agentFile string) string {
+	engineHelpersLog.Printf("Extracting agent identifier from: %s", agentFile)
 	// Extract the base filename from the path
 	lastSlash := strings.LastIndex(agentFile, "/")
 	filename := agentFile
@@ -146,6 +147,7 @@ func InjectCustomEngineSteps(
 // Returns:
 //   - []string: Complete step lines including run command and env section
 func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[string]string) []string {
+	engineHelpersLog.Printf("Formatting step with command and %d environment variables", len(env))
 	// Add the run section
 	stepLines = append(stepLines, "        run: |")
 
