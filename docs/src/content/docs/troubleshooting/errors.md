@@ -486,6 +486,52 @@ strict mode: engine does not support firewall
 
 **Solution:** Use an engine with firewall support (e.g., `copilot`), compile without `--strict` flag, or use `network: defaults`.
 
+## Toolsets Configuration Issues
+
+### Tool Not Found After Migrating to Toolsets
+
+**Symptom:** After changing from `allowed:` to `toolsets:`, expected tools are not available.
+
+**Cause:** The tool may be in a different toolset than expected, or a narrower toolset was chosen. Individual tool names may also change between MCP server versions, which is why toolsets are recommended for stability.
+
+**Solution:**
+1. Check the [tool-to-toolset mapping](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) to find the correct toolset
+2. Use `gh aw mcp inspect <workflow>` to see available tools
+3. Add the required toolset to your configuration
+
+### Invalid Toolset Name
+
+**Error Message:**
+
+```
+invalid toolset: 'action' is not a valid toolset
+```
+
+**Cause:** A toolset name is misspelled or doesn't exist.
+
+**Solution:** Use valid toolset names: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`, `default`, `all`.
+
+### Toolsets and Allowed Conflict
+
+**Symptom:** Unexpected tool availability when using both `toolsets:` and `allowed:`.
+
+**Cause:** When both are specified, `allowed:` restricts tools to only those listed within the enabled toolsets.
+
+**Solution:** For most use cases, use only `toolsets:` without `allowed:`. If you need fine-grained control, first enable the toolset containing your tools, then use `allowed:` to restrict to specific tools.
+
+```yaml wrap
+# Recommended: use only toolsets
+tools:
+  github:
+    toolsets: [issues]  # Gets all issue-related tools
+
+# Advanced: restrict within toolset (not recommended for new workflows)
+tools:
+  github:
+    toolsets: [issues]
+    allowed: [create_issue]  # Only create_issue from issues toolset
+```
+
 ## Troubleshooting Tips
 
 - Use `--verbose` flag for detailed error information
