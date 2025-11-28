@@ -149,8 +149,8 @@ mcp-servers:
 
 GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools](/gh-aw/reference/tools/) for details.
 
-:::tip[Use Toolsets for GitHub Tools]
-Prefer using `toolsets:` instead of `allowed:` for GitHub tools. Toolsets provide better organization and ensure complete functionality. See the [GitHub Toolsets](/gh-aw/reference/tools/#github-toolsets) section for details.
+:::caution[Use Toolsets Instead of Allowed]
+The `allowed:` pattern for GitHub tools is legacy and may be deprecated. **Always use `toolsets:`** to enable groups of related tools. Toolsets provide better organization, complete functionality, and automatic inclusion of new tools. See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance.
 :::
 
 Configure the Docker image version (default: `"sha-09deac4"`):
@@ -166,9 +166,39 @@ tools:
 
 Token precedence: `GH_AW_GITHUB_TOKEN` (highest priority) or `GITHUB_TOKEN` (fallback).
 
-## Tool Allow-listing
+## Tool Configuration
 
-Control tool access with `allowed:` - use specific tool names for granular control or `["*"]` for all tools. Tool names generate as `mcp__<server>__<tool>` (or `mcp__<server>` for wildcards).
+For GitHub tools, use `toolsets:` to enable groups of related functionality. For custom MCP servers, use `allowed:` to control which tools are available.
+
+### GitHub Toolsets (Recommended)
+
+Enable related GitHub tools as logical groups:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [default, actions]  # Enable default plus actions toolsets
+```
+
+**Common Toolsets**:
+- `default` - Context, repos, issues, pull_requests, users (recommended starting point)
+- `actions` - Workflow runs and artifacts
+- `code_security` - Code scanning and alerts
+- `discussions` - GitHub Discussions
+- `all` - All available toolsets
+
+### Custom MCP Tool Filtering
+
+For custom MCP servers, use `allowed:` to specify which tools are available:
+
+```yaml wrap
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    allowed: ["search_pages", "get_page"]  # Limit to specific tools
+```
+
+Use `["*"]` to allow all tools from a custom MCP server.
 
 **HTTP Headers**: Configure authentication in URL parameters (e.g., `?apiKey=${{ secrets.API_KEY }}`).
 
@@ -192,7 +222,50 @@ Inspect MCP configurations with CLI commands: `gh aw mcp inspect my-workflow` (a
 
 For advanced debugging, import `shared/mcp-debug.md` to access diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output.
 
-**Common issues**: Connection failures (verify syntax, env vars, network) or tool not found (check `allowed` list with `gh aw mcp inspect`).
+**Common issues**: Connection failures (verify syntax, env vars, network) or tool not found (check toolsets configuration or `allowed` list with `gh aw mcp inspect`).
+
+## Migration from Allowed to Toolsets
+
+If you have existing GitHub tool configurations using `allowed:`, migrate to `toolsets:` for better maintainability.
+
+### Common Migration Patterns
+
+| Legacy `allowed:` Pattern | Recommended `toolsets:` |
+|---------------------------|-------------------------|
+| `allowed: [get_repository, get_file_contents, list_commits]` | `toolsets: [repos]` |
+| `allowed: [list_issues, create_issue, update_issue]` | `toolsets: [issues]` |
+| `allowed: [list_pull_requests, create_pull_request]` | `toolsets: [pull_requests]` |
+| `allowed: [list_workflows, list_workflow_runs]` | `toolsets: [actions]` |
+| `allowed: [get_me, get_teams]` | `toolsets: [context]` |
+| Mixed issue/PR tools | `toolsets: [default]` or `toolsets: [issues, pull_requests]` |
+
+### Before and After Example
+
+**Legacy (not recommended):**
+```yaml wrap
+tools:
+  github:
+    allowed:
+      - get_repository
+      - get_file_contents
+      - list_issues
+      - create_issue
+      - list_pull_requests
+```
+
+**Modern (recommended):**
+```yaml wrap
+tools:
+  github:
+    toolsets: [default]  # Includes repos, issues, pull_requests, users, context
+```
+
+### Benefits of Toolsets
+
+- **Reduced verbosity**: One line vs. many individual tool names
+- **Complete functionality**: Get all related tools automatically
+- **Future-proof**: New tools are included as they're added
+- **Better discoverability**: Clear groupings of related functionality
 
 ## Related Documentation
 

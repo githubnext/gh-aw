@@ -74,8 +74,12 @@ tools:
 
 The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets, use `[default]` for the recommended defaults, or use `[all]` to enable everything.
 
+:::caution[Deprecation Notice]
+The `allowed:` pattern for listing individual GitHub tools is **legacy and should not be used for new workflows**. Always use `toolsets:` instead. See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance on updating existing workflows.
+:::
+
 :::tip[Best Practice]
-**Always prefer using `toolsets:` over listing individual tools with `allowed:`**. Toolsets provide:
+**Always use `toolsets:` for GitHub tools.** Toolsets provide:
 - Better organization and discoverability
 - Complete functionality for each area
 - Reduced configuration verbosity
@@ -239,6 +243,80 @@ Ensure your GitHub token has appropriate permissions for the toolsets you're ena
 - You want to use custom arguments
 - You're running in an environment without internet access
 - You want to test with a local build of the MCP server
+
+## Migration from Allowed to Toolsets
+
+If you have existing workflows using the legacy `allowed:` pattern, migrate to `toolsets:` for better maintainability and future compatibility.
+
+### Migration Examples
+
+**Before (Legacy):**
+```yaml
+tools:
+  github:
+    allowed:
+      - get_repository
+      - get_file_contents
+      - list_commits
+      - list_issues
+      - create_issue
+      - update_issue
+```
+
+**After (Recommended):**
+```yaml
+tools:
+  github:
+    toolsets: [repos, issues]
+```
+
+### Tool-to-Toolset Mapping
+
+Use this table to identify which toolset contains the tools you need:
+
+| Legacy `allowed:` Tools | Migrate to `toolsets:` |
+|-------------------------|------------------------|
+| `get_me`, `get_teams`, `get_team_members` | `context` |
+| `get_repository`, `get_file_contents`, `search_code`, `list_commits` | `repos` |
+| `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues` | `issues` |
+| `pull_request_read`, `list_pull_requests`, `create_pull_request` | `pull_requests` |
+| `list_workflows`, `list_workflow_runs`, `get_workflow_run` | `actions` |
+| `list_code_scanning_alerts`, `get_code_scanning_alert` | `code_security` |
+| `list_discussions`, `create_discussion` | `discussions` |
+| `get_label`, `list_labels`, `create_label` | `labels` |
+| `get_user`, `list_users` | `users` |
+| Mixed repos/issues/PRs tools | `[default]` |
+| All tools | `[all]` |
+
+### Quick Migration Steps
+
+1. **Identify tools in use**: Review your current `allowed:` list
+2. **Map to toolsets**: Use the table above to find corresponding toolsets
+3. **Replace configuration**: Change `allowed:` to `toolsets:`
+4. **Test**: Run `gh aw mcp inspect <workflow>` to verify tools are available
+5. **Compile**: Run `gh aw compile` to update the lock file
+
+## Legacy Support: Allowed Pattern
+
+:::caution[Legacy Pattern]
+The `allowed:` pattern is legacy and should only be used for:
+- Custom MCP servers (non-GitHub)
+- Gradual migration of existing workflows
+- Temporary restriction of specific tools within a toolset
+
+For GitHub tools, always prefer `toolsets:` over `allowed:`.
+:::
+
+The `allowed:` field can still be used to restrict tools for custom MCP servers:
+
+```yaml
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    allowed: ["search_pages", "get_page"]  # Fine for custom MCP servers
+```
+
+For GitHub tools, `allowed:` can be combined with `toolsets:` to further restrict access, but this pattern is not recommended for new workflows.
 
 ## Troubleshooting
 
