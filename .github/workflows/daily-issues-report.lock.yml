@@ -45,6 +45,7 @@
 #     category: "General"
 #     title-prefix: "[daily issues] "
 #     max: 1
+#     close-older-discussions: true
 #   close-discussion:
 #     max: 10
 # timeout-minutes: 30
@@ -6714,6 +6715,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "[daily issues] "
           GH_AW_DISCUSSION_CATEGORY: "General"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Daily Issues Report Generator"
           GH_AW_TRACKER_ID: "daily-issues-report"
         with:
