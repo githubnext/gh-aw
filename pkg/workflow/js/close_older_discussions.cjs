@@ -43,8 +43,8 @@ async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, 
 
   const result = await github.graphql(
     `
-    query($query: String!, $first: Int!) {
-      search(query: $query, type: DISCUSSION, first: $first) {
+    query($searchTerms: String!, $first: Int!) {
+      search(query: $searchTerms, type: DISCUSSION, first: $first) {
         nodes {
           ... on Discussion {
             id
@@ -64,7 +64,7 @@ async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, 
         }
       }
     }`,
-    { query: searchQuery, first: 50 }
+    { searchTerms: searchQuery, first: 50 }
   );
 
   if (!result || !result.search || !result.search.nodes) {
