@@ -188,14 +188,27 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use claude command directly (installed via npm install -g)
-	commandParts := []string{"claude"}
-	commandParts = append(commandParts, claudeArgs...)
-	commandParts = append(commandParts, promptCommand)
-
-	// Join command parts with proper escaping using shellJoinArgs helper
-	// This handles already-quoted arguments correctly and prevents double-escaping
-	claudeCommand := shellJoinArgs(commandParts)
+	var claudeCommand string
+	if isFirewallEnabled(workflowData) {
+		// When firewall is enabled, use npx to run Claude CLI
+		// This ensures the CLI is accessible within the AWF container
+		claudeVersion := string(constants.DefaultClaudeCodeVersion)
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+			claudeVersion = workflowData.EngineConfig.Version
+		}
+		// Build command with npx -y for automatic download
+		commandParts := []string{fmt.Sprintf("npx -y @anthropic-ai/claude-code@%s", claudeVersion)}
+		commandParts = append(commandParts, claudeArgs...)
+		commandParts = append(commandParts, promptCommand)
+		claudeCommand = shellJoinArgs(commandParts)
+		claudeLog.Printf("Using npx to run Claude CLI with firewall: %s", claudeVersion)
+	} else {
+		// Use claude command directly (installed via npm install -g)
+		commandParts := []string{"claude"}
+		commandParts = append(commandParts, claudeArgs...)
+		commandParts = append(commandParts, promptCommand)
+		claudeCommand = shellJoinArgs(commandParts)
+	}
 
 	// Conditionally wrap with AWF if firewall is enabled
 	if isFirewallEnabled(workflowData) {
