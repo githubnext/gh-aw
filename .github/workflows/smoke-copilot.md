@@ -15,6 +15,7 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
+  model: gpt-5-mini
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 network:
@@ -94,7 +95,7 @@ post-steps:
       docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null || true
   - name: Upload Playwright Debug Logs
     if: always()
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v5
     with:
       name: playwright-debug-logs-${{ github.run_id }}
       path: /tmp/gh-aw/playwright-debug-logs/
