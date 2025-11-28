@@ -1,4 +1,10 @@
 ---
+inputs:
+  count:
+    description: Maximum number of discussions to fetch
+    type: number
+    default: 100
+
 tools:
   cache-memory:
     key: discussions-data
@@ -16,6 +22,7 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_AW_DISCUSSIONS_COUNT: ${{ github.aw.inputs.count }}
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/discussions-data
@@ -116,7 +123,18 @@ steps:
           HAS_NEXT_PAGE=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.hasNextPage')
           CURSOR=$(echo "$RESULT" | jq -r '.data.repository.discussions.pageInfo.endCursor')
           
-          # Safety check - break after 10 pages (1000 discussions)
+          # Check if we've reached the requested count
+          CURRENT_COUNT=$(jq 'length' "$DISCUSSIONS_FILE")
+          MAX_COUNT="${GH_AW_DISCUSSIONS_COUNT:-100}"
+          if [ "$CURRENT_COUNT" -ge "$MAX_COUNT" ]; then
+            echo "Reached requested discussion count ($MAX_COUNT)"
+            # Trim to exact count if we have more
+            jq --argjson max "$MAX_COUNT" '.[:$max]' "$DISCUSSIONS_FILE" > /tmp/gh-aw/trimmed.json
+            mv /tmp/gh-aw/trimmed.json "$DISCUSSIONS_FILE"
+            break
+          fi
+          
+          # Safety check - break after 10 pages (1000 discussions max regardless of count)
           PAGE_COUNT=$((PAGE_COUNT + 1))
           if [ $PAGE_COUNT -ge 10 ]; then
             echo "Reached pagination limit (10 pages)"

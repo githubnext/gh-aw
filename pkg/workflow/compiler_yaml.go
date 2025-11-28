@@ -674,6 +674,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
+	// Substitute import inputs before expression extraction
+	// This replaces ${{ github.aw.inputs.<key> }} with actual values from imports
+	if len(data.ImportInputs) > 0 {
+		cleanedMarkdownContent = SubstituteImportInputs(cleanedMarkdownContent, data.ImportInputs)
+	}
+
 	// Extract expressions and create environment variable mappings for security
 	extractor := NewExpressionExtractor()
 	expressionMappings, err := extractor.ExtractExpressions(cleanedMarkdownContent)
