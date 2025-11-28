@@ -136,7 +136,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			filteredToolsJSON = "[]"
 		}
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'\n")
-		yaml.WriteString("          " + filteredToolsJSON + "\n")
+		// Write each line of the indented JSON with proper YAML indentation
+		for _, line := range strings.Split(filteredToolsJSON, "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
 		yaml.WriteString("          EOF\n")
 
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
