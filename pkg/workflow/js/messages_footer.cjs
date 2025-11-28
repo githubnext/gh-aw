@@ -85,12 +85,18 @@ function generateXMLMarker(workflowName, runUrl) {
   const engineId = process.env.GH_AW_ENGINE_ID || "";
   const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
   const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+  const trackerId = process.env.GH_AW_TRACKER_ID || "";
 
   // Build the key-value pairs for the marker
   const parts = [];
 
   // Always include agentic-workflow name
   parts.push(`agentic-workflow: ${workflowName}`);
+
+  // Add tracker-id if available (for searchability and tracing)
+  if (trackerId) {
+    parts.push(`tracker-id: ${trackerId}`);
+  }
 
   // Add engine ID if available
   if (engineId) {

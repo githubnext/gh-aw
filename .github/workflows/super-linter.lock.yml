@@ -5067,8 +5067,12 @@ jobs:
               const engineId = process.env.GH_AW_ENGINE_ID || "";
               const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
               const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
               const parts = [];
               parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
               if (engineId) {
                 parts.push(`engine: ${engineId}`);
               }

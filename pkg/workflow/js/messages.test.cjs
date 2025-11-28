@@ -30,6 +30,7 @@ describe("messages.cjs", () => {
     delete process.env.GH_AW_ENGINE_ID;
     delete process.env.GH_AW_ENGINE_VERSION;
     delete process.env.GH_AW_ENGINE_MODEL;
+    delete process.env.GH_AW_TRACKER_ID;
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -422,6 +423,42 @@ describe("messages.cjs", () => {
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_ENGINE_VERSION;
       delete process.env.GH_AW_ENGINE_MODEL;
+    });
+
+    it("should include tracker-id when env var is set", async () => {
+      process.env.GH_AW_TRACKER_ID = "my-tracker-12345";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_TRACKER_ID;
+    });
+
+    it("should include tracker-id with engine metadata when all env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+      process.env.GH_AW_TRACKER_ID = "workflow-2024-q1";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
+      delete process.env.GH_AW_TRACKER_ID;
     });
   });
 
