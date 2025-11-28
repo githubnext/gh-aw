@@ -59,7 +59,7 @@ steps:
           RESULT=$(gh api graphql -f query="
             query {
               repository(owner: \"${{ github.repository_owner }}\", name: \"${{ github.event.repository.name }}\") {
-                discussions(first: 100, states: OPEN${CURSOR_ARG}) {
+                discussions(first: 100, states: [OPEN]${CURSOR_ARG}) {
                   pageInfo {
                     hasNextPage
                     endCursor
