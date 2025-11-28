@@ -10,7 +10,7 @@ func BenchmarkValidateExpression(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, agenticsInputsRegex, envRegex, &[]string{})
 	}
 }
 
@@ -20,7 +20,7 @@ func BenchmarkValidateExpression_Complex(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, agenticsInputsRegex, envRegex, &[]string{})
 	}
 }
 
@@ -30,7 +30,7 @@ func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, agenticsInputsRegex, envRegex, &[]string{})
 	}
 }
 
@@ -40,7 +40,7 @@ func BenchmarkValidateExpression_StepsOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &[]string{})
+		_ = validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, agenticsInputsRegex, envRegex, &[]string{})
 	}
 }
 

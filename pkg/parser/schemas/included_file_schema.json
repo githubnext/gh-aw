@@ -7,6 +7,49 @@
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
       "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
     },
+    "inputs": {
+      "type": "object",
+      "description": "Input parameters for the shared workflow. Uses the same schema as workflow_dispatch inputs. Values can be referenced in the workflow using ${{ github.agentics.inputs.<key> }} expressions.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Input description"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether input is required"
+          },
+          "default": {
+            "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }],
+            "description": "Default value for the input"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["string", "choice", "boolean", "number"],
+            "description": "Input type"
+          },
+          "options": {
+            "type": "array",
+            "description": "Options for choice type",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "count": {
+            "description": "Number of items to fetch",
+            "type": "number",
+            "default": 100
+          }
+        }
+      ]
+    },
     "applyTo": {
       "oneOf": [
         {

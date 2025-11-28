@@ -80,19 +80,26 @@ func isMCPType(typeStr string) bool {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools         string   // Merged tools configuration from all imports
-	MergedMCPServers    string   // Merged mcp-servers configuration from all imports
-	MergedEngines       []string // Merged engine configurations from all imports
-	MergedSafeOutputs   []string // Merged safe-outputs configurations from all imports
-	MergedMarkdown      string   // Merged markdown content from all imports
-	MergedSteps         string   // Merged steps configuration from all imports
-	MergedRuntimes      string   // Merged runtimes configuration from all imports
-	MergedServices      string   // Merged services configuration from all imports
-	MergedNetwork       string   // Merged network configuration from all imports
-	MergedPermissions   string   // Merged permissions configuration from all imports
-	MergedSecretMasking string   // Merged secret-masking steps from all imports
-	ImportedFiles       []string // List of imported file paths (for manifest)
-	AgentFile           string   // Path to custom agent file (if imported)
+	MergedTools         string         // Merged tools configuration from all imports
+	MergedMCPServers    string         // Merged mcp-servers configuration from all imports
+	MergedEngines       []string       // Merged engine configurations from all imports
+	MergedSafeOutputs   []string       // Merged safe-outputs configurations from all imports
+	MergedMarkdown      string         // Merged markdown content from all imports
+	MergedSteps         string         // Merged steps configuration from all imports
+	MergedRuntimes      string         // Merged runtimes configuration from all imports
+	MergedServices      string         // Merged services configuration from all imports
+	MergedNetwork       string         // Merged network configuration from all imports
+	MergedPermissions   string         // Merged permissions configuration from all imports
+	MergedSecretMasking string         // Merged secret-masking steps from all imports
+	ImportedFiles       []string       // List of imported file paths (for manifest)
+	AgentFile           string         // Path to custom agent file (if imported)
+	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
+}
+
+// ImportSpec represents a single import specification (either a string path or an object with path and inputs)
+type ImportSpec struct {
+	Path   string         // Import path (required)
+	Inputs map[string]any // Optional input values to pass to the imported workflow
 }
 
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
@@ -107,10 +114,11 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 
 // importQueueItem represents a file to be imported with its context
 type importQueueItem struct {
-	importPath  string // Original import path (e.g., "file.md" or "file.md#Section")
-	fullPath    string // Resolved absolute file path
-	sectionName string // Optional section name (from file.md#Section syntax)
-	baseDir     string // Base directory for resolving nested imports
+	importPath  string         // Original import path (e.g., "file.md" or "file.md#Section")
+	fullPath    string         // Resolved absolute file path
+	sectionName string         // Optional section name (from file.md#Section syntax)
+	baseDir     string         // Base directory for resolving nested imports
+	inputs      map[string]any // Optional input values from parent import
 }
 
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
@@ -125,26 +133,51 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 	log.Print("Processing imports from frontmatter with recursive BFS")
 
-	// Convert to array of strings
-	var imports []string
+	// Parse imports field - can be array of strings or objects with path and inputs
+	var importSpecs []ImportSpec
 	switch v := importsField.(type) {
 	case []any:
 		for _, item := range v {
-			if str, ok := item.(string); ok {
-				imports = append(imports, str)
+			switch importItem := item.(type) {
+			case string:
+				// Simple string import
+				importSpecs = append(importSpecs, ImportSpec{Path: importItem})
+			case map[string]any:
+				// Object import with path and optional inputs
+				pathValue, hasPath := importItem["path"]
+				if !hasPath {
+					return nil, fmt.Errorf("import object must have a 'path' field")
+				}
+				pathStr, ok := pathValue.(string)
+				if !ok {
+					return nil, fmt.Errorf("import 'path' must be a string")
+				}
+				var inputs map[string]any
+				if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
+					if inputsMap, ok := inputsValue.(map[string]any); ok {
+						inputs = inputsMap
+					} else {
+						return nil, fmt.Errorf("import 'inputs' must be an object")
+					}
+				}
+				importSpecs = append(importSpecs, ImportSpec{Path: pathStr, Inputs: inputs})
+			default:
+				return nil, fmt.Errorf("import item must be a string or an object with 'path' field")
 			}
 		}
 	case []string:
-		imports = v
+		for _, s := range v {
+			importSpecs = append(importSpecs, ImportSpec{Path: s})
+		}
 	default:
-		return nil, fmt.Errorf("imports field must be an array of strings")
+		return nil, fmt.Errorf("imports field must be an array of strings or objects")
 	}
 
-	if len(imports) == 0 {
+	if len(importSpecs) == 0 {
 		return &ImportsResult{}, nil
 	}
 
-	log.Printf("Found %d direct imports to process", len(imports))
+	log.Printf("Found %d direct imports to process", len(importSpecs))
 
 	// Initialize BFS queue and visited set for cycle detection
 	var queue []importQueueItem
@@ -163,10 +196,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var secretMaskingBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
-	var agentFile string // Track custom agent file
+	var agentFile string                 // Track custom agent file
+	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
-	for _, importPath := range imports {
+	for _, importSpec := range importSpecs {
+		importPath := importSpec.Path
 		// Handle section references (file.md#Section)
 		var filePath, sectionName string
 		if strings.Contains(importPath, "#") {
@@ -191,6 +226,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 				fullPath:    fullPath,
 				sectionName: sectionName,
 				baseDir:     baseDir,
+				inputs:      importSpec.Inputs,
 			})
 			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		}
@@ -203,6 +239,11 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		queue = queue[1:]
 
 		log.Printf("Processing import from queue: %s", item.fullPath)
+
+		// Merge inputs from this import into the aggregated inputs map
+		for k, v := range item.inputs {
+			importInputs[k] = v
+		}
 
 		// Add to processing order
 		processedOrder = append(processedOrder, item.importPath)
@@ -402,6 +443,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedSecretMasking: secretMaskingBuilder.String(),
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
+		ImportInputs:        importInputs,
 	}, nil
 }
 
