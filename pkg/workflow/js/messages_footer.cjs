@@ -8,7 +8,7 @@
  * for safe-output workflows.
  */
 
-const { getMessages, renderTemplate, toSnakeCase } = require("./core.cjs");
+const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
 
 /**
  * @typedef {Object} FooterContext

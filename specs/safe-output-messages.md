@@ -887,23 +887,24 @@ The message system is split into modular files for better maintainability and to
 ### Module Structure
 
 ```
-pkg/workflow/js/messages/
-├── core.cjs              # Core utilities (getMessages, renderTemplate, toSnakeCase)
-├── footer.cjs            # Footer messages (getFooterMessage, getFooterInstallMessage, generateFooterWithMessages)
-├── staged.cjs            # Staged mode messages (getStagedTitle, getStagedDescription)
-├── run_status.cjs        # Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
-└── close_discussion.cjs  # Close discussion messages (getCloseOlderDiscussionMessage)
+pkg/workflow/js/
+├── messages_core.cjs              # Core utilities (getMessages, renderTemplate, toSnakeCase)
+├── messages_footer.cjs            # Footer messages (getFooterMessage, getFooterInstallMessage, generateFooterWithMessages)
+├── messages_staged.cjs            # Staged mode messages (getStagedTitle, getStagedDescription)
+├── messages_run_status.cjs        # Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
+├── messages_close_discussion.cjs  # Close discussion messages (getCloseOlderDiscussionMessage)
+└── messages.cjs                   # Barrel file for backward compatibility
 ```
 
 ### Module Descriptions
 
 | Module | Purpose | Exported Functions |
 |--------|---------|-------------------|
-| `core.cjs` | Shared utilities for message processing | `getMessages`, `renderTemplate`, `toSnakeCase` |
-| `footer.cjs` | AI attribution and installation footers | `getFooterMessage`, `getFooterInstallMessage`, `generateFooterWithMessages` |
-| `staged.cjs` | Staged mode preview messages | `getStagedTitle`, `getStagedDescription` |
-| `run_status.cjs` | Workflow run status notifications | `getRunStartedMessage`, `getRunSuccessMessage`, `getRunFailureMessage` |
-| `close_discussion.cjs` | Outdated discussion closing | `getCloseOlderDiscussionMessage` |
+| `messages_core.cjs` | Shared utilities for message processing | `getMessages`, `renderTemplate`, `toSnakeCase` |
+| `messages_footer.cjs` | AI attribution and installation footers | `getFooterMessage`, `getFooterInstallMessage`, `generateFooterWithMessages` |
+| `messages_staged.cjs` | Staged mode preview messages | `getStagedTitle`, `getStagedDescription` |
+| `messages_run_status.cjs` | Workflow run status notifications | `getRunStartedMessage`, `getRunSuccessMessage`, `getRunFailureMessage` |
+| `messages_close_discussion.cjs` | Outdated discussion closing | `getCloseOlderDiscussionMessage` |
 
 ### Importing Messages
 
@@ -918,20 +919,20 @@ For new code, prefer importing directly from specific modules to reduce bundle s
 
 ```javascript
 // Direct import for footer messages only
-const { generateFooterWithMessages } = require("./messages/footer.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 
 // Direct import for run status only
-const { getRunSuccessMessage, getRunFailureMessage } = require("./messages/run_status.cjs");
+const { getRunSuccessMessage, getRunFailureMessage } = require("./messages_run_status.cjs");
 
 // Direct import for staged mode only
-const { getStagedTitle, getStagedDescription } = require("./messages/staged.cjs");
+const { getStagedTitle, getStagedDescription } = require("./messages_staged.cjs");
 ```
 
 ### Bundling Behavior
 
 The JavaScript bundler (in `pkg/workflow/bundler.go`) handles these imports during workflow compilation:
 - Local `require()` statements are resolved and inlined
-- Shared utilities from `core.cjs` are inlined once and deduplicated
+- Shared utilities from `messages_core.cjs` are inlined once and deduplicated
 - Only the required modules are included in the final bundle
 
 ---

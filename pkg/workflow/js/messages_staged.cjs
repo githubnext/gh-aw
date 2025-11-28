@@ -8,7 +8,7 @@
  * for safe-output preview functionality.
  */
 
-const { getMessages, renderTemplate, toSnakeCase } = require("./core.cjs");
+const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
 
 /**
  * @typedef {Object} StagedContext

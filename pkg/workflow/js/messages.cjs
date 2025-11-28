@@ -8,11 +8,11 @@
  * It provides backward compatibility for existing code that imports from messages.cjs.
  *
  * For new code, prefer importing directly from the specific modules:
- * - ./messages/core.cjs - Core utilities (getMessages, renderTemplate, toSnakeCase)
- * - ./messages/footer.cjs - Footer messages (getFooterMessage, getFooterInstallMessage, generateFooterWithMessages)
- * - ./messages/staged.cjs - Staged mode messages (getStagedTitle, getStagedDescription)
- * - ./messages/run_status.cjs - Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
- * - ./messages/close_discussion.cjs - Close discussion messages (getCloseOlderDiscussionMessage)
+ * - ./messages_core.cjs - Core utilities (getMessages, renderTemplate, toSnakeCase)
+ * - ./messages_footer.cjs - Footer messages (getFooterMessage, getFooterInstallMessage, generateFooterWithMessages)
+ * - ./messages_staged.cjs - Staged mode messages (getStagedTitle, getStagedDescription)
+ * - ./messages_run_status.cjs - Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
+ * - ./messages_close_discussion.cjs - Close discussion messages (getCloseOlderDiscussionMessage)
  *
  * Supported placeholders:
  * - {workflow_name} - Name of the workflow
@@ -28,19 +28,19 @@
  */
 
 // Re-export core utilities
-const { getMessages, renderTemplate } = require("./messages/core.cjs");
+const { getMessages, renderTemplate } = require("./messages_core.cjs");
 
 // Re-export footer messages
-const { getFooterMessage, getFooterInstallMessage, generateFooterWithMessages } = require("./messages/footer.cjs");
+const { getFooterMessage, getFooterInstallMessage, generateFooterWithMessages } = require("./messages_footer.cjs");
 
 // Re-export staged mode messages
-const { getStagedTitle, getStagedDescription } = require("./messages/staged.cjs");
+const { getStagedTitle, getStagedDescription } = require("./messages_staged.cjs");
 
 // Re-export run status messages
-const { getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage } = require("./messages/run_status.cjs");
+const { getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage } = require("./messages_run_status.cjs");
 
 // Re-export close discussion messages
-const { getCloseOlderDiscussionMessage } = require("./messages/close_discussion.cjs");
+const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 
 module.exports = {
   getMessages,

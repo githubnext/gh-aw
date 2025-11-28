@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getCloseOlderDiscussionMessage } = require("./messages.cjs");
+const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 
 /**
  * Maximum number of older discussions to close

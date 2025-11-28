@@ -141,19 +141,19 @@ var getTrackerIDScript string
 //go:embed js/messages.cjs
 var messagesScript string
 
-//go:embed js/messages/core.cjs
+//go:embed js/messages_core.cjs
 var messagesCoreScript string
 
-//go:embed js/messages/footer.cjs
+//go:embed js/messages_footer.cjs
 var messagesFooterScript string
 
-//go:embed js/messages/staged.cjs
+//go:embed js/messages_staged.cjs
 var messagesStagedScript string
 
-//go:embed js/messages/run_status.cjs
+//go:embed js/messages_run_status.cjs
 var messagesRunStatusScript string
 
-//go:embed js/messages/close_discussion.cjs
+//go:embed js/messages_close_discussion.cjs
 var messagesCloseDiscussionScript string
 
 //go:embed js/close_older_discussions.cjs
@@ -213,11 +213,11 @@ func GetJavaScriptSources() map[string]string {
 		"generate_footer.cjs":             generateFooterScript,
 		"get_tracker_id.cjs":              getTrackerIDScript,
 		"messages.cjs":                    messagesScript,
-		"messages/core.cjs":               messagesCoreScript,
-		"messages/footer.cjs":             messagesFooterScript,
-		"messages/staged.cjs":             messagesStagedScript,
-		"messages/run_status.cjs":         messagesRunStatusScript,
-		"messages/close_discussion.cjs":   messagesCloseDiscussionScript,
+		"messages_core.cjs":               messagesCoreScript,
+		"messages_footer.cjs":             messagesFooterScript,
+		"messages_staged.cjs":             messagesStagedScript,
+		"messages_run_status.cjs":         messagesRunStatusScript,
+		"messages_close_discussion.cjs":   messagesCloseDiscussionScript,
 		"close_older_discussions.cjs":     closeOlderDiscussionsScript,
 		"get_repository_url.cjs":          getRepositoryUrlScript,
 		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,

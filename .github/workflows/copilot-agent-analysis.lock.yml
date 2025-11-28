@@ -5269,74 +5269,6 @@ jobs:
               }
               return result;
             }
-            function getFooterMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
-              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-              if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-              }
-              return footer;
-            }
-            function getFooterInstallMessage(ctx) {
-              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-                return "";
-              }
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
-            }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let triggeringNumber;
-              if (triggeringIssueNumber) {
-                triggeringNumber = triggeringIssueNumber;
-              } else if (triggeringPRNumber) {
-                triggeringNumber = triggeringPRNumber;
-              } else if (triggeringDiscussionNumber) {
-                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-              }
-              const ctx = {
-                workflowName,
-                runUrl,
-                workflowSource,
-                workflowSourceUrl: workflowSourceURL,
-                triggeringNumber,
-              };
-              let footer = "\n\n" + getFooterMessage(ctx);
-              const installMessage = getFooterInstallMessage(ctx);
-              if (installMessage) {
-                footer += "\n>\n" + installMessage;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getStagedTitle(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
-              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
-            }
-            function getStagedDescription(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
-              return messages?.stagedDescription
-                ? renderTemplate(messages.stagedDescription, templateContext)
-                : renderTemplate(defaultDescription, templateContext);
-            }
             function getRunStartedMessage(ctx) {
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
@@ -5354,16 +5286,6 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getCloseOlderDiscussionMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
-            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
-            Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
@@ -5606,92 +5528,6 @@ jobs:
                 result[key] = value;
               }
               return result;
-            }
-            function getFooterMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
-              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-              if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-              }
-              return footer;
-            }
-            function getFooterInstallMessage(ctx) {
-              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-                return "";
-              }
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
-            }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let triggeringNumber;
-              if (triggeringIssueNumber) {
-                triggeringNumber = triggeringIssueNumber;
-              } else if (triggeringPRNumber) {
-                triggeringNumber = triggeringPRNumber;
-              } else if (triggeringDiscussionNumber) {
-                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-              }
-              const ctx = {
-                workflowName,
-                runUrl,
-                workflowSource,
-                workflowSourceUrl: workflowSourceURL,
-                triggeringNumber,
-              };
-              let footer = "\n\n" + getFooterMessage(ctx);
-              const installMessage = getFooterInstallMessage(ctx);
-              if (installMessage) {
-                footer += "\n>\n" + installMessage;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getStagedTitle(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
-              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
-            }
-            function getStagedDescription(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
-              return messages?.stagedDescription
-                ? renderTemplate(messages.stagedDescription, templateContext)
-                : renderTemplate(defaultDescription, templateContext);
-            }
-            function getRunStartedMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
-              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunSuccessMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
-              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
-              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function getCloseOlderDiscussionMessage(ctx) {
               const messages = getMessages();
