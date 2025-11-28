@@ -458,6 +458,38 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
+	// Lint MCP configurations for legacy patterns
+	log.Printf("Linting MCP configurations for legacy patterns")
+	if lintWarnings := LintMCPAllowedPattern(workflowData.Tools); len(lintWarnings) > 0 {
+		for _, warning := range lintWarnings {
+			if c.strictMode {
+				// In strict mode, legacy allowed patterns are errors
+				formattedErr := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   markdownPath,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "error",
+					Message: warning.Message,
+				})
+				return errors.New(formattedErr)
+			}
+			// In non-strict mode, emit a warning
+			formattedWarning := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "warning",
+				Message: warning.Message,
+			})
+			fmt.Fprintln(os.Stderr, formattedWarning)
+			c.IncrementWarningCount()
+		}
+	}
+
 	// Validate permissions for agentic-workflows tool
 	log.Printf("Validating permissions for agentic-workflows tool")
 	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {

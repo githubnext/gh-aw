@@ -279,3 +279,173 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 	return nil
 }
+
+// MCPLintWarning represents a linter warning for MCP configuration
+type MCPLintWarning struct {
+	ToolName    string   // The MCP tool name (e.g., "github")
+	Message     string   // Warning message describing the issue
+	Suggestion  string   // Suggested fix (e.g., recommended toolsets configuration)
+	AllowedList []string // The list of tools in the 'allowed' field
+	Toolsets    []string // The recommended toolsets to use
+}
+
+// LintMCPAllowedPattern checks for legacy 'allowed' patterns in GitHub MCP configurations
+// and suggests migration to 'toolsets' approach. Returns nil if no issues found.
+func LintMCPAllowedPattern(tools map[string]any) []MCPLintWarning {
+	mcpValidationLog.Printf("Linting MCP configurations for %d tools", len(tools))
+
+	var warnings []MCPLintWarning
+
+	// Only check the "github" tool for now, as it's the primary MCP server
+	// that uses the allowed/toolsets pattern
+	githubTool, hasGitHub := tools["github"]
+	if !hasGitHub {
+		mcpValidationLog.Print("No GitHub tool found, skipping allowed pattern lint")
+		return nil
+	}
+
+	// Check if it's a map configuration
+	githubConfig, ok := githubTool.(map[string]any)
+	if !ok {
+		// github: true or github: null - not using allowed pattern
+		mcpValidationLog.Print("GitHub tool is not a map configuration, skipping")
+		return nil
+	}
+
+	// Check for 'allowed' field
+	allowedField, hasAllowed := githubConfig["allowed"]
+	if !hasAllowed {
+		mcpValidationLog.Print("No 'allowed' field found in GitHub configuration")
+		return nil
+	}
+
+	// Check if toolsets is already configured
+	_, hasToolsets := githubConfig["toolsets"]
+	if hasToolsets {
+		// Already using toolsets, no need to warn
+		mcpValidationLog.Print("GitHub tool already has 'toolsets' configured")
+		return nil
+	}
+
+	// Extract allowed tools list
+	var allowedTools []string
+	switch v := allowedField.(type) {
+	case []any:
+		for _, tool := range v {
+			if toolStr, ok := tool.(string); ok {
+				allowedTools = append(allowedTools, toolStr)
+			}
+		}
+	case []string:
+		allowedTools = v
+	default:
+		// Invalid format, skip linting
+		mcpValidationLog.Printf("Invalid 'allowed' field type: %T", allowedField)
+		return nil
+	}
+
+	if len(allowedTools) == 0 {
+		return nil
+	}
+
+	// Generate toolset suggestions based on allowed tools
+	suggestedToolsets := suggestToolsetsFromAllowedTools(allowedTools)
+
+	// Build the warning
+	warning := MCPLintWarning{
+		ToolName:    "github",
+		AllowedList: allowedTools,
+		Toolsets:    suggestedToolsets,
+	}
+
+	warning.Message = buildLintWarningMessage(allowedTools, suggestedToolsets)
+	warning.Suggestion = buildLintSuggestion(suggestedToolsets)
+
+	mcpValidationLog.Printf("Generated lint warning for 'allowed' pattern with %d tools -> %d toolsets",
+		len(allowedTools), len(suggestedToolsets))
+
+	warnings = append(warnings, warning)
+	return warnings
+}
+
+// suggestToolsetsFromAllowedTools analyzes allowed tools and suggests equivalent toolsets
+func suggestToolsetsFromAllowedTools(allowedTools []string) []string {
+	// Use the existing GitHubToolToToolsetMap to determine required toolsets
+	toolsetSet := make(map[string]bool)
+	unknownTools := []string{}
+
+	for _, tool := range allowedTools {
+		if toolset, exists := GitHubToolToToolsetMap[tool]; exists {
+			toolsetSet[toolset] = true
+		} else {
+			unknownTools = append(unknownTools, tool)
+		}
+	}
+
+	// Convert set to sorted slice
+	toolsets := make([]string, 0, len(toolsetSet))
+	for toolset := range toolsetSet {
+		toolsets = append(toolsets, toolset)
+	}
+	sort.Strings(toolsets)
+
+	// If there are unknown tools, log them
+	if len(unknownTools) > 0 {
+		mcpValidationLog.Printf("Unknown tools not mapped to toolsets: %v", unknownTools)
+	}
+
+	return toolsets
+}
+
+// buildLintWarningMessage creates a formatted warning message for the lint issue
+func buildLintWarningMessage(allowedTools []string, suggestedToolsets []string) string {
+	var sb strings.Builder
+
+	sb.WriteString("Legacy 'allowed' pattern detected in GitHub MCP configuration.\n")
+	sb.WriteString("Consider migrating to 'toolsets' for better maintainability.\n\n")
+
+	sb.WriteString("Current configuration uses:\n")
+	sb.WriteString("  allowed: [")
+	for i, tool := range allowedTools {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(tool)
+	}
+	sb.WriteString("]\n\n")
+
+	if len(suggestedToolsets) > 0 {
+		sb.WriteString("Recommended migration:\n")
+		sb.WriteString("  toolsets: [")
+		for i, toolset := range suggestedToolsets {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(toolset)
+		}
+		sb.WriteString("]\n\n")
+	}
+
+	sb.WriteString("See https://githubnext.github.io/gh-aw/reference/mcp-servers/ for migration guide.")
+
+	return sb.String()
+}
+
+// buildLintSuggestion creates the suggested configuration snippet
+func buildLintSuggestion(toolsets []string) string {
+	if len(toolsets) == 0 {
+		return "toolsets: [default]"
+	}
+
+	var sb strings.Builder
+	sb.WriteString("toolsets: [")
+	for i, toolset := range toolsets {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(toolset)
+	}
+	sb.WriteString("]")
+
+	return sb.String()
+}
