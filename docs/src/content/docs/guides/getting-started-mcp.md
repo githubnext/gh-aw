@@ -9,14 +9,7 @@ This guide walks you through integrating MCP servers with GitHub Agentic Workflo
 
 ## What is MCP?
 
-Model Context Protocol (MCP) is a standardized protocol that enables AI agents to securely connect to external tools, databases, and APIs. In agentic workflows, MCP servers provide the "hands and eyes" that allow AI to:
-
-- Access GitHub repositories, issues, and pull requests
-- Query databases and external APIs
-- Search the web and fetch content
-- Interact with third-party services like Notion, Slack, and Datadog
-
-Think of MCP servers as specialized adapters—each one connects your AI agent to a specific set of capabilities.
+Model Context Protocol (MCP) is a standardized protocol that enables AI agents to connect to external tools, databases, and APIs. MCP servers act as specialized adapters, giving agents access to GitHub, web search, databases, and third-party services like Notion, Slack, and Datadog.
 
 ## Quick Start
 
@@ -64,8 +57,6 @@ You now have a working MCP integration. The agent can read issues, search reposi
 
 ## Configuration Patterns
 
-Agentic workflows support two patterns for configuring MCP tools. Understanding when to use each pattern ensures stable, maintainable workflows.
-
 ### Toolsets Pattern (Recommended)
 
 Use `toolsets:` to enable groups of related GitHub tools:
@@ -76,7 +67,7 @@ tools:
     toolsets: [default]  # Includes repos, issues, pull_requests, users, context
 ```
 
-Toolsets are the recommended approach because individual tool names may change between MCP server versions, but toolsets remain stable.
+Toolsets remain stable across MCP server versions, while individual tool names may change.
 
 **Common toolset combinations:**
 
@@ -147,18 +138,12 @@ Local mode runs the MCP server in a Docker container, useful for pinning specifi
 
 ### Authentication
 
-Token precedence (highest to lowest):
-
-1. `github-token` field in configuration
-2. `GH_AW_GITHUB_TOKEN` secret
-3. `GITHUB_TOKEN` (default)
-
-Custom token configuration:
+Tokens are used in order: `github-token` configuration field, `GH_AW_GITHUB_TOKEN` secret, then `GITHUB_TOKEN` (default).
 
 ```yaml wrap
 tools:
   github:
-    github-token: "${{ secrets.CUSTOM_PAT }}"
+    github-token: "${{ secrets.CUSTOM_PAT }}"  # Optional custom token
     toolsets: [default]
 ```
 
@@ -175,27 +160,22 @@ tools:
 
 ## MCP Registry
 
-The GitHub MCP registry provides a centralized catalog of MCP servers that you can add to your workflows with a single command.
+The GitHub MCP registry provides a centralized catalog of MCP servers.
 
-### Adding Servers from the Registry
-
-Use `gh aw mcp add` to discover and add MCP servers:
+### Adding Servers
 
 ```bash
 # Browse available MCP servers
 gh aw mcp add
 
-# Add a specific server to your workflow
+# Add a specific server
 gh aw mcp add my-workflow makenotion/notion-mcp-server
 
-# Add with a custom tool ID
+# Add with custom tool ID
 gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion
 ```
 
-The command automatically:
-1. Searches the registry (default: `https://api.mcp.github.com/v0`)
-2. Adds the server configuration to your workflow
-3. Recompiles the workflow
+The command searches the registry, adds the server configuration, and recompiles the workflow.
 
 ### Registry-based Configuration
 
@@ -221,69 +201,34 @@ gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1
 
 ## Custom MCP Servers
 
-Extend your workflows with third-party MCP servers for services like databases, APIs, and specialized tools.
+Configure third-party MCP servers using commands, Docker containers, or HTTP endpoints:
 
-### Server Types
-
-**Command-based (stdio):**
 ```yaml wrap
 mcp-servers:
+  # Command-based (stdio)
   markitdown:
     command: "npx"
     args: ["-y", "markitdown-mcp"]
     allowed: ["*"]
-```
 
-**Docker containers:**
-```yaml wrap
-mcp-servers:
+  # Docker container
   ast-grep:
     container: "mcp/ast-grep:latest"
     allowed: ["*"]
-```
 
-**HTTP endpoints:**
-```yaml wrap
-mcp-servers:
-  microsoftdocs:
-    url: "https://learn.microsoft.com/api/mcp"
-    allowed: ["*"]
-```
-
-### Environment Variables
-
-Pass secrets and configuration to MCP servers:
-
-```yaml wrap
-mcp-servers:
+  # HTTP endpoint with auth
   slack:
-    command: "npx"
-    args: ["-y", "@slack/mcp-server"]
+    url: "https://api.slack.com/mcp"
     env:
       SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
-    allowed: ["send_message", "get_channel_history"]
-```
-
-### Network Restrictions
-
-Limit egress for containerized MCP servers:
-
-```yaml wrap
-mcp-servers:
-  custom-tool:
-    container: "mcp/custom-tool"
     network:
-      allowed: ["api.example.com"]
-    allowed: ["*"]
+      allowed: ["api.slack.com"]  # Optional egress restrictions
+    allowed: ["send_message", "get_channel_history"]
 ```
 
 ## Practical Examples
 
-These examples demonstrate progressively complex MCP configurations.
-
 ### Example 1: Basic Issue Triage
-
-A simple workflow using default GitHub toolsets:
 
 ```aw wrap
 ---
@@ -302,15 +247,10 @@ safe-outputs:
 
 # Issue Triage Agent
 
-Analyze issue #${{ github.event.issue.number }} and add a helpful comment with:
-- Category classification
-- Related issues
-- Suggested labels
+Analyze issue #${{ github.event.issue.number }} and add a comment with category, related issues, and suggested labels.
 ```
 
 ### Example 2: PR Review with Actions Data
-
-Access GitHub Actions data for CI-aware reviews:
 
 ```aw wrap
 ---
@@ -330,80 +270,10 @@ safe-outputs:
 
 # PR Review Agent
 
-Review pull request #${{ github.event.pull_request.number }}:
-1. Check recent workflow runs for failures
-2. Analyze code changes
-3. Provide feedback on potential issues
+Review PR #${{ github.event.pull_request.number }}, check workflow runs, analyze code changes, and provide feedback.
 ```
 
-### Example 3: Documentation Search
-
-Integrate external documentation sources:
-
-```aw wrap
----
-on:
-  issues:
-    types: [labeled]
-permissions:
-  contents: read
-  issues: read
-tools:
-  github:
-    toolsets: [default]
-mcp-servers:
-  microsoftdocs:
-    url: "https://learn.microsoft.com/api/mcp"
-    allowed: ["*"]
-safe-outputs:
-  add-comment:
----
-
-# Documentation Helper
-
-When an issue is labeled "docs-needed", search Microsoft documentation
-for relevant resources and add a helpful comment.
-```
-
-### Example 4: Multi-Service Integration
-
-Combine multiple MCP servers for complex workflows:
-
-```aw wrap
----
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-permissions:
-  contents: read
-  issues: write
-tools:
-  github:
-    toolsets: [default]
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/"
-    headers:
-      Authorization: "Bearer ${{ secrets.TAVILY_API_KEY }}"
-    allowed: ["*"]
-imports:
-  - shared/mcp/notion.md
-safe-outputs:
-  create-issue:
-    title-prefix: "[weekly] "
----
-
-# Weekly Research Agent
-
-Every Monday:
-1. Search the web for industry trends using Tavily
-2. Check Notion for team priorities
-3. Create a summary issue with findings
-```
-
-### Example 5: Security Scanning with Discussions
-
-Create detailed security reports using discussions:
+### Example 3: Multi-Service Integration
 
 ```aw wrap
 ---
@@ -425,97 +295,36 @@ safe-outputs:
 
 # Security Audit Agent
 
-Weekly security analysis:
-1. Review code scanning alerts
-2. Check for new vulnerabilities
-3. Create a discussion with findings and remediation suggestions
+Review code scanning alerts and create weekly security discussions with findings.
 ```
 
 ## Debugging MCP Configurations
 
-Use CLI tools to inspect and troubleshoot MCP configurations.
-
-### Inspect MCP Servers
-
-View all configured MCP servers:
+Inspect configured servers and available tools:
 
 ```bash
+# View all MCP servers
 gh aw mcp inspect my-workflow
-```
 
-Get detailed server information:
-
-```bash
+# Get detailed server information
 gh aw mcp inspect my-workflow --server github --verbose
-```
 
-### List Available Tools
-
-Discover tools from a specific MCP server:
-
-```bash
+# List available tools
 gh aw mcp list-tools github my-workflow
-```
 
-View tool details:
-
-```bash
-gh aw mcp inspect my-workflow --server github --tool list_issues
-```
-
-### Validate Configuration
-
-Check for configuration issues:
-
-```bash
-gh aw compile my-workflow --validate
-```
-
-Run with strict mode for production readiness:
-
-```bash
-gh aw compile my-workflow --strict
+# Validate configuration
+gh aw compile my-workflow --validate --strict
 ```
 
 ## Troubleshooting
 
-Common issues and solutions for MCP configurations.
+**Tool not found:** Run `gh aw mcp inspect my-workflow` to verify available tools. Ensure the correct toolset is enabled or that tool names in `allowed:` match exactly.
 
-### Tool Not Found
+**Authentication errors:** Verify the secret exists in repository settings and has required scopes. For remote mode, set `GH_AW_GITHUB_TOKEN` with a PAT.
 
-**Symptom:** Workflow fails with "tool not found" error.
+**Connection failures:** Check URL syntax for HTTP servers, network configuration for containers, and verify Docker images exist.
 
-**Solutions:**
-1. Check toolset coverage: Run `gh aw mcp inspect my-workflow` to see available tools.
-2. Add missing toolset: Include the appropriate toolset that contains the needed tool.
-3. For custom MCP servers: Verify the tool name in `allowed:` matches exactly.
-
-### Authentication Errors
-
-**Symptom:** MCP server returns 401 or authentication error.
-
-**Solutions:**
-1. Verify the secret exists: Check repository secrets in Settings.
-2. Check token permissions: Ensure the token has required scopes.
-3. For remote mode: Set `GH_AW_GITHUB_TOKEN` secret with a PAT.
-
-### Connection Failures
-
-**Symptom:** MCP server fails to connect or times out.
-
-**Solutions:**
-1. Verify URL syntax for HTTP servers.
-2. Check network configuration for containerized servers.
-3. For Docker-based servers: Ensure the container image exists.
-
-### Configuration Validation Errors
-
-**Symptom:** Compilation fails with validation errors.
-
-**Solutions:**
-1. Check YAML indentation and syntax.
-2. Verify `toolsets:` uses array format: `[default]` not `default`.
-3. For custom servers: Ensure `allowed:` is an array.
+**Validation errors:** Check YAML syntax, ensure `toolsets:` uses array format (`[default]` not `default`), and verify `allowed:` is an array.
 
 ## Next Steps
 

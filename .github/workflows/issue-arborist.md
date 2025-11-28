@@ -54,11 +54,6 @@ steps:
       echo "Schema of the issues data:"
       cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
 safe-outputs:
-  create-issue:
-    title-prefix: "[Parent] "
-    labels:
-      - "tracking"
-    max: 3
   link-sub-issue:
     max: 10
   create-discussion:
@@ -119,48 +114,34 @@ Examine the issues to identify potential parent-child relationships. Look for:
 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
 6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
 
-### Step 3: Create Parent Issues for Orphan Clusters (Only When No Existing Parent Found)
+### Step 3: Make Linking Decisions
 
-**Important**: Only create a new parent issue as a last resort. First, thoroughly search for an existing issue that could serve as a parent.
-
-If you detect a significant cluster of 3 or more related issues that:
-- Share a common theme, feature area, or goal
-- Would benefit from being organized under a parent issue
-- **AND you have confirmed no existing issue is suitable as a parent** (check for tracking issues, epics, or feature requests that could logically group these issues)
-
-Then, and only then, use the `create_issue` tool to create a new parent issue. The parent issue should:
-- Have a clear, descriptive title summarizing the cluster's theme
-- Include a checklist or summary of the related sub-issues
-- Use the "[Parent]" prefix and "tracking" label (automatically added)
-
-You can reference the issues you plan to link using their issue numbers (e.g., #123) in the parent issue body.
-
-### Step 4: Make Linking Decisions
-
-For each potential relationship (including newly created parent issues), evaluate:
+For each potential relationship, evaluate:
 - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
 - Are both issues in a state where linking makes sense?
 - Would linking improve organization and traceability?
 - Is the relationship strong enough to warrant a permanent link?
 
+**Important**: Only link sub-issues to **existing** parent issues. Do NOT create new parent issues. If you identify orphan clusters that would benefit from a parent issue, document them in the report as suggestions for maintainers to create manually.
+
 **Constraints:**
-- Maximum 3 new parent issues per run
 - Maximum 10 links per run (to avoid over-linking)
 - Only link if you are absolutely sure of the relationship - when in doubt, don't link
+- Only link to **existing** issues - do not create new parent issues
 - Prefer linking open issues
 - Parent issue should be broader in scope than sub-issue
 
-### Step 5: Execute Links
+### Step 4: Execute Links
 
-For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship. When linking to a newly created parent issue, use the temporary ID returned from the create_issue call.
+For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
 
-### Step 6: Report
+### Step 5: Report
 
 Create a discussion summarizing your analysis with:
 - Number of issues analyzed
-- New parent issues created (if any)
 - Relationships identified (even if not linked)
 - Links created with reasoning
+- **Suggested parent issues**: If you found orphan clusters that would benefit from a parent issue, suggest that maintainers create one manually
 - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
 
 ## Output Format
@@ -173,17 +154,19 @@ Your discussion should include:
 **Date**: [Current Date]
 **Issues Analyzed**: 100
 
-### New Parent Issues Created
-
-| Issue | Theme | Sub-Issues |
-|-------|-------|------------|
-| #X: [title] | [theme description] | #A, #B, #C |
-
 ### Links Created
 
 | Parent Issue | Sub-Issue | Reasoning |
 |-------------|-----------|-----------|
 | #X: [title] | #Y: [title] | [brief explanation] |
+
+### Suggested Parent Issues (For Manual Creation)
+
+If you identified orphan clusters that would benefit from a parent issue, list them here for maintainers to create manually:
+
+| Suggested Title | Related Issues | Theme |
+|-----------------|----------------|-------|
+| [Parent] Feature X Tracking | #A, #B, #C | [brief theme description] |
 
 ### Potential Relationships (For Manual Review)
 
@@ -200,5 +183,5 @@ Your discussion should include:
 - Be conservative with linking - only link when the relationship is clear and unambiguous
 - Prefer precision over recall (better to miss a link than create a wrong one)
 - Consider that unlinking is a manual process, so be confident before linking
-- **Only create new parent issues when no existing suitable parent can be found** - always search for existing tracking issues, epics, or feature requests first
-- When creating parent issues, ensure the cluster is significant (3+ issues) and genuinely related
+- **Do NOT create new parent issues** - only link sub-issues to existing parent issues
+- If you identify orphan clusters needing a parent issue, suggest them in the report for maintainers to create manually

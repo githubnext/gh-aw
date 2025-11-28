@@ -77,11 +77,6 @@
 #       echo "Schema of the issues data:"
 #       cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
 # safe-outputs:
-#   create-issue:
-#     title-prefix: "[Parent] "
-#     labels:
-#       - "tracking"
-#     max: 3
 #   link-sub-issue:
 #     max: 10
 #   create-discussion:
@@ -102,23 +97,17 @@
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
-#   create_issue["create_issue"]
 #   detection["detection"]
 #   link_sub_issue["link_sub_issue"]
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
 #   create_discussion --> conclusion
 #   link_sub_issue --> conclusion
 #   agent --> create_discussion
-#   create_issue --> create_discussion
 #   detection --> create_discussion
-#   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
 #   agent --> link_sub_issue
-#   create_issue --> link_sub_issue
 #   detection --> link_sub_issue
 # ```
 #
@@ -261,48 +250,34 @@
 # 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
 # 6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
 #
-# ### Step 3: Create Parent Issues for Orphan Clusters (Only When No Existing Parent Found)
+# ### Step 3: Make Linking Decisions
 #
-# **Important**: Only create a new parent issue as a last resort. First, thoroughly search for an existing issue that could serve as a parent.
-#
-# If you detect a significant cluster of 3 or more related issues that:
-# - Share a common theme, feature area, or goal
-# - Would benefit from being organized under a parent issue
-# - **AND you have confirmed no existing issue is suitable as a parent** (check for tracking issues, epics, or feature requests that could logically group these issues)
-#
-# Then, and only then, use the `create_issue` tool to create a new parent issue. The parent issue should:
-# - Have a clear, descriptive title summarizing the cluster's theme
-# - Include a checklist or summary of the related sub-issues
-# - Use the "[Parent]" prefix and "tracking" label (automatically added)
-#
-# You can reference the issues you plan to link using their issue numbers (e.g., #123) in the parent issue body.
-#
-# ### Step 4: Make Linking Decisions
-#
-# For each potential relationship (including newly created parent issues), evaluate:
+# For each potential relationship, evaluate:
 # - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
 # - Are both issues in a state where linking makes sense?
 # - Would linking improve organization and traceability?
 # - Is the relationship strong enough to warrant a permanent link?
 #
+# **Important**: Only link sub-issues to **existing** parent issues. Do NOT create new parent issues. If you identify orphan clusters that would benefit from a parent issue, document them in the report as suggestions for maintainers to create manually.
+#
 # **Constraints:**
-# - Maximum 3 new parent issues per run
 # - Maximum 10 links per run (to avoid over-linking)
 # - Only link if you are absolutely sure of the relationship - when in doubt, don't link
+# - Only link to **existing** issues - do not create new parent issues
 # - Prefer linking open issues
 # - Parent issue should be broader in scope than sub-issue
 #
-# ### Step 5: Execute Links
+# ### Step 4: Execute Links
 #
-# For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship. When linking to a newly created parent issue, use the temporary ID returned from the create_issue call.
+# For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
 #
-# ### Step 6: Report
+# ### Step 5: Report
 #
 # Create a discussion summarizing your analysis with:
 # - Number of issues analyzed
-# - New parent issues created (if any)
 # - Relationships identified (even if not linked)
 # - Links created with reasoning
+# - **Suggested parent issues**: If you found orphan clusters that would benefit from a parent issue, suggest that maintainers create one manually
 # - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
 #
 # ## Output Format
@@ -315,17 +290,19 @@
 # **Date**: [Current Date]
 # **Issues Analyzed**: 100
 #
-# ### New Parent Issues Created
-#
-# | Issue | Theme | Sub-Issues |
-# |-------|-------|------------|
-# | #X: [title] | [theme description] | #A, #B, #C |
-#
 # ### Links Created
 #
 # | Parent Issue | Sub-Issue | Reasoning |
 # |-------------|-----------|-----------|
 # | #X: [title] | #Y: [title] | [brief explanation] |
+#
+# ### Suggested Parent Issues (For Manual Creation)
+#
+# If you identified orphan clusters that would benefit from a parent issue, list them here for maintainers to create manually:
+#
+# | Suggested Title | Related Issues | Theme |
+# |-----------------|----------------|-------|
+# | [Parent] Feature X Tracking | #A, #B, #C | [brief theme description] |
 #
 # ### Potential Relationships (For Manual Review)
 #
@@ -342,8 +319,8 @@
 # - Be conservative with linking - only link when the relationship is clear and unambiguous
 # - Prefer precision over recall (better to miss a link than create a wrong one)
 # - Consider that unlinking is a manual process, so be confident before linking
-# - **Only create new parent issues when no existing suitable parent can be found** - always search for existing tracking issues, epics, or feature requests first
-# - When creating parent issues, ensure the cluster is significant (3+ issues) and genuinely related
+# - **Do NOT create new parent issues** - only link sub-issues to existing parent issues
+# - If you identify orphan clusters needing a parent issue, suggest them in the report for maintainers to create manually
 # ```
 #
 # Pinned GitHub Actions:
@@ -582,10 +559,108 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"create_issue":{"max":3},"link_sub_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"link_sub_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 3 issue(s) can be created. Title will be prefixed with \"[Parent] \". Labels [tracking] will be automatically added.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Issue Arborist] \". Discussions will be created in category \"Audits\".","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"},{"description":"Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 10 sub-issue link(s) can be created.","inputSchema":{"additionalProperties":false,"properties":{"parent_issue_number":{"description":"The parent issue number to link the sub-issue to.","type":["number","string"]},"sub_issue_number":{"description":"The issue number to link as a sub-issue of the parent.","type":["number","string"]}},"required":["parent_issue_number","sub_issue_number"],"type":"object"},"name":"link_sub_issue"}]
+          [
+            {
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Issue Arborist] \". Discussions will be created in category \"Audits\".",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "type": "string"
+                  },
+                  "category": {
+                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_discussion"
+            },
+            {
+              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "tool": {
+                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_tool"
+            },
+            {
+              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "noop"
+            },
+            {
+              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 10 sub-issue link(s) can be created.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "parent_issue_number": {
+                    "description": "The parent issue number to link the sub-issue to.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "sub_issue_number": {
+                    "description": "The issue number to link as a sub-issue of the parent.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "parent_issue_number",
+                  "sub_issue_number"
+                ],
+                "type": "object"
+              },
+              "name": "link_sub_issue"
+            }
+          ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1532,48 +1607,34 @@ jobs:
           5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
           6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
           
-          ### Step 3: Create Parent Issues for Orphan Clusters (Only When No Existing Parent Found)
+          ### Step 3: Make Linking Decisions
           
-          **Important**: Only create a new parent issue as a last resort. First, thoroughly search for an existing issue that could serve as a parent.
-          
-          If you detect a significant cluster of 3 or more related issues that:
-          - Share a common theme, feature area, or goal
-          - Would benefit from being organized under a parent issue
-          - **AND you have confirmed no existing issue is suitable as a parent** (check for tracking issues, epics, or feature requests that could logically group these issues)
-          
-          Then, and only then, use the `create_issue` tool to create a new parent issue. The parent issue should:
-          - Have a clear, descriptive title summarizing the cluster's theme
-          - Include a checklist or summary of the related sub-issues
-          - Use the "[Parent]" prefix and "tracking" label (automatically added)
-          
-          You can reference the issues you plan to link using their issue numbers (e.g., #123) in the parent issue body.
-          
-          ### Step 4: Make Linking Decisions
-          
-          For each potential relationship (including newly created parent issues), evaluate:
+          For each potential relationship, evaluate:
           - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
           - Are both issues in a state where linking makes sense?
           - Would linking improve organization and traceability?
           - Is the relationship strong enough to warrant a permanent link?
           
+          **Important**: Only link sub-issues to **existing** parent issues. Do NOT create new parent issues. If you identify orphan clusters that would benefit from a parent issue, document them in the report as suggestions for maintainers to create manually.
+          
           **Constraints:**
-          - Maximum 3 new parent issues per run
           - Maximum 10 links per run (to avoid over-linking)
           - Only link if you are absolutely sure of the relationship - when in doubt, don't link
+          - Only link to **existing** issues - do not create new parent issues
           - Prefer linking open issues
           - Parent issue should be broader in scope than sub-issue
           
-          ### Step 5: Execute Links
+          ### Step 4: Execute Links
           
-          For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship. When linking to a newly created parent issue, use the temporary ID returned from the create_issue call.
+          For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
           
-          ### Step 6: Report
+          ### Step 5: Report
           
           Create a discussion summarizing your analysis with:
           - Number of issues analyzed
-          - New parent issues created (if any)
           - Relationships identified (even if not linked)
           - Links created with reasoning
+          - **Suggested parent issues**: If you found orphan clusters that would benefit from a parent issue, suggest that maintainers create one manually
           - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
           
           ## Output Format
@@ -1586,17 +1647,19 @@ jobs:
           **Date**: [Current Date]
           **Issues Analyzed**: 100
           
-          ### New Parent Issues Created
-          
-          | Issue | Theme | Sub-Issues |
-          |-------|-------|------------|
-          | #X: [title] | [theme description] | #A, #B, #C |
-          
           ### Links Created
           
           | Parent Issue | Sub-Issue | Reasoning |
           |-------------|-----------|-----------|
           | #X: [title] | #Y: [title] | [brief explanation] |
+          
+          ### Suggested Parent Issues (For Manual Creation)
+          
+          If you identified orphan clusters that would benefit from a parent issue, list them here for maintainers to create manually:
+          
+          | Suggested Title | Related Issues | Theme |
+          |-----------------|----------------|-------|
+          | [Parent] Feature X Tracking | #A, #B, #C | [brief theme description] |
           
           ### Potential Relationships (For Manual Review)
           
@@ -1613,8 +1676,8 @@ jobs:
           - Be conservative with linking - only link when the relationship is clear and unambiguous
           - Prefer precision over recall (better to miss a link than create a wrong one)
           - Consider that unlinking is a manual process, so be confident before linking
-          - **Only create new parent issues when no existing suitable parent can be found** - always search for existing tracking issues, epics, or feature requests first
-          - When creating parent issues, ensure the cluster is significant (3+ issues) and genuinely related
+          - **Do NOT create new parent issues** - only link sub-issues to existing parent issues
+          - If you identify orphan clusters needing a parent issue, suggest them in the report for maintainers to create manually
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -4254,7 +4317,6 @@ jobs:
     needs:
       - agent
       - activation
-      - create_issue
       - create_discussion
       - link_sub_issue
     if: (always()) && (needs.agent.result != 'skipped')
@@ -4724,7 +4786,6 @@ jobs:
   create_discussion:
     needs:
       - agent
-      - create_issue
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))) &&
@@ -4757,7 +4818,6 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[Issue Arborist] "
           GH_AW_DISCUSSION_CATEGORY: "Audits"
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
-          GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4861,6 +4921,10 @@ jobs:
                 : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
+            const GRAPHQL_DELAY_MS = 500;
+            function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
             async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
               let searchQuery = `repo:${owner}/${repo} is:open`;
               if (titlePrefix) {
@@ -4978,7 +5042,8 @@ jobs:
                 core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
               }
               const closedDiscussions = [];
-              for (const discussion of discussionsToClose) {
+              for (let i = 0; i < discussionsToClose.length; i++) {
+                const discussion = discussionsToClose[i];
                 try {
                   const closingMessage = getCloseOlderDiscussionMessage({
                     newDiscussionUrl: newDiscussion.url,
@@ -4997,6 +5062,9 @@ jobs:
                   core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
                 } catch (error) {
                   core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                if (i < discussionsToClose.length - 1) {
+                  await delay(GRAPHQL_DELAY_MS);
                 }
               }
               return closedDiscussions;
@@ -5299,468 +5367,6 @@ jobs:
             }
             await main();
 
-  create_issue:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
-      temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Output Issue
-        id: create_issue
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "[Parent] "
-          GH_AW_ISSUE_LABELS: "tracking"
-          GH_AW_WORKFLOW_NAME: "Issue Arborist"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
-            const crypto = require("crypto");
-            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
-            function generateTemporaryId() {
-              return "aw_" + crypto.randomBytes(6).toString("hex");
-            }
-            function isTemporaryId(value) {
-              if (typeof value === "string") {
-                return /^aw_[0-9a-f]{12}$/i.test(value);
-              }
-              return false;
-            }
-            function normalizeTemporaryId(tempId) {
-              return String(tempId).toLowerCase();
-            }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
-              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
-                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
-                if (issueNumber !== undefined) {
-                  return `#${issueNumber}`;
-                }
-                return match;
-              });
-            }
-            function loadTemporaryIdMap() {
-              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
-              if (!mapJson || mapJson === "{}") {
-                return new Map();
-              }
-              try {
-                const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
-              } catch (error) {
-                if (typeof core !== "undefined") {
-                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
-                }
-                return new Map();
-              }
-            }
-            function resolveIssueNumber(value, temporaryIdMap) {
-              if (value === undefined || value === null) {
-                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
-              }
-              const valueStr = String(value);
-              if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
-                }
-                return {
-                  resolved: null,
-                  wasTemporaryId: true,
-                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
-                };
-              }
-              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
-              if (isNaN(issueNumber) || issueNumber <= 0) {
-                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
-              }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
-            }
-            async function main() {
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("temporary_id_map", "{}");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createIssueItems = result.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Create Issues",
-                  description: "The following issues would be created if staged mode was disabled:",
-                  items: createIssueItems,
-                  renderItem: (item, index) => {
-                    let content = `### Issue ${index + 1}\n`;
-                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
-                    if (item.temporary_id) {
-                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
-                    }
-                    if (item.body) {
-                      content += `**Body:**\n${item.body}\n\n`;
-                    }
-                    if (item.labels && item.labels.length > 0) {
-                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                    }
-                    if (item.parent) {
-                      content += `**Parent:** ${item.parent}\n\n`;
-                    }
-                    return content;
-                  },
-                });
-                return;
-              }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const temporaryIdMap = new Map();
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}`
-                );
-                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
-                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-                let effectiveParentIssueNumber;
-                if (createIssueItem.parent !== undefined) {
-                  if (isTemporaryId(createIssueItem.parent)) {
-                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
-                    if (resolvedParent !== undefined) {
-                      effectiveParentIssueNumber = resolvedParent;
-                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
-                    } else {
-                      core.warning(
-                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
-                      );
-                      effectiveParentIssueNumber = undefined;
-                    }
-                  } else {
-                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
-                    if (isNaN(effectiveParentIssueNumber)) {
-                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
-                      effectiveParentIssueNumber = undefined;
-                    }
-                  }
-                } else {
-                  effectiveParentIssueNumber = parentIssueNumber;
-                }
-                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
-                }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
-                }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap);
-                let bodyLines = processedBody.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const trackerIDComment = getTrackerID("markdown");
-                if (trackerIDComment) {
-                  bodyLines.push(trackerIDComment);
-                }
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
-                  core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
-                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-                  if (effectiveParentIssueNumber) {
-                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
-                    try {
-                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                          repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
-                              id
-                            }
-                          }
-                        }
-                      `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
-                      });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      core.info(`Parent issue node ID: ${parentNodeId}`);
-                      core.info(`Fetching node ID for child issue #${issue.number}...`);
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      core.info(`Child issue node ID: ${childNodeId}`);
-                      core.info(`Executing addSubIssue mutation...`);
-                      const addSubIssueMutation = `
-                        mutation($issueId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            issueId: $issueId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        issueId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
-                      try {
-                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
-                      }
-                    }
-                  } else {
-                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                  throw error;
-                }
-              }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              const tempIdMapObject = Object.fromEntries(temporaryIdMap);
-              core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
-              core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
-            }
-            (async () => {
-              await main();
-            })();
-
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -5994,7 +5600,6 @@ jobs:
   link_sub_issue:
     needs:
       - agent
-      - create_issue
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'link_sub_issue'))) &&
@@ -6024,7 +5629,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 10
-          GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
