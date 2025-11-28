@@ -62,14 +62,16 @@ Examine the issues to identify potential parent-child relationships. Look for:
 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
 6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
 
-### Step 3: Create Parent Issues for Orphan Clusters
+### Step 3: Create Parent Issues for Orphan Clusters (Only When No Existing Parent Found)
 
-If you detect a cluster of 3 or more related issues that:
+**Important**: Only create a new parent issue as a last resort. First, thoroughly search for an existing issue that could serve as a parent.
+
+If you detect a significant cluster of 3 or more related issues that:
 - Share a common theme, feature area, or goal
 - Would benefit from being organized under a parent issue
-- Don't have an existing suitable parent issue
+- **AND you have confirmed no existing issue is suitable as a parent** (check for tracking issues, epics, or feature requests that could logically group these issues)
 
-Then use the `create_issue` tool to create a new parent issue that can serve as the organizational hub for these related issues. The parent issue should:
+Then, and only then, use the `create_issue` tool to create a new parent issue. The parent issue should:
 - Have a clear, descriptive title summarizing the cluster's theme
 - Include a checklist or summary of the related sub-issues
 - Use the "[Parent]" prefix and "tracking" label (automatically added)
@@ -141,4 +143,5 @@ Your discussion should include:
 - Be conservative with linking - only link when the relationship is clear and unambiguous
 - Prefer precision over recall (better to miss a link than create a wrong one)
 - Consider that unlinking is a manual process, so be confident before linking
-- When creating parent issues, ensure the cluster is genuinely related and would benefit from organization
+- **Only create new parent issues when no existing suitable parent can be found** - always search for existing tracking issues, epics, or feature requests first
+- When creating parent issues, ensure the cluster is significant (3+ issues) and genuinely related
