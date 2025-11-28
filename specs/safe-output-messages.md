@@ -880,8 +880,62 @@ The 🎭 emoji consistently marks preview mode across all safe output types, mak
 - Staged mode allows testing without side effects
 - Graceful fallbacks when primary operations fail
 
+## Message Module Architecture
+
+The message system is split into modular files for better maintainability and to reduce JavaScript bundle bloat:
+
+### Module Structure
+
+```
+pkg/workflow/js/messages/
+├── core.cjs              # Core utilities (getMessages, renderTemplate, toSnakeCase)
+├── footer.cjs            # Footer messages (getFooterMessage, getFooterInstallMessage, generateFooterWithMessages)
+├── staged.cjs            # Staged mode messages (getStagedTitle, getStagedDescription)
+├── run_status.cjs        # Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
+└── close_discussion.cjs  # Close discussion messages (getCloseOlderDiscussionMessage)
+```
+
+### Module Descriptions
+
+| Module | Purpose | Exported Functions |
+|--------|---------|-------------------|
+| `core.cjs` | Shared utilities for message processing | `getMessages`, `renderTemplate`, `toSnakeCase` |
+| `footer.cjs` | AI attribution and installation footers | `getFooterMessage`, `getFooterInstallMessage`, `generateFooterWithMessages` |
+| `staged.cjs` | Staged mode preview messages | `getStagedTitle`, `getStagedDescription` |
+| `run_status.cjs` | Workflow run status notifications | `getRunStartedMessage`, `getRunSuccessMessage`, `getRunFailureMessage` |
+| `close_discussion.cjs` | Outdated discussion closing | `getCloseOlderDiscussionMessage` |
+
+### Importing Messages
+
+For backward compatibility, the main `messages.cjs` file re-exports all functions:
+
+```javascript
+// Backward-compatible import (imports all functions)
+const { generateFooterWithMessages, getStagedTitle } = require("./messages.cjs");
+```
+
+For new code, prefer importing directly from specific modules to reduce bundle size:
+
+```javascript
+// Direct import for footer messages only
+const { generateFooterWithMessages } = require("./messages/footer.cjs");
+
+// Direct import for run status only
+const { getRunSuccessMessage, getRunFailureMessage } = require("./messages/run_status.cjs");
+
+// Direct import for staged mode only
+const { getStagedTitle, getStagedDescription } = require("./messages/staged.cjs");
+```
+
+### Bundling Behavior
+
+The JavaScript bundler (in `pkg/workflow/bundler.go`) handles these imports during workflow compilation:
+- Local `require()` statements are resolved and inlined
+- Shared utilities from `core.cjs` are inlined once and deduplicated
+- Only the required modules are included in the final bundle
+
 ---
 
-**Last Updated**: 2024-10-23  
-**Version**: 1.0  
+**Last Updated**: 2025-01-28  
+**Version**: 2.0  
 **Maintainers**: GitHub Next Team
