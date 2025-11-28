@@ -53,5 +53,8 @@ mcp-servers:
       - "-v"
       - "${{ github.workspace }}/.github/skills:/skillz:ro"
       - "/skillz"
+    env:
+      GH_TOKEN: "${{ github.token }}"
+      GITHUB_TOKEN: "${{ github.token }}"
     allowed: ["*"]
 ---
