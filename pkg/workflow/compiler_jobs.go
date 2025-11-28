@@ -549,7 +549,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build link_sub_issue job if safe-outputs.link-sub-issue is configured
 	if data.SafeOutputs.LinkSubIssue != nil {
-		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName)
+		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName, createIssueJobName)
 		if err != nil {
 			return fmt.Errorf("failed to build link_sub_issue job: %w", err)
 		}

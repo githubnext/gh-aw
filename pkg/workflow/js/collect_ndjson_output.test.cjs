@@ -2555,4 +2555,141 @@ Line 3"}
       expect(outputCall).toBeUndefined();
     });
   });
+
+  describe("link_sub_issue temporary ID validation", () => {
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+
+    beforeEach(() => {
+      // Create config directory and file for each test
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({ link_sub_issue: {} }));
+    });
+
+    it("should accept valid positive integer for parent_issue_number", async () => {
+      // Create test input with regular issue numbers
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-integers.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for valid integers
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary ID (aw_ prefix) for parent_issue_number", async () => {
+      // Create test input with temporary ID for parent
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: "aw_abc123def456", sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-temp-id.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary ID
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary ID (aw_ prefix) for sub_issue_number", async () => {
+      // Create test input with temporary ID for sub
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: "aw_123456abcdef" });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-temp-id-sub.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary ID
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary IDs for both parent and sub issue numbers", async () => {
+      // Create test input with temporary IDs for both
+      const testInput = JSON.stringify({
+        type: "link_sub_issue",
+        parent_issue_number: "aw_abc123def456",
+        sub_issue_number: "aw_fedcba654321",
+      });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-both-temp-ids.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary IDs
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should reject invalid temporary ID format (wrong length)", async () => {
+      // Create test input with invalid temporary ID format
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: "aw_short", sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-invalid-temp-id.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When all items fail validation, setFailed is called and output is not set
+      const setFailedCalls = mockCore.setFailed.mock.calls;
+      expect(setFailedCalls.length).toBeGreaterThan(0);
+      expect(setFailedCalls[0][0]).toContain("must be a positive integer or temporary ID");
+    });
+
+    it("should reject same temporary ID for parent and sub", async () => {
+      // Create test input with same temporary ID for both
+      const sameId = "aw_abc123def456";
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: sameId, sub_issue_number: sameId });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-same-temp-ids.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When all items fail validation, setFailed is called and output is not set
+      const setFailedCalls = mockCore.setFailed.mock.calls;
+      expect(setFailedCalls.length).toBeGreaterThan(0);
+      expect(setFailedCalls[0][0]).toContain("must be different");
+    });
+  });
 });
