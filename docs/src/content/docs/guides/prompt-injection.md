@@ -49,9 +49,9 @@ Analyze: "${{ github.event.issue.body }}"
 
 The sanitized output automatically:
 
-- **Neutralizes @mentions**: Converts `@user` to `` `@user` `` preventing notification spam
-- **Protects bot triggers**: Converts `fixes #123` to `` `fixes #123` `` preventing automation loops
-- **Escapes XML/HTML tags**: Converts tags to safe parentheses format
+- **Neutralizes @mentions**: Converts `@user` to inline code format, preventing notification spam
+- **Protects bot triggers**: Converts `fixes #123` to inline code format, preventing automation loops
+- **Escapes XML/HTML tags**: Converts tags like `<script>` to safe parentheses format `(script)`
 - **Filters URIs**: Only allows HTTPS URIs from trusted domains
 - **Enforces size limits**: 0.5MB maximum, 65k lines maximum
 - **Removes control characters**: Strips ANSI escape sequences
