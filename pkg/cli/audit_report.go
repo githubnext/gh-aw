@@ -697,6 +697,7 @@ func truncateString(s string, maxLen int) string {
 
 // generateFindings analyzes the workflow run and generates key findings
 func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo, warnings []ErrorInfo) []Finding {
+	auditReportLog.Printf("Generating findings: errors=%d, warnings=%d, conclusion=%s", len(errors), len(warnings), processedRun.Run.Conclusion)
 	var findings []Finding
 	run := processedRun.Run
 
@@ -834,6 +835,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 // generateRecommendations creates actionable recommendations based on findings
 func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, findings []Finding) []Recommendation {
+	auditReportLog.Printf("Generating recommendations: findings_count=%d, workflow_conclusion=%s", len(findings), processedRun.Run.Conclusion)
 	var recommendations []Recommendation
 	run := processedRun.Run
 
@@ -929,6 +931,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 // generateFailureAnalysis creates structured analysis for failed workflows
 func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *FailureAnalysis {
 	run := processedRun.Run
+	auditReportLog.Printf("Generating failure analysis: conclusion=%s, error_count=%d", run.Conclusion, len(errors))
 
 	// Determine primary failure reason
 	primaryFailure := run.Conclusion
@@ -983,6 +986,7 @@ func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *Fai
 // generatePerformanceMetrics calculates aggregated performance statistics
 func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo) *PerformanceMetrics {
 	run := processedRun.Run
+	auditReportLog.Printf("Generating performance metrics: token_usage=%d, tool_count=%d, duration=%v", metrics.TokenUsage, len(toolUsage), run.Duration)
 	pm := &PerformanceMetrics{}
 
 	// Calculate tokens per minute

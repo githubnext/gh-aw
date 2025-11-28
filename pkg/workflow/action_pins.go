@@ -86,6 +86,7 @@ func GetActionPin(actionRepo string) string {
 // If strictMode is true and resolution fails, it returns an error
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
+	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, data.StrictMode)
 	// First try dynamic resolution if resolver is available
 	if data.ActionResolver != nil {
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
@@ -148,6 +149,9 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 
 	// Extract uses value as string
 	usesStr, ok := uses.(string)
+	if ok {
+		actionPinsLog.Printf("Applying action pin to step: uses=%s", usesStr)
+	}
 	if !ok {
 		return stepMap
 	}
