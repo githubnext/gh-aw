@@ -1436,6 +1436,7 @@ jobs:
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"runSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"runFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1542,6 +1543,28 @@ jobs:
                 ? renderTemplate(messages.footerInstall, templateContext)
                 : renderTemplate(defaultInstall, templateContext);
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooterWithMessages(
               workflowName,
               runUrl,
@@ -1571,6 +1594,7 @@ jobs:
               if (installMessage) {
                 footer += "\n>\n" + installMessage;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }
@@ -6861,6 +6885,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"runSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"runFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

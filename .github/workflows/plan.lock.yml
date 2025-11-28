@@ -5136,6 +5136,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY: "Ideas"
           GH_AW_WORKFLOW_NAME: "Plan Command"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5182,6 +5183,28 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -5202,6 +5225,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }
@@ -5956,6 +5980,7 @@ jobs:
           GH_AW_ISSUE_TITLE_PREFIX: "[plan] "
           GH_AW_ISSUE_LABELS: "plan,ai-generated"
           GH_AW_WORKFLOW_NAME: "Plan Command"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6033,6 +6058,28 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -6053,6 +6100,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }

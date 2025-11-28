@@ -4225,6 +4225,7 @@ jobs:
           GH_AW_AGENT_MAX_COUNT: 1
           GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           script: |

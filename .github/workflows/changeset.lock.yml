@@ -7009,6 +7009,7 @@ jobs:
           GH_AW_UPDATE_TITLE: false
           GH_AW_UPDATE_BODY: true
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

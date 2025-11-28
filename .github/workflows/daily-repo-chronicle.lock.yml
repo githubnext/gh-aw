@@ -6337,6 +6337,7 @@ jobs:
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_TRACKER_ID: "daily-repo-chronicle"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7190,6 +7191,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_TRACKER_ID: "daily-repo-chronicle"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

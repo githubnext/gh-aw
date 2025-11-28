@@ -1126,6 +1126,7 @@ jobs:
           GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
           GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1232,6 +1233,28 @@ jobs:
                 ? renderTemplate(messages.footerInstall, templateContext)
                 : renderTemplate(defaultInstall, templateContext);
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooterWithMessages(
               workflowName,
               runUrl,
@@ -1261,6 +1284,7 @@ jobs:
               if (installMessage) {
                 footer += "\n>\n" + installMessage;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }
@@ -6539,6 +6563,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[nitpick-report] "
           GH_AW_DISCUSSION_CATEGORY: "General"
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -7123,6 +7148,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -7187,6 +7213,28 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -7207,6 +7255,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }

@@ -4819,6 +4819,7 @@ jobs:
           GH_AW_DISCUSSION_CATEGORY: "Audits"
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
+          GH_AW_ENGINE_ID: "codex"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5630,6 +5631,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 10
           GH_AW_WORKFLOW_NAME: "Issue Arborist"
+          GH_AW_ENGINE_ID: "codex"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

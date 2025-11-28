@@ -6729,6 +6729,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[nlp-analysis] "
           GH_AW_DISCUSSION_CATEGORY: "audit"
           GH_AW_WORKFLOW_NAME: "Copilot PR Conversation NLP Analysis"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7581,6 +7582,7 @@ jobs:
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Copilot PR Conversation NLP Analysis"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

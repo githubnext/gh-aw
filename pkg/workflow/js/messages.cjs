@@ -31,7 +31,7 @@
 const { getMessages, renderTemplate } = require("./messages_core.cjs");
 
 // Re-export footer messages
-const { getFooterMessage, getFooterInstallMessage, generateFooterWithMessages } = require("./messages_footer.cjs");
+const { getFooterMessage, getFooterInstallMessage, generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 
 // Re-export staged mode messages
 const { getStagedTitle, getStagedDescription } = require("./messages_staged.cjs");
@@ -48,6 +48,7 @@ module.exports = {
   getFooterMessage,
   getFooterInstallMessage,
   generateFooterWithMessages,
+  generateXMLMarker,
   getStagedTitle,
   getStagedDescription,
   getRunStartedMessage,
