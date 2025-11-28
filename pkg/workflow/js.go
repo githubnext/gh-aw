@@ -112,6 +112,9 @@ var safeOutputHelpersScript string
 //go:embed js/safe_output_validator.cjs
 var safeOutputValidatorScript string
 
+//go:embed js/safe_output_processor.cjs
+var safeOutputProcessorScript string
+
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
 
@@ -180,6 +183,7 @@ func GetJavaScriptSources() map[string]string {
 		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,
+		"safe_output_processor.cjs":       safeOutputProcessorScript,
 		"temporary_id.cjs":                temporaryIdScript,
 		"is_truthy.cjs":                   isTruthyScript,
 		"log_parser_bootstrap.cjs":        logParserBootstrapScript,

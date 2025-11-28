@@ -151,7 +151,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("No label restrictions - any labels are allowed");
+      expect(mockCore.info).toHaveBeenCalledWith("No label addition restrictions - any label additions are allowed");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -177,7 +177,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("No label restrictions - any labels are allowed");
+      expect(mockCore.info).toHaveBeenCalledWith("No label addition restrictions - any label additions are allowed");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -203,7 +203,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement"])}`);
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -685,7 +685,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
       expect(mockCore.info).toHaveBeenCalledWith("Max count: 5");
     });
 
@@ -741,7 +741,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -764,7 +764,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement"])}`);
     });
 
     it("should handle single label output", async () => {

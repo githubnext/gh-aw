@@ -1378,22 +1378,161 @@ jobs:
               }
               return { valid: true, value: parsed };
             }
-            async function main() {
+            async function processSafeOutput(config, stagedPreviewOptions) {
+              const {
+                itemType,
+                configKey,
+                displayName,
+                itemTypeName,
+                supportsPR = false,
+                supportsIssue = false,
+                findMultiple = false,
+                envVars,
+              } = config;
               const result = loadAgentOutput();
               if (!result.success) {
-                return;
+                return { success: false, reason: "Agent output not available" };
               }
-              const labelsItem = result.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
+              let items;
+              if (findMultiple) {
+                items = result.items.filter(item => item.type === itemType);
+                if (items.length === 0) {
+                  core.info(`No ${itemType} items found in agent output`);
+                  return { success: false, reason: `No ${itemType} items found` };
+                }
+                core.info(`Found ${items.length} ${itemType} item(s)`);
+              } else {
+                const item = result.items.find(item => item.type === itemType);
+                if (!item) {
+                  core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
+                  return { success: false, reason: `No ${itemType} item found` };
+                }
+                items = [item];
+                const itemDetails = getItemDetails(item);
+                if (itemDetails) {
+                  core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
+                }
               }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
+                  title: stagedPreviewOptions.title,
+                  description: stagedPreviewOptions.description,
+                  items: items,
+                  renderItem: stagedPreviewOptions.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              const safeOutputConfig = getSafeOutputConfig(configKey);
+              const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
+              const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+              if (allowed) {
+                core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+              } else {
+                core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+              }
+              const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
+              const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
+                return { success: false, reason: "Invalid max count configuration" };
+              }
+              const maxCount = maxCountResult.value;
+              core.info(`Max count: ${maxCount}`);
+              const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+              core.info(`${displayName} target configuration: ${target}`);
+              if (findMultiple) {
+                return {
+                  success: true,
+                  items: items,
+                  config: {
+                    allowed,
+                    maxCount,
+                    target,
+                  },
+                };
+              }
+              const item = items[0];
+              const targetResult = resolveTarget({
+                targetConfig: target,
+                item: item,
+                context,
+                itemType: itemTypeName,
+                supportsPR: supportsPR || supportsIssue, 
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
+                } else {
+                  core.info(targetResult.error);
+                }
+                return { success: false, reason: targetResult.error };
+              }
+              return {
+                success: true,
+                item: item,
+                config: {
+                  allowed,
+                  maxCount,
+                  target,
+                },
+                targetResult: {
+                  number: targetResult.number,
+                  contextType: targetResult.contextType,
+                },
+              };
+            }
+            function getItemDetails(item) {
+              if (item.labels && Array.isArray(item.labels)) {
+                return `${item.labels.length} labels`;
+              }
+              if (item.reviewers && Array.isArray(item.reviewers)) {
+                return `${item.reviewers.length} reviewers`;
+              }
+              return null;
+            }
+            function sanitizeItems(items) {
+              return items
+                .filter(item => item != null && item !== false && item !== 0)
+                .map(item => String(item).trim())
+                .filter(item => item)
+                .filter((item, index, arr) => arr.indexOf(item) === index);
+            }
+            function filterByAllowed(items, allowed) {
+              if (!allowed || allowed.length === 0) {
+                return items;
+              }
+              return items.filter(item => allowed.includes(item));
+            }
+            function limitToMaxCount(items, maxCount) {
+              if (items.length > maxCount) {
+                core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
+                return items.slice(0, maxCount);
+              }
+              return items;
+            }
+            function processItems(rawItems, allowed, maxCount) {
+              const filtered = filterByAllowed(rawItems, allowed);
+              const sanitized = sanitizeItems(filtered);
+              return limitToMaxCount(sanitized, maxCount);
+            }
+            async function main() {
+              const result = await processSafeOutput(
+                {
+                  itemType: "add_labels",
+                  configKey: "add_labels",
+                  displayName: "Labels",
+                  itemTypeName: "label addition",
+                  supportsPR: true,
+                  supportsIssue: true,
+                  envVars: {
+                    allowed: "GH_AW_LABELS_ALLOWED",
+                    maxCount: "GH_AW_LABELS_MAX_COUNT",
+                    target: "GH_AW_LABELS_TARGET",
+                  },
+                },
+                {
                   title: "Add Labels",
                   description: "The following labels would be added if staged mode was disabled:",
-                  items: [labelsItem],
                   renderItem: item => {
                     let content = "";
                     if (item.item_number) {
@@ -1406,42 +1545,19 @@ jobs:
                     }
                     return content;
                   },
-                });
-                return;
-              }
-              const config = getSafeOutputConfig("add_labels");
-              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
-              if (allowedLabels) {
-                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-              } else {
-                core.info("No label restrictions - any labels are allowed");
-              }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
-              if (!maxCountResult.valid) {
-                core.setFailed(maxCountResult.error);
-                return;
-              }
-              const maxCount = maxCountResult.value;
-              core.info(`Max count: ${maxCount}`);
-              const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
-              core.info(`Labels target configuration: ${labelsTarget}`);
-              const targetResult = resolveTarget({
-                targetConfig: labelsTarget,
-                item: labelsItem,
-                context,
-                itemType: "label addition",
-                supportsPR: true,
-              });
-              if (!targetResult.success) {
-                if (targetResult.shouldFail) {
-                  core.setFailed(targetResult.error);
-                } else {
-                  core.info(targetResult.error);
                 }
+              );
+              if (!result.success) {
                 return;
               }
+              const { item: labelsItem, config, targetResult } = result;
+              if (!config || !targetResult || targetResult.number === undefined) {
+                core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+                return;
+              }
+              const { allowed: allowedLabels, maxCount } = config;
               const itemNumber = targetResult.number;
-              const contextType = targetResult.contextType;
+              const { contextType } = targetResult;
               const requestedLabels = labelsItem.labels || [];
               core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
               const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);

@@ -1,61 +1,47 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { processSafeOutput } = require("./safe_output_processor.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
-  if (milestoneItems.length === 0) {
-    core.info("No assign_milestone items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${milestoneItems.length} assign_milestone item(s)`);
-
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  // Use shared processor for common steps
+  const result = await processSafeOutput(
+    {
+      itemType: "assign_milestone",
+      configKey: "assign_milestone",
+      displayName: "Milestone",
+      itemTypeName: "milestone assignment",
+      supportsPR: true,
+      supportsIssue: true,
+      findMultiple: true, // This processor finds multiple items
+      envVars: {
+        allowed: "GH_AW_MILESTONE_ALLOWED",
+        maxCount: "GH_AW_MILESTONE_MAX_COUNT",
+        target: "GH_AW_MILESTONE_TARGET",
+      },
+    },
+    {
       title: "Assign Milestone",
       description: "The following milestone assignments would be made if staged mode was disabled:",
-      items: milestoneItems,
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Milestone Number:** ${item.milestone_number}\n\n`;
         return content;
       },
-    });
+    }
+  );
+
+  if (!result.success) {
     return;
   }
 
-  // Get allowed milestones configuration
-  const allowedMilestonesEnv = process.env.GH_AW_MILESTONE_ALLOWED?.trim();
-  const allowedMilestones = allowedMilestonesEnv
-    ? allowedMilestonesEnv
-        .split(",")
-        .map(m => m.trim())
-        .filter(m => m)
-    : undefined;
-
-  if (allowedMilestones) {
-    core.info(`Allowed milestones: ${JSON.stringify(allowedMilestones)}`);
-  } else {
-    core.info("No milestone restrictions - any milestones are allowed");
-  }
-
-  // Get max count configuration
-  const maxCountEnv = process.env.GH_AW_MILESTONE_MAX_COUNT;
-  const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
-  if (isNaN(maxCount) || maxCount < 1) {
-    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+  // @ts-ignore - TypeScript doesn't narrow properly after success check
+  const { items: milestoneItems, config } = result;
+  if (!config || !milestoneItems) {
+    core.setFailed("Internal error: config or milestoneItems is undefined");
     return;
   }
-  core.info(`Max count: ${maxCount}`);
+  const { allowed: allowedMilestones, maxCount } = config;
 
   // Limit items to max count
   const itemsToProcess = milestoneItems.slice(0, maxCount);
