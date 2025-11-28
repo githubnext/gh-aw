@@ -212,26 +212,45 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 func NewMCPListSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [workflow-id-or-file]",
-		Short: "List MCP servers defined in agentic workflows",
+		Short: "List all workflows that use MCP server configurations",
 		Long: `List MCP servers defined in agentic workflows.
 
-When no workflow ID/file is specified, lists all workflows that contain MCP server configurations.
-When a workflow ID/file is specified, lists the MCP servers configured in that specific workflow.
+When no workflow is specified, lists all workflows that contain MCP server configurations.
+When a workflow is specified, lists the MCP servers configured in that specific workflow.
 
-The workflow-id-or-file can be:
-- A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
+ARGUMENTS:
+  workflow-id-or-file    Optional. Can be:
+                         - A workflow ID (e.g., "weekly-research")
+                         - A file path (e.g., "weekly-research.md")
 
-Examples:
-  gh aw mcp list                     # List all workflows with MCP servers
-  gh aw mcp list weekly-research     # List MCP servers in weekly-research.md
-  gh aw mcp list weekly-research -v  # List with detailed information
-  gh aw mcp list --verbose           # List all workflows with detailed MCP server info
+EXAMPLES:
+  # List all workflows with MCP servers
+  gh aw mcp list
 
-The command will:
-- Parse workflow frontmatter to extract MCP server configurations
-- Display server names and types
-- In verbose mode, show detailed configuration including commands, URLs, and allowed tools`,
+  # List MCP servers in a specific workflow
+  gh aw mcp list weekly-research
+
+  # Show detailed server information
+  gh aw mcp list weekly-research --verbose
+
+  # List all workflows with detailed MCP server info
+  gh aw mcp list -v
+
+OUTPUT:
+  Without arguments - Shows a table of workflows and their MCP server count:
+    Workflow        | Server Count
+    --------------- | ------------
+    weekly-research | 2
+    issue-triage    | 1
+
+  With workflow argument - Shows MCP servers in that workflow:
+    Name       | Type
+    ---------- | -----
+    github     | stdio
+    playwright | stdio
+
+  With --verbose - Shows additional columns:
+    Name | Type | Command/URL | Args | Allowed Tools | Env Vars`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string

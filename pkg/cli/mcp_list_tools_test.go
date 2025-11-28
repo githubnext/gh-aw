@@ -324,7 +324,7 @@ func TestNewMCPListToolsSubcommand(t *testing.T) {
 		t.Errorf("Expected Use to be 'list-tools <mcp-server> [workflow-id-or-file]', got: %s", cmd.Use)
 	}
 
-	if cmd.Short != "List available tools for a specific MCP server" {
+	if cmd.Short != "List all tools available from a specific MCP server" {
 		t.Errorf("Expected Short description, got: %s", cmd.Short)
 	}
 }

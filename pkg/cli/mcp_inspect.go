@@ -471,31 +471,61 @@ func NewMCPInspectSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [workflow-id-or-file]",
-		Short: "Inspect MCP servers and list available tools, resources, and roots",
-		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
+		Short: "Inspect MCP server configurations and available tools",
+		Long: `Inspect MCP servers in a workflow and display their available tools, resources, and roots.
 
 This command starts each MCP server configured in the workflow, queries its capabilities,
-and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
+and displays the results. It supports stdio, Docker, and HTTP MCP servers.
 
-The workflow-id-or-file can be:
-- A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
+ARGUMENTS:
+  workflow-id-or-file    Optional. Can be:
+                         - A workflow ID (e.g., "weekly-research")
+                         - A file path (e.g., "weekly-research.md")
 
-Examples:
-  gh aw mcp inspect                    # List workflows with MCP servers
-  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md
-  gh aw mcp inspect daily-news --server tavily  # Inspect only the tavily server
-  gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
-  gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
-  gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
-  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
+EXAMPLES:
+  # List workflows that have MCP servers
+  gh aw mcp inspect
 
-The command will:
-- Parse the workflow file to extract MCP server configurations
-- Start each MCP server (stdio, docker, http)
-- Query available tools, resources, and roots
-- Validate required secrets are available  
-- Display results in formatted tables with error details`,
+  # Inspect all MCP servers in a workflow
+  gh aw mcp inspect weekly-research
+
+  # Inspect only a specific MCP server
+  gh aw mcp inspect weekly-research --server github
+
+  # Show details for a specific tool
+  gh aw mcp inspect weekly-research --server github --tool create_issue
+
+  # Verbose output with connection details
+  gh aw mcp inspect weekly-research -v
+
+  # Launch the interactive MCP inspector UI
+  gh aw mcp inspect weekly-research --inspector
+
+  # Check if required secrets are configured
+  gh aw mcp inspect weekly-research --check-secrets
+
+OUTPUT:
+  Without arguments - Lists workflows with MCP servers:
+    Workflows with MCP servers:
+      • weekly-research.md
+      • issue-triage.md
+
+  With workflow - Shows tools table for each MCP server:
+    📡 github (stdio)
+    ┌──────────────────┬─────────────────────────────┬─────────┐
+    │ Tool             │ Description                 │ Allowed │
+    ├──────────────────┼─────────────────────────────┼─────────┤
+    │ create_issue     │ Create a GitHub issue       │ ✓       │
+    │ list_issues      │ List issues in a repository │ ✓       │
+    └──────────────────┴─────────────────────────────┴─────────┘
+
+  With --tool - Shows detailed tool information:
+    Tool: create_issue
+    Description: Create a GitHub issue
+    Input Schema:
+      title: string (required)
+      body: string
+      labels: array`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string

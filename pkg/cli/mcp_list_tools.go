@@ -166,27 +166,46 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 func NewMCPListToolsSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-tools <mcp-server> [workflow-id-or-file]",
-		Short: "List available tools for a specific MCP server",
-		Long: `List available tools for a specific MCP server.
+		Short: "List all tools available from a specific MCP server",
+		Long: `List available tools from a specific MCP server.
 
 This command connects to the specified MCP server and displays all available tools.
-It reuses the same infrastructure as 'mcp inspect' to establish connections and
-query server capabilities.
+If no workflow is specified, it searches for workflows containing that MCP server.
 
-The workflow-id-or-file can be:
-- A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
+ARGUMENTS:
+  mcp-server             Required. Name of the MCP server (e.g., "github", "playwright")
+  workflow-id-or-file    Optional. Can be:
+                         - A workflow ID (e.g., "weekly-research")
+                         - A file path (e.g., "weekly-research.md")
 
-Examples:
-  gh aw mcp list-tools github                    # Find workflows with 'github' MCP server
-  gh aw mcp list-tools github weekly-research    # List tools for 'github' server in weekly-research.md
-  gh aw mcp list-tools safe-outputs issue-triage # List tools for 'safe-outputs' server in issue-triage.md
-  gh aw mcp list-tools playwright test-workflow -v  # Verbose output with tool descriptions
+EXAMPLES:
+  # Find which workflows use the 'github' MCP server
+  gh aw mcp list-tools github
 
-The command will:
-- Parse the workflow to find the specified MCP server configuration
-- Connect to the MCP server using the same logic as 'mcp inspect'
-- Display available tools with their descriptions and allowance status`,
+  # List tools from 'github' server in a specific workflow
+  gh aw mcp list-tools github weekly-research
+
+  # List tools from 'playwright' server with full descriptions
+  gh aw mcp list-tools playwright my-workflow -v
+
+  # List tools from custom MCP server
+  gh aw mcp list-tools notion weekly-research
+
+OUTPUT:
+  Without workflow - Shows workflows containing the MCP server:
+    Found MCP server 'github' in 2 workflow(s): weekly-research, issue-triage
+
+  With workflow - Shows tools table:
+    🛠️  Available Tools (15 total)
+    ┌──────────────────┬─────────────────────────────────┬─────────┐
+    │ Tool             │ Description                     │ Allowed │
+    ├──────────────────┼─────────────────────────────────┼─────────┤
+    │ create_issue     │ Create a GitHub issue           │ ✓       │
+    │ list_issues      │ List issues in a repository     │ ✓       │
+    │ add_comment      │ Add a comment to an issue or PR │ ✗       │
+    └──────────────────┴─────────────────────────────────┴─────────┘
+
+  With --verbose - Shows full tool descriptions without truncation`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mcpServerName := args[0]

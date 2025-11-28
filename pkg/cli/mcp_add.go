@@ -303,32 +303,53 @@ func NewMCPAddSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "add [workflow-id-or-file] [mcp-server-name]",
-		Short: "Add an MCP tool to an agentic workflow",
-		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
+		Short: "Add an MCP server configuration to a workflow",
+		Long: `Add an MCP server to an agentic workflow from the MCP registry.
 
-This command searches the MCP registry for the specified server, adds it to the workflow's tools section,
-and automatically compiles the workflow. If the tool already exists, the command will fail.
+This command searches the MCP registry for the specified server, adds it to the
+workflow's tools section, and automatically compiles the workflow.
 
-When called with no arguments, it will show a list of available MCP servers from the registry.
+ARGUMENTS:
+  workflow-id-or-file    Optional. Can be:
+                         - A workflow ID (e.g., "weekly-research")
+                         - A file path (e.g., "weekly-research.md")
+  mcp-server-name        Optional. Server name from the registry (e.g., "notion")
 
-The workflow-id-or-file can be:
-- A workflow ID (basename without .md extension, e.g., "weekly-research")
-- A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
+EXAMPLES:
+  # Browse available MCP servers in the registry
+  gh aw mcp add
 
-Examples:
-  gh aw mcp add                                          # List available MCP servers
-  gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
-  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID
+  # Add an MCP server from the registry
+  gh aw mcp add weekly-research makenotion/notion-mcp-server
 
-The command will:
-- Search the MCP registry for the specified server
-- Check that the tool doesn't already exist in the workflow
-- Add the MCP tool configuration to the workflow's frontmatter
-- Automatically compile the workflow to generate the .lock.yml file
+  # Prefer a specific transport type
+  gh aw mcp add weekly-research notion --transport stdio
 
-Registry URL defaults to: https://api.mcp.github.com/v0`,
+  # Use a custom tool ID in the workflow
+  gh aw mcp add weekly-research notion --tool-id my-notion
+
+  # Use a custom MCP registry
+  gh aw mcp add weekly-research notion --registry https://custom.registry.com/v1
+
+OUTPUT:
+  Without arguments - Lists available MCP servers from registry:
+    Available MCP servers:
+    ┌────────────────────────────────┬─────────────────────────────────┐
+    │ Name                           │ Description                     │
+    ├────────────────────────────────┼─────────────────────────────────┤
+    │ makenotion/notion-mcp-server   │ Notion integration for MCP      │
+    │ anthropics/mcp-server-slack    │ Slack integration for MCP       │
+    └────────────────────────────────┴─────────────────────────────────┘
+
+  With arguments - Shows progress and result:
+    ℹ Adding MCP tool 'notion' to workflow: weekly-research.md
+    ✓ Added MCP tool 'notion' to workflow weekly-research.md
+    ✓ Workflow compiled successfully
+
+FLAGS:
+  --transport    Preferred transport type (stdio, http, docker)
+  --tool-id      Custom tool ID in the workflow (default: derived from server name)
+  --registry     Custom MCP registry URL (default: https://api.mcp.github.com/v0)`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
