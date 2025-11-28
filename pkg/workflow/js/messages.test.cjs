@@ -483,4 +483,55 @@ describe("messages.cjs", () => {
       );
     });
   });
+
+  describe("getCloseOlderDiscussionMessage", () => {
+    it("should return default close older discussion message", async () => {
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/10",
+        newDiscussionNumber: 10,
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toContain("This discussion be marked as **outdated**");
+      expect(result).toContain("[Test Workflow](https://github.com/test/repo/actions/runs/123)");
+      expect(result).toContain("[Discussion #10](https://github.com/test/repo/discussions/10)");
+    });
+
+    it("should use custom close older discussion template", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        closeOlderDiscussion: "This is outdated. See [{new_discussion_number}]({new_discussion_url}).",
+      });
+
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/15",
+        newDiscussionNumber: 15,
+        workflowName: "Custom Bot",
+        runUrl: "https://example.com/run/456",
+      });
+
+      expect(result).toBe("This is outdated. See [15](https://github.com/test/repo/discussions/15).");
+    });
+
+    it("should support snake_case placeholders", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        closeOlderDiscussion: "Outdated by {workflow_name}. New: #{new_discussion_number}",
+      });
+
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/20",
+        newDiscussionNumber: 20,
+        workflowName: "Weekly Report",
+        runUrl: "https://example.com/run/789",
+      });
+
+      expect(result).toBe("Outdated by Weekly Report. New: #20");
+    });
+  });
 });

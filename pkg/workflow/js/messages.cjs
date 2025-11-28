@@ -30,6 +30,7 @@
  * @property {string} [runStarted] - Custom workflow activation message template
  * @property {string} [runSuccess] - Custom workflow success message template
  * @property {string} [runFailure] - Custom workflow failure message template
+ * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
  */
 
 /**
@@ -69,6 +70,7 @@ function getMessages() {
       runStarted: rawMessages.runStarted,
       runSuccess: rawMessages.runSuccess,
       runFailure: rawMessages.runFailure,
+      closeOlderDiscussion: rawMessages.closeOlderDiscussion,
     };
   } catch (error) {
     core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -321,6 +323,38 @@ function getRunFailureMessage(ctx) {
   return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
 }
 
+/**
+ * @typedef {Object} CloseOlderDiscussionContext
+ * @property {string} newDiscussionUrl - URL of the new discussion that replaced this one
+ * @property {number} newDiscussionNumber - Number of the new discussion
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ */
+
+/**
+ * Get the close-older-discussion message, using custom template if configured.
+ * @param {CloseOlderDiscussionContext} ctx - Context for message generation
+ * @returns {string} Close older discussion message
+ */
+function getCloseOlderDiscussionMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default close-older-discussion template - pirate themed! 🏴‍☠️
+  const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+
+🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+
+Fair winds, matey! 🏴‍☠️`;
+
+  // Use custom message if configured
+  return messages?.closeOlderDiscussion
+    ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+    : renderTemplate(defaultMessage, templateContext);
+}
+
 module.exports = {
   getMessages,
   renderTemplate,
@@ -332,4 +366,5 @@ module.exports = {
   getRunStartedMessage,
   getRunSuccessMessage,
   getRunFailureMessage,
+  getCloseOlderDiscussionMessage,
 };

@@ -4812,6 +4812,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -4918,6 +4919,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
@@ -5124,6 +5135,280 @@ jobs:
               }
               return "";
             }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getStagedTitle(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
+              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+            }
+            function getStagedDescription(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
+              return messages?.stagedDescription
+                ? renderTemplate(messages.stagedDescription, templateContext)
+                : renderTemplate(defaultDescription, templateContext);
+            }
+            function getRunStartedMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
+              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunSuccessMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
+              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
+              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
+            const MAX_CLOSE_COUNT = 10;
+            async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+              let searchQuery = `repo:${owner}/${repo} is:open`;
+              if (titlePrefix) {
+                const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+                searchQuery += ` in:title "${escapedPrefix}"`;
+              }
+              if (labels && labels.length > 0) {
+                for (const label of labels) {
+                  const escapedLabel = label.replace(/"/g, '\\"');
+                  searchQuery += ` label:"${escapedLabel}"`;
+                }
+              }
+              const result = await github.graphql(
+                `
+                query($searchTerms: String!, $first: Int!) {
+                  search(query: $searchTerms, type: DISCUSSION, first: $first) {
+                    nodes {
+                      ... on Discussion {
+                        id
+                        number
+                        title
+                        url
+                        category {
+                          id
+                        }
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
+                        }
+                        closed
+                      }
+                    }
+                  }
+                }`,
+                { searchTerms: searchQuery, first: 50 }
+              );
+              if (!result || !result.search || !result.search.nodes) {
+                return [];
+              }
+              return result.search.nodes
+                .filter(
+                   d => {
+                    if (!d || d.number === excludeNumber || d.closed) {
+                      return false;
+                    }
+                    if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+                      return false;
+                    }
+                    if (labels && labels.length > 0) {
+                      const discussionLabels = d.labels?.nodes?.map(( l) => l.name) || [];
+                      const hasAllLabels = labels.every(label => discussionLabels.includes(label));
+                      if (!hasAllLabels) {
+                        return false;
+                      }
+                    }
+                    if (categoryId && (!d.category || d.category.id !== categoryId)) {
+                      return false;
+                    }
+                    return true;
+                  }
+                )
+                .map(
+                   d => ({
+                    id: d.id,
+                    number: d.number,
+                    title: d.title,
+                    url: d.url,
+                  })
+                );
+            }
+            async function addDiscussionComment(github, discussionId, message) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              return result.addDiscussionComment.comment;
+            }
+            async function closeDiscussionAsOutdated(github, discussionId) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!) {
+                  closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+                    discussion { 
+                      id
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId }
+              );
+              return result.closeDiscussion.discussion;
+            }
+            async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+              const searchCriteria = [];
+              if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
+              if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
+              core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
+              const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
+              if (olderDiscussions.length === 0) {
+                core.info("No older discussions found to close");
+                return [];
+              }
+              core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
+              const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
+              if (olderDiscussions.length > MAX_CLOSE_COUNT) {
+                core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
+              }
+              const closedDiscussions = [];
+              for (const discussion of discussionsToClose) {
+                try {
+                  const closingMessage = getCloseOlderDiscussionMessage({
+                    newDiscussionUrl: newDiscussion.url,
+                    newDiscussionNumber: newDiscussion.number,
+                    workflowName,
+                    runUrl,
+                  });
+                  core.info(`Adding closing comment to discussion #${discussion.number}`);
+                  await addDiscussionComment(github, discussion.id, closingMessage);
+                  core.info(`Closing discussion #${discussion.number} as outdated`);
+                  await closeDiscussionAsOutdated(github, discussion.id);
+                  closedDiscussions.push({
+                    number: discussion.number,
+                    url: discussion.url,
+                  });
+                  core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
+                } catch (error) {
+                  core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              return closedDiscussions;
+            }
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
@@ -5236,7 +5521,23 @@ jobs:
                 core.error("Repository ID is required for creating discussions");
                 throw new Error("Repository ID is required but not available");
               }
+              const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+              const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+              const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+              const labels = labelsEnvVar
+                ? labelsEnvVar
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                : [];
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
+              const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
                 const createDiscussionItem = createDiscussionItems[i];
                 core.info(
@@ -5247,16 +5548,9 @@ jobs:
                 if (!title) {
                   title = createDiscussionItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 const trackerIDComment = getTrackerID("markdown");
                 if (trackerIDComment) {
                   bodyLines.push(trackerIDComment);
@@ -5301,6 +5595,31 @@ jobs:
                     core.setOutput("discussion_number", discussion.number);
                     core.setOutput("discussion_url", discussion.url);
                   }
+                  const hasMatchingCriteria = titlePrefix || labels.length > 0;
+                  if (closeOlderEnabled && hasMatchingCriteria) {
+                    core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                    try {
+                      const closedDiscussions = await closeOlderDiscussions(
+                        github,
+                        context.repo.owner,
+                        context.repo.repo,
+                        titlePrefix,
+                        labels,
+                        categoryId,
+                        { number: discussion.number, url: discussion.url },
+                        workflowName,
+                        runUrl
+                      );
+                      if (closedDiscussions.length > 0) {
+                        closedDiscussionsSummary.push(...closedDiscussions);
+                        core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                      }
+                    } catch (closeError) {
+                      core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                    }
+                  } else if (closeOlderEnabled && !hasMatchingCriteria) {
+                    core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+                  }
                 } catch (error) {
                   core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
@@ -5310,6 +5629,12 @@ jobs:
                 let summaryContent = "\n\n## GitHub Discussions\n";
                 for (const discussion of createdDiscussions) {
                   summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
+                }
+                if (closedDiscussionsSummary.length > 0) {
+                  summaryContent += "\n### Closed Older Discussions\n";
+                  for (const closed of closedDiscussionsSummary) {
+                    summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+                  }
                 }
                 await core.summary.addRaw(summaryContent).write();
               }

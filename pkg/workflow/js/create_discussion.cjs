@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
+const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -123,7 +124,27 @@ async function main() {
     core.error("Repository ID is required for creating discussions");
     throw new Error("Repository ID is required but not available");
   }
+
+  // Get configuration for close-older-discussions
+  const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+  const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+  const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+  const labels = labelsEnvVar
+    ? labelsEnvVar
+        .split(",")
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+    : [];
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const runId = context.runId;
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runUrl = context.payload.repository
+    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
   const createdDiscussions = [];
+  const closedDiscussionsSummary = [];
+
   for (let i = 0; i < createDiscussionItems.length; i++) {
     const createDiscussionItem = createDiscussionItems[i];
     core.info(
@@ -134,16 +155,9 @@ async function main() {
     if (!title) {
       title = createDiscussionItem.body || "Agent Output";
     }
-    const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const runId = context.runId;
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository
-      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");
@@ -191,6 +205,35 @@ async function main() {
         core.setOutput("discussion_number", discussion.number);
         core.setOutput("discussion_url", discussion.url);
       }
+
+      // Close older discussions if enabled and title prefix or labels are set
+      const hasMatchingCriteria = titlePrefix || labels.length > 0;
+      if (closeOlderEnabled && hasMatchingCriteria) {
+        core.info("close-older-discussions is enabled, searching for older discussions to close...");
+        try {
+          const closedDiscussions = await closeOlderDiscussions(
+            github,
+            context.repo.owner,
+            context.repo.repo,
+            titlePrefix,
+            labels,
+            categoryId,
+            { number: discussion.number, url: discussion.url },
+            workflowName,
+            runUrl
+          );
+
+          if (closedDiscussions.length > 0) {
+            closedDiscussionsSummary.push(...closedDiscussions);
+            core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+          }
+        } catch (closeError) {
+          // Log error but don't fail the workflow - closing older discussions is a nice-to-have
+          core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+        }
+      } else if (closeOlderEnabled && !hasMatchingCriteria) {
+        core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+      }
     } catch (error) {
       core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
       throw error;
@@ -201,6 +244,15 @@ async function main() {
     for (const discussion of createdDiscussions) {
       summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
     }
+
+    // Add closed discussions to summary
+    if (closedDiscussionsSummary.length > 0) {
+      summaryContent += "\n### Closed Older Discussions\n";
+      for (const closed of closedDiscussionsSummary) {
+        summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+      }
+    }
+
     await core.summary.addRaw(summaryContent).write();
   }
   core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
