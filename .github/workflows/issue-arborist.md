@@ -20,7 +20,7 @@ tools:
       - issues
 safe-outputs:
   create-issue:
-    title-prefix: "[Epic] "
+    title-prefix: "[Parent] "
     labels:
       - "tracking"
     max: 3
@@ -56,7 +56,7 @@ Use the GitHub MCP tools to search for the last 20 issues from the repository us
 Examine the issues to identify potential parent-child relationships. Look for:
 
 1. **Feature with Tasks**: A high-level feature request (parent) with specific implementation tasks (sub-issues)
-2. **Epic Patterns**: Issues with "[Epic]" or similar prefixes that encompass smaller work items
+2. **Epic Patterns**: Issues with "[Epic]", "[Parent]" or similar prefixes that encompass smaller work items
 3. **Bug with Root Cause**: A symptom bug (sub-issue) that relates to a root cause issue (parent)
 4. **Tracking Issues**: Issues that track multiple related work items
 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
@@ -69,10 +69,10 @@ If you detect a cluster of 3 or more related issues that:
 - Would benefit from being organized under a parent issue
 - Don't have an existing suitable parent issue
 
-Then use the `create_issue` tool to create a new parent issue (Epic) that can serve as the organizational hub for these related issues. The parent issue should:
+Then use the `create_issue` tool to create a new parent issue that can serve as the organizational hub for these related issues. The parent issue should:
 - Have a clear, descriptive title summarizing the cluster's theme
 - Include a checklist or summary of the related sub-issues
-- Use the "[Epic]" prefix and "tracking" label (automatically added)
+- Use the "[Parent]" prefix and "tracking" label (automatically added)
 
 You can reference the issues you plan to link using their issue numbers (e.g., #123) in the parent issue body.
 
