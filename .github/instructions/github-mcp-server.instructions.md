@@ -74,16 +74,17 @@ tools:
 
 The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets, use `[default]` for the recommended defaults, or use `[all]` to enable everything.
 
-:::caution[Deprecation Notice]
-The `allowed:` pattern for listing individual GitHub tools is **legacy and should not be used for new workflows**. Always use `toolsets:` instead. See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance on updating existing workflows.
+:::note[Why Use Toolsets?]
+The `allowed:` pattern for listing individual GitHub tools is **not recommended for new workflows**. Individual tool names may change between GitHub MCP server versions, but toolsets provide a stable API. Always use `toolsets:` instead. See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance on updating existing workflows.
 :::
 
 :::tip[Best Practice]
 **Always use `toolsets:` for GitHub tools.** Toolsets provide:
-- Better organization and discoverability
-- Complete functionality for each area
-- Reduced configuration verbosity
-- Automatic inclusion of new tools as they're added
+- **Stability**: Tool names may change between MCP server versions, but toolsets remain stable
+- **Better organization**: Clear groupings of related functionality
+- **Complete functionality**: Get all related tools automatically
+- **Reduced verbosity**: Cleaner configuration
+- **Future-proof**: New tools are automatically included as they're added
 :::
 
 ### Recommended Default Toolsets
@@ -246,11 +247,11 @@ Ensure your GitHub token has appropriate permissions for the toolsets you're ena
 
 ## Migration from Allowed to Toolsets
 
-If you have existing workflows using the legacy `allowed:` pattern, migrate to `toolsets:` for better maintainability and future compatibility.
+If you have existing workflows using the `allowed:` pattern, we recommend migrating to `toolsets:` for better maintainability and stability. Individual tool names may change between GitHub MCP server versions, but toolsets provide a stable API that won't break your workflows.
 
 ### Migration Examples
 
-**Before (Legacy):**
+**Using `allowed:` (not recommended):**
 ```yaml
 tools:
   github:
@@ -263,7 +264,7 @@ tools:
       - update_issue
 ```
 
-**After (Recommended):**
+**Using `toolsets:` (recommended):**
 ```yaml
 tools:
   github:
@@ -274,8 +275,8 @@ tools:
 
 Use this table to identify which toolset contains the tools you need:
 
-| Legacy `allowed:` Tools | Migrate to `toolsets:` |
-|-------------------------|------------------------|
+| `allowed:` Tools | Migrate to `toolsets:` |
+|------------------|------------------------|
 | `get_me`, `get_teams`, `get_team_members` | `context` |
 | `get_repository`, `get_file_contents`, `search_code`, `list_commits` | `repos` |
 | `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues` | `issues` |
@@ -296,15 +297,15 @@ Use this table to identify which toolset contains the tools you need:
 4. **Test**: Run `gh aw mcp inspect <workflow>` to verify tools are available
 5. **Compile**: Run `gh aw compile` to update the lock file
 
-## Legacy Support: Allowed Pattern
+## Using Allowed Pattern with Custom MCP Servers
 
-:::caution[Legacy Pattern]
-The `allowed:` pattern is legacy and should only be used for:
+:::note[When to Use Allowed]
+The `allowed:` pattern is appropriate for:
 - Custom MCP servers (non-GitHub)
 - Gradual migration of existing workflows
-- Temporary restriction of specific tools within a toolset
+- Fine-grained restriction of specific tools within a toolset
 
-For GitHub tools, always prefer `toolsets:` over `allowed:`.
+For GitHub tools, always use `toolsets:` instead of `allowed:`.
 :::
 
 The `allowed:` field can still be used to restrict tools for custom MCP servers:

@@ -68,8 +68,8 @@ tools:
 
 ### GitHub Toolsets
 
-:::caution[Use Toolsets Instead of Allowed]
-The `allowed:` pattern for GitHub tools is **legacy**. Always use `toolsets:` for new workflows. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance on updating existing configurations.
+:::tip[Use Toolsets Instead of Allowed]
+**Always use `toolsets:` for GitHub tools.** Individual tool names may change between MCP server versions, but toolsets provide a stable API. Toolsets also ensure you get all related tools automatically, including new ones added in future versions. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance on updating existing configurations.
 :::
 
 Enable specific GitHub API groups to improve tool selection and reduce context size:
@@ -105,9 +105,9 @@ Common toolsets include:
 
 Toolsets work in both local (Docker) and remote (hosted) modes.
 
-#### Legacy: Allowed Pattern
+#### Using Allowed Pattern
 
-The `allowed:` field is legacy for GitHub tools. For custom MCP servers, `allowed:` is still the standard approach. If you need to restrict tools within a toolset, you can combine `toolsets:` with `allowed:`, but this is not recommended for new workflows.
+The `allowed:` field is not recommended for GitHub tools because tool names may change between MCP server versions. For custom MCP servers, `allowed:` is still the standard approach. If you need to restrict tools within a toolset, you can combine `toolsets:` with `allowed:`, but using only `toolsets:` is recommended for most workflows.
 
 ### Modes and Restrictions
 

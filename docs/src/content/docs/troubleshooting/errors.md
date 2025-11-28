@@ -492,7 +492,7 @@ strict mode: engine does not support firewall
 
 **Symptom:** After changing from `allowed:` to `toolsets:`, expected tools are not available.
 
-**Cause:** The tool may be in a different toolset than expected, or a narrower toolset was chosen.
+**Cause:** The tool may be in a different toolset than expected, or a narrower toolset was chosen. Note that individual tool names may change between MCP server versions, which is one reason toolsets are recommended.
 
 **Solution:**
 1. Check the [tool-to-toolset mapping](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) to find the correct toolset

@@ -149,8 +149,13 @@ mcp-servers:
 
 GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools](/gh-aw/reference/tools/) for details.
 
-:::caution[Use Toolsets Instead of Allowed]
-The `allowed:` pattern for GitHub tools is legacy and may be deprecated. **Always use `toolsets:`** to enable groups of related tools. Toolsets provide better organization, complete functionality, and automatic inclusion of new tools. See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance.
+:::tip[Use Toolsets Instead of Allowed]
+**Always use `toolsets:`** to enable groups of related GitHub tools. Toolsets are the recommended approach because:
+- **Stability**: Individual tool names may change between MCP server versions, but toolsets remain stable
+- **Completeness**: Get all related tools automatically, including new ones added in future versions
+- **Maintainability**: Cleaner configuration that's easier to understand and update
+
+See [Migration from Allowed to Toolsets](#migration-from-allowed-to-toolsets) for guidance on updating existing workflows.
 :::
 
 Configure the Docker image version (default: `"sha-09deac4"`):
@@ -230,8 +235,8 @@ If you have existing GitHub tool configurations using `allowed:`, migrate to `to
 
 ### Common Migration Patterns
 
-| Legacy `allowed:` Pattern | Recommended `toolsets:` |
-|---------------------------|-------------------------|
+| `allowed:` Pattern | Recommended `toolsets:` |
+|---------------------|-------------------------|
 | `allowed: [get_repository, get_file_contents, list_commits]` | `toolsets: [repos]` |
 | `allowed: [list_issues, create_issue, update_issue]` | `toolsets: [issues]` |
 | `allowed: [list_pull_requests, create_pull_request]` | `toolsets: [pull_requests]` |
@@ -241,7 +246,7 @@ If you have existing GitHub tool configurations using `allowed:`, migrate to `to
 
 ### Before and After Example
 
-**Legacy (not recommended):**
+**Using `allowed:` (not recommended):**
 ```yaml wrap
 tools:
   github:
@@ -253,7 +258,7 @@ tools:
       - list_pull_requests
 ```
 
-**Modern (recommended):**
+**Using `toolsets:` (recommended):**
 ```yaml wrap
 tools:
   github:
@@ -262,9 +267,10 @@ tools:
 
 ### Benefits of Toolsets
 
+- **Stability**: Tool names may change between GitHub MCP server versions, but toolsets provide a stable API
 - **Reduced verbosity**: One line vs. many individual tool names
 - **Complete functionality**: Get all related tools automatically
-- **Future-proof**: New tools are included as they're added
+- **Future-proof**: New tools are included as they're added to the toolset
 - **Better discoverability**: Clear groupings of related functionality
 
 ## Related Documentation
