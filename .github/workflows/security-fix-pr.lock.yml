@@ -2214,6 +2214,66 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedNumber !== undefined) {
+                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+            }
               const maxBodyLength = 65000;
               const MAX_GITHUB_USERNAME_LENGTH = 39;
               function getMaxAllowedForType(itemType, config) {
@@ -2369,6 +2429,31 @@ jobs:
                   };
                 }
                 return { isValid: true, normalizedValue: parsed };
+              }
+              function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
+                if (value === undefined || value === null) {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} is required`,
+                  };
+                }
+                if (typeof value !== "number" && typeof value !== "string") {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+                  };
+                }
+                if (isTemporaryId(value)) {
+                  return { isValid: true, normalizedValue: String(value).toLowerCase(), isTemporary: true };
+                }
+                const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+                if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} must be a positive integer or temporary ID (got: ${value})`,
+                  };
+                }
+                return { isValid: true, normalizedValue: parsed, isTemporary: false };
               }
               function validateOptionalPositiveInteger(value, fieldName, lineNum) {
                 if (value === undefined) {
@@ -3030,12 +3115,16 @@ jobs:
                       }
                       break;
                     case "link_sub_issue":
-                      const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+                      const parentIssueValidation = validateIssueNumberOrTemporaryId(
+                        item.parent_issue_number,
+                        "link_sub_issue 'parent_issue_number'",
+                        i + 1
+                      );
                       if (!parentIssueValidation.isValid) {
                         if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
                         continue;
                       }
-                      const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+                      const subIssueValidation = validateIssueNumberOrTemporaryId(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
                       if (!subIssueValidation.isValid) {
                         if (subIssueValidation.error) errors.push(subIssueValidation.error);
                         continue;
