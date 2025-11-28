@@ -4,6 +4,7 @@
 async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
+  const { isTemporaryId } = require("./temporary_id.cjs");
   const maxBodyLength = 65000;
   // Maximum length for GitHub usernames (39 characters)
   // Reference: https://github.com/dead-claudia/github-limits
@@ -161,6 +162,40 @@ async function main() {
       };
     }
     return { isValid: true, normalizedValue: parsed };
+  }
+  /**
+   * Validate a value that can be either a positive integer (issue number) or a temporary ID.
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - Name of the field for error messages
+   * @param {number} lineNum - Line number for error messages
+   * @returns {{ isValid: boolean, normalizedValue?: number | string, isTemporary?: boolean, error?: string }}
+   */
+  function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
+    if (value === undefined || value === null) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} is required`,
+      };
+    }
+    if (typeof value !== "number" && typeof value !== "string") {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+      };
+    }
+    // Check if it's a temporary ID
+    if (isTemporaryId(value)) {
+      return { isValid: true, normalizedValue: String(value).toLowerCase(), isTemporary: true };
+    }
+    // Try to parse as positive integer
+    const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+    if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a positive integer or temporary ID (got: ${value})`,
+      };
+    }
+    return { isValid: true, normalizedValue: parsed, isTemporary: false };
   }
   function validateOptionalPositiveInteger(value, fieldName, lineNum) {
     if (value === undefined) {
@@ -851,14 +886,18 @@ async function main() {
           }
           break;
         case "link_sub_issue":
-          // Validate parent_issue_number (required)
-          const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+          // Validate parent_issue_number (required) - can be positive integer or temporary ID
+          const parentIssueValidation = validateIssueNumberOrTemporaryId(
+            item.parent_issue_number,
+            "link_sub_issue 'parent_issue_number'",
+            i + 1
+          );
           if (!parentIssueValidation.isValid) {
             if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
             continue;
           }
-          // Validate sub_issue_number (required)
-          const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+          // Validate sub_issue_number (required) - can be positive integer or temporary ID
+          const subIssueValidation = validateIssueNumberOrTemporaryId(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
           if (!subIssueValidation.isValid) {
             if (subIssueValidation.error) errors.push(subIssueValidation.error);
             continue;

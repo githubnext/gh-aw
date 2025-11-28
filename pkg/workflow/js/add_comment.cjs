@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooterWithMessages } = require("./messages.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");

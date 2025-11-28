@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getRunStartedMessage } = require("./messages.cjs");
+const { getRunStartedMessage } = require("./messages_run_status.cjs");
 
 async function main() {
   // Read inputs from environment variables

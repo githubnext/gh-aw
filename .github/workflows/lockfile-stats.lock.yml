@@ -2711,6 +2711,66 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedNumber !== undefined) {
+                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+            }
               const maxBodyLength = 65000;
               const MAX_GITHUB_USERNAME_LENGTH = 39;
               function getMaxAllowedForType(itemType, config) {
@@ -2866,6 +2926,31 @@ jobs:
                   };
                 }
                 return { isValid: true, normalizedValue: parsed };
+              }
+              function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
+                if (value === undefined || value === null) {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} is required`,
+                  };
+                }
+                if (typeof value !== "number" && typeof value !== "string") {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+                  };
+                }
+                if (isTemporaryId(value)) {
+                  return { isValid: true, normalizedValue: String(value).toLowerCase(), isTemporary: true };
+                }
+                const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+                if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+                  return {
+                    isValid: false,
+                    error: `Line ${lineNum}: ${fieldName} must be a positive integer or temporary ID (got: ${value})`,
+                  };
+                }
+                return { isValid: true, normalizedValue: parsed, isTemporary: false };
               }
               function validateOptionalPositiveInteger(value, fieldName, lineNum) {
                 if (value === undefined) {
@@ -3527,12 +3612,16 @@ jobs:
                       }
                       break;
                     case "link_sub_issue":
-                      const parentIssueValidation = validatePositiveInteger(item.parent_issue_number, "link_sub_issue 'parent_issue_number'", i + 1);
+                      const parentIssueValidation = validateIssueNumberOrTemporaryId(
+                        item.parent_issue_number,
+                        "link_sub_issue 'parent_issue_number'",
+                        i + 1
+                      );
                       if (!parentIssueValidation.isValid) {
                         if (parentIssueValidation.error) errors.push(parentIssueValidation.error);
                         continue;
                       }
-                      const subIssueValidation = validatePositiveInteger(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
+                      const subIssueValidation = validateIssueNumberOrTemporaryId(item.sub_issue_number, "link_sub_issue 'sub_issue_number'", i + 1);
                       if (!subIssueValidation.isValid) {
                         if (subIssueValidation.error) errors.push(subIssueValidation.error);
                         continue;
@@ -4823,74 +4912,6 @@ jobs:
               }
               return result;
             }
-            function getFooterMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
-              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-              if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-              }
-              return footer;
-            }
-            function getFooterInstallMessage(ctx) {
-              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-                return "";
-              }
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
-            }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let triggeringNumber;
-              if (triggeringIssueNumber) {
-                triggeringNumber = triggeringIssueNumber;
-              } else if (triggeringPRNumber) {
-                triggeringNumber = triggeringPRNumber;
-              } else if (triggeringDiscussionNumber) {
-                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-              }
-              const ctx = {
-                workflowName,
-                runUrl,
-                workflowSource,
-                workflowSourceUrl: workflowSourceURL,
-                triggeringNumber,
-              };
-              let footer = "\n\n" + getFooterMessage(ctx);
-              const installMessage = getFooterInstallMessage(ctx);
-              if (installMessage) {
-                footer += "\n>\n" + installMessage;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getStagedTitle(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
-              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
-            }
-            function getStagedDescription(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
-              return messages?.stagedDescription
-                ? renderTemplate(messages.stagedDescription, templateContext)
-                : renderTemplate(defaultDescription, templateContext);
-            }
             function getRunStartedMessage(ctx) {
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
@@ -4908,16 +4929,6 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getCloseOlderDiscussionMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
-            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
-            Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
@@ -5160,92 +5171,6 @@ jobs:
               }
               return result;
             }
-            function getFooterMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
-              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-              if (ctx.triggeringNumber) {
-                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-              }
-              return footer;
-            }
-            function getFooterInstallMessage(ctx) {
-              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-                return "";
-              }
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
-            }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let triggeringNumber;
-              if (triggeringIssueNumber) {
-                triggeringNumber = triggeringIssueNumber;
-              } else if (triggeringPRNumber) {
-                triggeringNumber = triggeringPRNumber;
-              } else if (triggeringDiscussionNumber) {
-                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-              }
-              const ctx = {
-                workflowName,
-                runUrl,
-                workflowSource,
-                workflowSourceUrl: workflowSourceURL,
-                triggeringNumber,
-              };
-              let footer = "\n\n" + getFooterMessage(ctx);
-              const installMessage = getFooterInstallMessage(ctx);
-              if (installMessage) {
-                footer += "\n>\n" + installMessage;
-              }
-              footer += "\n";
-              return footer;
-            }
-            function getStagedTitle(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
-              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
-            }
-            function getStagedDescription(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
-              return messages?.stagedDescription
-                ? renderTemplate(messages.stagedDescription, templateContext)
-                : renderTemplate(defaultDescription, templateContext);
-            }
-            function getRunStartedMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
-              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunSuccessMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
-              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
-              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
             function getCloseOlderDiscussionMessage(ctx) {
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
@@ -5397,9 +5322,73 @@ jobs:
               }
               return closedDiscussions;
             }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedNumber !== undefined) {
+                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+            }
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
@@ -5529,12 +5518,13 @@ jobs:
               for (let i = 0; i < createDiscussionItems.length; i++) {
                 const createDiscussionItem = createDiscussionItems[i];
                 core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}`
                 );
-                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
-                let bodyLines = createDiscussionItem.body.split("\n");
+                let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap) : "";
+                const bodyText = createDiscussionItem.body || "";
+                let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap).split("\n");
                 if (!title) {
-                  title = createDiscussionItem.body || "Agent Output";
+                  title = replaceTemporaryIdReferences(bodyText, temporaryIdMap) || "Agent Output";
                 }
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;

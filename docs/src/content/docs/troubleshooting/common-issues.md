@@ -66,13 +66,25 @@ If compilation hangs, check for import files that import each other. Remove circ
 
 ### GitHub Tools Not Available
 
-Configure GitHub tools explicitly in the `tools:` section with correct tool names from the [tools reference](/gh-aw/reference/tools/):
+Configure GitHub tools using `toolsets:` (recommended) or verify tool names from the [tools reference](/gh-aw/reference/tools/):
 
 ```yaml wrap
 tools:
   github:
-    allowed: [get_repository, list_issues, create_issue_comment]
+    toolsets: [repos, issues]  # Recommended: use toolsets
 ```
+
+:::tip[Migrate to Toolsets]
+If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between MCP server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
+:::
+
+### Toolset Missing Expected Tools
+
+If tools you expect are not available after configuring toolsets:
+
+1. **Verify the right toolset**: Check the [toolset contents](/gh-aw/reference/tools/#toolset-contents) to find which toolset contains your tool
+2. **Add additional toolsets**: Combine toolsets as needed (e.g., `toolsets: [default, actions]`)
+3. **Inspect configuration**: Run `gh aw mcp inspect <workflow>` to see available tools
 
 ### MCP Server Connection Failures
 

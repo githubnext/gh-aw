@@ -6,7 +6,7 @@
 // It also processes noop messages and adds them to the activation comment.
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getRunSuccessMessage, getRunFailureMessage } = require("./messages.cjs");
+const { getRunSuccessMessage, getRunFailureMessage } = require("./messages_run_status.cjs");
 
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;

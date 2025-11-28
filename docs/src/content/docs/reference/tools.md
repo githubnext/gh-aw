@@ -60,8 +60,7 @@ Configure GitHub API operations.
 tools:
   github:                                      # Default read-only access
   github:
-    toolsets: [repos, issues, pull_requests]   # Toolset groups (recommended)
-    allowed: [create_issue, update_issue]      # Or specific permissions
+    toolsets: [repos, issues, pull_requests]   # Recommended: toolset groups
     mode: remote                               # "local" (Docker) or "remote" (hosted)
     read-only: true                            # Read-only operations
     github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
@@ -69,8 +68,8 @@ tools:
 
 ### GitHub Toolsets
 
-:::tip[Prefer Toolsets Over Individual Tools]
-Use `toolsets:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets reduce configuration verbosity and ensure complete functionality.
+:::tip[Use Toolsets Instead of Allowed]
+**Always use `toolsets:` for GitHub tools.** Individual tool names may change between MCP server versions, but toolsets provide a stable API. Toolsets also ensure you get all related tools automatically, including new ones added in future versions. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance on updating existing configurations.
 :::
 
 Enable specific GitHub API groups to improve tool selection and reduce context size:
@@ -104,7 +103,11 @@ Common toolsets include:
 - **discussions**: GitHub Discussions
 - **labels**: Label management
 
-Combine `toolsets:` with `allowed:` to further restrict available tools within enabled toolsets. Toolsets work in both local (Docker) and remote (hosted) modes.
+Toolsets work in both local (Docker) and remote (hosted) modes.
+
+#### Using Allowed Pattern
+
+The `allowed:` field is not recommended for GitHub tools because tool names may change between MCP server versions. For custom MCP servers, `allowed:` is still the standard approach. If you need to restrict tools within a toolset, you can combine `toolsets:` with `allowed:`, but using only `toolsets:` is recommended for most workflows.
 
 ### Modes and Restrictions
 
