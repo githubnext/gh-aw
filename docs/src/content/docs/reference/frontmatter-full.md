@@ -885,6 +885,11 @@ network:
     # (optional)
     log-level: "debug"
 
+    # Custom path to AWF binary. When specified, skips downloading AWF from GitHub
+    # releases. Supports absolute paths or paths relative to GITHUB_WORKSPACE.
+    # (optional)
+    path: "example-value"
+
 # Sandbox runtime configuration for AI engines. Controls the execution sandbox
 # (AWF or Sandbox Runtime). Only supported for Copilot engine.
 # (optional)

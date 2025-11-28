@@ -141,6 +141,39 @@ When the firewall is disabled with specific `allowed` domains:
 
 This configuration is useful during development or when the firewall is incompatible with your workflow requirements. For production workflows, enabling the firewall is recommended for better network security.
 
+### Custom AWF Binary Path
+
+Specify a custom AWF binary instead of downloading from GitHub releases:
+
+```yaml wrap
+network:
+  firewall:
+    path: /usr/local/bin/awf-custom  # Absolute path
+  allowed:
+    - defaults
+```
+
+Relative paths are resolved relative to the repository root:
+
+```yaml wrap
+network:
+  firewall:
+    path: bin/awf  # Resolves to ${GITHUB_WORKSPACE}/bin/awf
+  allowed:
+    - defaults
+```
+
+When `path` is specified:
+- AWF is not downloaded from GitHub releases
+- The specified binary must exist and be executable
+- Path is validated before workflow execution
+- The `version` field is ignored (if also specified)
+
+**Use cases:**
+- Pre-installed AWF on self-hosted runners
+- Custom AWF builds with patches or modifications
+- Repository-specific AWF versions
+
 ## Best Practices
 
 Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over listing individual domains. When adding custom domains, use the base domain (e.g., `trusted.com`) which automatically includes all subdomains—do not use wildcard syntax like `*.trusted.com`.
