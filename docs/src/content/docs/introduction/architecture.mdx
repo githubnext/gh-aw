@@ -419,6 +419,24 @@ The URI filtering mechanism applies strict validation:
 - ❌ **Blocked**: Data URLs, javascript: URLs
 - ❌ **Blocked**: URLs from untrusted domains → replaced with `(redacted)`
 
+<Aside type="note" title="Why URLs are redacted">
+URLs appearing as `(redacted)` indicate the domain was not in the allowed list. This prevents potential data exfiltration through untrusted domains. The allowed domains list is automatically derived from your workflow's `network:` configuration and includes GitHub domains by default.
+</Aside>
+
+**Allowing Additional Domains:**
+
+To allow URLs from additional domains in sanitized content, configure the `network:` field in your workflow frontmatter:
+
+```yaml wrap
+network:
+  allowed:
+    - defaults           # Basic infrastructure
+    - "api.example.com"  # Your custom domain
+    - "trusted.com"      # Another trusted domain
+```
+
+Domains configured here apply to both network egress control (when firewall is enabled) and content sanitization. See [Network Permissions](/gh-aw/reference/network/) for the complete list of ecosystem identifiers and configuration options.
+
 **XML/HTML Tag Handling:**
 
 XML and HTML tags are converted to a safe parentheses format to prevent injection:

@@ -200,6 +200,21 @@ make test-unit
 
 ## Network and Connectivity Issues
 
+### URLs Appearing as "(redacted)"
+
+If URLs in workflow outputs or sanitized content show as `(redacted)`, the domain is not in the allowed list. Content sanitization automatically filters URLs from untrusted domains to prevent data exfiltration.
+
+Add the domain to your workflow's `network:` configuration:
+
+```yaml wrap
+network:
+  allowed:
+    - defaults              # Basic infrastructure
+    - "api.example.com"     # Add your domain here
+```
+
+Default allowed domains include GitHub domains (`github.com`, `githubusercontent.com`, etc.). For more configuration options, see [Network Permissions](/gh-aw/reference/network/).
+
 ### Cannot Download Remote Imports
 
 Verify network access and GitHub authentication:
