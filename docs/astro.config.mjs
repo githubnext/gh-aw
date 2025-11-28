@@ -149,6 +149,7 @@ export default defineConfig({
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
+						{ label: 'MCP Explorer', link: '/reference/mcp-explorer/' },
 						{ label: 'MCP Server', link: '/setup/mcp-server/' },
 					],
 				},

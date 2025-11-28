@@ -1,0 +1,334 @@
+---
+title: MCP Explorer
+description: Discover MCP servers, toolsets, and shared workflow templates available for GitHub Agentic Workflows.
+sidebar:
+  order: 750
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+The Model Context Protocol (MCP) enables agentic workflows to connect with external services, APIs, and tools. This page provides a discovery hub for available MCP servers and shared workflow templates.
+
+## GitHub MCP Server
+
+The GitHub MCP server provides comprehensive access to GitHub's API for repository management, issue tracking, pull requests, and more. This is the primary tool for workflows that interact with GitHub.
+
+<CardGrid>
+  <Card title="Remote Mode (Recommended)" icon="rocket">
+    Hosted GitHub MCP server with faster startup and no Docker required.
+
+    ```yaml wrap
+    tools:
+      github:
+        mode: remote
+        toolsets: [default]
+    ```
+  </Card>
+  <Card title="Local Mode (Docker)" icon="seti:docker">
+    Run the GitHub MCP server locally in a Docker container.
+
+    ```yaml wrap
+    tools:
+      github:
+        mode: local
+        toolsets: [default]
+    ```
+  </Card>
+</CardGrid>
+
+### Toolsets
+
+Toolsets group related GitHub API operations. Using toolsets instead of individual tool names provides stability across MCP server versions.
+
+| Toolset | Description | Example Tools |
+|---------|-------------|---------------|
+| `context` | User and team information | `get_me`, `get_teams`, `get_team_members` |
+| `repos` | Repository operations | `get_repository`, `get_file_contents`, `search_code`, `list_commits` |
+| `issues` | Issue management | `list_issues`, `create_issue`, `update_issue`, `search_issues` |
+| `pull_requests` | PR operations | `list_pull_requests`, `create_pull_request`, `search_pull_requests` |
+| `users` | User profiles | `get_user`, `list_users` |
+| `actions` | Workflow and run management | `list_workflows`, `list_workflow_runs`, `get_workflow_run` |
+| `discussions` | GitHub Discussions | `list_discussions`, `create_discussion` |
+| `code_security` | Security scanning | `list_code_scanning_alerts`, `get_code_scanning_alert` |
+| `labels` | Label management | `get_label`, `list_labels`, `create_label` |
+| `notifications` | User notifications | `list_notifications`, `mark_notifications_read` |
+| `orgs` | Organization management | `get_organization`, `list_organizations` |
+| `projects` | GitHub Projects | Project board operations |
+| `gists` | Gist operations | `create_gist`, `list_gists` |
+| `search` | Advanced search | Search across repos, code, users |
+| `dependabot` | Dependency management | Dependabot alerts and updates |
+| `secret_protection` | Secret scanning | Secret detection and management |
+| `security_advisories` | Security advisories | Advisory management |
+| `stargazers` | Repository stars | Star-related operations |
+
+**Default Toolsets**: `context`, `repos`, `issues`, `pull_requests`, `users`
+
+**Common Patterns**:
+- Read-only analysis: `[default]` or `[context, repos]`
+- Issue and PR management: `[default, discussions]`
+- CI/CD workflows: `[default, actions]`
+- Security workflows: `[default, code_security, secret_protection]`
+- Full access: `[all]`
+
+See [Tools Reference](/gh-aw/reference/tools/#github-toolsets) for complete documentation.
+
+## Shared MCP Workflow Templates
+
+Pre-configured MCP server templates that can be imported directly into your workflows. Each template includes the MCP server configuration, required secrets, and available tools.
+
+### Search and Research
+
+<CardGrid>
+  <LinkCard
+    title="Brave Search"
+    description="Web search using the Brave Search API. Provides brave_web_search and brave_local_search tools."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/brave.md"
+  />
+  <LinkCard
+    title="Tavily"
+    description="AI-optimized search API for research and retrieval tasks."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/tavily.md"
+  />
+  <LinkCard
+    title="arXiv"
+    description="Search and retrieve academic papers from arXiv repository."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/arxiv.md"
+  />
+  <LinkCard
+    title="DeepWiki"
+    description="GitHub repository documentation and AI-powered Q&A. No authentication required."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/deepwiki.md"
+  />
+</CardGrid>
+
+### Documentation and Knowledge
+
+<CardGrid>
+  <LinkCard
+    title="Context7"
+    description="Library documentation lookup and semantic search from Upstash."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/context7.md"
+  />
+  <LinkCard
+    title="Microsoft Docs"
+    description="Access Microsoft Learn documentation. No authentication required."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/microsoft-docs.md"
+  />
+  <LinkCard
+    title="Svelte Docs"
+    description="Svelte 5 and SvelteKit documentation, autofixer, and playground links."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/svelte.md"
+  />
+  <LinkCard
+    title="MarkItDown"
+    description="Convert documents to Markdown format using Microsoft's MarkItDown."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/markitdown.md"
+  />
+</CardGrid>
+
+### Cloud and Infrastructure
+
+<CardGrid>
+  <LinkCard
+    title="Azure"
+    description="Read-only access to 40+ Azure services including Key Vault, Storage, SQL Database, and more."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/azure.md"
+  />
+  <LinkCard
+    title="Datadog"
+    description="HTTP-based integration for monitoring, logs, metrics, and incident management."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/datadog.md"
+  />
+  <LinkCard
+    title="Sentry"
+    description="Error tracking and performance monitoring with AI-powered issue analysis."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/sentry.md"
+  />
+  <LinkCard
+    title="Microsoft Fabric RTI"
+    description="Real-Time Intelligence with Kusto query and Eventstream management."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/fabric-rti.md"
+  />
+</CardGrid>
+
+### Development Tools
+
+<CardGrid>
+  <LinkCard
+    title="ast-grep"
+    description="Structural code search and pattern matching using tree-sitter grammars."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/ast-grep.md"
+  />
+  <LinkCard
+    title="Jupyter"
+    description="Execute code cells, create notebooks, and visualize data in Jupyter environments."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/jupyter.md"
+  />
+  <LinkCard
+    title="gh-aw"
+    description="GitHub Agentic Workflows introspection - compile, audit, and analyze workflow runs."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/gh-aw.md"
+  />
+  <LinkCard
+    title="Drain3"
+    description="Log template mining and pattern extraction for analyzing unstructured logs."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/drain3.md"
+  />
+</CardGrid>
+
+### Productivity and Collaboration
+
+<CardGrid>
+  <LinkCard
+    title="Notion"
+    description="Search pages, query databases, and add comments to Notion workspaces."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/notion.md"
+  />
+  <LinkCard
+    title="Slack"
+    description="Post messages to Slack channels with markdown support."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/slack.md"
+  />
+  <LinkCard
+    title="Server Memory"
+    description="Persistent key-value storage across workflow runs using cache-memory."
+    href="https://github.com/githubnext/gh-aw/blob/main/.github/workflows/shared/mcp/server-memory.md"
+  />
+</CardGrid>
+
+### Using Shared Templates
+
+Import a shared MCP template into your workflow:
+
+```yaml wrap
+---
+on: workflow_dispatch
+engine: copilot
+imports:
+  - shared/mcp/brave.md      # Import Brave Search MCP
+  - shared/mcp/datadog.md    # Import Datadog MCP
+---
+
+# Research and Monitoring Agent
+
+Search the web and check Datadog dashboards for relevant information.
+```
+
+<Aside type="tip">
+Templates handle the MCP server configuration automatically. You only need to configure the required secrets in your repository settings.
+</Aside>
+
+## HTTP MCP Servers
+
+HTTP MCP servers connect to remote APIs without running local containers.
+
+```yaml wrap
+mcp-servers:
+  datadog:
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    headers:
+      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
+      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
+    allowed:
+      - search_datadog_dashboards
+      - search_datadog_metrics
+```
+
+**Configuration Options**:
+- `url`: The HTTP endpoint for the MCP server
+- `headers`: HTTP headers for authentication (supports GitHub Actions secrets)
+- `allowed`: List of tools to enable (use `["*"]` for all tools)
+
+**Examples of HTTP MCP Servers**:
+- Datadog monitoring and observability
+- DeepWiki documentation (no auth required)
+- Microsoft Learn documentation (no auth required)
+- Svelte documentation (no auth required)
+- Tavily AI search
+
+## Container-Based MCP Servers
+
+Run MCP servers in Docker containers for isolated execution.
+
+```yaml wrap
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    env:
+      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
+    allowed:
+      - search_pages
+      - get_page
+      - query_database
+```
+
+**Configuration Options**:
+- `container`: Docker image name (e.g., `mcp/notion`, `mcp/arxiv-mcp-server`)
+- `version`: Container version tag (defaults to `latest`)
+- `env`: Environment variables passed to the container
+- `args`: Additional container arguments
+- `entrypointArgs`: Arguments passed to the container entrypoint
+- `allowed`: List of tools to enable
+
+## Command-Based MCP Servers
+
+Run MCP servers as local processes using npm, Python, or other package managers.
+
+```yaml wrap
+mcp-servers:
+  sentry:
+    command: "npx"
+    args: ["@sentry/mcp-server@0.23.1"]
+    env:
+      SENTRY_ACCESS_TOKEN: "${{ secrets.SENTRY_ACCESS_TOKEN }}"
+    allowed:
+      - search_issues
+      - get_issue_details
+      - analyze_issue_with_seer
+
+  markitdown:
+    command: "markitdown-mcp"
+    allowed: ["*"]
+```
+
+**Configuration Options**:
+- `command`: The command to run (e.g., `npx`, `uvx`, `python`)
+- `args`: Command arguments
+- `env`: Environment variables
+- `allowed`: List of tools to enable
+
+**Common Commands**:
+- `npx`: Run npm packages without installation
+- `uvx`: Run Python packages using uv
+- `python`: Run Python scripts directly
+
+## Quick Reference
+
+| Template | Type | Authentication | Use Case |
+|----------|------|----------------|----------|
+| [arXiv](/gh-aw/reference/mcp-explorer/#search-and-research) | Container | None | Academic paper search |
+| [ast-grep](/gh-aw/reference/mcp-explorer/#development-tools) | Container | None | Code pattern matching |
+| [Azure](/gh-aw/reference/mcp-explorer/#cloud-and-infrastructure) | Container | Service Principal | Azure resource access |
+| [Brave](/gh-aw/reference/mcp-explorer/#search-and-research) | Container | API Key | Web search |
+| [Context7](/gh-aw/reference/mcp-explorer/#documentation-and-knowledge) | Container | API Key | Library documentation |
+| [Datadog](/gh-aw/reference/mcp-explorer/#cloud-and-infrastructure) | HTTP | API Keys | Monitoring and logs |
+| [DeepWiki](/gh-aw/reference/mcp-explorer/#search-and-research) | HTTP | None | Repository documentation |
+| [Drain3](/gh-aw/reference/mcp-explorer/#development-tools) | HTTP (local) | None | Log analysis |
+| [Fabric RTI](/gh-aw/reference/mcp-explorer/#cloud-and-infrastructure) | Command | Service Principal | Kusto queries |
+| [gh-aw](/gh-aw/reference/mcp-explorer/#development-tools) | HTTP (local) | GitHub Token | Workflow introspection |
+| [Jupyter](/gh-aw/reference/mcp-explorer/#development-tools) | Service | Token | Notebook execution |
+| [MarkItDown](/gh-aw/reference/mcp-explorer/#documentation-and-knowledge) | Command | None | Document conversion |
+| [Microsoft Docs](/gh-aw/reference/mcp-explorer/#documentation-and-knowledge) | HTTP | None | Microsoft Learn access |
+| [Notion](/gh-aw/reference/mcp-explorer/#productivity-and-collaboration) | Container | API Token | Page and database access |
+| [Sentry](/gh-aw/reference/mcp-explorer/#cloud-and-infrastructure) | Command | Access Token | Error tracking |
+| [Server Memory](/gh-aw/reference/mcp-explorer/#productivity-and-collaboration) | Container | None | Persistent storage |
+| [Slack](/gh-aw/reference/mcp-explorer/#productivity-and-collaboration) | Safe Job | Bot Token | Channel messaging |
+| [Svelte](/gh-aw/reference/mcp-explorer/#documentation-and-knowledge) | HTTP | None | Svelte documentation |
+| [Tavily](/gh-aw/reference/mcp-explorer/#search-and-research) | HTTP | API Key | AI-optimized search |
+
+## Related Documentation
+
+- [Tools Reference](/gh-aw/reference/tools/) - Complete tool configuration
+- [Imports](/gh-aw/reference/imports/) - Using shared workflow templates
+- [MCPs Guide](/gh-aw/guides/mcps/) - Detailed MCP setup and configuration
+- [GitHub MCP Server](/gh-aw/reference/tools/#github-tools-github) - GitHub API access
