@@ -1,32 +1,30 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
-const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
-const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validator.cjs");
+const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const reviewerItem = result.items.find(item => item.type === "add_reviewer");
-  if (!reviewerItem) {
-    core.warning("No add-reviewer item found in agent output");
-    return;
-  }
-  core.info(`Found add-reviewer item with ${reviewerItem.reviewers.length} reviewers`);
-
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  // Use shared processor for common steps
+  const result = await processSafeOutput(
+    {
+      itemType: "add_reviewer",
+      configKey: "add_reviewer",
+      displayName: "Reviewers",
+      itemTypeName: "reviewer addition",
+      supportsPR: false, // PR-only: supportsPR=false means ONLY PR context (not issues)
+      supportsIssue: false,
+      envVars: {
+        allowed: "GH_AW_REVIEWERS_ALLOWED",
+        maxCount: "GH_AW_REVIEWERS_MAX_COUNT",
+        target: "GH_AW_REVIEWERS_TARGET",
+      },
+    },
+    {
       title: "Add Reviewers",
       description: "The following reviewers would be added if staged mode was disabled:",
-      items: [reviewerItem],
       renderItem: item => {
         let content = "";
         if (item.pull_request_number) {
@@ -39,76 +37,27 @@ async function main() {
         }
         return content;
       },
-    });
-    return;
-  }
-
-  // Get configuration from config.json
-  const config = getSafeOutputConfig("add_reviewer");
-
-  // Parse allowed reviewers (from env or config)
-  const allowedReviewers = parseAllowedItems(process.env.GH_AW_REVIEWERS_ALLOWED) || config.reviewers;
-  if (allowedReviewers) {
-    core.info(`Allowed reviewers: ${JSON.stringify(allowedReviewers)}`);
-  } else {
-    core.info("No reviewer restrictions - any reviewers are allowed");
-  }
-
-  // Parse max count (env takes priority, then config)
-  const maxCountResult = validateMaxCount(process.env.GH_AW_REVIEWERS_MAX_COUNT, config.max);
-  if (!maxCountResult.valid) {
-    core.setFailed(maxCountResult.error);
-    return;
-  }
-  const maxCount = maxCountResult.value;
-  core.info(`Max count: ${maxCount}`);
-
-  // Resolve target
-  const reviewersTarget = process.env.GH_AW_REVIEWERS_TARGET || "triggering";
-  core.info(`Reviewers target configuration: ${reviewersTarget}`);
-
-  const targetResult = resolveTarget({
-    targetConfig: reviewersTarget,
-    item: reviewerItem,
-    context,
-    itemType: "reviewer addition",
-    supportsPR: false,
-  });
-
-  if (!targetResult.success) {
-    if (targetResult.shouldFail) {
-      core.setFailed(targetResult.error);
-    } else {
-      core.info(targetResult.error);
     }
+  );
+
+  if (!result.success) {
     return;
   }
 
+  // @ts-ignore - TypeScript doesn't narrow properly after success check
+  const { item: reviewerItem, config, targetResult } = result;
+  if (!config || !targetResult || targetResult.number === undefined) {
+    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+    return;
+  }
+  const { allowed: allowedReviewers, maxCount } = config;
   const prNumber = targetResult.number;
 
   const requestedReviewers = reviewerItem.reviewers || [];
   core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
 
-  // Filter by allowed reviewers if configured
-  let validReviewers;
-  if (allowedReviewers) {
-    validReviewers = requestedReviewers.filter(reviewer => allowedReviewers.includes(reviewer));
-  } else {
-    validReviewers = requestedReviewers;
-  }
-
-  // Sanitize and deduplicate reviewers
-  let uniqueReviewers = validReviewers
-    .filter(reviewer => reviewer != null && reviewer !== false && reviewer !== 0)
-    .map(reviewer => String(reviewer).trim())
-    .filter(reviewer => reviewer)
-    .filter((reviewer, index, arr) => arr.indexOf(reviewer) === index);
-
-  // Apply max count limit
-  if (uniqueReviewers.length > maxCount) {
-    core.info(`Too many reviewers, keeping ${maxCount}`);
-    uniqueReviewers = uniqueReviewers.slice(0, maxCount);
-  }
+  // Use shared helper to filter, sanitize, dedupe, and limit
+  const uniqueReviewers = processItems(requestedReviewers, allowedReviewers, maxCount);
 
   if (uniqueReviewers.length === 0) {
     core.info("No reviewers to add");

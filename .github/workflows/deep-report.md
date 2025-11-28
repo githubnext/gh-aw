@@ -17,13 +17,14 @@ permissions:
 
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
+engine: codex
+strict: false
 
 network:
   allowed:
     - defaults
     - python
     - node
-  firewall: true
 
 safe-outputs:
   upload-assets:

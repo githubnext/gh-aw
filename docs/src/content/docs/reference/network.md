@@ -50,6 +50,16 @@ Network permissions follow the principle of least privilege with four access lev
 AWF does not support wildcard syntax like `*.example.com`. Instead, listing a domain automatically includes all its subdomains. Use `example.com` to allow access to `example.com`, `api.example.com`, `sub.api.example.com`, etc.
 :::
 
+## Content Sanitization
+
+The `network:` configuration also controls which domains are allowed in sanitized content. URLs from domains not in the allowed list are replaced with `(redacted)` to prevent potential data exfiltration through untrusted links.
+
+:::tip
+If you see `(redacted)` in workflow outputs, add the domain to your `network.allowed` list. This applies the same domain allowlist to both network egress (when firewall is enabled) and content sanitization.
+:::
+
+GitHub domains (`github.com`, `githubusercontent.com`, etc.) are always allowed by default.
+
 
 ## Ecosystem Identifiers
 

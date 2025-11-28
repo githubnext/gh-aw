@@ -29,6 +29,8 @@ This declares that the workflow should create at most one new issue.
 | [**Close Issue**](#close-issue-close-issue) | `close-issue:` | Close issues with comment | 1 | ✅ |
 | [**Add Comment**](#comment-creation-add-comment) | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
 | [**Update Issue**](#issue-updates-update-issue) | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
+| [**Update PR**](#pull-request-updates-update-pull-request) | `update-pull-request:` | Update PR title or body | 1 | ✅ |
+| [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) | `link-sub-issue:` | Link issues as sub-issues | 1 | ✅ |
 | [**Update Project**](#project-board-updates-update-project) | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
 | [**Add Labels**](#add-labels-add-labels) | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
 | [**Add Reviewer**](#add-reviewer-add-reviewer) | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
@@ -201,6 +203,44 @@ safe-outputs:
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
 ```
+
+### Pull Request Updates (`update-pull-request:`)
+
+Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, or `replace`.
+
+```yaml wrap
+safe-outputs:
+  update-pull-request:
+    title: true               # enable title updates (default: true)
+    body: true                # enable body updates (default: true)
+    max: 1                    # max updates (default: 1)
+    target: "*"               # "triggering" (default), "*", or number
+    target-repo: "owner/repo" # cross-repository
+```
+
+**Operation Types**:
+- `append` (default): Adds content to the end with separator and attribution
+- `prepend`: Adds content to the start with separator and attribution
+- `replace`: Completely replaces existing body
+
+Title updates always replace the existing title. Disable fields by setting to `false`.
+
+### Link Sub-Issue (`link-sub-issue:`)
+
+Links issues as sub-issues using GitHub's parent-child issue relationships. Supports filtering by labels and title prefixes for both parent and sub issues.
+
+```yaml wrap
+safe-outputs:
+  link-sub-issue:
+    parent-required-labels: [epic]        # parent must have these labels
+    parent-title-prefix: "[Epic]"         # parent must match prefix
+    sub-required-labels: [task]           # sub must have these labels
+    sub-title-prefix: "[Task]"            # sub must match prefix
+    max: 1                                # max links (default: 1)
+    target-repo: "owner/repo"             # cross-repository
+```
+
+Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
 
 ### Project Board Updates (`update-project:`)
 

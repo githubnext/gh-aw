@@ -1,28 +1,28 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
-const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
-const { getSafeOutputConfig, validateLabels, validateMaxCount } = require("./safe_output_validator.cjs");
+const { processSafeOutput } = require("./safe_output_processor.cjs");
+const { validateLabels } = require("./safe_output_validator.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const labelsItem = result.items.find(item => item.type === "add_labels");
-  if (!labelsItem) {
-    core.warning("No add-labels item found in agent output");
-    return;
-  }
-  core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  // Use shared processor for common steps
+  const result = await processSafeOutput(
+    {
+      itemType: "add_labels",
+      configKey: "add_labels",
+      displayName: "Labels",
+      itemTypeName: "label addition",
+      supportsPR: true,
+      supportsIssue: true,
+      envVars: {
+        allowed: "GH_AW_LABELS_ALLOWED",
+        maxCount: "GH_AW_LABELS_MAX_COUNT",
+        target: "GH_AW_LABELS_TARGET",
+      },
+    },
+    {
       title: "Add Labels",
       description: "The following labels would be added if staged mode was disabled:",
-      items: [labelsItem],
       renderItem: item => {
         let content = "";
         if (item.item_number) {
@@ -35,53 +35,23 @@ async function main() {
         }
         return content;
       },
-    });
-    return;
-  }
-
-  // Get configuration from config.json
-  const config = getSafeOutputConfig("add_labels");
-
-  // Parse allowed labels (from env or config)
-  const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
-  if (allowedLabels) {
-    core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-  } else {
-    core.info("No label restrictions - any labels are allowed");
-  }
-
-  // Parse max count (env takes priority, then config)
-  const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
-  if (!maxCountResult.valid) {
-    core.setFailed(maxCountResult.error);
-    return;
-  }
-  const maxCount = maxCountResult.value;
-  core.info(`Max count: ${maxCount}`);
-
-  // Resolve target
-  const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
-  core.info(`Labels target configuration: ${labelsTarget}`);
-
-  const targetResult = resolveTarget({
-    targetConfig: labelsTarget,
-    item: labelsItem,
-    context,
-    itemType: "label addition",
-    supportsPR: true,
-  });
-
-  if (!targetResult.success) {
-    if (targetResult.shouldFail) {
-      core.setFailed(targetResult.error);
-    } else {
-      core.info(targetResult.error);
     }
+  );
+
+  if (!result.success) {
     return;
   }
 
+  // @ts-ignore - TypeScript doesn't narrow properly after success check
+  const { item: labelsItem, config, targetResult } = result;
+  if (!config || !targetResult || targetResult.number === undefined) {
+    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+    return;
+  }
+  const { allowed: allowedLabels, maxCount } = config;
   const itemNumber = targetResult.number;
-  const contextType = targetResult.contextType;
+  const { contextType } = targetResult;
+
   const requestedLabels = labelsItem.labels || [];
   core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
 

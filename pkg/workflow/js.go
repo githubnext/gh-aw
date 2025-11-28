@@ -112,6 +112,9 @@ var safeOutputHelpersScript string
 //go:embed js/safe_output_validator.cjs
 var safeOutputValidatorScript string
 
+//go:embed js/safe_output_processor.cjs
+var safeOutputProcessorScript string
+
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
 
@@ -137,6 +140,9 @@ var getTrackerIDScript string
 
 //go:embed js/messages.cjs
 var messagesScript string
+
+//go:embed js/close_older_discussions.cjs
+var closeOlderDiscussionsScript string
 
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
@@ -168,6 +174,9 @@ var generateGitPatchJSScript string
 //go:embed js/temporary_id.cjs
 var temporaryIdScript string
 
+//go:embed js/update_runner.cjs
+var updateRunnerScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -180,6 +189,7 @@ func GetJavaScriptSources() map[string]string {
 		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,
+		"safe_output_processor.cjs":       safeOutputProcessorScript,
 		"temporary_id.cjs":                temporaryIdScript,
 		"is_truthy.cjs":                   isTruthyScript,
 		"log_parser_bootstrap.cjs":        logParserBootstrapScript,
@@ -188,6 +198,7 @@ func GetJavaScriptSources() map[string]string {
 		"generate_footer.cjs":             generateFooterScript,
 		"get_tracker_id.cjs":              getTrackerIDScript,
 		"messages.cjs":                    messagesScript,
+		"close_older_discussions.cjs":     closeOlderDiscussionsScript,
 		"get_repository_url.cjs":          getRepositoryUrlScript,
 		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,
 		"normalize_branch_name.cjs":       normalizeBranchNameScript,
@@ -197,6 +208,7 @@ func GetJavaScriptSources() map[string]string {
 		"get_current_branch.cjs":          getCurrentBranchScript,
 		"get_base_branch.cjs":             getBaseBranchScript,
 		"generate_git_patch.cjs":          generateGitPatchJSScript,
+		"update_runner.cjs":               updateRunnerScript,
 	}
 }
 

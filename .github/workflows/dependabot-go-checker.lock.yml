@@ -739,7 +739,7 @@ jobs:
           {"close_issue":{"max":20,"required_title_prefix":"[deps]"},"create_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Closing comment explaining why the issue is being closed and summarizing any resolution, workaround, or conclusion.","type":"string"},"issue_number":{"description":"Issue number to close. If omitted, closes the issue that triggered this workflow (requires an issue event trigger).","type":["number","string"]}},"required":["body"],"type":"object"},"name":"close_issue"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[deps]\". Labels [dependencies go] will be automatically added.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. CONSTRAINTS: Maximum 20 issue(s) can be closed. Target: *.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Closing comment explaining why the issue is being closed and summarizing any resolution, workaround, or conclusion.","type":"string"},"issue_number":{"description":"Issue number to close. If omitted, closes the issue that triggered this workflow (requires an issue event trigger).","type":["number","string"]}},"required":["body"],"type":"object"},"name":"close_issue"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1376,29 +1376,6 @@ jobs:
                       description: tool.description,
                       inputSchema: tool.inputSchema,
                     };
-                    if (tool.name === "add_labels" && safeOutputsConfig.add_labels?.allowed) {
-                      const allowedLabels = safeOutputsConfig.add_labels.allowed;
-                      if (Array.isArray(allowedLabels) && allowedLabels.length > 0) {
-                        toolDef.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${allowedLabels.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "update_issue" && safeOutputsConfig.update_issue) {
-                      const config = safeOutputsConfig.update_issue;
-                      const allowedOps = [];
-                      if (config.status !== false) allowedOps.push("status");
-                      if (config.title !== false) allowedOps.push("title");
-                      if (config.body !== false) allowedOps.push("body");
-                      if (allowedOps.length > 0 && allowedOps.length < 3) {
-                        toolDef.description = `Update a GitHub issue. Allowed updates: ${allowedOps.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "upload_asset") {
-                      const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-                      const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-                        ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
-                        : [".png", ".jpg", ".jpeg"];
-                      toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
-                    }
                     list.push(toolDef);
                   });
                   replyResult(id, { tools: list });
@@ -5450,6 +5427,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -5556,6 +5534,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;

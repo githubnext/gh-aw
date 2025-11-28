@@ -286,6 +286,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -392,6 +393,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
@@ -832,6 +843,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -938,6 +950,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             function getTrackerID(format) {
               const trackerID = process.env.GH_AW_TRACKER_ID || "";
@@ -1628,22 +1650,161 @@ jobs:
               }
               return { valid: true, value: parsed };
             }
-            async function main() {
+            async function processSafeOutput(config, stagedPreviewOptions) {
+              const {
+                itemType,
+                configKey,
+                displayName,
+                itemTypeName,
+                supportsPR = false,
+                supportsIssue = false,
+                findMultiple = false,
+                envVars,
+              } = config;
               const result = loadAgentOutput();
               if (!result.success) {
-                return;
+                return { success: false, reason: "Agent output not available" };
               }
-              const labelsItem = result.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
+              let items;
+              if (findMultiple) {
+                items = result.items.filter(item => item.type === itemType);
+                if (items.length === 0) {
+                  core.info(`No ${itemType} items found in agent output`);
+                  return { success: false, reason: `No ${itemType} items found` };
+                }
+                core.info(`Found ${items.length} ${itemType} item(s)`);
+              } else {
+                const item = result.items.find(item => item.type === itemType);
+                if (!item) {
+                  core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
+                  return { success: false, reason: `No ${itemType} item found` };
+                }
+                items = [item];
+                const itemDetails = getItemDetails(item);
+                if (itemDetails) {
+                  core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
+                }
               }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
+                  title: stagedPreviewOptions.title,
+                  description: stagedPreviewOptions.description,
+                  items: items,
+                  renderItem: stagedPreviewOptions.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              const safeOutputConfig = getSafeOutputConfig(configKey);
+              const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
+              const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+              if (allowed) {
+                core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+              } else {
+                core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+              }
+              const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
+              const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
+                return { success: false, reason: "Invalid max count configuration" };
+              }
+              const maxCount = maxCountResult.value;
+              core.info(`Max count: ${maxCount}`);
+              const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+              core.info(`${displayName} target configuration: ${target}`);
+              if (findMultiple) {
+                return {
+                  success: true,
+                  items: items,
+                  config: {
+                    allowed,
+                    maxCount,
+                    target,
+                  },
+                };
+              }
+              const item = items[0];
+              const targetResult = resolveTarget({
+                targetConfig: target,
+                item: item,
+                context,
+                itemType: itemTypeName,
+                supportsPR: supportsPR || supportsIssue,
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
+                } else {
+                  core.info(targetResult.error);
+                }
+                return { success: false, reason: targetResult.error };
+              }
+              return {
+                success: true,
+                item: item,
+                config: {
+                  allowed,
+                  maxCount,
+                  target,
+                },
+                targetResult: {
+                  number: targetResult.number,
+                  contextType: targetResult.contextType,
+                },
+              };
+            }
+            function getItemDetails(item) {
+              if (item.labels && Array.isArray(item.labels)) {
+                return `${item.labels.length} labels`;
+              }
+              if (item.reviewers && Array.isArray(item.reviewers)) {
+                return `${item.reviewers.length} reviewers`;
+              }
+              return null;
+            }
+            function sanitizeItems(items) {
+              return items
+                .filter(item => item != null && item !== false && item !== 0)
+                .map(item => String(item).trim())
+                .filter(item => item)
+                .filter((item, index, arr) => arr.indexOf(item) === index);
+            }
+            function filterByAllowed(items, allowed) {
+              if (!allowed || allowed.length === 0) {
+                return items;
+              }
+              return items.filter(item => allowed.includes(item));
+            }
+            function limitToMaxCount(items, maxCount) {
+              if (items.length > maxCount) {
+                core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
+                return items.slice(0, maxCount);
+              }
+              return items;
+            }
+            function processItems(rawItems, allowed, maxCount) {
+              const filtered = filterByAllowed(rawItems, allowed);
+              const sanitized = sanitizeItems(filtered);
+              return limitToMaxCount(sanitized, maxCount);
+            }
+            async function main() {
+              const result = await processSafeOutput(
+                {
+                  itemType: "add_labels",
+                  configKey: "add_labels",
+                  displayName: "Labels",
+                  itemTypeName: "label addition",
+                  supportsPR: true,
+                  supportsIssue: true,
+                  envVars: {
+                    allowed: "GH_AW_LABELS_ALLOWED",
+                    maxCount: "GH_AW_LABELS_MAX_COUNT",
+                    target: "GH_AW_LABELS_TARGET",
+                  },
+                },
+                {
                   title: "Add Labels",
                   description: "The following labels would be added if staged mode was disabled:",
-                  items: [labelsItem],
                   renderItem: item => {
                     let content = "";
                     if (item.item_number) {
@@ -1656,42 +1817,19 @@ jobs:
                     }
                     return content;
                   },
-                });
-                return;
-              }
-              const config = getSafeOutputConfig("add_labels");
-              const allowedLabels = parseAllowedItems(process.env.GH_AW_LABELS_ALLOWED) || config.allowed;
-              if (allowedLabels) {
-                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-              } else {
-                core.info("No label restrictions - any labels are allowed");
-              }
-              const maxCountResult = validateMaxCount(process.env.GH_AW_LABELS_MAX_COUNT, config.max);
-              if (!maxCountResult.valid) {
-                core.setFailed(maxCountResult.error);
-                return;
-              }
-              const maxCount = maxCountResult.value;
-              core.info(`Max count: ${maxCount}`);
-              const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
-              core.info(`Labels target configuration: ${labelsTarget}`);
-              const targetResult = resolveTarget({
-                targetConfig: labelsTarget,
-                item: labelsItem,
-                context,
-                itemType: "label addition",
-                supportsPR: true,
-              });
-              if (!targetResult.success) {
-                if (targetResult.shouldFail) {
-                  core.setFailed(targetResult.error);
-                } else {
-                  core.info(targetResult.error);
                 }
+              );
+              if (!result.success) {
                 return;
               }
+              const { item: labelsItem, config, targetResult } = result;
+              if (!config || !targetResult || targetResult.number === undefined) {
+                core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+                return;
+              }
+              const { allowed: allowedLabels, maxCount } = config;
               const itemNumber = targetResult.number;
-              const contextType = targetResult.contextType;
+              const { contextType } = targetResult;
               const requestedLabels = labelsItem.labels || [];
               core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
               const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
@@ -1874,7 +2012,7 @@ jobs:
           {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-codex"],"max":3},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead.","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow.","type":"number"},"labels":{"description":"Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.","type":"string"},"labels":{"description":"Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.","items":{"type":"string"},"type":"array"},"parent":{"description":"Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.","type":["number","string"]},"temporary_id":{"description":"Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.","type":"string"},"title":{"description":"Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_issue"},{"description":"Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.","type":"string"},"item_number":{"description":"The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.","type":"number"}},"required":["body","item_number"],"type":"object"},"name":"add_comment"},{"description":"Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [smoke-codex].","inputSchema":{"additionalProperties":false,"properties":{"item_number":{"description":"Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow.","type":"number"},"labels":{"description":"Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.","items":{"type":"string"},"type":"array"}},"required":["labels"],"type":"object"},"name":"add_labels"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -2511,29 +2649,6 @@ jobs:
                       description: tool.description,
                       inputSchema: tool.inputSchema,
                     };
-                    if (tool.name === "add_labels" && safeOutputsConfig.add_labels?.allowed) {
-                      const allowedLabels = safeOutputsConfig.add_labels.allowed;
-                      if (Array.isArray(allowedLabels) && allowedLabels.length > 0) {
-                        toolDef.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${allowedLabels.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "update_issue" && safeOutputsConfig.update_issue) {
-                      const config = safeOutputsConfig.update_issue;
-                      const allowedOps = [];
-                      if (config.status !== false) allowedOps.push("status");
-                      if (config.title !== false) allowedOps.push("title");
-                      if (config.body !== false) allowedOps.push("body");
-                      if (allowedOps.length > 0 && allowedOps.length < 3) {
-                        toolDef.description = `Update a GitHub issue. Allowed updates: ${allowedOps.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "upload_asset") {
-                      const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-                      const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-                        ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
-                        : [".png", ".jpg", ".jpeg"];
-                      toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
-                    }
                     list.push(toolDef);
                   });
                   replyResult(id, { tools: list });
@@ -5731,6 +5846,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -5837,6 +5953,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;

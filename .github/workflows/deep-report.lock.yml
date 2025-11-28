@@ -40,13 +40,14 @@
 #
 # tracker-id: deep-report-intel-agent
 # timeout-minutes: 45
+# engine: codex
+# strict: false
 #
 # network:
 #   allowed:
 #     - defaults
 #     - python
 #     - node
-#   firewall: true
 #
 # safe-outputs:
 #   upload-assets:
@@ -725,7 +726,7 @@ jobs:
       repository-projects: read
       security-events: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     env:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
@@ -836,37 +837,29 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install awf binary
-        run: |
-          echo "Installing awf from release: v0.5.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.5.0/awf-linux-x64 -o awf
-          chmod +x awf
-          sudo mv awf /usr/local/bin/
-          which awf
-          awf --version
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
       - name: Downloading container images
         run: |
           set -e
@@ -878,7 +871,7 @@ jobs:
           {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          [{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead.","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content.","inputSchema":{"additionalProperties":false,"properties":{"path":{"description":"Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.","type":"string"}},"required":["path"],"type":"object"},"name":"upload_asset"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
+          [{"description":"Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"reports\".","inputSchema":{"additionalProperties":false,"properties":{"body":{"description":"Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.","type":"string"},"category":{"description":"Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.","type":"string"},"title":{"description":"Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.","type":"string"}},"required":["title","body"],"type":"object"},"name":"create_discussion"},{"description":"Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].","inputSchema":{"additionalProperties":false,"properties":{"path":{"description":"Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.","type":"string"}},"required":["path"],"type":"object"},"name":"upload_asset"},{"description":"Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.","inputSchema":{"additionalProperties":false,"properties":{"alternatives":{"description":"Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).","type":"string"},"reason":{"description":"Explanation of why this tool is needed to complete the task (max 256 characters).","type":"string"},"tool":{"description":"Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.","type":"string"}},"required":["tool","reason"],"type":"object"},"name":"missing_tool"},{"description":"Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.","inputSchema":{"additionalProperties":false,"properties":{"message":{"description":"Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').","type":"string"}},"required":["message"],"type":"object"},"name":"noop"}]
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1515,29 +1508,6 @@ jobs:
                       description: tool.description,
                       inputSchema: tool.inputSchema,
                     };
-                    if (tool.name === "add_labels" && safeOutputsConfig.add_labels?.allowed) {
-                      const allowedLabels = safeOutputsConfig.add_labels.allowed;
-                      if (Array.isArray(allowedLabels) && allowedLabels.length > 0) {
-                        toolDef.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${allowedLabels.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "update_issue" && safeOutputsConfig.update_issue) {
-                      const config = safeOutputsConfig.update_issue;
-                      const allowedOps = [];
-                      if (config.status !== false) allowedOps.push("status");
-                      if (config.title !== false) allowedOps.push("title");
-                      if (config.body !== false) allowedOps.push("body");
-                      if (allowedOps.length > 0 && allowedOps.length < 3) {
-                        toolDef.description = `Update a GitHub issue. Allowed updates: ${allowedOps.join(", ")}`;
-                      }
-                    }
-                    if (tool.name === "upload_asset") {
-                      const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-                      const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-                        ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
-                        : [".png", ".jpg", ".jpeg"];
-                      toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
-                    }
                     list.push(toolDef);
                   });
                   replyResult(id, { tools: list });
@@ -1593,61 +1563,42 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
-          {
-            "mcpServers": {
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765",
-                "tools": [
-                  "*"
-                ]
-              },
-              "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=all",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
-                ],
-                "tools": ["*"],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
-              },
-              "safeoutputs": {
-                "type": "local",
-                "command": "node",
-                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
-                "tools": ["*"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
-                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
-                }
-              }
-            }
-          }
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
+          
+          [mcp_servers.gh-aw]
+          
+          [mcp_servers.github]
+          user_agent = "deepreport-intelligence-gathering-agent"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_READ_ONLY=1",
+            "-e",
+            "GITHUB_TOOLSETS=all",
+            "ghcr.io/github/github-mcp-server:v0.23.0"
+          ]
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+          
+          [mcp_servers.safeoutputs]
+          command = "node"
+          args = [
+            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
+          ]
+          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -1655,13 +1606,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.0.365",
+              agent_version: "0.63.0",
               workflow_name: "DeepReport - Intelligence Gathering Agent",
-              experimental: false,
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -1675,10 +1626,10 @@ jobs:
               staged: false,
               network_mode: "defaults",
               allowed_domains: ["defaults","python","node"],
-              firewall_enabled: true,
+              firewall_enabled: false,
               firewall_version: "",
               steps: {
-                firewall: "squid"
+                firewall: ""
               },
               created_at: new Date().toISOString()
             };
@@ -2438,40 +2389,26 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+      - name: Run Codex
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains '*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
-            2>&1 | tee /tmp/gh-aw/agent-stdio.log
-
-          # Move preserved agent logs to expected location
-          # Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
-          AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
-            echo "Moving agent logs from $AGENT_LOGS_DIR to /tmp/gh-aw/.agent/logs/"
-            sudo mkdir -p /tmp/gh-aw/.agent/logs/
-            sudo mv "$AGENT_LOGS_DIR"/* /tmp/gh-aw/.agent/logs/ || true
-            sudo rmdir "$AGENT_LOGS_DIR" || true
-          fi
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2583,11 +2520,11 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -2600,7 +2537,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,bun.sh,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,files.pythonhosted.org,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.anaconda.com,repo.continuum.io,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pypi.python.org,pypi.org,pip.pypa.io,*.pythonhosted.org,files.pythonhosted.org,bootstrap.pypa.io,conda.binstar.org,conda.anaconda.org,binstar.org,anaconda.org,repo.continuum.io,repo.anaconda.com,npmjs.org,npmjs.com,www.npmjs.com,www.npmjs.org,registry.npmjs.com,registry.npmjs.org,skimdb.npmjs.com,npm.pkg.github.com,api.npms.io,nodejs.org,yarnpkg.com,registry.yarnpkg.com,repo.yarnpkg.com,deb.nodesource.com,get.pnpm.io,bun.sh,deno.land,registry.bower.io"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3802,7 +3739,7 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/mcp-config/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -3816,7 +3753,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function runLogParser(options) {
@@ -4351,832 +4288,316 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseCopilotLog,
-                parserName: "Copilot",
-                supportsDirectories: true,
+                parseLog: parseCodexLog,
+                parserName: "Codex",
+                supportsDirectories: false,
               });
             }
-            function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
-              for (const pattern of patterns) {
-                const match = logContent.match(pattern);
-                if (match && match[1]) {
-                  const count = parseInt(match[1], 10);
-                  if (!isNaN(count) && count > 0) {
-                    return count;
+            function extractMCPInitialization(lines) {
+              const mcpServers = new Map(); 
+              let serverCount = 0;
+              let connectedCount = 0;
+              let availableTools = [];
+              for (const line of lines) {
+                if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
+                }
+                const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
+                if (countMatch) {
+                  serverCount = parseInt(countMatch[1]);
+                }
+                const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
+                if (connectingMatch) {
+                  const serverName = connectingMatch[1];
+                  if (!mcpServers.has(serverName)) {
+                    mcpServers.set(serverName, { name: serverName, status: "connecting" });
                   }
+                }
+                const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
+                if (connectedMatch) {
+                  const serverName = connectedMatch[1];
+                  mcpServers.set(serverName, { name: serverName, status: "connected" });
+                  connectedCount++;
+                }
+                const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
+                if (failedMatch) {
+                  const serverName = failedMatch[1];
+                  const error = failedMatch[2].trim();
+                  mcpServers.set(serverName, { name: serverName, status: "failed", error });
+                }
+                const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
+                if (initFailedMatch) {
+                  const serverName = initFailedMatch[1];
+                  const existing = mcpServers.get(serverName);
+                  if (existing && existing.status !== "failed") {
+                    mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
+                  }
+                }
+                const toolsMatch = line.match(/Available tools:\s*(.+)/i);
+                if (toolsMatch) {
+                  const toolsStr = toolsMatch[1];
+                  availableTools = toolsStr
+                    .split(",")
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
                 }
               }
-              return 1;
+              let markdown = "";
+              const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
+              if (mcpServers.size > 0) {
+                markdown += "**MCP Servers:**\n";
+                const servers = Array.from(mcpServers.values());
+                const connected = servers.filter(s => s.status === "connected");
+                const failed = servers.filter(s => s.status === "failed");
+                markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
+                markdown += `- Connected: ${connected.length}\n`;
+                if (failed.length > 0) {
+                  markdown += `- Failed: ${failed.length}\n`;
+                }
+                markdown += "\n";
+                for (const server of servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
+                  markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
+                  if (server.error) {
+                    markdown += `\n  - Error: ${server.error}`;
+                  }
+                  markdown += "\n";
+                }
+                markdown += "\n";
+              }
+              if (availableTools.length > 0) {
+                markdown += "**Available MCP Tools:**\n";
+                markdown += `- Total: ${availableTools.length} tools\n`;
+                markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
+              }
+              return {
+                hasInfo,
+                markdown,
+                servers: Array.from(mcpServers.values()),
+              };
             }
-            function parseCopilotLog(logContent) {
+            function parseCodexLog(logContent) {
               try {
-                let logEntries;
-                try {
-                  logEntries = JSON.parse(logContent);
-                  if (!Array.isArray(logEntries)) {
-                    throw new Error("Not a JSON array");
-                  }
-                } catch (jsonArrayError) {
-                  const debugLogEntries = parseDebugLogFormat(logContent);
-                  if (debugLogEntries && debugLogEntries.length > 0) {
-                    logEntries = debugLogEntries;
-                  } else {
-                    logEntries = parseLogEntries(logContent);
-                  }
+                const lines = logContent.split("\n");
+                const LOOKAHEAD_WINDOW = 50;
+                let markdown = "";
+                const mcpInfo = extractMCPInitialization(lines);
+                if (mcpInfo.hasInfo) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += mcpInfo.markdown;
                 }
-                if (!logEntries) {
-                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
-                }
-                const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
-                  formatInitCallback: initEntry =>
-                    formatInitializationSummary(initEntry, {
-                      includeSlashCommands: false,
-                      modelInfoCallback: entry => {
-                        if (!entry.model_info) return "";
-                        const modelInfo = entry.model_info;
-                        let markdown = "";
-                        if (modelInfo.name) {
-                          markdown += `**Model Name:** ${modelInfo.name}`;
-                          if (modelInfo.vendor) {
-                            markdown += ` (${modelInfo.vendor})`;
-                          }
-                          markdown += "\n\n";
-                        }
-                        if (modelInfo.billing) {
-                          const billing = modelInfo.billing;
-                          if (billing.is_premium === true) {
-                            markdown += `**Premium Model:** Yes`;
-                            if (billing.multiplier && billing.multiplier !== 1) {
-                              markdown += ` (${billing.multiplier}x cost multiplier)`;
-                            }
-                            markdown += "\n";
-                            if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-                              markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-                            }
-                            markdown += "\n";
-                          } else if (billing.is_premium === false) {
-                            markdown += `**Premium Model:** No\n\n`;
-                          }
-                        }
-                        return markdown;
-                      },
-                    }),
-                });
-                let markdown = conversationResult.markdown;
-                const lastEntry = logEntries[logEntries.length - 1];
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                markdown += generateInformationSection(lastEntry, {
-                  additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-                    if (isPremiumModel) {
-                      const premiumRequestCount = extractPremiumRequestCount(logContent);
-                      return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
+                markdown += "## 🤖 Reasoning\n\n";
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  if (
+                    line.includes("OpenAI Codex") ||
+                    line.startsWith("--------") ||
+                    line.includes("workdir:") ||
+                    line.includes("model:") ||
+                    line.includes("provider:") ||
+                    line.includes("approval:") ||
+                    line.includes("sandbox:") ||
+                    line.includes("reasoning effort:") ||
+                    line.includes("reasoning summaries:") ||
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+                  ) {
+                    continue;
+                  }
+                  if (line.trim() === "thinking") {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
+                    inThinkingSection = false;
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
                     }
-                    return "";
-                  },
-                });
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                    const trimmed = line.trim();
+                    markdown += `${trimmed}\n\n`;
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
+                  if (toolMatch) {
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    const params = toolMatch[3];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let jsonLines = [];
+                        let braceCount = 0;
+                        let inJson = false;
+                        for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+                            break;
+                          }
+                          for (const char of respLine) {
+                            if (char === "{") {
+                              braceCount++;
+                              inJson = true;
+                            } else if (char === "}") {
+                              braceCount--;
+                            }
+                          }
+                          if (inJson) {
+                            jsonLines.push(respLine);
+                          }
+                          if (inJson && braceCount === 0) {
+                            break;
+                          }
+                        }
+                        response = jsonLines.join("\n");
+                        break;
+                      }
+                    }
+                    markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
+                  } else if (bashMatch) {
+                    const command = bashMatch[1];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let responseLines = [];
+                        for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (
+                            respLine.includes("tool ") ||
+                            respLine.includes("exec ") ||
+                            respLine.includes("ToolCall:") ||
+                            respLine.includes("tokens used") ||
+                            respLine.includes("thinking")
+                          ) {
+                            break;
+                          }
+                          responseLines.push(respLine);
+                        }
+                        response = responseLines.join("\n").trim();
+                        break;
+                      }
+                    }
+                    markdown += formatCodexBashCall(command, response, statusIcon);
+                  }
+                }
+                markdown += "\n## 📊 Information\n\n";
+                let totalTokens = 0;
+                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
+                for (const match of tokenCountMatches) {
+                  const tokens = parseInt(match[1]);
+                  totalTokens = Math.max(totalTokens, tokens); 
+                }
+                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                if (finalTokensMatch) {
+                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
                 return markdown;
               } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
+                core.error(`Error parsing Codex log: ${error}`);
+                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
-            function scanForToolErrors(logContent) {
-              const toolErrors = new Map();
-              const lines = logContent.split("\n");
-              const recentToolCalls = [];
-              const MAX_RECENT_TOOLS = 10;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
-                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
-                    const nextLine = lines[j];
-                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
-                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
-                    if (idMatch) {
-                      const toolId = idMatch[1];
-                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
-                        const nameLine = lines[k];
-                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
-                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
-                          const toolName = funcNameMatch[1];
-                          recentToolCalls.unshift({ id: toolId, name: toolName });
-                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
-                            recentToolCalls.pop();
-                          }
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
-                if (errorMatch) {
-                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
-                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
-                  if (toolNameMatch) {
-                    const toolName = toolNameMatch[1];
-                    toolErrors.set(toolName, true);
-                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
-                    if (matchingTool) {
-                      toolErrors.set(matchingTool.id, true);
-                    }
-                  } else if (toolIdMatch) {
-                    toolErrors.set(toolIdMatch[1], true);
-                  } else if (recentToolCalls.length > 0) {
-                    const lastTool = recentToolCalls[0];
-                    toolErrors.set(lastTool.id, true);
-                    toolErrors.set(lastTool.name, true);
-                  }
-                }
+            function formatCodexToolCall(server, toolName, params, response, statusIcon) {
+              const totalTokens = estimateTokens(params) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
               }
-              return toolErrors;
+              const summary = `<code>${server}::${toolName}</code>`;
+              const sections = [];
+              if (params && params.trim()) {
+                sections.push({
+                  label: "Parameters",
+                  content: params,
+                  language: "json",
+                });
+              }
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Response",
+                  content: response,
+                  language: "json",
+                });
+              }
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
             }
-            function parseDebugLogFormat(logContent) {
-              const entries = [];
-              const lines = logContent.split("\n");
-              const toolErrors = scanForToolErrors(logContent);
-              let model = "unknown";
-              let sessionId = null;
-              let modelInfo = null;
-              let tools = [];
-              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
-              if (modelMatch) {
-                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+            function formatCodexBashCall(command, response, statusIcon) {
+              const totalTokens = estimateTokens(command) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
               }
-              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
-              if (gotModelInfoIndex !== -1) {
-                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
-                if (jsonStart !== -1) {
-                  let braceCount = 0;
-                  let inString = false;
-                  let escapeNext = false;
-                  let jsonEnd = -1;
-                  for (let i = jsonStart; i < logContent.length; i++) {
-                    const char = logContent[i];
-                    if (escapeNext) {
-                      escapeNext = false;
-                      continue;
-                    }
-                    if (char === "\\") {
-                      escapeNext = true;
-                      continue;
-                    }
-                    if (char === '"' && !escapeNext) {
-                      inString = !inString;
-                      continue;
-                    }
-                    if (inString) continue;
-                    if (char === "{") {
-                      braceCount++;
-                    } else if (char === "}") {
-                      braceCount--;
-                      if (braceCount === 0) {
-                        jsonEnd = i + 1;
-                        break;
-                      }
-                    }
-                  }
-                  if (jsonEnd !== -1) {
-                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
-                    try {
-                      modelInfo = JSON.parse(modelInfoJson);
-                    } catch (e) {
-                    }
-                  }
-                }
+              const summary = `<code>bash: ${truncateString(command, 60)}</code>`;
+              const sections = [];
+              sections.push({
+                label: "Command",
+                content: command,
+                language: "bash",
+              });
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Output",
+                  content: response,
+                });
               }
-              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
-              if (toolsIndex !== -1) {
-                const afterToolsLine = logContent.indexOf("\n", toolsIndex);
-                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
-                if (toolsStart !== -1) {
-                  toolsStart = logContent.indexOf("[", toolsStart + 7); 
-                }
-                if (toolsStart !== -1) {
-                  let bracketCount = 0;
-                  let inString = false;
-                  let escapeNext = false;
-                  let toolsEnd = -1;
-                  for (let i = toolsStart; i < logContent.length; i++) {
-                    const char = logContent[i];
-                    if (escapeNext) {
-                      escapeNext = false;
-                      continue;
-                    }
-                    if (char === "\\") {
-                      escapeNext = true;
-                      continue;
-                    }
-                    if (char === '"' && !escapeNext) {
-                      inString = !inString;
-                      continue;
-                    }
-                    if (inString) continue;
-                    if (char === "[") {
-                      bracketCount++;
-                    } else if (char === "]") {
-                      bracketCount--;
-                      if (bracketCount === 0) {
-                        toolsEnd = i + 1;
-                        break;
-                      }
-                    }
-                  }
-                  if (toolsEnd !== -1) {
-                    let toolsJson = logContent.substring(toolsStart, toolsEnd);
-                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
-                    try {
-                      const toolsArray = JSON.parse(toolsJson);
-                      if (Array.isArray(toolsArray)) {
-                        tools = toolsArray
-                          .map(tool => {
-                            if (tool.type === "function" && tool.function && tool.function.name) {
-                              let name = tool.function.name;
-                              if (name.startsWith("github-")) {
-                                name = "mcp__github__" + name.substring(7);
-                              } else if (name.startsWith("safe_outputs-")) {
-                                name = name; 
-                              }
-                              return name;
-                            }
-                            return null;
-                          })
-                          .filter(name => name !== null);
-                      }
-                    } catch (e) {
-                    }
-                  }
-                }
-              }
-              let inDataBlock = false;
-              let currentJsonLines = [];
-              let turnCount = 0;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes("[DEBUG] data:")) {
-                  inDataBlock = true;
-                  currentJsonLines = [];
-                  continue;
-                }
-                if (inDataBlock) {
-                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-                  if (hasTimestamp) {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
-                    if (!isJsonContent) {
-                      if (currentJsonLines.length > 0) {
-                        try {
-                          const jsonStr = currentJsonLines.join("\n");
-                          const jsonData = JSON.parse(jsonStr);
-                          if (jsonData.model) {
-                            model = jsonData.model;
-                          }
-                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                            for (const choice of jsonData.choices) {
-                              if (choice.message) {
-                                const message = choice.message;
-                                const content = [];
-                                const toolResults = []; 
-                                if (message.content && message.content.trim()) {
-                                  content.push({
-                                    type: "text",
-                                    text: message.content,
-                                  });
-                                }
-                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                  for (const toolCall of message.tool_calls) {
-                                    if (toolCall.function) {
-                                      let toolName = toolCall.function.name;
-                                      const originalToolName = toolName; 
-                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                                      let args = {};
-                                      if (toolName.startsWith("github-")) {
-                                        toolName = "mcp__github__" + toolName.substring(7);
-                                      } else if (toolName === "bash") {
-                                        toolName = "Bash";
-                                      }
-                                      try {
-                                        args = JSON.parse(toolCall.function.arguments);
-                                      } catch (e) {
-                                        args = {};
-                                      }
-                                      content.push({
-                                        type: "tool_use",
-                                        id: toolId,
-                                        name: toolName,
-                                        input: args,
-                                      });
-                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
-                                      toolResults.push({
-                                        type: "tool_result",
-                                        tool_use_id: toolId,
-                                        content: hasError ? "Permission denied or tool execution failed" : "", 
-                                        is_error: hasError, 
-                                      });
-                                    }
-                                  }
-                                }
-                                if (content.length > 0) {
-                                  entries.push({
-                                    type: "assistant",
-                                    message: { content },
-                                  });
-                                  turnCount++;
-                                  if (toolResults.length > 0) {
-                                    entries.push({
-                                      type: "user",
-                                      message: { content: toolResults },
-                                    });
-                                  }
-                                }
-                              }
-                            }
-                            if (jsonData.usage) {
-                              if (!entries._accumulatedUsage) {
-                                entries._accumulatedUsage = {
-                                  input_tokens: 0,
-                                  output_tokens: 0,
-                                };
-                              }
-                              if (jsonData.usage.prompt_tokens) {
-                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                              }
-                              if (jsonData.usage.completion_tokens) {
-                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                              }
-                              entries._lastResult = {
-                                type: "result",
-                                num_turns: turnCount,
-                                usage: entries._accumulatedUsage,
-                              };
-                            }
-                          }
-                        } catch (e) {
-                        }
-                      }
-                      inDataBlock = false;
-                      currentJsonLines = [];
-                      continue; 
-                    } else if (hasTimestamp && isJsonContent) {
-                      currentJsonLines.push(cleanLine);
-                    }
-                  } else {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    currentJsonLines.push(cleanLine);
-                  }
-                }
-              }
-              if (inDataBlock && currentJsonLines.length > 0) {
-                try {
-                  const jsonStr = currentJsonLines.join("\n");
-                  const jsonData = JSON.parse(jsonStr);
-                  if (jsonData.model) {
-                    model = jsonData.model;
-                  }
-                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                    for (const choice of jsonData.choices) {
-                      if (choice.message) {
-                        const message = choice.message;
-                        const content = [];
-                        const toolResults = []; 
-                        if (message.content && message.content.trim()) {
-                          content.push({
-                            type: "text",
-                            text: message.content,
-                          });
-                        }
-                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                          for (const toolCall of message.tool_calls) {
-                            if (toolCall.function) {
-                              let toolName = toolCall.function.name;
-                              const originalToolName = toolName;
-                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                              let args = {};
-                              if (toolName.startsWith("github-")) {
-                                toolName = "mcp__github__" + toolName.substring(7);
-                              } else if (toolName === "bash") {
-                                toolName = "Bash";
-                              }
-                              try {
-                                args = JSON.parse(toolCall.function.arguments);
-                              } catch (e) {
-                                args = {};
-                              }
-                              content.push({
-                                type: "tool_use",
-                                id: toolId,
-                                name: toolName,
-                                input: args,
-                              });
-                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
-                              toolResults.push({
-                                type: "tool_result",
-                                tool_use_id: toolId,
-                                content: hasError ? "Permission denied or tool execution failed" : "",
-                                is_error: hasError,
-                              });
-                            }
-                          }
-                        }
-                        if (content.length > 0) {
-                          entries.push({
-                            type: "assistant",
-                            message: { content },
-                          });
-                          turnCount++;
-                          if (toolResults.length > 0) {
-                            entries.push({
-                              type: "user",
-                              message: { content: toolResults },
-                            });
-                          }
-                        }
-                      }
-                    }
-                    if (jsonData.usage) {
-                      if (!entries._accumulatedUsage) {
-                        entries._accumulatedUsage = {
-                          input_tokens: 0,
-                          output_tokens: 0,
-                        };
-                      }
-                      if (jsonData.usage.prompt_tokens) {
-                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                      }
-                      if (jsonData.usage.completion_tokens) {
-                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                      }
-                      entries._lastResult = {
-                        type: "result",
-                        num_turns: turnCount,
-                        usage: entries._accumulatedUsage,
-                      };
-                    }
-                  }
-                } catch (e) {
-                }
-              }
-              if (entries.length > 0) {
-                const initEntry = {
-                  type: "system",
-                  subtype: "init",
-                  session_id: sessionId,
-                  model: model,
-                  tools: tools, 
-                };
-                if (modelInfo) {
-                  initEntry.model_info = modelInfo;
-                }
-                entries.unshift(initEntry);
-                if (entries._lastResult) {
-                  entries.push(entries._lastResult);
-                  delete entries._lastResult;
-                }
-              }
-              return entries;
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
-                parseCopilotLog,
-                extractPremiumRequestCount,
+                parseCodexLog,
+                formatCodexToolCall,
+                formatCodexBashCall,
+                extractMCPInitialization,
               };
             }
             main();
-      - name: Agent Firewall logs
-        if: always()
-        run: |
-          # Squid logs are preserved in timestamped directories
-          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
-            echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-deepreport-intelligence-gathering-agent/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-deepreport-intelligence-gathering-agent/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-deepreport-intelligence-gathering-agent/ || true
-          fi
-      - name: Upload Firewall Logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: squid-logs-deepreport-intelligence-gathering-agent
-          path: /tmp/gh-aw/squid-logs-deepreport-intelligence-gathering-agent/
-          if-no-files-found: ignore
-      - name: Parse firewall logs for step summary
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            function sanitizeWorkflowName(name) {
-
-              return name
-
-                .toLowerCase()
-
-                .replace(/[:\\/\s]/g, "-")
-
-                .replace(/[^a-z0-9._-]/g, "-");
-
-            }
-
-            function main() {
-
-              const fs = require("fs");
-
-              const path = require("path");
-
-              try {
-
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
-
-                if (!fs.existsSync(squidLogsDir)) {
-
-                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
-                if (files.length === 0) {
-
-                  core.info(`No firewall log files found in: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                core.info(`Found ${files.length} firewall log file(s)`);
-
-                let totalRequests = 0;
-
-                let allowedRequests = 0;
-
-                let deniedRequests = 0;
-
-                const allowedDomains = new Set();
-
-                const deniedDomains = new Set();
-
-                const requestsByDomain = new Map();
-
-                for (const file of files) {
-
-                  const filePath = path.join(squidLogsDir, file);
-
-                  core.info(`Parsing firewall log: ${file}`);
-
-                  const content = fs.readFileSync(filePath, "utf8");
-
-                  const lines = content.split("\n").filter(line => line.trim());
-
-                  for (const line of lines) {
-
-                    const entry = parseFirewallLogLine(line);
-
-                    if (!entry) {
-
-                      continue;
-
-                    }
-
-                    totalRequests++;
-
-                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
-                    if (isAllowed) {
-
-                      allowedRequests++;
-
-                      allowedDomains.add(entry.domain);
-
-                    } else {
-
-                      deniedRequests++;
-
-                      deniedDomains.add(entry.domain);
-
-                    }
-
-                    if (!requestsByDomain.has(entry.domain)) {
-
-                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
-                    }
-
-                    const domainStats = requestsByDomain.get(entry.domain);
-
-                    if (isAllowed) {
-
-                      domainStats.allowed++;
-
-                    } else {
-
-                      domainStats.denied++;
-
-                    }
-
-                  }
-
-                }
-
-                const summary = generateFirewallSummary({
-
-                  totalRequests,
-
-                  allowedRequests,
-
-                  deniedRequests,
-
-                  allowedDomains: Array.from(allowedDomains).sort(),
-
-                  deniedDomains: Array.from(deniedDomains).sort(),
-
-                  requestsByDomain,
-
-                });
-
-                core.summary.addRaw(summary).write();
-
-                core.info("Firewall log summary generated successfully");
-
-              } catch (error) {
-
-                core.setFailed(error instanceof Error ? error : String(error));
-
-              }
-
-            }
-
-            function parseFirewallLogLine(line) {
-
-              const trimmed = line.trim();
-
-              if (!trimmed || trimmed.startsWith("#")) {
-
-                return null;
-
-              }
-
-              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
-              if (!fields || fields.length < 10) {
-
-                return null;
-
-              }
-
-              const timestamp = fields[0];
-
-              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
-                return null;
-
-              }
-
-              return {
-
-                timestamp,
-
-                clientIpPort: fields[1],
-
-                domain: fields[2],
-
-                destIpPort: fields[3],
-
-                proto: fields[4],
-
-                method: fields[5],
-
-                status: fields[6],
-
-                decision: fields[7],
-
-                url: fields[8],
-
-                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
-              };
-
-            }
-
-            function isRequestAllowed(decision, status) {
-
-              const statusCode = parseInt(status, 10);
-
-              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
-                return true;
-
-              }
-
-              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
-                return true;
-
-              }
-
-              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
-                return false;
-
-              }
-
-              return false;
-
-            }
-
-            function generateFirewallSummary(analysis) {
-
-              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
-
-              let summary = "### 🔥 Firewall Blocked Requests\n\n";
-
-              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
-
-              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
-
-              if (validDeniedRequests > 0) {
-
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
-
-                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
-
-                summary += "<details>\n";
-
-                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
-
-                summary += "| Domain | Blocked Requests |\n";
-
-                summary += "|--------|------------------|\n";
-
-                for (const domain of validDeniedDomains) {
-
-                  const stats = requestsByDomain.get(domain);
-
-                  summary += `| ${domain} | ${stats.denied} |\n`;
-
-                }
-
-                summary += "\n</details>\n\n";
-
-              } else {
-
-                summary += "✅ **No blocked requests detected**\n\n";
-
-                if (totalRequests > 0) {
-
-                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-
-                } else {
-
-                  summary += "No firewall activity detected.\n\n";
-
-                }
-
-              }
-
-              return summary;
-
-            }
-
-            if (typeof module !== "undefined" && module.exports) {
-
-              module.exports = {
-
-                parseFirewallLogLine,
-
-                isRequestAllowed,
-
-                generateFirewallSummary,
-
-                main,
-
-              };
-
-            }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
-            if (isDirectExecution) {
-
-              main();
-
-            }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -5195,8 +4616,8 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
             function main() {
@@ -5744,6 +5165,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
@@ -5850,6 +5272,16 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
@@ -6056,6 +5488,280 @@ jobs:
               }
               return "";
             }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n";
+              return footer;
+            }
+            function getStagedTitle(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultTitle = "## 🏴‍☠️ Ahoy Matey! Staged Waters: {operation} Preview";
+              return messages?.stagedTitle ? renderTemplate(messages.stagedTitle, templateContext) : renderTemplate(defaultTitle, templateContext);
+            }
+            function getStagedDescription(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
+              return messages?.stagedDescription
+                ? renderTemplate(messages.stagedDescription, templateContext)
+                : renderTemplate(defaultDescription, templateContext);
+            }
+            function getRunStartedMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
+              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunSuccessMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
+              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getRunFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
+              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
+            const MAX_CLOSE_COUNT = 10;
+            async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+              let searchQuery = `repo:${owner}/${repo} is:open`;
+              if (titlePrefix) {
+                const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+                searchQuery += ` in:title "${escapedPrefix}"`;
+              }
+              if (labels && labels.length > 0) {
+                for (const label of labels) {
+                  const escapedLabel = label.replace(/"/g, '\\"');
+                  searchQuery += ` label:"${escapedLabel}"`;
+                }
+              }
+              const result = await github.graphql(
+                `
+                query($searchTerms: String!, $first: Int!) {
+                  search(query: $searchTerms, type: DISCUSSION, first: $first) {
+                    nodes {
+                      ... on Discussion {
+                        id
+                        number
+                        title
+                        url
+                        category {
+                          id
+                        }
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
+                        }
+                        closed
+                      }
+                    }
+                  }
+                }`,
+                { searchTerms: searchQuery, first: 50 }
+              );
+              if (!result || !result.search || !result.search.nodes) {
+                return [];
+              }
+              return result.search.nodes
+                .filter(
+                   d => {
+                    if (!d || d.number === excludeNumber || d.closed) {
+                      return false;
+                    }
+                    if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+                      return false;
+                    }
+                    if (labels && labels.length > 0) {
+                      const discussionLabels = d.labels?.nodes?.map(( l) => l.name) || [];
+                      const hasAllLabels = labels.every(label => discussionLabels.includes(label));
+                      if (!hasAllLabels) {
+                        return false;
+                      }
+                    }
+                    if (categoryId && (!d.category || d.category.id !== categoryId)) {
+                      return false;
+                    }
+                    return true;
+                  }
+                )
+                .map(
+                   d => ({
+                    id: d.id,
+                    number: d.number,
+                    title: d.title,
+                    url: d.url,
+                  })
+                );
+            }
+            async function addDiscussionComment(github, discussionId, message) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              return result.addDiscussionComment.comment;
+            }
+            async function closeDiscussionAsOutdated(github, discussionId) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!) {
+                  closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+                    discussion { 
+                      id
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId }
+              );
+              return result.closeDiscussion.discussion;
+            }
+            async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+              const searchCriteria = [];
+              if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
+              if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
+              core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
+              const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
+              if (olderDiscussions.length === 0) {
+                core.info("No older discussions found to close");
+                return [];
+              }
+              core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
+              const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
+              if (olderDiscussions.length > MAX_CLOSE_COUNT) {
+                core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
+              }
+              const closedDiscussions = [];
+              for (const discussion of discussionsToClose) {
+                try {
+                  const closingMessage = getCloseOlderDiscussionMessage({
+                    newDiscussionUrl: newDiscussion.url,
+                    newDiscussionNumber: newDiscussion.number,
+                    workflowName,
+                    runUrl,
+                  });
+                  core.info(`Adding closing comment to discussion #${discussion.number}`);
+                  await addDiscussionComment(github, discussion.id, closingMessage);
+                  core.info(`Closing discussion #${discussion.number} as outdated`);
+                  await closeDiscussionAsOutdated(github, discussion.id);
+                  closedDiscussions.push({
+                    number: discussion.number,
+                    url: discussion.url,
+                  });
+                  core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
+                } catch (error) {
+                  core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              return closedDiscussions;
+            }
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
@@ -6168,7 +5874,23 @@ jobs:
                 core.error("Repository ID is required for creating discussions");
                 throw new Error("Repository ID is required but not available");
               }
+              const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+              const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+              const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+              const labels = labelsEnvVar
+                ? labelsEnvVar
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                : [];
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
+              const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
                 const createDiscussionItem = createDiscussionItems[i];
                 core.info(
@@ -6179,16 +5901,9 @@ jobs:
                 if (!title) {
                   title = createDiscussionItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 const trackerIDComment = getTrackerID("markdown");
                 if (trackerIDComment) {
                   bodyLines.push(trackerIDComment);
@@ -6233,6 +5948,31 @@ jobs:
                     core.setOutput("discussion_number", discussion.number);
                     core.setOutput("discussion_url", discussion.url);
                   }
+                  const hasMatchingCriteria = titlePrefix || labels.length > 0;
+                  if (closeOlderEnabled && hasMatchingCriteria) {
+                    core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                    try {
+                      const closedDiscussions = await closeOlderDiscussions(
+                        github,
+                        context.repo.owner,
+                        context.repo.repo,
+                        titlePrefix,
+                        labels,
+                        categoryId,
+                        { number: discussion.number, url: discussion.url },
+                        workflowName,
+                        runUrl
+                      );
+                      if (closedDiscussions.length > 0) {
+                        closedDiscussionsSummary.push(...closedDiscussions);
+                        core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                      }
+                    } catch (closeError) {
+                      core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                    }
+                  } else if (closeOlderEnabled && !hasMatchingCriteria) {
+                    core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+                  }
                 } catch (error) {
                   core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
@@ -6242,6 +5982,12 @@ jobs:
                 let summaryContent = "\n\n## GitHub Discussions\n";
                 for (const discussion of createdDiscussions) {
                   summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
+                }
+                if (closedDiscussionsSummary.length > 0) {
+                  summaryContent += "\n### Closed Older Discussions\n";
+                  for (const closed of closedDiscussionsSummary) {
+                    summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+                  }
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
@@ -6255,7 +6001,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -6393,57 +6139,45 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
-        timeout-minutes: 20
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
+      - name: Run Codex
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

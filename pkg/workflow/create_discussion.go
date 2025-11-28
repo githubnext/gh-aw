@@ -10,10 +10,12 @@ var discussionLog = logger.New("workflow:create_discussion")
 
 // CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
 type CreateDiscussionsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	TitlePrefix          string `yaml:"title-prefix,omitempty"`
-	Category             string `yaml:"category,omitempty"`    // Discussion category ID or name
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository discussions
+	BaseSafeOutputConfig  `yaml:",inline"`
+	TitlePrefix           string   `yaml:"title-prefix,omitempty"`
+	Category              string   `yaml:"category,omitempty"`                // Discussion category ID or name
+	Labels                []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
+	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
+	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
 }
 
 // parseDiscussionsConfig handles create-discussion configuration
@@ -44,6 +46,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				discussionLog.Printf("Discussion category configured: %q", discussionsConfig.Category)
 			}
 
+			// Parse labels using shared helper
+			discussionsConfig.Labels = parseLabelsFromConfig(configMap)
+			if len(discussionsConfig.Labels) > 0 {
+				discussionLog.Printf("Labels configured: %v", discussionsConfig.Labels)
+			}
+
 			// Parse target-repo using shared helper with validation
 			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
 			if isInvalid {
@@ -54,6 +62,16 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				discussionLog.Printf("Target repository configured: %s", targetRepoSlug)
 			}
 			discussionsConfig.TargetRepoSlug = targetRepoSlug
+
+			// Parse close-older-discussions
+			if closeOlder, exists := configMap["close-older-discussions"]; exists {
+				if val, ok := closeOlder.(bool); ok {
+					discussionsConfig.CloseOlderDiscussions = val
+					if val {
+						discussionLog.Print("Close older discussions enabled")
+					}
+				}
+			}
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig, 1)
@@ -81,6 +99,13 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", data.SafeOutputs.CreateDiscussions.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", data.SafeOutputs.CreateDiscussions.Category)...)
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_LABELS", data.SafeOutputs.CreateDiscussions.Labels)...)
+
+	// Add close-older-discussions flag if enabled
+	if data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions {
+		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_DISCUSSIONS: \"true\"\n")
+	}
+
 	discussionLog.Printf("Configured %d custom environment variables for discussion creation", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)
