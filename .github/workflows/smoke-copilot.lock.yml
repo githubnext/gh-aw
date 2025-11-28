@@ -1745,7 +1745,7 @@ jobs:
                 item: item,
                 context,
                 itemType: itemTypeName,
-                supportsPR: supportsPR || supportsIssue, 
+                supportsPR: supportsPR || supportsIssue,
               });
               if (!targetResult.success) {
                 if (targetResult.shouldFail) {
