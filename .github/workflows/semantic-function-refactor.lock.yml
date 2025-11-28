@@ -4817,6 +4817,7 @@ jobs:
           GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX: "[refactor] "
           GH_AW_CLOSE_ISSUE_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Semantic Function Refactoring"
+          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4863,6 +4864,24 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -4883,6 +4902,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }
@@ -5578,6 +5598,7 @@ jobs:
           GH_AW_ISSUE_TITLE_PREFIX: "[refactor] "
           GH_AW_ISSUE_LABELS: "refactoring,code-quality,automated-analysis"
           GH_AW_WORKFLOW_NAME: "Semantic Function Refactoring"
+          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5655,6 +5676,24 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -5675,6 +5714,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }

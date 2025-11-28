@@ -6107,6 +6107,7 @@ jobs:
           GH_AW_DISCUSSION_CATEGORY: "Audits"
           GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
           GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6952,6 +6953,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
           GH_AW_TRACKER_ID: "weekly-issue-summary"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

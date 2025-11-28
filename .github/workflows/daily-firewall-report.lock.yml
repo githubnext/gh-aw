@@ -5824,6 +5824,7 @@ jobs:
           GH_AW_DISCUSSION_CATEGORY: "audits"
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
           GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6669,6 +6670,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
           GH_AW_TRACKER_ID: "daily-firewall-report"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

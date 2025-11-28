@@ -4834,6 +4834,7 @@ jobs:
           GH_AW_ISSUE_LABELS: "breaking-change,automated-analysis"
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_TRACKER_ID: "breaking-change-checker"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4912,6 +4913,24 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -4932,6 +4951,7 @@ jobs:
               if (workflowSource && workflowSourceURL) {
                 footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
               }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
               footer += "\n";
               return footer;
             }

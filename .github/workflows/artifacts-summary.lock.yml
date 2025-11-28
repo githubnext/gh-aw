@@ -5146,6 +5146,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "artifacts"
           GH_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

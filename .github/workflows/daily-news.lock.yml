@@ -6706,6 +6706,7 @@ jobs:
           GH_AW_DISCUSSION_CATEGORY: "daily-news"
           GH_AW_WORKFLOW_NAME: "Daily News"
           GH_AW_TRACKER_ID: "daily-news-weekday"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7551,6 +7552,7 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_WORKFLOW_NAME: "Daily News"
           GH_AW_TRACKER_ID: "daily-news-weekday"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

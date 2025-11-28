@@ -25,8 +25,11 @@ global.core = mockCore;
 describe("messages.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear environment variable before each test
+    // Clear environment variables before each test
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+    delete process.env.GH_AW_ENGINE_ID;
+    delete process.env.GH_AW_ENGINE_VERSION;
+    delete process.env.GH_AW_ENGINE_MODEL;
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -331,6 +334,94 @@ describe("messages.cjs", () => {
       );
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
+    });
+
+    it("should include XML comment marker for traceability", async () => {
+      const { generateFooterWithMessages } = await import("./messages.cjs");
+
+      const result = generateFooterWithMessages(
+        "Test Workflow",
+        "https://github.com/test/repo/actions/runs/123",
+        "",
+        "",
+        undefined,
+        undefined,
+        undefined
+      );
+
+      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include engine metadata in XML marker when env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+
+      const { generateFooterWithMessages } = await import("./messages.cjs");
+
+      const result = generateFooterWithMessages(
+        "Test Workflow",
+        "https://github.com/test/repo/actions/runs/123",
+        "",
+        "",
+        undefined,
+        undefined,
+        undefined
+      );
+
+      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("engine: copilot");
+      expect(result).toContain("version: 1.0.0");
+      expect(result).toContain("model: gpt-5");
+      expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
+
+      // Clean up env vars
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
+    });
+  });
+
+  describe("generateXMLMarker", () => {
+    it("should generate basic XML marker with workflow name and run URL", async () => {
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include engine ID when env var is set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
+
+      delete process.env.GH_AW_ENGINE_ID;
+    });
+
+    it("should include all engine metadata when all env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
     });
   });
 

@@ -555,6 +555,93 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 	}
 }
 
+// TestBuildEngineMetadataEnvVars verifies the helper function for engine metadata env vars
+func TestBuildEngineMetadataEnvVars(t *testing.T) {
+	tests := []struct {
+		name         string
+		engineConfig *EngineConfig
+		expected     []string
+	}{
+		{
+			name:         "nil engine config",
+			engineConfig: nil,
+			expected:     []string{},
+		},
+		{
+			name: "engine ID only",
+			engineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			expected: []string{
+				"          GH_AW_ENGINE_ID: \"copilot\"\n",
+			},
+		},
+		{
+			name: "full engine config",
+			engineConfig: &EngineConfig{
+				ID:      "copilot",
+				Version: "1.0.0",
+				Model:   "gpt-5",
+			},
+			expected: []string{
+				"          GH_AW_ENGINE_ID: \"copilot\"\n",
+				"          GH_AW_ENGINE_VERSION: \"1.0.0\"\n",
+				"          GH_AW_ENGINE_MODEL: \"gpt-5\"\n",
+			},
+		},
+		{
+			name: "engine with version and no model",
+			engineConfig: &EngineConfig{
+				ID:      "claude",
+				Version: "2.0.0",
+			},
+			expected: []string{
+				"          GH_AW_ENGINE_ID: \"claude\"\n",
+				"          GH_AW_ENGINE_VERSION: \"2.0.0\"\n",
+			},
+		},
+		{
+			name: "engine with model and no version",
+			engineConfig: &EngineConfig{
+				ID:    "copilot",
+				Model: "claude-sonnet-4",
+			},
+			expected: []string{
+				"          GH_AW_ENGINE_ID: \"copilot\"\n",
+				"          GH_AW_ENGINE_MODEL: \"claude-sonnet-4\"\n",
+			},
+		},
+		{
+			name:         "empty engine config",
+			engineConfig: &EngineConfig{},
+			expected:     []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildEngineMetadataEnvVars(tt.engineConfig)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(result))
+				t.Logf("Expected: %v", tt.expected)
+				t.Logf("Got: %v", result)
+				return
+			}
+
+			for i, expectedVar := range tt.expected {
+				if i >= len(result) {
+					t.Errorf("Missing expected env var %d: %q", i, expectedVar)
+					continue
+				}
+				if result[i] != expectedVar {
+					t.Errorf("Env var %d: expected %q, got %q", i, expectedVar, result[i])
+				}
+			}
+		})
+	}
+}
+
 // TestEnginesUseSameHelperLogic ensures all engines produce consistent env vars
 func TestEnginesUseSameHelperLogic(t *testing.T) {
 	workflowData := &WorkflowData{

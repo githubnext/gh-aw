@@ -41,13 +41,12 @@ tracker-id: "example-value"
 
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
-# githubnext/agentics/workflows/shared/common.md@v1.0.0). Any markdown files under
-# .github/agents directory are treated as custom agent files and only one agent
-# file is allowed per workflow.
+# githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
+# objects with path and inputs. Any markdown files under .github/agents directory
+# are treated as custom agent files and only one agent file is allowed per
+# workflow.
 # (optional)
 imports: []
-  # Array of Workflow specification in format owner/repo/path@ref. Markdown files
-  # under .github/agents/ are treated as agent configuration files.
 
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
