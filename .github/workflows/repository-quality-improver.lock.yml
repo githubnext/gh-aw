@@ -5972,11 +5972,13 @@ jobs:
             async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
               let searchQuery = `repo:${owner}/${repo} is:open`;
               if (titlePrefix) {
-                searchQuery += ` in:title "${titlePrefix}"`;
+                const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+                searchQuery += ` in:title "${escapedPrefix}"`;
               }
               if (labels && labels.length > 0) {
                 for (const label of labels) {
-                  searchQuery += ` label:"${label}"`;
+                  const escapedLabel = label.replace(/"/g, '\\"');
+                  searchQuery += ` label:"${escapedLabel}"`;
                 }
               }
               const result = await github.graphql(
