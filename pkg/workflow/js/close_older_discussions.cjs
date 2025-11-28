@@ -9,6 +9,20 @@ const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.
 const MAX_CLOSE_COUNT = 10;
 
 /**
+ * Delay between GraphQL API calls in milliseconds to avoid rate limiting
+ */
+const GRAPHQL_DELAY_MS = 500;
+
+/**
+ * Delay execution for a specified number of milliseconds
+ * @param {number} ms - Milliseconds to delay
+ * @returns {Promise<void>}
+ */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Search for open discussions with a matching title prefix and/or labels
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
@@ -202,7 +216,8 @@ async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, c
 
   const closedDiscussions = [];
 
-  for (const discussion of discussionsToClose) {
+  for (let i = 0; i < discussionsToClose.length; i++) {
+    const discussion = discussionsToClose[i];
     try {
       // Generate closing message using the messages module
       const closingMessage = getCloseOlderDiscussionMessage({
@@ -230,6 +245,11 @@ async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, c
       core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
       // Continue with other discussions even if one fails
     }
+
+    // Add delay between GraphQL operations to avoid rate limiting (except for the last item)
+    if (i < discussionsToClose.length - 1) {
+      await delay(GRAPHQL_DELAY_MS);
+    }
   }
 
   return closedDiscussions;
@@ -241,4 +261,5 @@ module.exports = {
   addDiscussionComment,
   closeDiscussionAsOutdated,
   MAX_CLOSE_COUNT,
+  GRAPHQL_DELAY_MS,
 };

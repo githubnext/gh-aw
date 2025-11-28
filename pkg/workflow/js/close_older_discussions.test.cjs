@@ -586,4 +586,11 @@ describe("close_older_discussions.cjs", () => {
       expect(MAX_CLOSE_COUNT).toBe(10);
     });
   });
+
+  describe("GRAPHQL_DELAY_MS", () => {
+    it("should be set to 500ms", async () => {
+      const { GRAPHQL_DELAY_MS } = await import("./close_older_discussions.cjs");
+      expect(GRAPHQL_DELAY_MS).toBe(500);
+    });
+  });
 });

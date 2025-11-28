@@ -1270,8 +1270,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 		safeOutputsLog.Printf("Filtered %d tools from %d total tools", len(filteredTools), len(allTools))
 	}
 
-	// Marshal the filtered tools back to JSON
-	filteredJSON, err := json.Marshal(filteredTools)
+	// Marshal the filtered tools back to JSON with indentation for better readability
+	// and to reduce merge conflicts in generated lockfiles
+	filteredJSON, err := json.MarshalIndent(filteredTools, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
 	}
