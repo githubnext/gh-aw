@@ -57,6 +57,8 @@ type Compiler struct {
 	trialMode            bool                // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	mcpLint              bool                // If true, enable MCP configuration linting for legacy patterns
+	strictMCPLint        bool                // If true, treat MCP lint warnings as errors
 	jobManager           *JobManager         // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry     // Registry of available agentic engines
 	fileTracker          FileTracker         // Optional file tracker for tracking created files
@@ -115,6 +117,16 @@ func (c *Compiler) SetStrictMode(strict bool) {
 // Configures whether to force regeneration of stop-after times
 func (c *Compiler) SetRefreshStopTime(refresh bool) {
 	c.refreshStopTime = refresh
+}
+
+// SetMCPLint enables or disables MCP configuration linting for legacy patterns
+func (c *Compiler) SetMCPLint(enabled bool) {
+	c.mcpLint = enabled
+}
+
+// SetStrictMCPLint enables or disables treating MCP lint warnings as errors
+func (c *Compiler) SetStrictMCPLint(strict bool) {
+	c.strictMCPLint = strict
 }
 
 // IncrementWarningCount increments the warning counter
@@ -458,35 +470,37 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
-	// Lint MCP configurations for legacy patterns
-	log.Printf("Linting MCP configurations for legacy patterns")
-	if lintWarnings := LintMCPAllowedPattern(workflowData.Tools); len(lintWarnings) > 0 {
-		for _, warning := range lintWarnings {
-			if c.strictMode {
-				// In strict mode, legacy allowed patterns are errors
-				formattedErr := console.FormatError(console.CompilerError{
+	// Lint MCP configurations for legacy patterns (only when enabled)
+	if c.mcpLint {
+		log.Printf("Linting MCP configurations for legacy patterns")
+		if lintWarnings := LintMCPAllowedPattern(workflowData.Tools); len(lintWarnings) > 0 {
+			for _, warning := range lintWarnings {
+				if c.strictMCPLint {
+					// In strict MCP lint mode, legacy allowed patterns are errors
+					formattedErr := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "error",
+						Message: warning.Message,
+					})
+					return errors.New(formattedErr)
+				}
+				// In non-strict mode, emit a warning
+				formattedWarning := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
 						File:   markdownPath,
 						Line:   1,
 						Column: 1,
 					},
-					Type:    "error",
+					Type:    "warning",
 					Message: warning.Message,
 				})
-				return errors.New(formattedErr)
+				fmt.Fprintln(os.Stderr, formattedWarning)
+				c.IncrementWarningCount()
 			}
-			// In non-strict mode, emit a warning
-			formattedWarning := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "warning",
-				Message: warning.Message,
-			})
-			fmt.Fprintln(os.Stderr, formattedWarning)
-			c.IncrementWarningCount()
 		}
 	}
 

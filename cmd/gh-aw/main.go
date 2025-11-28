@@ -222,10 +222,17 @@ Examples:
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
+		lintMCP, _ := cmd.Flags().GetBool("lint-mcp")
+		strictMCP, _ := cmd.Flags().GetBool("strict-mcp")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
+		}
+
+		// --strict-mcp implies --lint-mcp
+		if strictMCP {
+			lintMCP = true
 		}
 
 		// Handle --workflows-dir deprecation
@@ -257,6 +264,8 @@ Examples:
 			Poutine:              poutine,
 			Actionlint:           actionlint,
 			JSONOutput:           jsonOutput,
+			LintMCP:              lintMCP,
+			StrictMCP:            strictMCP,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			errMsg := err.Error()
@@ -462,6 +471,8 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
+	compileCmd.Flags().Bool("lint-mcp", false, "Enable MCP configuration linting to detect legacy 'allowed' patterns and suggest migration to 'toolsets'")
+	compileCmd.Flags().Bool("strict-mcp", false, "Treat MCP lint warnings as errors (implies --lint-mcp)")
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command

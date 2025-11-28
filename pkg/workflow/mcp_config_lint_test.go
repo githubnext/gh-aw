@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -304,5 +305,139 @@ func TestLintMCPAllowedPattern_InvalidAllowedType(t *testing.T) {
 
 	if len(warnings) != 0 {
 		t.Errorf("Expected no warnings for invalid 'allowed' type, got %d", len(warnings))
+	}
+}
+
+func TestCompilerMCPLint_Disabled(t *testing.T) {
+	// Create a test workflow directory
+	tmpDir := t.TempDir()
+	workflowDir := tmpDir + "/.github/workflows"
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	// Create a test workflow with legacy 'allowed' pattern
+	workflowContent := `---
+on: issues
+engine: copilot
+tools:
+  github:
+    allowed: [get_repository, list_issues]
+---
+
+# Test Workflow
+
+Test workflow content.
+`
+	workflowPath := workflowDir + "/test-mcp-lint.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Create compiler with MCP lint disabled (default)
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetNoEmit(true) // Don't generate lock files
+	compiler.SetMCPLint(false)
+
+	// Compile workflow - should succeed without warnings
+	err := compiler.CompileWorkflow(workflowPath)
+
+	if err != nil {
+		t.Errorf("Expected no error with MCP lint disabled, got: %v", err)
+	}
+
+	// Warning count should be 0 when linting is disabled
+	if compiler.GetWarningCount() != 0 {
+		t.Errorf("Expected 0 warnings with MCP lint disabled, got %d", compiler.GetWarningCount())
+	}
+}
+
+func TestCompilerMCPLint_Enabled(t *testing.T) {
+	// Create a test workflow directory
+	tmpDir := t.TempDir()
+	workflowDir := tmpDir + "/.github/workflows"
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	// Create a test workflow with legacy 'allowed' pattern
+	workflowContent := `---
+on: issues
+engine: copilot
+tools:
+  github:
+    allowed: [get_repository, list_issues]
+---
+
+# Test Workflow
+
+Test workflow content.
+`
+	workflowPath := workflowDir + "/test-mcp-lint.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Create compiler with MCP lint enabled
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetNoEmit(true) // Don't generate lock files
+	compiler.SetMCPLint(true)
+
+	// Compile workflow - should succeed but emit a warning
+	err := compiler.CompileWorkflow(workflowPath)
+
+	if err != nil {
+		t.Errorf("Expected no error with MCP lint enabled (non-strict), got: %v", err)
+	}
+
+	// Warning count should be 1 when linting is enabled
+	if compiler.GetWarningCount() != 1 {
+		t.Errorf("Expected 1 warning with MCP lint enabled, got %d", compiler.GetWarningCount())
+	}
+}
+
+func TestCompilerMCPLint_StrictMode(t *testing.T) {
+	// Create a test workflow directory
+	tmpDir := t.TempDir()
+	workflowDir := tmpDir + "/.github/workflows"
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	// Create a test workflow with legacy 'allowed' pattern
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+tools:
+  github:
+    allowed: [get_repository, list_issues]
+---
+
+# Test Workflow
+
+Test workflow content.
+`
+	workflowPath := workflowDir + "/test-mcp-lint.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Create compiler with strict MCP lint enabled
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetNoEmit(true) // Don't generate lock files
+	compiler.SetMCPLint(true)
+	compiler.SetStrictMCPLint(true)
+
+	// Compile workflow - should fail with an error
+	err := compiler.CompileWorkflow(workflowPath)
+
+	if err == nil {
+		t.Error("Expected error with strict MCP lint enabled, but got none")
+	}
+
+	// Check that the error message contains expected content
+	if err != nil && !strings.Contains(err.Error(), "Legacy 'allowed' pattern detected") {
+		t.Errorf("Expected error message to contain 'Legacy' text, got: %v", err)
 	}
 }

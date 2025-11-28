@@ -174,6 +174,8 @@ type CompileConfig struct {
 	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
 	JSONOutput           bool     // Output validation results as JSON
 	RefreshStopTime      bool     // Force regeneration of stop-after times instead of preserving existing ones
+	LintMCP              bool     // Enable MCP configuration linting for legacy patterns
+	StrictMCP            bool     // Treat MCP lint warnings as errors
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -305,6 +307,16 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {
 		compileLog.Print("Stop time refresh enabled: will regenerate stop-after times")
+	}
+
+	// Set MCP linting flags
+	compiler.SetMCPLint(config.LintMCP)
+	compiler.SetStrictMCPLint(config.StrictMCP)
+	if config.LintMCP {
+		compileLog.Print("MCP linting enabled: will warn about legacy 'allowed' patterns")
+	}
+	if config.StrictMCP {
+		compileLog.Print("Strict MCP mode enabled: legacy 'allowed' patterns will be errors")
 	}
 
 	if watch {
