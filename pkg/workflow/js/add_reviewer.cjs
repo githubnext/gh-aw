@@ -14,7 +14,7 @@ async function main() {
       configKey: "add_reviewer",
       displayName: "Reviewers",
       itemTypeName: "reviewer addition",
-      supportsPR: false, // Only PR context allowed
+      supportsPR: false, // PR-only: supportsPR=false means ONLY PR context (not issues)
       supportsIssue: false,
       envVars: {
         allowed: "GH_AW_REVIEWERS_ALLOWED",

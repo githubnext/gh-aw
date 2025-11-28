@@ -17,8 +17,8 @@ const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validat
  * @property {string} configKey - The key to use when reading from config.json (e.g., "add_labels")
  * @property {string} displayName - Human-readable name for logging (e.g., "Add Labels")
  * @property {string} itemTypeName - Name used in error messages (e.g., "label addition")
- * @property {boolean} [supportsPR] - Whether this output supports PR context (default: false)
- * @property {boolean} [supportsIssue] - Whether this output supports issue context (default: false, true means supportsPR for resolveTarget)
+ * @property {boolean} [supportsPR] - When true, allows both issue AND PR contexts; when false, only PR context (default: false)
+ * @property {boolean} [supportsIssue] - When true, passes supportsPR=true to resolveTarget to enable both contexts (default: false)
  * @property {boolean} [findMultiple] - Whether to find multiple items instead of just one (default: false)
  * @property {Object} envVars - Environment variable names
  * @property {string} [envVars.allowed] - Env var for allowed items list
@@ -154,7 +154,9 @@ async function processSafeOutput(config, stagedPreviewOptions) {
     item: item,
     context,
     itemType: itemTypeName,
-    supportsPR: supportsPR || supportsIssue, // If supports issue, we use supportsPR=true to allow both
+    // supportsPR in resolveTarget: true=both issue and PR contexts, false=PR-only
+    // If supportsIssue is true, we pass supportsPR=true to enable both contexts
+    supportsPR: supportsPR || supportsIssue,
   });
 
   if (!targetResult.success) {
