@@ -14,10 +14,45 @@ network:
   allowed:
     - defaults
     - github
+imports:
+  - shared/jqschema.md
 tools:
   github:
     toolsets:
       - issues
+  bash:
+    - "cat *"
+    - "jq *"
+    - "/tmp/gh-aw/jqschema.sh"
+steps:
+  - name: Fetch issues data
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Create output directory
+      mkdir -p /tmp/gh-aw/issues-data
+      
+      echo "⬇ Downloading the last 100 issues (excluding sub-issues)..."
+      
+      # Fetch the last 100 issues that don't have a parent issue
+      # Using search filter to exclude issues that are already sub-issues
+      gh issue list --repo ${{ github.repository }} \
+        --search "no:parent-issue" \
+        --state all \
+        --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+        --limit 100 \
+        > /tmp/gh-aw/issues-data/issues.json
+
+      # Generate schema for reference using jqschema
+      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+
+      echo "✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json"
+      echo "✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json"
+      echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+      echo ""
+      echo "Schema of the issues data:"
+      cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
 safe-outputs:
   create-issue:
     title-prefix: "[Parent] "
@@ -39,18 +74,39 @@ You are the Issue Arborist - an intelligent agent that cultivates the issue gard
 
 ## Task
 
-Analyze the last 20 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+Analyze the last 100 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+
+## Pre-Downloaded Data
+
+The issue data has been pre-downloaded and is available at:
+- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+- **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
+
+Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
 
 ## Process
 
-### Step 1: Fetch Recent Issues
+### Step 1: Load and Analyze Issues
 
-Use the GitHub MCP tools to search for the last 20 issues from the repository using the search filter `no:parent-issue` to exclude issues that are already sub-issues. For each issue, collect:
+Read the pre-downloaded issues data from `/tmp/gh-aw/issues-data/issues.json`. The data includes:
 - Issue number
 - Title
 - Body/description
 - Labels
 - State (open/closed)
+- Author, assignees, milestone, timestamps
+
+Use `jq` to filter and analyze the data. Example queries:
+```bash
+# Get count of issues
+jq 'length' /tmp/gh-aw/issues-data/issues.json
+
+# Get open issues only
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/issues-data/issues.json
+
+# Get issues with specific label
+jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/issues-data/issues.json
+```
 
 ### Step 2: Analyze Relationships
 
@@ -115,7 +171,7 @@ Your discussion should include:
 ## 🌳 Issue Arborist Daily Report
 
 **Date**: [Current Date]
-**Issues Analyzed**: 20
+**Issues Analyzed**: 100
 
 ### New Parent Issues Created
 
