@@ -267,7 +267,7 @@ tools:
 
 ### Benefits of Toolsets
 
-- **Stability**: Tool names may change between GitHub MCP server versions, but toolsets provide a stable API
+- **Stability**: Tool names may change between MCP server versions, but toolsets provide a stable API
 - **Reduced verbosity**: One line vs. many individual tool names
 - **Complete functionality**: Get all related tools automatically
 - **Future-proof**: New tools are included as they're added to the toolset

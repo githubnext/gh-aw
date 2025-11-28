@@ -247,7 +247,7 @@ Ensure your GitHub token has appropriate permissions for the toolsets you're ena
 
 ## Migration from Allowed to Toolsets
 
-If you have existing workflows using the `allowed:` pattern, we recommend migrating to `toolsets:` for better maintainability and stability. Individual tool names may change between GitHub MCP server versions, but toolsets provide a stable API that won't break your workflows.
+If you have existing workflows using the `allowed:` pattern, we recommend migrating to `toolsets:` for better maintainability and stability. Individual tool names may change between MCP server versions, but toolsets provide a stable API that won't break your workflows.
 
 ### Migration Examples
 
