@@ -10,6 +10,7 @@
 # - Python environment setup with directory structure
 # - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
+# - Asset upload capability via safe-outputs (upload-assets)
 # - Instructions on data visualization best practices including asset uploads
 #
 # Note: This configuration ensures data separation by enforcing external data storage.
@@ -23,6 +24,9 @@ network:
   allowed:
     - defaults
     - python
+
+safe-outputs:
+  upload-assets:
 
 steps:
   - name: Setup Python environment
