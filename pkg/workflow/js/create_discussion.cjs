@@ -155,14 +155,15 @@ async function main() {
   for (let i = 0; i < createDiscussionItems.length; i++) {
     const createDiscussionItem = createDiscussionItems[i];
     core.info(
-      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
+      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}`
     );
     // Replace temporary ID references in title
     let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap) : "";
-    // Replace temporary ID references in body
-    let bodyLines = replaceTemporaryIdReferences(createDiscussionItem.body, temporaryIdMap).split("\n");
+    // Replace temporary ID references in body (with defensive null check)
+    const bodyText = createDiscussionItem.body || "";
+    let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap).split("\n");
     if (!title) {
-      title = replaceTemporaryIdReferences(createDiscussionItem.body, temporaryIdMap) || "Agent Output";
+      title = replaceTemporaryIdReferences(bodyText, temporaryIdMap) || "Agent Output";
     }
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
