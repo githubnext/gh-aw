@@ -13,71 +13,15 @@ describe("mcp_server_core.cjs", () => {
     delete process.env.GH_AW_MCP_LOG_DIR;
   });
 
-  describe("ReadBuffer", () => {
-    it("should parse complete JSON messages from buffer", async () => {
+  describe("ReadBuffer re-export", () => {
+    it("should re-export ReadBuffer from read_buffer.cjs", async () => {
       const { ReadBuffer } = await import("./mcp_server_core.cjs");
+      expect(ReadBuffer).toBeDefined();
+
+      // Basic functionality check
       const buffer = new ReadBuffer();
-
-      buffer.append(Buffer.from('{"jsonrpc":"2.0","id":1,"method":"test"}\n'));
-
-      const message = buffer.readMessage();
-      expect(message).toEqual({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "test",
-      });
-    });
-
-    it("should handle incomplete messages", async () => {
-      const { ReadBuffer } = await import("./mcp_server_core.cjs");
-      const buffer = new ReadBuffer();
-
-      buffer.append(Buffer.from('{"jsonrpc":"2.0"'));
-      expect(buffer.readMessage()).toBeNull();
-
-      buffer.append(Buffer.from(',"id":1,"method":"test"}\n'));
-      expect(buffer.readMessage()).toEqual({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "test",
-      });
-    });
-
-    it("should skip empty lines", async () => {
-      const { ReadBuffer } = await import("./mcp_server_core.cjs");
-      const buffer = new ReadBuffer();
-
-      buffer.append(Buffer.from('\n\n{"jsonrpc":"2.0","id":1,"method":"test"}\n'));
-
-      const message = buffer.readMessage();
-      expect(message).toEqual({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "test",
-      });
-    });
-
-    it("should throw on invalid JSON", async () => {
-      const { ReadBuffer } = await import("./mcp_server_core.cjs");
-      const buffer = new ReadBuffer();
-
-      buffer.append(Buffer.from("invalid json\n"));
-
-      expect(() => buffer.readMessage()).toThrow("Parse error");
-    });
-
-    it("should handle Windows line endings", async () => {
-      const { ReadBuffer } = await import("./mcp_server_core.cjs");
-      const buffer = new ReadBuffer();
-
-      buffer.append(Buffer.from('{"jsonrpc":"2.0","id":1,"method":"test"}\r\n'));
-
-      const message = buffer.readMessage();
-      expect(message).toEqual({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "test",
-      });
+      buffer.append(Buffer.from('{"test":"value"}\n'));
+      expect(buffer.readMessage()).toEqual({ test: "value" });
     });
   });
 

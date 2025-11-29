@@ -2098,7 +2098,6 @@ jobs:
                 patchPath: patchPath,
               };
             }
-            const encoder = new TextEncoder();
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -2126,6 +2125,7 @@ jobs:
                 }
               }
             }
+            const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
               try {

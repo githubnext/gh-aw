@@ -192,6 +192,9 @@ var temporaryIdScript string
 //go:embed js/update_runner.cjs
 var updateRunnerScript string
 
+//go:embed js/read_buffer.cjs
+var readBufferScript string
+
 //go:embed js/mcp_server_core.cjs
 var mcpServerCoreScript string
 
@@ -232,6 +235,7 @@ func GetJavaScriptSources() map[string]string {
 		"get_base_branch.cjs":             getBaseBranchScript,
 		"generate_git_patch.cjs":          generateGitPatchJSScript,
 		"update_runner.cjs":               updateRunnerScript,
+		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 	}
 }
