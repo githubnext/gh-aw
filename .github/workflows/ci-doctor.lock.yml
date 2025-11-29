@@ -2104,18 +2104,18 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Workflow Run**: ${GH_AW_EXPR_3906A565}
-          - **Conclusion**: ${GH_AW_EXPR_FD224667}
-          - **Run URL**: ${GH_AW_EXPR_D611C113}
-          - **Head SHA**: ${GH_AW_EXPR_9A971DC4}
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Workflow Run**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}
+          - **Conclusion**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
+          - **Run URL**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL}
+          - **Head SHA**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
           
           ## Investigation Protocol
           
           **ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. Exit immediately if the workflow was successful.
           
           ### Phase 1: Initial Triage
-          1. **Verify Failure**: Check that `${GH_AW_EXPR_FD224667}` is `failure` or `cancelled`
+          1. **Verify Failure**: Check that `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}` is `failure` or `cancelled`
           2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
           3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
           4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
@@ -2202,15 +2202,15 @@ jobs:
           When creating an investigation issue, use this structure:
           
           ```markdown
-          # 🏥 CI Failure Investigation - Run #${GH_AW_EXPR_20984929}
+          # 🏥 CI Failure Investigation - Run #${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}
           
           ## Summary
           [Brief description of the failure]
           
           ## Failure Details
-          - **Run**: [${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          - **Run**: [${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
+          - **Commit**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          - **Trigger**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2330,37 +2330,37 @@ jobs:
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_FFBED134: ${{ github.event.comment.id }}
-          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
-          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
-          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
-          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>
-          {{#if ${GH_AW_EXPR_D892F163} }}
-          <context name="repository">${GH_AW_EXPR_D892F163}</context>
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          <context name="repository">${GH_AW_GITHUB_REPOSITORY}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_2D1CC6E7} }}
-          <context name="workspace">${GH_AW_EXPR_2D1CC6E7}</context>
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          <context name="workspace">${GH_AW_GITHUB_WORKSPACE}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_9C6DBB26} }}
-          <context name="issue-number">#${GH_AW_EXPR_9C6DBB26}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          <context name="issue-number">#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_2497EEDF} }}
-          <context name="discussion-number">#${GH_AW_EXPR_2497EEDF}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          <context name="discussion-number">#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_079D8664} }}
-          <context name="pull-request-number">#${GH_AW_EXPR_079D8664}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          <context name="pull-request-number">#${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_FFBED134} }}
-          <context name="comment-id">${GH_AW_EXPR_FFBED134}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          <context name="comment-id">${GH_AW_GITHUB_EVENT_COMMENT_ID}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_B50B6E9C} }}
-          <context name="workflow-run-id">${GH_AW_EXPR_B50B6E9C}</context>
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          <context name="workflow-run-id">${GH_AW_GITHUB_RUN_ID}</context>
           {{/if}}
           <instruction>Use this context information to understand the scope of your work.</instruction>
           </github-context>
@@ -2370,13 +2370,13 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_FD224667: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_EXPR_948C4FD8: ${{ github.event.workflow_run.event }}
-          GH_AW_EXPR_9A971DC4: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_EXPR_D611C113: ${{ github.event.workflow_run.html_url }}
-          GH_AW_EXPR_3906A565: ${{ github.event.workflow_run.id }}
-          GH_AW_EXPR_20984929: ${{ github.event.workflow_run.run_number }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");

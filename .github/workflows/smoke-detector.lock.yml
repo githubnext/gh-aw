@@ -2885,18 +2885,18 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Workflow Name**: ${GH_AW_EXPR_5830D129}
-          - **Workflow Run**: ${GH_AW_EXPR_7172678D}
-          - **Run Number**: ${GH_AW_EXPR_1CDB85B1}
-          - **Conclusion**: ${GH_AW_EXPR_2CBA5CE1}
-          - **Run URL**: ${GH_AW_EXPR_475F31C3}
-          - **Head SHA**: ${GH_AW_EXPR_B4F8C8D5}
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Workflow Name**: ${GH_AW_INPUTS_WORKFLOW_NAME}
+          - **Workflow Run**: ${GH_AW_INPUTS_RUN_ID}
+          - **Run Number**: ${GH_AW_INPUTS_RUN_NUMBER}
+          - **Conclusion**: ${GH_AW_INPUTS_CONCLUSION}
+          - **Run URL**: ${GH_AW_INPUTS_HTML_URL}
+          - **Head SHA**: ${GH_AW_INPUTS_HEAD_SHA}
           
           ## Investigation Protocol
           
           ### Phase 1: Initial Triage
-          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_7172678D}` to get comprehensive diagnostic information
+          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_INPUTS_RUN_ID}` to get comprehensive diagnostic information
           2. **Analyze Audit Report**: Review the audit report for:
              - Failed jobs and their errors
              - Error patterns and classifications
@@ -2996,7 +2996,7 @@ jobs:
              - Include up to 3 workflow run URLs as references at the end
              
           3. **Determine Output Location**:
-             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_B4F8C8D5})
+             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_INPUTS_HEAD_SHA})
              - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
              - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
              
@@ -3009,8 +3009,8 @@ jobs:
           ### Finding Associated Pull Request
           
           To find a pull request associated with the failed workflow run:
-          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_B4F8C8D5}`
-          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_B4F8C8D5}`
+          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_INPUTS_HEAD_SHA}`
+          2. Query: `repo:${GH_AW_GITHUB_REPOSITORY} is:pr ${GH_AW_INPUTS_HEAD_SHA}`
           3. If a pull request is found, use its number for the `add_comment` tool
           4. If no pull request is found, proceed with creating an issue
           
@@ -3026,12 +3026,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_INPUTS_RUN_NUMBER}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
-          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
-          - **Workflow**: ${GH_AW_EXPR_5830D129}
+          - **Run**: [§${GH_AW_INPUTS_RUN_ID}](${GH_AW_INPUTS_HTML_URL})
+          - **Commit**: ${GH_AW_INPUTS_HEAD_SHA}
+          - **Workflow**: ${GH_AW_INPUTS_WORKFLOW_NAME}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -3056,7 +3056,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - [§${GH_AW_INPUTS_RUN_ID}](${GH_AW_INPUTS_HTML_URL})
           ```
           
           ### Investigation Issue Template (for Issues)
@@ -3071,12 +3071,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_INPUTS_RUN_NUMBER}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
-          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
-          - **Workflow**: ${GH_AW_EXPR_5830D129}
+          - **Run**: [§${GH_AW_INPUTS_RUN_ID}](${GH_AW_INPUTS_HTML_URL})
+          - **Commit**: ${GH_AW_INPUTS_HEAD_SHA}
+          - **Workflow**: ${GH_AW_INPUTS_WORKFLOW_NAME}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -3101,7 +3101,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - [§${GH_AW_INPUTS_RUN_ID}](${GH_AW_INPUTS_HTML_URL})
           ```
           
           ## Important Guidelines
@@ -3200,37 +3200,37 @@ jobs:
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_FFBED134: ${{ github.event.comment.id }}
-          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
-          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
-          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
-          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>
-          {{#if ${GH_AW_EXPR_D892F163} }}
-          <context name="repository">${GH_AW_EXPR_D892F163}</context>
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          <context name="repository">${GH_AW_GITHUB_REPOSITORY}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_2D1CC6E7} }}
-          <context name="workspace">${GH_AW_EXPR_2D1CC6E7}</context>
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          <context name="workspace">${GH_AW_GITHUB_WORKSPACE}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_9C6DBB26} }}
-          <context name="issue-number">#${GH_AW_EXPR_9C6DBB26}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          <context name="issue-number">#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_2497EEDF} }}
-          <context name="discussion-number">#${GH_AW_EXPR_2497EEDF}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          <context name="discussion-number">#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_079D8664} }}
-          <context name="pull-request-number">#${GH_AW_EXPR_079D8664}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          <context name="pull-request-number">#${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_FFBED134} }}
-          <context name="comment-id">${GH_AW_EXPR_FFBED134}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          <context name="comment-id">${GH_AW_GITHUB_EVENT_COMMENT_ID}</context>
           {{/if}}
-          {{#if ${GH_AW_EXPR_B50B6E9C} }}
-          <context name="workflow-run-id">${GH_AW_EXPR_B50B6E9C}</context>
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          <context name="workflow-run-id">${GH_AW_GITHUB_RUN_ID}</context>
           {{/if}}
           <instruction>Use this context information to understand the scope of your work.</instruction>
           </github-context>
@@ -3240,13 +3240,13 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_2CBA5CE1: ${{ inputs.conclusion }}
-          GH_AW_EXPR_B4F8C8D5: ${{ inputs.head_sha }}
-          GH_AW_EXPR_475F31C3: ${{ inputs.html_url }}
-          GH_AW_EXPR_7172678D: ${{ inputs.run_id }}
-          GH_AW_EXPR_1CDB85B1: ${{ inputs.run_number }}
-          GH_AW_EXPR_5830D129: ${{ inputs.workflow_name }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_INPUTS_CONCLUSION: ${{ inputs.conclusion }}
+          GH_AW_INPUTS_HEAD_SHA: ${{ inputs.head_sha }}
+          GH_AW_INPUTS_HTML_URL: ${{ inputs.html_url }}
+          GH_AW_INPUTS_RUN_ID: ${{ inputs.run_id }}
+          GH_AW_INPUTS_RUN_NUMBER: ${{ inputs.run_number }}
+          GH_AW_INPUTS_WORKFLOW_NAME: ${{ inputs.workflow_name }}
         with:
           script: |
             const fs = require("fs");

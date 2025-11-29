@@ -119,30 +119,30 @@ func TestGenerateGitHubContextSecurePattern(t *testing.T) {
 	envSection := output[:runIndex]
 	heredocSection := output[runIndex:]
 
-	// Verify that expressions appear in the env section
-	expectedEnvVars := []string{
-		"${{ github.repository }}",
-		"${{ github.workspace }}",
-		"${{ github.event.issue.number }}",
-		"${{ github.event.discussion.number }}",
-		"${{ github.event.pull_request.number }}",
-		"${{ github.event.comment.id }}",
-		"${{ github.run_id }}",
+	// Verify that expressions appear in the env section with pretty names
+	expectedEnvVars := map[string]string{
+		"GH_AW_GITHUB_REPOSITORY":                "${{ github.repository }}",
+		"GH_AW_GITHUB_WORKSPACE":                 "${{ github.workspace }}",
+		"GH_AW_GITHUB_EVENT_ISSUE_NUMBER":        "${{ github.event.issue.number }}",
+		"GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER":   "${{ github.event.discussion.number }}",
+		"GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER": "${{ github.event.pull_request.number }}",
+		"GH_AW_GITHUB_EVENT_COMMENT_ID":          "${{ github.event.comment.id }}",
+		"GH_AW_GITHUB_RUN_ID":                    "${{ github.run_id }}",
 	}
 
-	for _, expr := range expectedEnvVars {
+	for envVar, expr := range expectedEnvVars {
+		// Check that the expression appears in the env section
 		if !strings.Contains(envSection, expr) {
 			t.Errorf("Expected expression '%s' in env section, but not found", expr)
 		}
-	}
-
-	// Verify that GH_AW_EXPR_* environment variables are declared
-	if !strings.Contains(envSection, "GH_AW_EXPR_") {
-		t.Error("Expected GH_AW_EXPR_* environment variables in env section")
+		// Check that the pretty env var name is used
+		if !strings.Contains(envSection, envVar) {
+			t.Errorf("Expected env var name '%s' in env section, but not found", envVar)
+		}
 	}
 
 	// Verify that the heredoc does NOT contain direct ${{ }} expressions
-	// It should only contain ${GH_AW_EXPR_*} references
+	// It should only contain ${GH_AW_*} references
 	heredocStart := strings.Index(heredocSection, "cat << 'PROMPT_EOF'")
 	heredocEnd := strings.Index(heredocSection, "PROMPT_EOF\n")
 	if heredocStart == -1 || heredocEnd == -1 {
@@ -153,12 +153,12 @@ func TestGenerateGitHubContextSecurePattern(t *testing.T) {
 
 	// Check that no ${{ }} expressions appear in the heredoc
 	if strings.Contains(heredocContent, "${{ ") {
-		t.Error("Expected NO ${{ }} expressions in heredoc content (should use ${GH_AW_EXPR_*} instead)")
+		t.Error("Expected NO ${{ }} expressions in heredoc content (should use ${GH_AW_*} instead)")
 	}
 
 	// Verify that shell variable references are used in heredoc
-	if !strings.Contains(heredocContent, "${GH_AW_EXPR_") {
-		t.Error("Expected ${GH_AW_EXPR_*} shell variable references in heredoc content")
+	if !strings.Contains(heredocContent, "${GH_AW_GITHUB_") {
+		t.Error("Expected ${GH_AW_GITHUB_*} shell variable references in heredoc content")
 	}
 
 	// Verify the envsubst command is used (for shell variable substitution)

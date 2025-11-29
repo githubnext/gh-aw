@@ -96,12 +96,35 @@ func TestExpressionExtractor_GenerateEnvVarName(t *testing.T) {
 	extractor := NewExpressionExtractor()
 
 	tests := []struct {
-		name    string
-		content string
+		name     string
+		content  string
+		wantName string // expected env var name for simple expressions
 	}{
-		{"simple expression", "github.repository"},
-		{"expression with spaces", "github.actor"},
-		{"complex expression", "github.event.issue.number || github.event.pull_request.number"},
+		{
+			name:     "simple expression",
+			content:  "github.repository",
+			wantName: "GH_AW_GITHUB_REPOSITORY",
+		},
+		{
+			name:     "expression with underscore",
+			content:  "github.run_id",
+			wantName: "GH_AW_GITHUB_RUN_ID",
+		},
+		{
+			name:     "nested expression",
+			content:  "github.event.issue.number",
+			wantName: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER",
+		},
+		{
+			name:     "needs output",
+			content:  "needs.activation.outputs.text",
+			wantName: "GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT",
+		},
+		{
+			name:    "complex expression with operators",
+			content: "github.event.issue.number || github.event.pull_request.number",
+			// Falls back to hash-based name for complex expressions
+		},
 	}
 
 	for _, tt := range tests {
@@ -109,13 +132,23 @@ func TestExpressionExtractor_GenerateEnvVarName(t *testing.T) {
 			envVar := extractor.generateEnvVarName(tt.content)
 
 			// Check that env var has correct prefix
-			if !strings.HasPrefix(envVar, "GH_AW_EXPR_") {
-				t.Errorf("generateEnvVarName() = %s, want prefix GH_AW_EXPR_", envVar)
+			if !strings.HasPrefix(envVar, "GH_AW_") {
+				t.Errorf("generateEnvVarName() = %s, want prefix GH_AW_", envVar)
 			}
 
 			// Check that env var is uppercase
 			if envVar != strings.ToUpper(envVar) {
 				t.Errorf("generateEnvVarName() = %s, want uppercase", envVar)
+			}
+
+			// Check expected name for simple expressions
+			if tt.wantName != "" && envVar != tt.wantName {
+				t.Errorf("generateEnvVarName() = %s, want %s", envVar, tt.wantName)
+			}
+
+			// For complex expressions, check that it falls back to hash-based name
+			if tt.wantName == "" && !strings.HasPrefix(envVar, "GH_AW_EXPR_") {
+				t.Errorf("generateEnvVarName() = %s, want hash-based name with prefix GH_AW_EXPR_", envVar)
 			}
 
 			// Check that same content generates same env var (deterministic)
