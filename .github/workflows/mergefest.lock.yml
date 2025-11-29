@@ -1308,6 +1308,74 @@ jobs:
               }
             }
             const encoder = new TextEncoder();
+            class StdioTransport {
+              constructor(options = {}) {
+                this._readBuffer = new ReadBuffer();
+                this._messageHandler = null;
+                this._debug = options.onDebug || (() => {});
+                this._started = false;
+              }
+              onMessage(handler) {
+                this._messageHandler = handler;
+              }
+              send(message) {
+                const json = JSON.stringify(message);
+                this._debug(`send: ${json}`);
+                const messageStr = json + "\n";
+                const bytes = encoder.encode(messageStr);
+                fs.writeSync(1, bytes);
+              }
+              _processBuffer() {
+                while (true) {
+                  try {
+                    const message = this._readBuffer.readMessage();
+                    if (!message) {
+                      break;
+                    }
+                    this._debug(`recv: ${JSON.stringify(message)}`);
+                    if (this._messageHandler) {
+                      this._messageHandler(message);
+                    }
+                  } catch (error) {
+                    this._debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+              }
+              start() {
+                if (this._started) {
+                  return;
+                }
+                this._started = true;
+                this._debug(`stdio transport starting...`);
+                const onData = chunk => {
+                  this._readBuffer.append(chunk);
+                  this._processBuffer();
+                };
+                process.stdin.on("data", onData);
+                process.stdin.on("error", err => this._debug(`stdin error: ${err}`));
+                process.stdin.resume();
+                this._debug(`stdio transport listening...`);
+              }
+              close() {
+                if (!this._started) {
+                  return;
+                }
+                this._debug(`stdio transport closing...`);
+                this._started = false;
+                this._messageHandler = null;
+              }
+              isRunning() {
+                return this._started;
+              }
+            }
+            function createStdioTransport(options = {}) {
+              return new StdioTransport(options);
+            }
+             *   const transport = createStdioTransport({ onDebug: server.debug });
+             *   transport.onMessage(msg => handleMessage(server, msg));
+             *   transport.start();
+             */
+            const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
               try {
@@ -1382,10 +1450,11 @@ jobs:
                 writeMessage: () => {}, 
                 replyResult: () => {}, 
                 replyError: () => {}, 
-                readBuffer: new ReadBuffer(),
+                readBuffer: new ReadBuffer(), 
                 logDir,
                 logFilePath,
                 logFileInitialized: false,
+                transport: null, 
               };
               server.debug = createDebugFunction(server);
               server.writeMessage = createWriteMessageFunction(server);
@@ -1506,14 +1575,38 @@ jobs:
               if (!Object.keys(server.tools).length) {
                 throw new Error("No tools registered");
               }
-              const onData = chunk => {
-                server.readBuffer.append(chunk);
-                processReadBuffer(server, defaultHandler);
+              const transport = createStdioTransport({
+                onDebug: server.debug,
+              });
+              server.transport = transport;
+              const originalWriteMessage = server.writeMessage;
+              server.writeMessage = msg => {
+                if (transport.isRunning()) {
+                  transport.send(msg);
+                } else {
+                  originalWriteMessage(msg);
+                }
               };
-              process.stdin.on("data", onData);
-              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
-              process.stdin.resume();
-              server.debug(`listening...`);
+              transport.onMessage(message => {
+                handleMessage(server, message, defaultHandler);
+              });
+              transport.start();
+            }
+            function startWithTransport(server, transport, options = {}) {
+              const { defaultHandler } = options;
+              server.debug(`v${server.serverInfo.version} ready`);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) {
+                throw new Error("No tools registered");
+              }
+              server.transport = transport;
+              server.writeMessage = msg => {
+                transport.send(msg);
+              };
+              transport.onMessage(message => {
+                handleMessage(server, message, defaultHandler);
+              });
+              transport.start();
             }
             const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;

@@ -293,4 +293,125 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].result.content[0].text).toBe("default handler for no_handler_tool");
     });
   });
+
+  describe("startWithTransport", () => {
+    it("should start server with custom transport", async () => {
+      vi.resetModules();
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const { createServer, registerTool, startWithTransport } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "test_tool",
+        description: "A test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: () => ({ content: [{ type: "text", text: "ok" }] }),
+      });
+
+      const mockTransport = {
+        send: vi.fn(),
+        onMessage: vi.fn(),
+        start: vi.fn(),
+      };
+
+      startWithTransport(server, mockTransport);
+
+      expect(mockTransport.onMessage).toHaveBeenCalled();
+      expect(mockTransport.start).toHaveBeenCalled();
+      expect(server.transport).toBe(mockTransport);
+    });
+
+    it("should throw error if no tools registered", async () => {
+      vi.resetModules();
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const { createServer, startWithTransport } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      const mockTransport = {
+        send: vi.fn(),
+        onMessage: vi.fn(),
+        start: vi.fn(),
+      };
+
+      expect(() => startWithTransport(server, mockTransport)).toThrow("No tools registered");
+    });
+
+    it("should use transport.send for writeMessage", async () => {
+      vi.resetModules();
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const { createServer, registerTool, startWithTransport } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "test_tool",
+        description: "A test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: () => ({ content: [{ type: "text", text: "ok" }] }),
+      });
+
+      const mockTransport = {
+        send: vi.fn(),
+        onMessage: vi.fn(),
+        start: vi.fn(),
+      };
+
+      startWithTransport(server, mockTransport);
+
+      const message = { jsonrpc: "2.0", id: 1, result: { status: "ok" } };
+      server.writeMessage(message);
+
+      expect(mockTransport.send).toHaveBeenCalledWith(message);
+    });
+
+    it("should handle messages from transport", async () => {
+      vi.resetModules();
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const { createServer, registerTool, startWithTransport } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      registerTool(server, {
+        name: "test_tool",
+        description: "A test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: () => ({ content: [{ type: "text", text: "ok" }] }),
+      });
+
+      let messageHandler = null;
+      const mockTransport = {
+        send: vi.fn(),
+        onMessage: vi.fn(handler => {
+          messageHandler = handler;
+        }),
+        start: vi.fn(),
+      };
+
+      startWithTransport(server, mockTransport);
+
+      // Simulate receiving an initialize message
+      messageHandler({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {},
+      });
+
+      expect(mockTransport.send).toHaveBeenCalled();
+      const sentMessage = mockTransport.send.mock.calls[0][0];
+      expect(sentMessage.jsonrpc).toBe("2.0");
+      expect(sentMessage.id).toBe(1);
+      expect(sentMessage.result.serverInfo.name).toBe("test-server");
+    });
+  });
 });

@@ -7,6 +7,10 @@
  * This module provides a reusable API for creating MCP (Model Context Protocol) servers.
  * It handles JSON-RPC 2.0 message parsing, tool registration, and server lifecycle.
  *
+ * The module supports different transport mechanisms:
+ * - stdio: Uses stdin/stdout for communication (default via start())
+ * - http: HTTP-based transport (to be implemented separately)
+ *
  * Usage:
  *   const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
  *
@@ -18,12 +22,19 @@
  *     handler: (args) => ({ content: [{ type: "text", text: "result" }] })
  *   });
  *   start(server);
+ *
+ * For direct transport access:
+ *   const { createStdioTransport } = require("./mcp_stdio_transport.cjs");
+ *   const transport = createStdioTransport({ onDebug: server.debug });
+ *   transport.onMessage(msg => handleMessage(server, msg));
+ *   transport.start();
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
+const { createStdioTransport } = require("./mcp_stdio_transport.cjs");
 
 const encoder = new TextEncoder();
 
@@ -46,13 +57,14 @@ const encoder = new TextEncoder();
  * @property {ServerInfo} serverInfo - Server information
  * @property {Object<string, Tool>} tools - Registered tools
  * @property {Function} debug - Debug logging function
- * @property {Function} writeMessage - Write message to stdout
+ * @property {Function} writeMessage - Write message to transport
  * @property {Function} replyResult - Send a result response
  * @property {Function} replyError - Send an error response
- * @property {ReadBuffer} readBuffer - Message buffer
+ * @property {ReadBuffer} readBuffer - Message buffer (legacy, kept for compatibility)
  * @property {string} [logDir] - Optional log directory
  * @property {string} [logFilePath] - Optional log file path
  * @property {boolean} logFileInitialized - Whether log file has been initialized
+ * @property {Object} [transport] - Transport instance (stdio, http, etc.)
  */
 
 /**
@@ -176,10 +188,11 @@ function createServer(serverInfo, options = {}) {
     writeMessage: () => {}, // placeholder
     replyResult: () => {}, // placeholder
     replyError: () => {}, // placeholder
-    readBuffer: new ReadBuffer(),
+    readBuffer: new ReadBuffer(), // kept for backward compatibility
     logDir,
     logFilePath,
     logFileInitialized: false,
+    transport: null, // will be set when start() is called
   };
 
   // Initialize functions with references to server
@@ -315,6 +328,7 @@ function handleMessage(server, req, defaultHandler) {
  * Process the read buffer and handle messages
  * @param {MCPServer} server - The MCP server instance
  * @param {Function} [defaultHandler] - Default handler for tools without a handler
+ * @deprecated Use transport-based message handling instead
  */
 function processReadBuffer(server, defaultHandler) {
   while (true) {
@@ -334,7 +348,7 @@ function processReadBuffer(server, defaultHandler) {
 }
 
 /**
- * Start the MCP server on stdio
+ * Start the MCP server on stdio transport
  * @param {MCPServer} server - The MCP server instance
  * @param {Object} [options] - Start options
  * @param {Function} [options.defaultHandler] - Default handler for tools without a handler
@@ -349,15 +363,65 @@ function start(server, options = {}) {
     throw new Error("No tools registered");
   }
 
-  const onData = chunk => {
-    server.readBuffer.append(chunk);
-    processReadBuffer(server, defaultHandler);
+  // Create and configure the stdio transport
+  const transport = createStdioTransport({
+    onDebug: server.debug,
+  });
+
+  // Update server to use transport for sending messages
+  server.transport = transport;
+  const originalWriteMessage = server.writeMessage;
+  server.writeMessage = msg => {
+    if (transport.isRunning()) {
+      transport.send(msg);
+    } else {
+      // Fallback to original implementation if transport not running
+      originalWriteMessage(msg);
+    }
   };
 
-  process.stdin.on("data", onData);
-  process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
-  process.stdin.resume();
-  server.debug(`listening...`);
+  // Set up message handler
+  transport.onMessage(message => {
+    handleMessage(server, message, defaultHandler);
+  });
+
+  // Start the transport
+  transport.start();
+}
+
+/**
+ * Start the MCP server with a custom transport
+ * This allows using different transports (stdio, http, etc.)
+ * @param {MCPServer} server - The MCP server instance
+ * @param {Object} transport - Transport instance with start(), send(), and onMessage() methods
+ * @param {Object} [options] - Start options
+ * @param {Function} [options.defaultHandler] - Default handler for tools without a handler
+ */
+function startWithTransport(server, transport, options = {}) {
+  const { defaultHandler } = options;
+
+  server.debug(`v${server.serverInfo.version} ready`);
+  server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+
+  if (!Object.keys(server.tools).length) {
+    throw new Error("No tools registered");
+  }
+
+  // Store transport reference
+  server.transport = transport;
+
+  // Update server to use transport for sending messages
+  server.writeMessage = msg => {
+    transport.send(msg);
+  };
+
+  // Set up message handler
+  transport.onMessage(message => {
+    handleMessage(server, message, defaultHandler);
+  });
+
+  // Start the transport
+  transport.start();
 }
 
 module.exports = {
@@ -367,4 +431,5 @@ module.exports = {
   handleMessage,
   processReadBuffer,
   start,
+  startWithTransport,
 };
