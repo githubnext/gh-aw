@@ -666,7 +666,70 @@ jobs:
           ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
-          {"add_comment":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"item_number":{"issueOrPRNumber":true}}},"add_labels":{"defaultMax":5,"fields":{"item_number":{"issueOrPRNumber":true},"labels":{"required":true,"type":"array","itemType":"string","itemSanitize":true,"itemMaxLength":128}}},"add_reviewer":{"defaultMax":3,"fields":{"pull_request_number":{"issueOrPRNumber":true},"reviewers":{"required":true,"type":"array","itemType":"string","itemSanitize":true,"itemMaxLength":39}}},"assign_milestone":{"defaultMax":1,"fields":{"issue_number":{"issueOrPRNumber":true},"milestone_number":{"required":true,"positiveInteger":true}}},"assign_to_agent":{"defaultMax":1,"fields":{"agent":{"type":"string","sanitize":true,"maxLength":128},"issue_number":{"required":true,"positiveInteger":true}}},"close_discussion":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"discussion_number":{"optionalPositiveInteger":true},"reason":{"type":"string","enum":["RESOLVED","DUPLICATE","OUTDATED","ANSWERED"]}}},"close_issue":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"issue_number":{"optionalPositiveInteger":true}}},"close_pull_request":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"pull_request_number":{"optionalPositiveInteger":true}}},"create_agent_task":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000}}},"create_code_scanning_alert":{"defaultMax":40,"fields":{"column":{"optionalPositiveInteger":true},"file":{"required":true,"type":"string","sanitize":true,"maxLength":512},"line":{"required":true,"positiveInteger":true},"message":{"required":true,"type":"string","sanitize":true,"maxLength":2048},"ruleIdSuffix":{"type":"string","sanitize":true,"maxLength":128,"pattern":"^[a-zA-Z0-9_-]+$","patternError":"must contain only alphanumeric characters, hyphens, and underscores"},"severity":{"required":true,"type":"string","enum":["error","warning","info","note"]}}},"create_discussion":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"category":{"type":"string","sanitize":true,"maxLength":128},"title":{"required":true,"type":"string","sanitize":true,"maxLength":128}}},"create_issue":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"labels":{"type":"array","itemType":"string","itemSanitize":true,"itemMaxLength":128},"parent":{"issueOrPRNumber":true},"temporary_id":{"type":"string"},"title":{"required":true,"type":"string","sanitize":true,"maxLength":128}}},"create_pull_request":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"branch":{"required":true,"type":"string","sanitize":true,"maxLength":256},"labels":{"type":"array","itemType":"string","itemSanitize":true,"itemMaxLength":128},"title":{"required":true,"type":"string","sanitize":true,"maxLength":128}}},"create_pull_request_review_comment":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"line":{"required":true,"positiveInteger":true},"path":{"required":true,"type":"string"},"side":{"type":"string","enum":["LEFT","RIGHT"]},"start_line":{"optionalPositiveInteger":true}},"customValidation":"startLineLessOrEqualLine"},"link_sub_issue":{"defaultMax":5,"fields":{"parent_issue_number":{"required":true,"issueNumberOrTemporaryId":true},"sub_issue_number":{"required":true,"issueNumberOrTemporaryId":true}},"customValidation":"parentAndSubDifferent"},"missing_tool":{"defaultMax":20,"fields":{"alternatives":{"type":"string","sanitize":true,"maxLength":512},"reason":{"required":true,"type":"string","sanitize":true,"maxLength":256},"tool":{"required":true,"type":"string","sanitize":true,"maxLength":128}}},"noop":{"defaultMax":1,"fields":{"message":{"required":true,"type":"string","sanitize":true,"maxLength":65000}}},"push_to_pull_request_branch":{"defaultMax":1,"fields":{"branch":{"required":true,"type":"string","sanitize":true,"maxLength":256},"message":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"pull_request_number":{"issueOrPRNumber":true}}},"update_issue":{"defaultMax":1,"fields":{"body":{"type":"string","sanitize":true,"maxLength":65000},"issue_number":{"issueOrPRNumber":true},"status":{"type":"string","enum":["open","closed"]},"title":{"type":"string","sanitize":true,"maxLength":128}},"customValidation":"requiresOneOf:status,title,body"},"update_pull_request":{"defaultMax":1,"fields":{"body":{"type":"string","sanitize":true,"maxLength":65000},"operation":{"type":"string","enum":["replace","append","prepend"]},"pull_request_number":{"issueOrPRNumber":true},"title":{"type":"string","sanitize":true,"maxLength":256}},"customValidation":"requiresOneOf:title,body"},"update_release":{"defaultMax":1,"fields":{"body":{"required":true,"type":"string","sanitize":true,"maxLength":65000},"operation":{"required":true,"type":"string","enum":["replace","append","prepend"]},"tag":{"type":"string","sanitize":true,"maxLength":256}}},"upload_asset":{"defaultMax":10,"fields":{"path":{"required":true,"type":"string"}}}}
+          {
+            "create_pull_request": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "branch": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
+            "missing_tool": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512
+                },
+                "reason": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "tool": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
+            "noop": {
+              "defaultMax": 1,
+              "fields": {
+                "message": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                }
+              }
+            }
+          }
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");

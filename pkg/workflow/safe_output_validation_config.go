@@ -217,9 +217,27 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 }
 
-// GetValidationConfigJSON returns the validation configuration as JSON
-func GetValidationConfigJSON() (string, error) {
-	data, err := json.Marshal(ValidationConfig)
+// GetValidationConfigJSON returns the validation configuration as indented JSON
+// If enabledTypes is empty or nil, returns all validation configs
+// If enabledTypes is provided, returns only configs for the specified types
+func GetValidationConfigJSON(enabledTypes []string) (string, error) {
+	var configToMarshal map[string]TypeValidationConfig
+
+	if len(enabledTypes) == 0 {
+		// Return all configs (backwards compatible)
+		configToMarshal = ValidationConfig
+	} else {
+		// Filter to only enabled types
+		configToMarshal = make(map[string]TypeValidationConfig)
+		for _, typeName := range enabledTypes {
+			if config, ok := ValidationConfig[typeName]; ok {
+				configToMarshal[typeName] = config
+			}
+		}
+	}
+
+	// Use MarshalIndent for pretty-printed JSON to avoid merge issues
+	data, err := json.MarshalIndent(configToMarshal, "", "  ")
 	if err != nil {
 		return "", err
 	}

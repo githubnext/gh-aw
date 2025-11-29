@@ -6,7 +6,8 @@ import (
 )
 
 func TestGetValidationConfigJSON(t *testing.T) {
-	jsonStr, err := GetValidationConfigJSON()
+	// Test with nil (all types)
+	jsonStr, err := GetValidationConfigJSON(nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -49,6 +50,72 @@ func TestGetValidationConfigJSON(t *testing.T) {
 			t.Errorf("Expected type %q not found in validation config", typeName)
 		}
 	}
+
+	// Verify JSON is indented (contains newlines)
+	if !containsNewline(jsonStr) {
+		t.Error("Expected indented JSON output with newlines")
+	}
+}
+
+func TestGetValidationConfigJSONFiltered(t *testing.T) {
+	// Test with filtered types
+	enabledTypes := []string{"create_issue", "add_comment"}
+	jsonStr, err := GetValidationConfigJSON(enabledTypes)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	// Verify it's valid JSON
+	var parsed map[string]TypeValidationConfig
+	err = json.Unmarshal([]byte(jsonStr), &parsed)
+	if err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	// Verify only enabled types are present
+	if len(parsed) != 2 {
+		t.Errorf("Expected 2 types, got %d", len(parsed))
+	}
+
+	if _, ok := parsed["create_issue"]; !ok {
+		t.Error("Expected create_issue to be present")
+	}
+	if _, ok := parsed["add_comment"]; !ok {
+		t.Error("Expected add_comment to be present")
+	}
+
+	// Verify other types are NOT present
+	if _, ok := parsed["create_discussion"]; ok {
+		t.Error("Did not expect create_discussion to be present")
+	}
+}
+
+func TestGetValidationConfigJSONEmpty(t *testing.T) {
+	// Test with empty slice (should return all types, same as nil)
+	jsonStr, err := GetValidationConfigJSON([]string{})
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	err = json.Unmarshal([]byte(jsonStr), &parsed)
+	if err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	// Empty slice should return all types
+	if len(parsed) != len(ValidationConfig) {
+		t.Errorf("Expected %d types with empty slice, got %d", len(ValidationConfig), len(parsed))
+	}
+}
+
+func containsNewline(s string) bool {
+	for _, r := range s {
+		if r == '\n' {
+			return true
+		}
+	}
+	return false
 }
 
 func TestGetValidationConfigForType(t *testing.T) {
