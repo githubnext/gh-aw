@@ -131,21 +131,22 @@ This is a test workflow.`
 	}
 
 	// Check specifically that the expected safe-outputs jobs use the custom runner
+	// Use a pattern that matches YAML job definitions at the correct indentation level
+	// to avoid matching JavaScript object properties inside bundled scripts
 	expectedJobs := []string{"create_issue:", "create_issue_comment:", "add_labels:", "update_issue:"}
 	for _, jobName := range expectedJobs {
-		if strings.Contains(yamlStr, jobName) {
-			// Find the job section
-			jobStart := strings.Index(yamlStr, jobName)
-			if jobStart != -1 {
-				// Look for runs-on within the next 500 characters of this job
-				jobSection := yamlStr[jobStart : jobStart+500]
-				defaultRunsOn := fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage)
-				if strings.Contains(jobSection, defaultRunsOn) {
-					t.Errorf("Job %q still uses default %q instead of custom runner.\nJob section:\n%s", jobName, defaultRunsOn, jobSection)
-				}
-				if !strings.Contains(jobSection, expectedRunsOn) {
-					t.Errorf("Job %q does not use expected %q.\nJob section:\n%s", jobName, expectedRunsOn, jobSection)
-				}
+		// Look for the job name at YAML indentation level (2 spaces under 'jobs:')
+		yamlJobPattern := "\n  " + jobName
+		jobStart := strings.Index(yamlStr, yamlJobPattern)
+		if jobStart != -1 {
+			// Look for runs-on within the next 500 characters of this job
+			jobSection := yamlStr[jobStart : jobStart+500]
+			defaultRunsOn := fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage)
+			if strings.Contains(jobSection, defaultRunsOn) {
+				t.Errorf("Job %q still uses default %q instead of custom runner.\nJob section:\n%s", jobName, defaultRunsOn, jobSection)
+			}
+			if !strings.Contains(jobSection, expectedRunsOn) {
+				t.Errorf("Job %q does not use expected %q.\nJob section:\n%s", jobName, expectedRunsOn, jobSection)
 			}
 		}
 	}
