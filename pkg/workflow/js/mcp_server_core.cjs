@@ -241,7 +241,7 @@ function createServer(serverInfo, options = {}) {
  * @param {Tool} tool - The tool to register
  */
 function registerTool(server, tool) {
-  const normalizedName = tool.name.replace(/-/g, "_").toLowerCase();
+  const normalizedName = normalizeTool(tool.name);
   server.tools[normalizedName] = {
     ...tool,
     name: normalizedName,
@@ -287,7 +287,7 @@ function handleMessage(server, req, defaultHandler) {
   try {
     if (method === "initialize") {
       const clientInfo = params?.clientInfo ?? {};
-      console.error(`client info:`, clientInfo);
+      server.debug(`client info: ${JSON.stringify(clientInfo)}`);
       const protocolVersion = params?.protocolVersion ?? undefined;
       const result = {
         serverInfo: server.serverInfo,
