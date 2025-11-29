@@ -959,7 +959,6 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            const { execSync } = require("child_process");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -1018,6 +1017,7 @@ jobs:
                 description: description,
               };
             }
+            const { execSync } = require("child_process");
             function getCurrentBranch() {
               const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
@@ -1130,79 +1130,10 @@ jobs:
                 patchPath: patchPath,
               };
             }
-            const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
-            const LOG_FILE_PATH = MCP_LOG_DIR ? path.join(MCP_LOG_DIR, "server.log") : "";
-            let logFileInitialized = false;
-            function initLogFile() {
-              if (logFileInitialized || !MCP_LOG_DIR || !LOG_FILE_PATH) return;
-              try {
-                if (!fs.existsSync(MCP_LOG_DIR)) {
-                  fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
-                }
-                const timestamp = new Date().toISOString();
-                fs.writeFileSync(LOG_FILE_PATH, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: ${SERVER_INFO.version}\n\n`);
-                logFileInitialized = true;
-              } catch {
-              }
-            }
-            const debug = msg => {
-              const timestamp = new Date().toISOString();
-              const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
-              process.stderr.write(formattedMsg);
-              if (MCP_LOG_DIR && LOG_FILE_PATH) {
-                if (!logFileInitialized) {
-                  initLogFile();
-                }
-                if (logFileInitialized) {
-                  try {
-                    fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
-                  } catch {
-                  }
-                }
-              }
-            };
-            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-            let safeOutputsConfigRaw;
-            debug(`Reading config from file: ${configPath}`);
-            try {
-              if (fs.existsSync(configPath)) {
-                debug(`Config file exists at: ${configPath}`);
-                const configFileContent = fs.readFileSync(configPath, "utf8");
-                debug(`Config file content length: ${configFileContent.length} characters`);
-                debug(`Config file read successfully, attempting to parse JSON`);
-                safeOutputsConfigRaw = JSON.parse(configFileContent);
-                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-              } else {
-                debug(`Config file does not exist at: ${configPath}`);
-                debug(`Using minimal default configuration`);
-                safeOutputsConfigRaw = {};
-              }
-            } catch (error) {
-              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-              debug(`Falling back to empty configuration`);
-              safeOutputsConfigRaw = {};
-            }
-            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-            debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
-            if (!process.env.GH_AW_SAFE_OUTPUTS) {
-              debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-            }
-            const outputDir = path.dirname(outputFile);
-            if (!fs.existsSync(outputDir)) {
-              debug(`Creating output directory: ${outputDir}`);
-              fs.mkdirSync(outputDir, { recursive: true });
-            }
-            function writeMessage(obj) {
-              const json = JSON.stringify(obj);
-              debug(`send: ${json}`);
-              const message = json + "\n";
-              const bytes = encoder.encode(message);
-              fs.writeSync(1, bytes);
-            }
             class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
               append(chunk) {
                 this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
               }
@@ -1226,42 +1157,248 @@ jobs:
                 }
               }
             }
-            const readBuffer = new ReadBuffer();
-            function onData(chunk) {
-              readBuffer.append(chunk);
-              processReadBuffer();
+            const encoder = new TextEncoder();
+            function initLogFile(server) {
+              if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
+              try {
+                if (!fs.existsSync(server.logDir)) {
+                  fs.mkdirSync(server.logDir, { recursive: true });
+                }
+                const timestamp = new Date().toISOString();
+                fs.writeFileSync(
+                  server.logFilePath,
+                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
+                );
+                server.logFileInitialized = true;
+              } catch {
+              }
             }
-            function processReadBuffer() {
+            function createDebugFunction(server) {
+              return msg => {
+                const timestamp = new Date().toISOString();
+                const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
+                process.stderr.write(formattedMsg);
+                if (server.logDir && server.logFilePath) {
+                  if (!server.logFileInitialized) {
+                    initLogFile(server);
+                  }
+                  if (server.logFileInitialized) {
+                    try {
+                      fs.appendFileSync(server.logFilePath, formattedMsg);
+                    } catch {
+                    }
+                  }
+                }
+              };
+            }
+            function createWriteMessageFunction(server) {
+              return obj => {
+                const json = JSON.stringify(obj);
+                server.debug(`send: ${json}`);
+                const message = json + "\n";
+                const bytes = encoder.encode(message);
+                fs.writeSync(1, bytes);
+              };
+            }
+            function createReplyResultFunction(server) {
+              return (id, result) => {
+                if (id === undefined || id === null) return; 
+                const res = { jsonrpc: "2.0", id, result };
+                server.writeMessage(res);
+              };
+            }
+            function createReplyErrorFunction(server) {
+              return (id, code, message) => {
+                if (id === undefined || id === null) {
+                  server.debug(`Error for notification: ${message}`);
+                  return;
+                }
+                const error = { code, message };
+                const res = {
+                  jsonrpc: "2.0",
+                  id,
+                  error,
+                };
+                server.writeMessage(res);
+              };
+            }
+            function createServer(serverInfo, options = {}) {
+              const logDir = options.logDir || undefined;
+              const logFilePath = logDir ? path.join(logDir, "server.log") : undefined;
+              const server = {
+                serverInfo,
+                tools: {},
+                debug: () => {}, 
+                writeMessage: () => {}, 
+                replyResult: () => {}, 
+                replyError: () => {}, 
+                readBuffer: new ReadBuffer(),
+                logDir,
+                logFilePath,
+                logFileInitialized: false,
+              };
+              server.debug = createDebugFunction(server);
+              server.writeMessage = createWriteMessageFunction(server);
+              server.replyResult = createReplyResultFunction(server);
+              server.replyError = createReplyErrorFunction(server);
+              return server;
+            }
+            function registerTool(server, tool) {
+              const normalizedName = normalizeTool(tool.name);
+              server.tools[normalizedName] = {
+                ...tool,
+                name: normalizedName,
+              };
+              server.debug(`Registered tool: ${normalizedName}`);
+            }
+            function normalizeTool(name) {
+              return name.replace(/-/g, "_").toLowerCase();
+            }
+            function handleMessage(server, req, defaultHandler) {
+              if (!req || typeof req !== "object") {
+                server.debug(`Invalid message: not an object`);
+                return;
+              }
+              if (req.jsonrpc !== "2.0") {
+                server.debug(`Invalid message: missing or invalid jsonrpc field`);
+                return;
+              }
+              const { id, method, params } = req;
+              if (!method || typeof method !== "string") {
+                server.replyError(id, -32600, "Invalid Request: method must be a string");
+                return;
+              }
+              try {
+                if (method === "initialize") {
+                  const clientInfo = params?.clientInfo ?? {};
+                  server.debug(`client info: ${JSON.stringify(clientInfo)}`);
+                  const protocolVersion = params?.protocolVersion ?? undefined;
+                  const result = {
+                    serverInfo: server.serverInfo,
+                    ...(protocolVersion ? { protocolVersion } : {}),
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                  server.replyResult(id, result);
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  server.replyResult(id, { tools: list });
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    server.replyError(id, -32602, "Invalid params: 'name' must be a string");
+                    return;
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    server.replyError(id, -32601, `Tool not found: ${name} (${normalizeTool(name)})`);
+                    return;
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    server.replyError(id, -32603, `No handler for tool: ${name}`);
+                    return;
+                  }
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  if (requiredFields.length) {
+                    const missing = requiredFields.filter(f => {
+                      const value = args[f];
+                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+                    });
+                    if (missing.length) {
+                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                      return;
+                    }
+                  }
+                  const result = handler(args);
+                  const content = result && result.content ? result.content : [];
+                  server.replyResult(id, { content, isError: false });
+                } else if (/^notifications\//.test(method)) {
+                  server.debug(`ignore ${method}`);
+                } else {
+                  server.replyError(id, -32601, `Method not found: ${method}`);
+                }
+              } catch (e) {
+                server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
+              }
+            }
+            function processReadBuffer(server, defaultHandler) {
               while (true) {
                 try {
-                  const message = readBuffer.readMessage();
+                  const message = server.readBuffer.readMessage();
                   if (!message) {
                     break;
                   }
-                  debug(`recv: ${JSON.stringify(message)}`);
-                  handleMessage(message);
+                  server.debug(`recv: ${JSON.stringify(message)}`);
+                  handleMessage(server, message, defaultHandler);
                 } catch (error) {
-                  debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                  server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
             }
-            function replyResult(id, result) {
-              if (id === undefined || id === null) return; 
-              const res = { jsonrpc: "2.0", id, result };
-              writeMessage(res);
-            }
-            function replyError(id, code, message) {
-              if (id === undefined || id === null) {
-                debug(`Error for notification: ${message}`);
-                return;
+            function start(server, options = {}) {
+              const { defaultHandler } = options;
+              server.debug(`v${server.serverInfo.version} ready on stdio`);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) {
+                throw new Error("No tools registered");
               }
-              const error = { code, message };
-              const res = {
-                jsonrpc: "2.0",
-                id,
-                error,
+              const onData = chunk => {
+                server.readBuffer.append(chunk);
+                processReadBuffer(server, defaultHandler);
               };
-              writeMessage(res);
+              process.stdin.on("data", onData);
+              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
+              process.stdin.resume();
+              server.debug(`listening...`);
+            }
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
+            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
+            const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+            let safeOutputsConfigRaw;
+            server.debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                server.debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                server.debug(`Config file content length: ${configFileContent.length} characters`);
+                server.debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                server.debug(`Config file does not exist at: ${configPath}`);
+                server.debug(`Using minimal default configuration`);
+                safeOutputsConfigRaw = {};
+              }
+            } catch (error) {
+              server.debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              server.debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
+            }
+            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+            server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
+            if (!process.env.GH_AW_SAFE_OUTPUTS) {
+              server.debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+            }
+            const outputDir = path.dirname(outputFile);
+            if (!fs.existsSync(outputDir)) {
+              server.debug(`Creating output directory: ${outputDir}`);
+              fs.mkdirSync(outputDir, { recursive: true });
             }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
@@ -1284,7 +1421,7 @@ jobs:
                   if (tokens > TOKEN_THRESHOLD) {
                     largeContent = value;
                     largeFieldName = key;
-                    debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+                    server.debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
                     break;
                   }
                 }
@@ -1388,20 +1525,20 @@ jobs:
               if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
                 const detectedBranch = getCurrentBranch();
                 if (entry.branch === baseBranch) {
-                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                  server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
                 } else {
-                  debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+                  server.debug(`Using current branch for create_pull_request: ${detectedBranch}`);
                 }
                 entry.branch = detectedBranch;
               }
-              debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
+              server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
               const patchResult = generateGitPatch(entry.branch);
               if (!patchResult.success) {
                 const errorMsg = patchResult.error || "Failed to generate patch";
-                debug(`Patch generation failed: ${errorMsg}`);
+                server.debug(`Patch generation failed: ${errorMsg}`);
                 throw new Error(errorMsg);
               }
-              debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+              server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
               appendSafeOutput(entry);
               return {
                 content: [
@@ -1425,20 +1562,20 @@ jobs:
               if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
                 const detectedBranch = getCurrentBranch();
                 if (entry.branch === baseBranch) {
-                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                  server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
                 } else {
-                  debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+                  server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
                 }
                 entry.branch = detectedBranch;
               }
-              debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+              server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
               const patchResult = generateGitPatch(entry.branch);
               if (!patchResult.success) {
                 const errorMsg = patchResult.error || "Failed to generate patch";
-                debug(`Patch generation failed: ${errorMsg}`);
+                server.debug(`Patch generation failed: ${errorMsg}`);
                 throw new Error(errorMsg);
               }
-              debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+              server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
               appendSafeOutput(entry);
               return {
                 content: [
@@ -1456,26 +1593,25 @@ jobs:
                 ],
               };
             };
-            const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
             const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
             let ALL_TOOLS = [];
-            debug(`Reading tools from file: ${toolsPath}`);
+            server.debug(`Reading tools from file: ${toolsPath}`);
             try {
               if (fs.existsSync(toolsPath)) {
-                debug(`Tools file exists at: ${toolsPath}`);
+                server.debug(`Tools file exists at: ${toolsPath}`);
                 const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
-                debug(`Tools file content length: ${toolsFileContent.length} characters`);
-                debug(`Tools file read successfully, attempting to parse JSON`);
+                server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
+                server.debug(`Tools file read successfully, attempting to parse JSON`);
                 ALL_TOOLS = JSON.parse(toolsFileContent);
-                debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
+                server.debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
               } else {
-                debug(`Tools file does not exist at: ${toolsPath}`);
-                debug(`Using empty tools array`);
+                server.debug(`Tools file does not exist at: ${toolsPath}`);
+                server.debug(`Using empty tools array`);
                 ALL_TOOLS = [];
               }
             } catch (error) {
-              debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
-              debug(`Falling back to empty tools array`);
+              server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
+              server.debug(`Falling back to empty tools array`);
               ALL_TOOLS = [];
             }
             ALL_TOOLS.forEach(tool => {
@@ -1487,18 +1623,16 @@ jobs:
                 tool.handler = uploadAssetHandler;
               }
             });
-            debug(`v${SERVER_INFO.version} ready on stdio`);
-            debug(`  output file: ${outputFile}`);
-            debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            const TOOLS = {};
+            server.debug(`  output file: ${outputFile}`);
+            server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
             ALL_TOOLS.forEach(tool => {
-              if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-                TOOLS[tool.name] = tool;
+              if (Object.keys(safeOutputsConfig).find(config => normalizeTool(config) === tool.name)) {
+                registerTool(server, tool);
               }
             });
             Object.keys(safeOutputsConfig).forEach(configKey => {
-              const normalizedKey = normTool(configKey);
-              if (TOOLS[normalizedKey]) {
+              const normalizedKey = normalizeTool(configKey);
+              if (server.tools[normalizedKey]) {
                 return;
               }
               if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
@@ -1550,89 +1684,12 @@ jobs:
                     }
                   });
                 }
-                TOOLS[normalizedKey] = dynamicTool;
+                registerTool(server, dynamicTool);
               }
             });
-            debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
-            if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
-            function handleMessage(req) {
-              if (!req || typeof req !== "object") {
-                debug(`Invalid message: not an object`);
-                return;
-              }
-              if (req.jsonrpc !== "2.0") {
-                debug(`Invalid message: missing or invalid jsonrpc field`);
-                return;
-              }
-              const { id, method, params } = req;
-              if (!method || typeof method !== "string") {
-                replyError(id, -32600, "Invalid Request: method must be a string");
-                return;
-              }
-              try {
-                if (method === "initialize") {
-                  const clientInfo = params?.clientInfo ?? {};
-                  console.error(`client info:`, clientInfo);
-                  const protocolVersion = params?.protocolVersion ?? undefined;
-                  const result = {
-                    serverInfo: SERVER_INFO,
-                    ...(protocolVersion ? { protocolVersion } : {}),
-                    capabilities: {
-                      tools: {},
-                    },
-                  };
-                  replyResult(id, result);
-                } else if (method === "tools/list") {
-                  const list = [];
-                  Object.values(TOOLS).forEach(tool => {
-                    const toolDef = {
-                      name: tool.name,
-                      description: tool.description,
-                      inputSchema: tool.inputSchema,
-                    };
-                    list.push(toolDef);
-                  });
-                  replyResult(id, { tools: list });
-                } else if (method === "tools/call") {
-                  const name = params?.name;
-                  const args = params?.arguments ?? {};
-                  if (!name || typeof name !== "string") {
-                    replyError(id, -32602, "Invalid params: 'name' must be a string");
-                    return;
-                  }
-                  const tool = TOOLS[normTool(name)];
-                  if (!tool) {
-                    replyError(id, -32601, `Tool not found: ${name} (${normTool(name)})`);
-                    return;
-                  }
-                  const handler = tool.handler || defaultHandler(tool.name);
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
-                  }
-                  const result = handler(args);
-                  const content = result && result.content ? result.content : [];
-                  replyResult(id, { content, isError: false });
-                } else if (/^notifications\//.test(method)) {
-                  debug(`ignore ${method}`);
-                } else {
-                  replyError(id, -32601, `Method not found: ${method}`);
-                }
-              } catch (e) {
-                replyError(id, -32603, e instanceof Error ? e.message : String(e));
-              }
-            }
-            process.stdin.on("data", onData);
-            process.stdin.on("error", err => debug(`stdin error: ${err}`));
-            process.stdin.resume();
-            debug(`listening...`);
+            server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+            if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
+            start(server, { defaultHandler });
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
