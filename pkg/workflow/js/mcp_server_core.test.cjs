@@ -715,5 +715,186 @@ describe("mcp_server_core.cjs", () => {
       expect(results).toHaveLength(1);
       expect(results[0].result.content[0].text).toBe("[object Object]");
     });
+
+    it("should load and execute shell script handler", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a shell script handler
+      const handlerPath = path.join(tempDir, "test_handler.sh");
+      fs.writeFileSync(
+        handlerPath,
+        `#!/bin/bash
+echo "Hello from shell script"
+echo "Input was: $INPUT_NAME"
+echo "result=success" >> $GITHUB_OUTPUT
+`,
+        { mode: 0o755 }
+      );
+
+      const tools = [
+        {
+          name: "test_shell",
+          description: "A shell script tool",
+          inputSchema: { type: "object", properties: { name: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+
+      expect(typeof tools[0].handler).toBe("function");
+
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_shell", arguments: { name: "world" } },
+      });
+
+      expect(results).toHaveLength(1);
+      const resultContent = JSON.parse(results[0].result.content[0].text);
+      expect(resultContent.stdout).toContain("Hello from shell script");
+      expect(resultContent.stdout).toContain("Input was: world");
+      expect(resultContent.outputs.result).toBe("success");
+    });
+
+    it("should handle shell script with multiple outputs", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a shell script with multiple outputs
+      const handlerPath = path.join(tempDir, "multi_output.sh");
+      fs.writeFileSync(
+        handlerPath,
+        `#!/bin/bash
+echo "first=value1" >> $GITHUB_OUTPUT
+echo "second=value2" >> $GITHUB_OUTPUT
+echo "third=value with spaces" >> $GITHUB_OUTPUT
+`,
+        { mode: 0o755 }
+      );
+
+      const tools = [
+        {
+          name: "test_multi_output",
+          description: "Shell script with multiple outputs",
+          inputSchema: { type: "object", properties: {} },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_multi_output", arguments: {} },
+      });
+
+      expect(results).toHaveLength(1);
+      const resultContent = JSON.parse(results[0].result.content[0].text);
+      expect(resultContent.outputs.first).toBe("value1");
+      expect(resultContent.outputs.second).toBe("value2");
+      expect(resultContent.outputs.third).toBe("value with spaces");
+    });
+
+    it("should handle shell script errors", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a shell script that exits with error
+      const handlerPath = path.join(tempDir, "error_handler.sh");
+      fs.writeFileSync(
+        handlerPath,
+        `#!/bin/bash
+echo "About to fail" >&2
+exit 1
+`,
+        { mode: 0o755 }
+      );
+
+      const tools = [
+        {
+          name: "test_shell_error",
+          description: "Shell script that errors",
+          inputSchema: { type: "object", properties: {} },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_shell_error", arguments: {} },
+      });
+
+      // Should receive an error response
+      expect(results).toHaveLength(1);
+      expect(results[0].error).toBeDefined();
+    });
+
+    it("should convert input names with dashes to underscores", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a shell script that echoes input env vars
+      const handlerPath = path.join(tempDir, "env_handler.sh");
+      fs.writeFileSync(
+        handlerPath,
+        `#!/bin/bash
+echo "my-input value: $INPUT_MY_INPUT"
+echo "result=$INPUT_MY_INPUT" >> $GITHUB_OUTPUT
+`,
+        { mode: 0o755 }
+      );
+
+      const tools = [
+        {
+          name: "test_env_conversion",
+          description: "Tests env var conversion",
+          inputSchema: { type: "object", properties: { "my-input": { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_env_conversion", arguments: { "my-input": "test-value" } },
+      });
+
+      expect(results).toHaveLength(1);
+      const resultContent = JSON.parse(results[0].result.content[0].text);
+      expect(resultContent.outputs.result).toBe("test-value");
+    });
   });
 });

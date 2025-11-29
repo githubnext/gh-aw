@@ -866,6 +866,15 @@ jobs:
                 }
               };
             }
+            function createDebugErrorFunction(server) {
+              return (prefix, error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                server.debug(`${prefix}${errorMessage}`);
+                if (error instanceof Error && error.stack) {
+                  server.debug(`${prefix}Stack trace: ${error.stack}`);
+                }
+              };
+            }
             function createWriteMessageFunction(server) {
               return obj => {
                 const json = JSON.stringify(obj);
@@ -904,6 +913,7 @@ jobs:
                 serverInfo,
                 tools: {},
                 debug: () => {}, 
+                debugError: () => {}, 
                 writeMessage: () => {}, 
                 replyResult: () => {}, 
                 replyError: () => {}, 
@@ -913,10 +923,43 @@ jobs:
                 logFileInitialized: false,
               };
               server.debug = createDebugFunction(server);
+              server.debugError = createDebugErrorFunction(server);
               server.writeMessage = createWriteMessageFunction(server);
               server.replyResult = createReplyResultFunction(server);
               server.replyError = createReplyErrorFunction(server);
               return server;
+            }
+            function createWrappedHandler(server, toolName, handlerFn) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+                try {
+                  const result = await Promise.resolve(handlerFn(args));
+                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                  if (result && typeof result === "object" && Array.isArray(result.content)) {
+                    server.debug(`  [${toolName}] Result is already in MCP format`);
+                    return result;
+                  }
+                  let serializedResult;
+                  try {
+                    serializedResult = JSON.stringify(result);
+                  } catch (serializationError) {
+                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+                    serializedResult = String(result);
+                  }
+                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: serializedResult,
+                      },
+                    ],
+                  };
+                } catch (error) {
+                  server.debugError(`  [${toolName}] Handler threw error: `, error);
+                  throw error;
+                }
+              };
             }
             function loadToolHandlers(server, tools, basePath) {
               server.debug(`Loading tool handlers...`);
@@ -972,48 +1015,11 @@ jobs:
                   }
                   server.debug(`  [${toolName}] Handler function validated successfully`);
                   server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
-                  tool.handler = async args => {
-                    server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
-                    try {
-                      const result = await Promise.resolve(handlerFn(args));
-                      server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
-                      if (result && typeof result === "object" && Array.isArray(result.content)) {
-                        server.debug(`  [${toolName}] Result is already in MCP format`);
-                        return result;
-                      }
-                      let serializedResult;
-                      try {
-                        serializedResult = JSON.stringify(result);
-                      } catch (serializationError) {
-                        const serializationErrorMessage = serializationError instanceof Error ? serializationError.message : String(serializationError);
-                        server.debug(`  [${toolName}] Serialization error: ${serializationErrorMessage}`);
-                        serializedResult = String(result);
-                      }
-                      server.debug(
-                        `  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`
-                      );
-                      return {
-                        content: [
-                          {
-                            type: "text",
-                            text: serializedResult,
-                          },
-                        ],
-                      };
-                    } catch (error) {
-                      const errorMessage = error instanceof Error ? error.message : String(error);
-                      server.debug(`  [${toolName}] Handler threw error: ${errorMessage}`);
-                      throw error;
-                    }
-                  };
+                  tool.handler = createWrappedHandler(server, toolName, handlerFn);
                   loadedCount++;
                   server.debug(`  [${toolName}] Handler loaded and wrapped successfully`);
                 } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  server.debug(`  [${toolName}] ERROR loading handler: ${errorMessage}`);
-                  if (error instanceof Error && error.stack) {
-                    server.debug(`  [${toolName}] Stack trace: ${error.stack}`);
-                  }
+                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
                   errorCount++;
                 }
               }

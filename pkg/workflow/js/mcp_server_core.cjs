@@ -22,6 +22,8 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execFile } = require("child_process");
+const os = require("os");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
 
@@ -262,19 +264,154 @@ function createWrappedHandler(server, toolName, handlerFn) {
 }
 
 /**
+ * Create a shell script handler function that executes a .sh file.
+ * Uses GitHub Actions convention for passing inputs and reading outputs:
+ * - Inputs are passed as environment variables prefixed with INPUT_ (uppercased)
+ * - Outputs are read from a temporary file specified by GITHUB_OUTPUT env var
+ * - Output format is key=value per line
+ *
+ * @param {MCPServer} server - The MCP server instance for logging
+ * @param {string} toolName - Name of the tool for logging purposes
+ * @param {string} scriptPath - Path to the shell script to execute
+ * @returns {Function} Async handler function that executes the shell script
+ */
+function createShellHandler(server, toolName, scriptPath) {
+  return async args => {
+    server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+    server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+
+    // Create environment variables from args (GitHub Actions convention: INPUT_NAME)
+    const env = { ...process.env };
+    for (const [key, value] of Object.entries(args || {})) {
+      const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+      env[envKey] = String(value);
+      server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+    }
+
+    // Create a temporary file for outputs (GitHub Actions convention: GITHUB_OUTPUT)
+    const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+    env.GITHUB_OUTPUT = outputFile;
+    server.debug(`  [${toolName}] Output file: ${outputFile}`);
+
+    // Create the output file (empty)
+    fs.writeFileSync(outputFile, "");
+
+    return new Promise((resolve, reject) => {
+      server.debug(`  [${toolName}] Executing shell script...`);
+
+      execFile(
+        scriptPath,
+        [],
+        {
+          env,
+          timeout: 300000, // 5 minute timeout
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        },
+        (error, stdout, stderr) => {
+          // Log stdout and stderr
+          if (stdout) {
+            server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+          }
+          if (stderr) {
+            server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+          }
+
+          if (error) {
+            server.debugError(`  [${toolName}] Shell script error: `, error);
+
+            // Clean up output file
+            try {
+              if (fs.existsSync(outputFile)) {
+                fs.unlinkSync(outputFile);
+              }
+            } catch {
+              // Ignore cleanup errors
+            }
+
+            reject(error);
+            return;
+          }
+
+          // Read outputs from the GITHUB_OUTPUT file
+          /** @type {Record<string, string>} */
+          const outputs = {};
+          try {
+            if (fs.existsSync(outputFile)) {
+              const outputContent = fs.readFileSync(outputFile, "utf-8");
+              server.debug(
+                `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+              );
+
+              // Parse outputs (key=value format, one per line)
+              const lines = outputContent.split("\n");
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed && trimmed.includes("=")) {
+                  const eqIndex = trimmed.indexOf("=");
+                  const key = trimmed.substring(0, eqIndex);
+                  const value = trimmed.substring(eqIndex + 1);
+                  outputs[key] = value;
+                  server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                }
+              }
+            }
+          } catch (readError) {
+            server.debugError(`  [${toolName}] Error reading output file: `, readError);
+          }
+
+          // Clean up output file
+          try {
+            if (fs.existsSync(outputFile)) {
+              fs.unlinkSync(outputFile);
+            }
+          } catch {
+            // Ignore cleanup errors
+          }
+
+          // Build the result
+          const result = {
+            stdout: stdout || "",
+            stderr: stderr || "",
+            outputs,
+          };
+
+          server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+
+          // Return MCP format
+          resolve({
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result),
+              },
+            ],
+          });
+        }
+      );
+    });
+  };
+}
+
+/**
  * Load handler functions from file paths specified in tools configuration.
- * This function iterates through tools and loads handler modules from the
- * "handler" field paths using require(). The handler must export a function
- * as its default export.
+ * This function iterates through tools and loads handler modules based on file extension:
+ *
+ * For JavaScript handlers (.js, .cjs, .mjs):
+ *   - Uses require() to load the module
+ *   - Handler must export a function as default export
+ *   - Handler signature: async function handler(args: Record<string, unknown>): Promise<unknown>
+ *
+ * For Shell script handlers (.sh):
+ *   - Uses GitHub Actions convention for passing inputs/outputs
+ *   - Inputs are passed as environment variables prefixed with INPUT_ (uppercased)
+ *   - Outputs are read from GITHUB_OUTPUT file (key=value format per line)
+ *   - Returns: { stdout, stderr, outputs }
  *
  * SECURITY NOTE: Handler paths are loaded from tools.json configuration file,
  * which should be controlled by the server administrator. When basePath is provided,
  * relative paths are resolved within it, preventing directory traversal outside
  * the intended directory. Absolute paths bypass this validation but are still
  * logged for auditing purposes.
- *
- * Handler function signature:
- *   async function handler(args: Record<string, unknown>): Promise<unknown>
  *
  * @param {MCPServer} server - The MCP server instance for logging
  * @param {Array<Object>} tools - Array of tool configurations from tools.json
@@ -326,45 +463,78 @@ function loadToolHandlers(server, tools, basePath) {
     tool.handlerPath = handlerPath;
 
     try {
-      server.debug(`  [${toolName}] Loading handler module from: ${resolvedPath}`);
+      server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
 
-      // Check if file exists before requiring
+      // Check if file exists before loading
       if (!fs.existsSync(resolvedPath)) {
         server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
         errorCount++;
         continue;
       }
 
-      // Load the handler module
-      const handlerModule = require(resolvedPath);
-      server.debug(`  [${toolName}] Handler module loaded successfully`);
-      server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+      // Detect handler type by file extension
+      const ext = path.extname(resolvedPath).toLowerCase();
+      server.debug(`  [${toolName}] Handler file extension: ${ext}`);
 
-      // Get the handler function (support default export patterns)
-      let handlerFn = handlerModule;
+      if (ext === ".sh") {
+        // Shell script handler - use GitHub Actions convention
+        server.debug(`  [${toolName}] Detected shell script handler`);
 
-      // Handle ES module default export pattern (module.default)
-      if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
-        handlerFn = handlerModule.default;
-        server.debug(`  [${toolName}] Using module.default export`);
+        // Make sure the script is executable (on Unix-like systems)
+        try {
+          fs.accessSync(resolvedPath, fs.constants.X_OK);
+          server.debug(`  [${toolName}] Shell script is executable`);
+        } catch {
+          // Try to make it executable
+          try {
+            fs.chmodSync(resolvedPath, 0o755);
+            server.debug(`  [${toolName}] Made shell script executable`);
+          } catch (chmodError) {
+            server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+            // Continue anyway - it might work depending on the shell
+          }
+        }
+
+        // Create the shell handler
+        tool.handler = createShellHandler(server, toolName, resolvedPath);
+
+        loadedCount++;
+        server.debug(`  [${toolName}] Shell handler created successfully`);
+      } else {
+        // JavaScript/CommonJS handler - use require()
+        server.debug(`  [${toolName}] Loading JavaScript handler module`);
+
+        // Load the handler module
+        const handlerModule = require(resolvedPath);
+        server.debug(`  [${toolName}] Handler module loaded successfully`);
+        server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+
+        // Get the handler function (support default export patterns)
+        let handlerFn = handlerModule;
+
+        // Handle ES module default export pattern (module.default)
+        if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+          handlerFn = handlerModule.default;
+          server.debug(`  [${toolName}] Using module.default export`);
+        }
+
+        // Validate that the handler is a function
+        if (typeof handlerFn !== "function") {
+          server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+          server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+          errorCount++;
+          continue;
+        }
+
+        server.debug(`  [${toolName}] Handler function validated successfully`);
+        server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+
+        // Wrap the handler using the separate function to avoid bloating the closure
+        tool.handler = createWrappedHandler(server, toolName, handlerFn);
+
+        loadedCount++;
+        server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
       }
-
-      // Validate that the handler is a function
-      if (typeof handlerFn !== "function") {
-        server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
-        server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
-        errorCount++;
-        continue;
-      }
-
-      server.debug(`  [${toolName}] Handler function validated successfully`);
-      server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
-
-      // Wrap the handler using the separate function to avoid bloating the closure
-      tool.handler = createWrappedHandler(server, toolName, handlerFn);
-
-      loadedCount++;
-      server.debug(`  [${toolName}] Handler loaded and wrapped successfully`);
     } catch (error) {
       server.debugError(`  [${toolName}] ERROR loading handler: `, error);
       errorCount++;
