@@ -7,16 +7,32 @@ description: Query GitHub issues efficiently with jq argument support for filter
 
 This skill provides efficient querying of GitHub issues with built-in jq filtering support.
 
+## Important: jq Parameter Required
+
+When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
+This prevents overwhelming responses with large datasets. To retrieve actual issue data, you must provide a `--jq` filter.
+
+Use `--jq '.'` to get all data, or use a more specific filter for targeted results.
+
 ## Usage
 
 Use this skill to query issues from the current repository or any specified repository.
 
-### Basic Query
+### Basic Query (Returns Schema Only)
 
 To list issues from the current repository:
 
 ```bash
 ./query-issues.sh
+# Returns schema and data size, not full data
+```
+
+### Get All Data
+
+To get all issue data:
+
+```bash
+./query-issues.sh --jq '.'
 ```
 
 ### With Repository

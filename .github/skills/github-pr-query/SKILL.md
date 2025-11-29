@@ -7,16 +7,32 @@ description: Query GitHub pull requests efficiently with jq argument support for
 
 This skill provides efficient querying of GitHub pull requests with built-in jq filtering support.
 
+## Important: jq Parameter Required
+
+When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
+This prevents overwhelming responses with large datasets. To retrieve actual PR data, you must provide a `--jq` filter.
+
+Use `--jq '.'` to get all data, or use a more specific filter for targeted results.
+
 ## Usage
 
 Use this skill to query pull requests from the current repository or any specified repository.
 
-### Basic Query
+### Basic Query (Returns Schema Only)
 
 To list pull requests from the current repository:
 
 ```bash
 ./query-prs.sh
+# Returns schema and data size, not full data
+```
+
+### Get All Data
+
+To get all PR data:
+
+```bash
+./query-prs.sh --jq '.'
 ```
 
 ### With Repository

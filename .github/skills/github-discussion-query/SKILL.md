@@ -7,16 +7,32 @@ description: Query GitHub discussions efficiently with jq argument support for f
 
 This skill provides efficient querying of GitHub discussions with built-in jq filtering support.
 
+## Important: jq Parameter Required
+
+When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
+This prevents overwhelming responses with large datasets. To retrieve actual discussion data, you must provide a `--jq` filter.
+
+Use `--jq '.'` to get all data, or use a more specific filter for targeted results.
+
 ## Usage
 
 Use this skill to query discussions from the current repository or any specified repository.
 
-### Basic Query
+### Basic Query (Returns Schema Only)
 
 To list discussions from the current repository:
 
 ```bash
 ./query-discussions.sh
+# Returns schema and data size, not full data
+```
+
+### Get All Data
+
+To get all discussion data:
+
+```bash
+./query-discussions.sh --jq '.'
 ```
 
 ### With Repository
