@@ -10,7 +10,23 @@ async function main() {
     getMinRequiredForType,
     hasValidationConfig,
     MAX_BODY_LENGTH: maxBodyLength,
+    resetValidationConfigCache,
   } = require("./safe_output_type_validator.cjs");
+
+  // Load validation config from file and set it in environment for the validator to read
+  const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/validation.json";
+  try {
+    if (fs.existsSync(validationConfigPath)) {
+      const validationConfigContent = fs.readFileSync(validationConfigPath, "utf8");
+      process.env.GH_AW_VALIDATION_CONFIG = validationConfigContent;
+      resetValidationConfigCache(); // Reset cache so it reloads from new env var
+      core.info(`Loaded validation config from ${validationConfigPath}`);
+    }
+  } catch (error) {
+    core.warning(
+      `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 
   function repairJson(jsonStr) {
     let repaired = jsonStr.trim();

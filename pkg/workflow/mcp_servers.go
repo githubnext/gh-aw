@@ -142,6 +142,16 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
+		// Generate and write the validation configuration from Go source of truth
+		validationConfigJSON, err := GetValidationConfigJSON()
+		if err != nil {
+			mcpServersLog.Printf("Error generating validation config JSON: %v", err)
+			validationConfigJSON = "{}"
+		}
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'\n")
+		yaml.WriteString("          " + validationConfigJSON + "\n")
+		yaml.WriteString("          EOF\n")
+
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {

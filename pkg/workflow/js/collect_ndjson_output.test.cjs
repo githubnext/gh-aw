@@ -72,6 +72,127 @@ describe("collect_ndjson_output.cjs", () => {
 
     // Make fs available globally for the evaluated script
     global.fs = fs;
+
+    // Set up validation config file for the collect_ndjson_output script
+    const safeOutputsDir = "/tmp/gh-aw/safeoutputs";
+    if (!fs.existsSync(safeOutputsDir)) {
+      fs.mkdirSync(safeOutputsDir, { recursive: true });
+    }
+
+    // Write validation config from safe_output_validation_config.go (Go source of truth)
+    // This is a minimal set that covers the types used in tests
+    const validationConfig = {
+      create_issue: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
+          parent: { issueOrPRNumber: true },
+          temporary_id: { type: "string" },
+        },
+      },
+      add_comment: {
+        defaultMax: 1,
+        fields: {
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          item_number: { issueOrPRNumber: true },
+        },
+      },
+      create_pull_request: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          branch: { required: true, type: "string", sanitize: true, maxLength: 256 },
+          labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
+        },
+      },
+      update_issue: {
+        defaultMax: 1,
+        customValidation: "requiresOneOf:status,title,body",
+        fields: {
+          status: { type: "string", enum: ["open", "closed"] },
+          title: { type: "string", sanitize: true, maxLength: 128 },
+          body: { type: "string", sanitize: true, maxLength: 65000 },
+          issue_number: { issueOrPRNumber: true },
+        },
+      },
+      create_pull_request_review_comment: {
+        defaultMax: 1,
+        customValidation: "startLineLessOrEqualLine",
+        fields: {
+          path: { required: true, type: "string" },
+          line: { required: true, positiveInteger: true },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          start_line: { optionalPositiveInteger: true },
+          side: { type: "string", enum: ["LEFT", "RIGHT"] },
+        },
+      },
+      link_sub_issue: {
+        defaultMax: 5,
+        customValidation: "parentAndSubDifferent",
+        fields: {
+          parent_issue_number: { required: true, issueNumberOrTemporaryId: true },
+          sub_issue_number: { required: true, issueNumberOrTemporaryId: true },
+        },
+      },
+      noop: {
+        defaultMax: 1,
+        fields: {
+          message: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+        },
+      },
+      missing_tool: {
+        defaultMax: 20,
+        fields: {
+          tool: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          reason: { required: true, type: "string", sanitize: true, maxLength: 256 },
+          alternatives: { type: "string", sanitize: true, maxLength: 512 },
+        },
+      },
+      create_code_scanning_alert: {
+        defaultMax: 40,
+        fields: {
+          file: { required: true, type: "string", sanitize: true, maxLength: 512 },
+          line: { required: true, positiveInteger: true },
+          severity: { required: true, type: "string", enum: ["error", "warning", "info", "note"] },
+          message: { required: true, type: "string", sanitize: true, maxLength: 2048 },
+          column: { optionalPositiveInteger: true },
+          ruleIdSuffix: {
+            type: "string",
+            pattern: "^[a-zA-Z0-9_-]+$",
+            patternError: "must contain only alphanumeric characters, hyphens, and underscores",
+            sanitize: true,
+            maxLength: 128,
+          },
+        },
+      },
+      assign_to_agent: {
+        defaultMax: 1,
+        fields: {
+          issue_number: { required: true, positiveInteger: true },
+          agent: { type: "string", sanitize: true, maxLength: 128 },
+        },
+      },
+      create_discussion: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          category: { type: "string", sanitize: true, maxLength: 128 },
+        },
+      },
+      update_release: {
+        defaultMax: 1,
+        fields: {
+          tag: { type: "string", sanitize: true, maxLength: 256 },
+          operation: { required: true, type: "string", enum: ["replace", "append", "prepend"] },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+        },
+      },
+    };
+    fs.writeFileSync(path.join(safeOutputsDir, "validation.json"), JSON.stringify(validationConfig));
   });
 
   afterEach(() => {

@@ -238,9 +238,9 @@ func GetJavaScriptSources() map[string]string {
 		"get_base_branch.cjs":             getBaseBranchScript,
 		"generate_git_patch.cjs":          generateGitPatchJSScript,
 		"update_runner.cjs":               updateRunnerScript,
-		"read_buffer.cjs":                  readBufferScript,
-		"mcp_server_core.cjs":              mcpServerCoreScript,
-		"safe_output_type_validator.cjs":   safeOutputTypeValidatorScript,
+		"read_buffer.cjs":                 readBufferScript,
+		"mcp_server_core.cjs":             mcpServerCoreScript,
+		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
 	}
 }
 
