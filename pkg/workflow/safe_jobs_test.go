@@ -178,7 +178,7 @@ func TestBuildSafeJobs(t *testing.T) {
 					Env: map[string]string{
 						"DEPLOY_ENV": "production",
 					},
-					Inputs: map[string]*SafeJobInput{
+					Inputs: map[string]*InputDefinition{
 						"environment": {
 							Description: "Target deployment environment",
 							Required:    true,
@@ -297,7 +297,7 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 				"notify": {
 					RunsOn: "ubuntu-latest",
 					// No custom 'if' condition
-					Inputs: map[string]*SafeJobInput{
+					Inputs: map[string]*InputDefinition{
 						"message": {
 							Description: "Message to send",
 							Required:    true,
@@ -391,7 +391,7 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Jobs: map[string]*SafeJobConfig{
 				"deploy": {
-					Inputs: map[string]*SafeJobInput{
+					Inputs: map[string]*InputDefinition{
 						"environment": {
 							Description: "Target deployment environment",
 							Required:    true,
@@ -401,7 +401,7 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 					},
 				},
 				"notify": {
-					Inputs: map[string]*SafeJobInput{
+					Inputs: map[string]*InputDefinition{
 						"message": {
 							Description: "Notification message",
 							Required:    false,

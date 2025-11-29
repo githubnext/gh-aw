@@ -23,18 +23,9 @@ type SafeJobConfig struct {
 	Permissions map[string]string `yaml:"permissions,omitempty"`
 
 	// Additional safe-job specific properties
-	Inputs      map[string]*SafeJobInput `yaml:"inputs,omitempty"`
-	GitHubToken string                   `yaml:"github-token,omitempty"`
-	Output      string                   `yaml:"output,omitempty"`
-}
-
-// SafeJobInput defines an input parameter for a safe job, using workflow_dispatch syntax
-type SafeJobInput struct {
-	Description string   `yaml:"description,omitempty"`
-	Required    bool     `yaml:"required,omitempty"`
-	Default     string   `yaml:"default,omitempty"`
-	Type        string   `yaml:"type,omitempty"`
-	Options     []string `yaml:"options,omitempty"`
+	Inputs      map[string]*InputDefinition `yaml:"inputs,omitempty"`
+	GitHubToken string                      `yaml:"github-token,omitempty"`
+	Output      string                      `yaml:"output,omitempty"`
 }
 
 // HasSafeJobsEnabled checks if any safe-jobs are enabled at the top level
@@ -151,51 +142,10 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 			}
 		}
 
-		// Parse inputs
+		// Parse inputs using the unified parsing function
 		if inputs, exists := jobConfig["inputs"]; exists {
 			if inputsMap, ok := inputs.(map[string]any); ok {
-				safeJob.Inputs = make(map[string]*SafeJobInput)
-				for inputName, inputValue := range inputsMap {
-					if inputConfig, ok := inputValue.(map[string]any); ok {
-						input := &SafeJobInput{}
-
-						if desc, exists := inputConfig["description"]; exists {
-							if descStr, ok := desc.(string); ok {
-								input.Description = descStr
-							}
-						}
-
-						if req, exists := inputConfig["required"]; exists {
-							if reqBool, ok := req.(bool); ok {
-								input.Required = reqBool
-							}
-						}
-
-						if def, exists := inputConfig["default"]; exists {
-							if defStr, ok := def.(string); ok {
-								input.Default = defStr
-							}
-						}
-
-						if typ, exists := inputConfig["type"]; exists {
-							if typStr, ok := typ.(string); ok {
-								input.Type = typStr
-							}
-						}
-
-						if opts, exists := inputConfig["options"]; exists {
-							if optsList, ok := opts.([]any); ok {
-								for _, opt := range optsList {
-									if optStr, ok := opt.(string); ok {
-										input.Options = append(input.Options, optStr)
-									}
-								}
-							}
-						}
-
-						safeJob.Inputs[inputName] = input
-					}
-				}
+				safeJob.Inputs = ParseInputDefinitions(inputsMap)
 			}
 		}
 

@@ -98,6 +98,8 @@ type ImportsResult struct {
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.
 // Uses the same schema as workflow_dispatch inputs.
+// NOTE: This type matches workflow.InputDefinition which is the canonical type for input parameters.
+// The parser package uses map[string]any for actual parsing to avoid circular dependencies.
 type ImportInputDefinition struct {
 	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
