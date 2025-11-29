@@ -12,6 +12,25 @@ import (
 
 var safeInputsLog = logger.New("workflow:safe_inputs")
 
+// sanitizeParameterName converts a parameter name to a safe JavaScript identifier
+// by replacing non-alphanumeric characters with underscores
+func sanitizeParameterName(name string) string {
+	// Replace dashes and other non-alphanumeric chars with underscores
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '$' {
+			return r
+		}
+		return '_'
+	}, name)
+
+	// Ensure it doesn't start with a number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "_" + result
+	}
+
+	return result
+}
+
 // SafeInputsConfig holds the configuration for safe-inputs custom tools
 type SafeInputsConfig struct {
 	Tools map[string]*SafeInputToolConfig
@@ -381,10 +400,12 @@ function registerTool(name, description, inputSchema, handler) {
 `, toolName, toolConfig.Description, string(inputSchemaJSON)))
 
 			for paramName := range toolConfig.Inputs {
-				sb.WriteString(fmt.Sprintf(`    if (args && args.%s !== undefined) {
-      env["INPUT_%s"] = typeof args.%s === "object" ? JSON.stringify(args.%s) : String(args.%s);
+				// Use bracket notation for safer property access
+				safeEnvName := strings.ToUpper(sanitizeParameterName(paramName))
+				sb.WriteString(fmt.Sprintf(`    if (args && args[%q] !== undefined) {
+      env["INPUT_%s"] = typeof args[%q] === "object" ? JSON.stringify(args[%q]) : String(args[%q]);
     }
-`, paramName, strings.ToUpper(paramName), paramName, paramName, paramName))
+`, paramName, safeEnvName, paramName, paramName, paramName))
 			}
 
 			sb.WriteString(fmt.Sprintf(`
