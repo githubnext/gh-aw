@@ -47,6 +47,7 @@ const encoder = new TextEncoder();
  * @property {ServerInfo} serverInfo - Server information
  * @property {Object<string, Tool>} tools - Registered tools
  * @property {Function} debug - Debug logging function
+ * @property {Function} debugError - Debug logging function for errors (extracts message from Error objects)
  * @property {Function} writeMessage - Write message to stdout
  * @property {Function} replyResult - Send a result response
  * @property {Function} replyError - Send an error response
@@ -103,6 +104,21 @@ function createDebugFunction(server) {
           // Silently ignore file write errors - stderr logging still works
         }
       }
+    }
+  };
+}
+
+/**
+ * Create a debugError function for the server that handles error casting
+ * @param {MCPServer} server - The MCP server instance
+ * @returns {Function} Debug error function that extracts message from Error objects
+ */
+function createDebugErrorFunction(server) {
+  return (prefix, error) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    server.debug(`${prefix}${errorMessage}`);
+    if (error instanceof Error && error.stack) {
+      server.debug(`${prefix}Stack trace: ${error.stack}`);
     }
   };
 }
@@ -174,6 +190,7 @@ function createServer(serverInfo, options = {}) {
     serverInfo,
     tools: {},
     debug: () => {}, // placeholder
+    debugError: () => {}, // placeholder
     writeMessage: () => {}, // placeholder
     replyResult: () => {}, // placeholder
     replyError: () => {}, // placeholder
@@ -185,11 +202,63 @@ function createServer(serverInfo, options = {}) {
 
   // Initialize functions with references to server
   server.debug = createDebugFunction(server);
+  server.debugError = createDebugErrorFunction(server);
   server.writeMessage = createWriteMessageFunction(server);
   server.replyResult = createReplyResultFunction(server);
   server.replyError = createReplyErrorFunction(server);
 
   return server;
+}
+
+/**
+ * Create a wrapped handler function that normalizes results to MCP format.
+ * Extracted to avoid creating closures with excessive scope in loadToolHandlers.
+ *
+ * @param {MCPServer} server - The MCP server instance for logging
+ * @param {string} toolName - Name of the tool for logging purposes
+ * @param {Function} handlerFn - The original handler function to wrap
+ * @returns {Function} Wrapped async handler function
+ */
+function createWrappedHandler(server, toolName, handlerFn) {
+  return async args => {
+    server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+
+    try {
+      // Call the handler (may be sync or async)
+      const result = await Promise.resolve(handlerFn(args));
+      server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+
+      // If the result is already in MCP format (has content array), return as-is
+      if (result && typeof result === "object" && Array.isArray(result.content)) {
+        server.debug(`  [${toolName}] Result is already in MCP format`);
+        return result;
+      }
+
+      // Otherwise, serialize the result to text
+      // Use try-catch for serialization to handle circular references and non-serializable values
+      let serializedResult;
+      try {
+        serializedResult = JSON.stringify(result);
+      } catch (serializationError) {
+        server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+        // Fall back to String() for non-serializable values
+        serializedResult = String(result);
+      }
+      server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: serializedResult,
+          },
+        ],
+      };
+    } catch (error) {
+      server.debugError(`  [${toolName}] Handler threw error: `, error);
+      throw error;
+    }
+  };
 }
 
 /**
@@ -291,60 +360,13 @@ function loadToolHandlers(server, tools, basePath) {
       server.debug(`  [${toolName}] Handler function validated successfully`);
       server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
 
-      // Wrap the handler to ensure it returns the expected MCP response format
-      // and handles both sync and async handlers
-      tool.handler = async args => {
-        server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
-
-        try {
-          // Call the handler (may be sync or async)
-          const result = await Promise.resolve(handlerFn(args));
-          server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
-
-          // If the result is already in MCP format (has content array), return as-is
-          if (result && typeof result === "object" && Array.isArray(result.content)) {
-            server.debug(`  [${toolName}] Result is already in MCP format`);
-            return result;
-          }
-
-          // Otherwise, serialize the result to text
-          // Use try-catch for serialization to handle circular references and non-serializable values
-          let serializedResult;
-          try {
-            serializedResult = JSON.stringify(result);
-          } catch (serializationError) {
-            const serializationErrorMessage = serializationError instanceof Error ? serializationError.message : String(serializationError);
-            server.debug(`  [${toolName}] Serialization error: ${serializationErrorMessage}`);
-            // Fall back to String() for non-serializable values
-            serializedResult = String(result);
-          }
-          server.debug(
-            `  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`
-          );
-
-          return {
-            content: [
-              {
-                type: "text",
-                text: serializedResult,
-              },
-            ],
-          };
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          server.debug(`  [${toolName}] Handler threw error: ${errorMessage}`);
-          throw error;
-        }
-      };
+      // Wrap the handler using the separate function to avoid bloating the closure
+      tool.handler = createWrappedHandler(server, toolName, handlerFn);
 
       loadedCount++;
       server.debug(`  [${toolName}] Handler loaded and wrapped successfully`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      server.debug(`  [${toolName}] ERROR loading handler: ${errorMessage}`);
-      if (error instanceof Error && error.stack) {
-        server.debug(`  [${toolName}] Stack trace: ${error.stack}`);
-      }
+      server.debugError(`  [${toolName}] ERROR loading handler: `, error);
       errorCount++;
     }
   }

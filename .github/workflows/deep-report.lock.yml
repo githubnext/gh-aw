@@ -1248,6 +1248,111 @@ jobs:
               server.replyError = createReplyErrorFunction(server);
               return server;
             }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler module from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const handlerModule = require(resolvedPath);
+                  server.debug(`  [${toolName}] Handler module loaded successfully`);
+                  server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+                  let handlerFn = handlerModule;
+                  if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+                    handlerFn = handlerModule.default;
+                    server.debug(`  [${toolName}] Using module.default export`);
+                  }
+                  if (typeof handlerFn !== "function") {
+                    server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+                    server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+                    errorCount++;
+                    continue;
+                  }
+                  server.debug(`  [${toolName}] Handler function validated successfully`);
+                  server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+                  tool.handler = async args => {
+                    server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+                    try {
+                      const result = await Promise.resolve(handlerFn(args));
+                      server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                      if (result && typeof result === "object" && Array.isArray(result.content)) {
+                        server.debug(`  [${toolName}] Result is already in MCP format`);
+                        return result;
+                      }
+                      let serializedResult;
+                      try {
+                        serializedResult = JSON.stringify(result);
+                      } catch (serializationError) {
+                        const serializationErrorMessage = serializationError instanceof Error ? serializationError.message : String(serializationError);
+                        server.debug(`  [${toolName}] Serialization error: ${serializationErrorMessage}`);
+                        serializedResult = String(result);
+                      }
+                      server.debug(
+                        `  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`
+                      );
+                      return {
+                        content: [
+                          {
+                            type: "text",
+                            text: serializedResult,
+                          },
+                        ],
+                      };
+                    } catch (error) {
+                      const errorMessage = error instanceof Error ? error.message : String(error);
+                      server.debug(`  [${toolName}] Handler threw error: ${errorMessage}`);
+                      throw error;
+                    }
+                  };
+                  loadedCount++;
+                  server.debug(`  [${toolName}] Handler loaded and wrapped successfully`);
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  server.debug(`  [${toolName}] ERROR loading handler: ${errorMessage}`);
+                  if (error instanceof Error && error.stack) {
+                    server.debug(`  [${toolName}] Stack trace: ${error.stack}`);
+                  }
+                  errorCount++;
+                }
+              }
+              server.debug(`Handler loading complete:`);
+              server.debug(`  Loaded: ${loadedCount}`);
+              server.debug(`  Skipped (no handler path): ${skippedCount}`);
+              server.debug(`  Errors: ${errorCount}`);
+              return tools;
+            }
             function registerTool(server, tool) {
               const normalizedName = normalizeTool(tool.name);
               server.tools[normalizedName] = {
@@ -1259,7 +1364,7 @@ jobs:
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
             }
-            function handleMessage(server, req, defaultHandler) {
+            async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
                 server.debug(`Invalid message: not an object`);
                 return;
@@ -1328,7 +1433,9 @@ jobs:
                       return;
                     }
                   }
-                  const result = handler(args);
+                  server.debug(`Calling handler for tool: ${name}`);
+                  const result = await Promise.resolve(handler(args));
+                  server.debug(`Handler returned for tool: ${name}`);
                   const content = result && result.content ? result.content : [];
                   server.replyResult(id, { content, isError: false });
                 } else if (/^notifications\//.test(method)) {
@@ -1340,7 +1447,7 @@ jobs:
                 server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
               }
             }
-            function processReadBuffer(server, defaultHandler) {
+            async function processReadBuffer(server, defaultHandler) {
               while (true) {
                 try {
                   const message = server.readBuffer.readMessage();
@@ -1348,7 +1455,7 @@ jobs:
                     break;
                   }
                   server.debug(`recv: ${JSON.stringify(message)}`);
-                  handleMessage(server, message, defaultHandler);
+                  await handleMessage(server, message, defaultHandler);
                 } catch (error) {
                   server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
@@ -1361,9 +1468,9 @@ jobs:
               if (!Object.keys(server.tools).length) {
                 throw new Error("No tools registered");
               }
-              const onData = chunk => {
+              const onData = async chunk => {
                 server.readBuffer.append(chunk);
-                processReadBuffer(server, defaultHandler);
+                await processReadBuffer(server, defaultHandler);
               };
               process.stdin.on("data", onData);
               process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
