@@ -3,8 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -155,119 +153,206 @@ func (c *Compiler) extractSafeInputsConfig(frontmatter map[string]any) *SafeInpu
 // SafeInputsDirectory is the directory where safe-inputs files are generated
 const SafeInputsDirectory = "/tmp/gh-aw/safe-inputs"
 
-// generateSafeInputsFiles generates the MCP server and tool files for safe-inputs
-func (c *Compiler) generateSafeInputsFiles(safeInputs *SafeInputsConfig) error {
-	if safeInputs == nil || len(safeInputs.Tools) == 0 {
-		return nil
-	}
+// generateSafeInputsMCPServerScript generates a self-contained MCP server for safe-inputs
+func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
+	var sb strings.Builder
 
-	safeInputsLog.Printf("Generating safe-inputs files for %d tools", len(safeInputs.Tools))
+	// Write the MCP server core inline (simplified version for safe-inputs)
+	sb.WriteString(`// @ts-check
+// Auto-generated safe-inputs MCP server
 
-	// Create the safe-inputs directory
-	if err := os.MkdirAll(SafeInputsDirectory, 0755); err != nil {
-		return fmt.Errorf("failed to create safe-inputs directory: %w", err)
-	}
+const fs = require("fs");
+const path = require("path");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
 
-	// Generate tools configuration JSON
-	toolsConfig, err := c.generateToolsConfig(safeInputs)
-	if err != nil {
-		return fmt.Errorf("failed to generate tools config: %w", err)
-	}
+const execFileAsync = promisify(execFile);
 
-	// Write tools configuration
-	toolsConfigPath := filepath.Join(SafeInputsDirectory, "tools.json")
-	if err := os.WriteFile(toolsConfigPath, []byte(toolsConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write tools config: %w", err)
-	}
-
-	// Generate individual tool files
-	for toolName, toolConfig := range safeInputs.Tools {
-		if toolConfig.Script != "" {
-			// JavaScript tool
-			toolPath := filepath.Join(SafeInputsDirectory, toolName+".cjs")
-			toolScript := c.generateJavaScriptTool(toolConfig)
-			if err := os.WriteFile(toolPath, []byte(toolScript), 0644); err != nil {
-				return fmt.Errorf("failed to write JavaScript tool %s: %w", toolName, err)
-			}
-		} else if toolConfig.Run != "" {
-			// Shell script tool
-			toolPath := filepath.Join(SafeInputsDirectory, toolName+".sh")
-			toolScript := c.generateShellTool(toolConfig)
-			if err := os.WriteFile(toolPath, []byte(toolScript), 0755); err != nil {
-				return fmt.Errorf("failed to write shell tool %s: %w", toolName, err)
-			}
-		}
-	}
-
-	// Generate MCP server
-	mcpServerPath := filepath.Join(SafeInputsDirectory, "mcp-server.cjs")
-	mcpServerScript := c.generateSafeInputsMCPServer(safeInputs)
-	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), 0644); err != nil {
-		return fmt.Errorf("failed to write MCP server: %w", err)
-	}
-
-	safeInputsLog.Print("Safe-inputs files generated successfully")
-	return nil
+// Simple ReadBuffer implementation for JSON-RPC parsing
+class ReadBuffer {
+  constructor() {
+    this.buffer = Buffer.alloc(0);
+  }
+  append(chunk) {
+    this.buffer = Buffer.concat([this.buffer, chunk]);
+  }
+  readMessage() {
+    const headerEndIndex = this.buffer.indexOf("\r\n\r\n");
+    if (headerEndIndex === -1) return null;
+    const header = this.buffer.slice(0, headerEndIndex).toString();
+    const match = header.match(/Content-Length:\s*(\d+)/i);
+    if (!match) return null;
+    const contentLength = parseInt(match[1], 10);
+    const messageStart = headerEndIndex + 4;
+    if (this.buffer.length < messageStart + contentLength) return null;
+    const content = this.buffer.slice(messageStart, messageStart + contentLength).toString();
+    this.buffer = this.buffer.slice(messageStart + contentLength);
+    return JSON.parse(content);
+  }
 }
 
-// generateToolsConfig generates the JSON configuration for all tools
-func (c *Compiler) generateToolsConfig(safeInputs *SafeInputsConfig) (string, error) {
-	type ToolInputSchema struct {
-		Type        string `json:"type"`
-		Description string `json:"description,omitempty"`
-		Default     any    `json:"default,omitempty"`
-	}
+// Create MCP server
+const serverInfo = { name: "safeinputs", version: "1.0.0" };
+const tools = {};
+const readBuffer = new ReadBuffer();
 
-	type ToolConfig struct {
-		Name        string                     `json:"name"`
-		Description string                     `json:"description"`
-		Type        string                     `json:"type"` // "javascript" or "shell"
-		InputSchema map[string]ToolInputSchema `json:"inputSchema"`
-		Required    []string                   `json:"required,omitempty"`
-	}
+function debug(msg) {
+  const timestamp = new Date().toISOString();
+  process.stderr.write("[" + timestamp + "] [safeinputs] " + msg + "\n");
+}
 
-	tools := make(map[string]ToolConfig)
+function writeMessage(message) {
+  const json = JSON.stringify(message);
+  const header = "Content-Length: " + Buffer.byteLength(json) + "\r\n\r\n";
+  process.stdout.write(header + json);
+}
 
+function replyResult(id, result) {
+  writeMessage({ jsonrpc: "2.0", id, result });
+}
+
+function replyError(id, code, message) {
+  writeMessage({ jsonrpc: "2.0", id, error: { code, message } });
+}
+
+function registerTool(name, description, inputSchema, handler) {
+  tools[name] = { name, description, inputSchema, handler };
+}
+
+`)
+
+	// Register each tool
 	for toolName, toolConfig := range safeInputs.Tools {
-		tc := ToolConfig{
-			Name:        toolName,
-			Description: toolConfig.Description,
-			InputSchema: make(map[string]ToolInputSchema),
+		sb.WriteString(fmt.Sprintf("// Register tool: %s\n", toolName))
+
+		// Build input schema
+		inputSchema := map[string]any{
+			"type":       "object",
+			"properties": make(map[string]any),
 		}
 
-		if toolConfig.Script != "" {
-			tc.Type = "javascript"
-		} else {
-			tc.Type = "shell"
-		}
-
+		props := inputSchema["properties"].(map[string]any)
 		var required []string
+
 		for paramName, param := range toolConfig.Inputs {
-			tc.InputSchema[paramName] = ToolInputSchema{
-				Type:        param.Type,
-				Description: param.Description,
-				Default:     param.Default,
+			props[paramName] = map[string]any{
+				"type":        param.Type,
+				"description": param.Description,
+			}
+			if param.Default != nil {
+				props[paramName].(map[string]any)["default"] = param.Default
 			}
 			if param.Required {
 				required = append(required, paramName)
 			}
 		}
+
 		sort.Strings(required)
-		tc.Required = required
+		if len(required) > 0 {
+			inputSchema["required"] = required
+		}
 
-		tools[toolName] = tc
+		inputSchemaJSON, _ := json.Marshal(inputSchema)
+
+		if toolConfig.Script != "" {
+			sb.WriteString(fmt.Sprintf(`registerTool(%q, %q, %s, async (args) => {
+  try {
+    const toolModule = require("./%s.cjs");
+    const result = await toolModule.execute(args || {});
+    return { content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] };
+  } catch (error) {
+    return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+  }
+});
+
+`, toolName, toolConfig.Description, string(inputSchemaJSON), toolName))
+		} else {
+			sb.WriteString(fmt.Sprintf(`registerTool(%q, %q, %s, async (args) => {
+  try {
+    // Set input parameters as environment variables
+    const env = { ...process.env };
+`, toolName, toolConfig.Description, string(inputSchemaJSON)))
+
+			for paramName := range toolConfig.Inputs {
+				sb.WriteString(fmt.Sprintf(`    if (args && args.%s !== undefined) {
+      env["INPUT_%s"] = typeof args.%s === "object" ? JSON.stringify(args.%s) : String(args.%s);
+    }
+`, paramName, strings.ToUpper(paramName), paramName, paramName, paramName))
+			}
+
+			sb.WriteString(fmt.Sprintf(`
+    const scriptPath = path.join(__dirname, "%s.sh");
+    const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+    const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+    return { content: [{ type: "text", text: output }] };
+  } catch (error) {
+    return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+  }
+});
+
+`, toolName))
+		}
 	}
 
-	data, err := json.MarshalIndent(tools, "", "  ")
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
+	// Add message handler and start
+	sb.WriteString(`// Handle incoming messages
+async function handleMessage(message) {
+  if (message.method === "initialize") {
+    debug("Received initialize request");
+    replyResult(message.id, {
+      protocolVersion: "2024-11-05",
+      capabilities: { tools: {} },
+      serverInfo
+    });
+  } else if (message.method === "notifications/initialized") {
+    debug("Client initialized");
+  } else if (message.method === "tools/list") {
+    debug("Received tools/list request");
+    const toolList = Object.values(tools).map(t => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema
+    }));
+    replyResult(message.id, { tools: toolList });
+  } else if (message.method === "tools/call") {
+    const toolName = message.params?.name;
+    const toolArgs = message.params?.arguments || {};
+    debug("Received tools/call for: " + toolName);
+    const tool = tools[toolName];
+    if (!tool) {
+      replyError(message.id, -32601, "Unknown tool: " + toolName);
+      return;
+    }
+    try {
+      const result = await tool.handler(toolArgs);
+      replyResult(message.id, result);
+    } catch (error) {
+      replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
+    }
+  } else {
+    debug("Unknown method: " + message.method);
+    if (message.id !== undefined) {
+      replyError(message.id, -32601, "Method not found");
+    }
+  }
 }
 
-// generateJavaScriptTool generates the JavaScript wrapper for a tool
-func (c *Compiler) generateJavaScriptTool(toolConfig *SafeInputToolConfig) string {
+// Start server
+debug("Starting safe-inputs MCP server");
+process.stdin.on("data", async (chunk) => {
+  readBuffer.append(chunk);
+  let message;
+  while ((message = readBuffer.readMessage()) !== null) {
+    await handleMessage(message);
+  }
+});
+`)
+
+	return sb.String()
+}
+
+// generateSafeInputJavaScriptToolScript generates the JavaScript tool file for a safe-input tool
+func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) string {
 	var sb strings.Builder
 
 	sb.WriteString("// @ts-check\n")
@@ -288,8 +373,8 @@ func (c *Compiler) generateJavaScriptTool(toolConfig *SafeInputToolConfig) strin
 	return sb.String()
 }
 
-// generateShellTool generates the shell script wrapper for a tool
-func (c *Compiler) generateShellTool(toolConfig *SafeInputToolConfig) string {
+// generateSafeInputShellToolScript generates the shell script for a safe-input tool
+func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 	var sb strings.Builder
 
 	sb.WriteString("#!/bin/bash\n")
@@ -297,134 +382,6 @@ func (c *Compiler) generateShellTool(toolConfig *SafeInputToolConfig) string {
 	sb.WriteString("# " + toolConfig.Description + "\n\n")
 	sb.WriteString("set -euo pipefail\n\n")
 	sb.WriteString(toolConfig.Run + "\n")
-
-	return sb.String()
-}
-
-// generateSafeInputsMCPServer generates the MCP server JavaScript for safe-inputs
-func (c *Compiler) generateSafeInputsMCPServer(safeInputs *SafeInputsConfig) string {
-	var sb strings.Builder
-
-	sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server
-
-const fs = require("fs");
-const path = require("path");
-const { execFile } = require("child_process");
-const { promisify } = require("util");
-
-const execFileAsync = promisify(execFile);
-
-const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
-
-// Server info for safe inputs MCP server
-const SERVER_INFO = { name: "safeinputs", version: "1.0.0" };
-
-// Create the server instance
-const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
-const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
-
-// Load tools configuration
-const toolsConfigPath = path.join(__dirname, "tools.json");
-let toolsConfig = {};
-
-try {
-  if (fs.existsSync(toolsConfigPath)) {
-    toolsConfig = JSON.parse(fs.readFileSync(toolsConfigPath, "utf8"));
-    server.debug("Loaded tools config: " + JSON.stringify(Object.keys(toolsConfig)));
-  }
-} catch (error) {
-  server.debug("Error loading tools config: " + (error instanceof Error ? error.message : String(error)));
-}
-
-`)
-
-	// Register each tool
-	for toolName, toolConfig := range safeInputs.Tools {
-		sb.WriteString(fmt.Sprintf("// Register tool: %s\n", toolName))
-		
-		// Build input schema
-		inputSchema := map[string]any{
-			"type":       "object",
-			"properties": make(map[string]any),
-		}
-		
-		props := inputSchema["properties"].(map[string]any)
-		var required []string
-		
-		for paramName, param := range toolConfig.Inputs {
-			props[paramName] = map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-			if param.Default != nil {
-				props[paramName].(map[string]any)["default"] = param.Default
-			}
-			if param.Required {
-				required = append(required, paramName)
-			}
-		}
-		
-		sort.Strings(required)
-		if len(required) > 0 {
-			inputSchema["required"] = required
-		}
-		
-		inputSchemaJSON, _ := json.Marshal(inputSchema)
-		
-		if toolConfig.Script != "" {
-			sb.WriteString(fmt.Sprintf(`registerTool(server, {
-  name: %q,
-  description: %q,
-  inputSchema: %s,
-  handler: async (args) => {
-    try {
-      const toolModule = require("./%s.cjs");
-      const result = await toolModule.execute(args || {});
-      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-    }
-  }
-});
-
-`, toolName, toolConfig.Description, string(inputSchemaJSON), toolName))
-		} else {
-			sb.WriteString(fmt.Sprintf(`registerTool(server, {
-  name: %q,
-  description: %q,
-  inputSchema: %s,
-  handler: async (args) => {
-    try {
-      // Set input parameters as environment variables
-      const env = { ...process.env };
-`, toolName, toolConfig.Description, string(inputSchemaJSON)))
-
-			for paramName := range toolConfig.Inputs {
-				sb.WriteString(fmt.Sprintf(`      if (args && args.%s !== undefined) {
-        env["INPUT_%s"] = typeof args.%s === "object" ? JSON.stringify(args.%s) : String(args.%s);
-      }
-`, paramName, strings.ToUpper(paramName), paramName, paramName, paramName))
-			}
-
-			sb.WriteString(fmt.Sprintf(`
-      const scriptPath = path.join(__dirname, "%s.sh");
-      const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-      const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-      return { content: [{ type: "text", text: output }] };
-    } catch (error) {
-      return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-    }
-  }
-});
-
-`, toolName))
-		}
-	}
-
-	sb.WriteString(`// Start the MCP server
-start(server);
-`)
 
 	return sb.String()
 }
@@ -466,12 +423,6 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 	}
 
 	return secrets
-}
-
-// renderSafeInputsMCPConfig generates the Safe Inputs MCP server configuration
-func renderSafeInputsMCPConfig(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
-	safeInputsLog.Print("Rendering Safe Inputs MCP configuration")
-	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, isLast, false)
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
