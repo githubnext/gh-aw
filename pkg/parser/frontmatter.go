@@ -84,6 +84,7 @@ type ImportsResult struct {
 	MergedMCPServers    string         // Merged mcp-servers configuration from all imports
 	MergedEngines       []string       // Merged engine configurations from all imports
 	MergedSafeOutputs   []string       // Merged safe-outputs configurations from all imports
+	MergedSafeInputs    []string       // Merged safe-inputs configurations from all imports
 	MergedMarkdown      string         // Merged markdown content from all imports
 	MergedSteps         string         // Merged steps configuration from all imports
 	MergedRuntimes      string         // Merged runtimes configuration from all imports
@@ -208,6 +209,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var secretMaskingBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
+	var safeInputs []string
 	var agentFile string                 // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
@@ -402,6 +404,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			safeOutputs = append(safeOutputs, safeOutputsContent)
 		}
 
+		// Extract safe-inputs from imported file
+		safeInputsContent, err := extractSafeInputsFromContent(string(content))
+		if err == nil && safeInputsContent != "" && safeInputsContent != "{}" {
+			safeInputs = append(safeInputs, safeInputsContent)
+		}
+
 		// Extract steps from imported file
 		stepsContent, err := extractStepsFromContent(string(content))
 		if err == nil && stepsContent != "" {
@@ -446,6 +454,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedMCPServers:    mcpServersBuilder.String(),
 		MergedEngines:       engines,
 		MergedSafeOutputs:   safeOutputs,
+		MergedSafeInputs:    safeInputs,
 		MergedMarkdown:      markdownBuilder.String(),
 		MergedSteps:         stepsBuilder.String(),
 		MergedRuntimes:      runtimesBuilder.String(),
@@ -707,6 +716,11 @@ func extractToolsFromContent(content string) (string, error) {
 // extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
 func extractSafeOutputsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "safe-outputs", "{}")
+}
+
+// extractSafeInputsFromContent extracts safe-inputs section from frontmatter as JSON string
+func extractSafeInputsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "safe-inputs", "{}")
 }
 
 // extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string

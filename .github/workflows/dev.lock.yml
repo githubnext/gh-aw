@@ -35,6 +35,8 @@
 #   issues: read
 #   pull-requests: read
 #   discussions: read
+# imports:
+#   - shared/pr-data-safe-input.md
 # tools:
 #   bash: ["*"]
 #   edit:
@@ -43,6 +45,10 @@
 # safe-outputs:
 #   assign-to-agent:
 # ```
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/pr-data-safe-input.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -63,7 +69,13 @@
 #
 # Original Prompt:
 # ```markdown
-# Assign the most recent unassigned issue to the agent.
+# Use the `fetch-pr-data` tool to fetch Copilot agent PRs from this repository using `search: "head:copilot/"`. Then compute basic PR statistics:
+# - Total number of Copilot PRs in the last 30 days
+# - Number of merged vs closed vs open PRs
+# - Average time from PR creation to merge (for merged PRs)
+# - Most active day of the week for PR creation
+#
+# Present the statistics in a clear summary.
 # ```
 #
 # Pinned GitHub Actions:
@@ -1491,10 +1503,172 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
+      - name: Setup Safe Inputs MCP
+        run: |
+          mkdir -p /tmp/gh-aw/safe-inputs
+          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const fs = require("fs");
+            const path = require("path");
+            const { execFile } = require("child_process");
+            const { promisify } = require("util");
+            const execFileAsync = promisify(execFile);
+            class ReadBuffer {
+              constructor() {
+                this.buffer = Buffer.alloc(0);
+              }
+              append(chunk) {
+                this.buffer = Buffer.concat([this.buffer, chunk]);
+              }
+              readMessage() {
+                const headerEndIndex = this.buffer.indexOf("\r\n\r\n");
+                if (headerEndIndex === -1) return null;
+                const header = this.buffer.slice(0, headerEndIndex).toString();
+                const match = header.match(/Content-Length:\s*(\d+)/i);
+                if (!match) return null;
+                const contentLength = parseInt(match[1], 10);
+                const messageStart = headerEndIndex + 4;
+                if (this.buffer.length < messageStart + contentLength) return null;
+                const content = this.buffer.slice(messageStart, messageStart + contentLength).toString();
+                this.buffer = this.buffer.slice(messageStart + contentLength);
+                return JSON.parse(content);
+              }
+            }
+            const serverInfo = { name: "safeinputs", version: "1.0.0" };
+            const tools = {};
+            const readBuffer = new ReadBuffer();
+            function debug(msg) {
+              const timestamp = new Date().toISOString();
+              process.stderr.write("[" + timestamp + "] [safeinputs] " + msg + "\n");
+            }
+            function writeMessage(message) {
+              const json = JSON.stringify(message);
+              const header = "Content-Length: " + Buffer.byteLength(json) + "\r\n\r\n";
+              process.stdout.write(header + json);
+            }
+            function replyResult(id, result) {
+              writeMessage({ jsonrpc: "2.0", id, result });
+            }
+            function replyError(id, code, message) {
+              writeMessage({ jsonrpc: "2.0", id, error: { code, message } });
+            }
+            function registerTool(name, description, inputSchema, handler) {
+              tools[name] = { name, description, inputSchema, handler };
+            }
+            registerTool("fetch-pr-data", "Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt", {"properties":{"days":{"default":30,"description":"Number of days to look back (default: 30)","type":"number"},"limit":{"default":100,"description":"Maximum number of PRs to fetch (default: 100)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"search":{"description":"Search query for filtering PRs (e.g., 'head:copilot/' for Copilot PRs)","type":"string"},"state":{"default":"all","description":"PR state filter: open, closed, merged, or all (default: all)","type":"string"}},"type":"object"}, async (args) => {
+              try {
+                const env = { ...process.env };
+                if (args && args["days"] !== undefined) {
+                  env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
+                }
+                if (args && args["limit"] !== undefined) {
+                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["search"] !== undefined) {
+                  env["INPUT_SEARCH"] = typeof args["search"] === "object" ? JSON.stringify(args["search"]) : String(args["search"]);
+                }
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
+                }
+                const scriptPath = path.join(__dirname, "fetch-pr-data.sh");
+                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+                return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            async function handleMessage(message) {
+              if (message.method === "initialize") {
+                debug("Received initialize request");
+                replyResult(message.id, {
+                  protocolVersion: "2024-11-05",
+                  capabilities: { tools: {} },
+                  serverInfo
+                });
+              } else if (message.method === "notifications/initialized") {
+                debug("Client initialized");
+              } else if (message.method === "tools/list") {
+                debug("Received tools/list request");
+                const toolList = Object.values(tools).map(t => ({
+                  name: t.name,
+                  description: t.description,
+                  inputSchema: t.inputSchema
+                }));
+                replyResult(message.id, { tools: toolList });
+              } else if (message.method === "tools/call") {
+                const toolName = message.params?.name;
+                const toolArgs = message.params?.arguments || {};
+                debug("Received tools/call for: " + toolName);
+                const tool = tools[toolName];
+                if (!tool) {
+                  replyError(message.id, -32601, "Unknown tool: " + toolName);
+                  return;
+                }
+                try {
+                  const result = await tool.handler(toolArgs);
+                  replyResult(message.id, result);
+                } catch (error) {
+                  replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
+                }
+              } else {
+                debug("Unknown method: " + message.method);
+                if (message.id !== undefined) {
+                  replyError(message.id, -32601, "Method not found");
+                }
+              }
+            }
+            debug("Starting safe-inputs MCP server");
+            process.stdin.on("data", async (chunk) => {
+              readBuffer.append(chunk);
+              let message;
+              while ((message = readBuffer.readMessage()) !== null) {
+                await handleMessage(message);
+              }
+            });
+          EOFSI
+          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/fetch-pr-data.sh << 'EOFSH_fetch-pr-data'
+          #!/bin/bash
+          # Auto-generated safe-input tool: fetch-pr-data
+          # Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt
+          
+          set -euo pipefail
+          
+          # Fetch PR data using gh CLI
+          REPO="${INPUT_REPO:-$GITHUB_REPOSITORY}"
+          STATE="${INPUT_STATE:-all}"
+          LIMIT="${INPUT_LIMIT:-100}"
+          DAYS="${INPUT_DAYS:-30}"
+          SEARCH="${INPUT_SEARCH:-}"
+          
+          # Calculate date N days ago (cross-platform)
+          DATE_AGO=$(date -d "${DAYS} days ago" '+%Y-%m-%d' 2>/dev/null || date -v-${DAYS}d '+%Y-%m-%d')
+          
+          # Build search query
+          QUERY="created:>=${DATE_AGO}"
+          if [ -n "$SEARCH" ]; then
+            QUERY="${SEARCH} ${QUERY}"
+          fi
+          
+          # Fetch PRs
+          gh pr list --repo "$REPO" \
+            --search "$QUERY" \
+            --state "$STATE" \
+            --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
+            --limit "$LIMIT"
+          
+          
+          EOFSH_fetch-pr-data
+          chmod +x /tmp/gh-aw/safe-inputs/fetch-pr-data.sh
+          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
@@ -1516,6 +1690,13 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
+                }
+              },
+              "safeinputs": {
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
                 }
               },
               "safeoutputs": {
@@ -1620,7 +1801,15 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          Assign the most recent unassigned issue to the agent.
+          
+          
+          Use the `fetch-pr-data` tool to fetch Copilot agent PRs from this repository using `search: "head:copilot/"`. Then compute basic PR statistics:
+          - Total number of Copilot PRs in the last 30 days
+          - Number of merged vs closed vs open PRs
+          - Average time from PR creation to merge (for merged PRs)
+          - Most active day of the week for PR creation
+          
+          Present the statistics in a clear summary.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

@@ -322,6 +322,63 @@
       },
       "additionalProperties": false
     },
+    "safe-inputs": {
+      "type": "object",
+      "description": "Safe inputs configuration for custom MCP tools defined as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified in the env field.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Tool definition for a safe-input custom tool",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Required description of what the tool does. This is shown to the AI agent."
+          },
+          "inputs": {
+            "type": "object",
+            "description": "Input parameters for the tool, using workflow_dispatch input syntax",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "number", "boolean", "array", "object"],
+                  "description": "JSON schema type for the input parameter"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the input parameter"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether the input is required"
+                },
+                "default": {
+                  "description": "Default value for the input"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "script": {
+            "type": "string",
+            "description": "JavaScript implementation (CommonJS). The script should export an execute function. Mutually exclusive with 'run'."
+          },
+          "run": {
+            "type": "string",
+            "description": "Shell script implementation. Input parameters are available as INPUT_<NAME> environment variables. Mutually exclusive with 'script'."
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for the tool, typically used for passing secrets",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["description"],
+        "additionalProperties": false
+      }
+    },
     "secret-masking": {
       "type": "object",
       "description": "Secret masking configuration to be merged with main workflow",

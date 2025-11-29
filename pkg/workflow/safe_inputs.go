@@ -567,3 +567,114 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		includeCopilotFields,
 	)
 }
+
+// mergeSafeInputs merges safe-inputs configuration from imports into the main configuration
+func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []string) *SafeInputsConfig {
+	if main == nil {
+		main = &SafeInputsConfig{
+			Tools: make(map[string]*SafeInputToolConfig),
+		}
+	}
+
+	for _, configJSON := range importedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the imported JSON config
+		var importedMap map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &importedMap); err != nil {
+			safeInputsLog.Printf("Warning: failed to parse imported safe-inputs config: %v", err)
+			continue
+		}
+
+		// Merge each tool from the imported config
+		for toolName, toolValue := range importedMap {
+			// Skip if tool already exists in main config (main takes precedence)
+			if _, exists := main.Tools[toolName]; exists {
+				safeInputsLog.Printf("Skipping imported tool '%s' - already defined in main config", toolName)
+				continue
+			}
+
+			toolMap, ok := toolValue.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			toolConfig := &SafeInputToolConfig{
+				Name:   toolName,
+				Inputs: make(map[string]*SafeInputParam),
+				Env:    make(map[string]string),
+			}
+
+			// Parse description
+			if desc, exists := toolMap["description"]; exists {
+				if descStr, ok := desc.(string); ok {
+					toolConfig.Description = descStr
+				}
+			}
+
+			// Parse inputs
+			if inputs, exists := toolMap["inputs"]; exists {
+				if inputsMap, ok := inputs.(map[string]any); ok {
+					for paramName, paramValue := range inputsMap {
+						if paramMap, ok := paramValue.(map[string]any); ok {
+							param := &SafeInputParam{
+								Type: "string",
+							}
+							if t, exists := paramMap["type"]; exists {
+								if tStr, ok := t.(string); ok {
+									param.Type = tStr
+								}
+							}
+							if desc, exists := paramMap["description"]; exists {
+								if descStr, ok := desc.(string); ok {
+									param.Description = descStr
+								}
+							}
+							if req, exists := paramMap["required"]; exists {
+								if reqBool, ok := req.(bool); ok {
+									param.Required = reqBool
+								}
+							}
+							if def, exists := paramMap["default"]; exists {
+								param.Default = def
+							}
+							toolConfig.Inputs[paramName] = param
+						}
+					}
+				}
+			}
+
+			// Parse script
+			if script, exists := toolMap["script"]; exists {
+				if scriptStr, ok := script.(string); ok {
+					toolConfig.Script = scriptStr
+				}
+			}
+
+			// Parse run
+			if run, exists := toolMap["run"]; exists {
+				if runStr, ok := run.(string); ok {
+					toolConfig.Run = runStr
+				}
+			}
+
+			// Parse env
+			if env, exists := toolMap["env"]; exists {
+				if envMap, ok := env.(map[string]any); ok {
+					for envName, envValue := range envMap {
+						if envStr, ok := envValue.(string); ok {
+							toolConfig.Env[envName] = envStr
+						}
+					}
+				}
+			}
+
+			main.Tools[toolName] = toolConfig
+			safeInputsLog.Printf("Merged imported safe-input tool: %s", toolName)
+		}
+	}
+
+	return main
+}

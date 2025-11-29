@@ -1261,6 +1261,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract safe-inputs configuration
 	workflowData.SafeInputs = c.extractSafeInputsConfig(result.Frontmatter)
 
+	// Merge safe-inputs from imports
+	if len(importsResult.MergedSafeInputs) > 0 {
+		workflowData.SafeInputs = c.mergeSafeInputs(workflowData.SafeInputs, importsResult.MergedSafeInputs)
+	}
+
 	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
