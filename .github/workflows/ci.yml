@@ -312,9 +312,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+          - name: zizmor
+            flag: --zizmor
+          - name: actionlint
+            flag: --actionlint
+          - name: poutine
+            flag: --poutine
     concurrency:
-      group: ci-${{ github.ref }}-security-scan
+      group: ci-${{ github.ref }}-security-scan-${{ matrix.tool.name }}
       cancel-in-progress: true
+    name: "Security Scan: ${{ matrix.tool.name }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -337,5 +348,5 @@ jobs:
       - name: Build gh-aw
         run: make build
 
-      - name: Run zizmor security scan
-        run: ./gh-aw compile --zizmor
+      - name: Run ${{ matrix.tool.name }} security scan
+        run: ./gh-aw compile ${{ matrix.tool.flag }}
