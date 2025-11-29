@@ -13,6 +13,7 @@ type FirewallConfig struct {
 	Args          []string `yaml:"args,omitempty"`           // Additional arguments to pass to AWF
 	LogLevel      string   `yaml:"log_level,omitempty"`      // AWF log level (default: "info")
 	CleanupScript string   `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
+	Path          string   `yaml:"path,omitempty"`           // Custom AWF binary path (skips download when specified)
 }
 
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
