@@ -72,7 +72,7 @@ The skillz MCP server exposes these repository skills as callable tools:
 # SKILLZ TOOL: github-pr-query
 # Get all PRs from last 90 days (open and closed)
 cd ${{ github.workspace }}/.github/skills/github-pr-query
-./query-prs.sh --state all --limit 300 --jq '.'
+./query-prs.sh --state all --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
@@ -89,7 +89,7 @@ The skillz tool provides:
 # SKILLZ TOOL: github-issue-query
 # Get all issues from last 90 days
 cd ${{ github.workspace }}/.github/skills/github-issue-query
-./query-issues.sh --state all --limit 300 --jq '.'
+./query-issues.sh --state all --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
@@ -106,7 +106,7 @@ The skillz tool provides:
 # SKILLZ TOOL: github-discussion-query
 # Get recent discussions
 cd ${{ github.workspace }}/.github/skills/github-discussion-query
-./query-discussions.sh --limit 150 --jq '.'
+./query-discussions.sh --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
