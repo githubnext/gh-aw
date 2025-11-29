@@ -645,5 +645,75 @@ describe("mcp_server_core.cjs", () => {
       expect(results).toHaveLength(1);
       expect(results[0].result.content[0].text).toContain("relative: path");
     });
+
+    it("should prevent directory traversal attacks with relative paths", async () => {
+      const { loadToolHandlers } = await import("./mcp_server_core.cjs");
+
+      // Create a handler outside of tempDir
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-outside-"));
+      const outsideHandlerPath = path.join(outsideDir, "outside_handler.cjs");
+      fs.writeFileSync(outsideHandlerPath, `module.exports = function() { return "should not be loaded"; };`);
+
+      // Use relative path that tries to escape basePath
+      const tools = [
+        {
+          name: "traversal_attack_tool",
+          description: "A tool trying to escape basePath",
+          inputSchema: { type: "object", properties: {} },
+          handler: "../../../" + path.basename(outsideDir) + "/outside_handler.cjs",
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+
+      // Handler should remain the original string (validation blocked it)
+      expect(tools[0].handler).toBe("../../../" + path.basename(outsideDir) + "/outside_handler.cjs");
+
+      // Clean up
+      fs.rmSync(outsideDir, { recursive: true });
+    });
+
+    it("should handle handler returning non-serializable value (circular reference)", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a handler that returns a circular reference
+      const handlerPath = path.join(tempDir, "circular_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = function(args) {
+          const obj = { input: args.input };
+          obj.self = obj; // Circular reference
+          return obj;
+        };`
+      );
+
+      const tools = [
+        {
+          name: "test_circular",
+          description: "A tool returning circular reference",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_circular", arguments: { input: "test" } },
+      });
+
+      // Should fall back to String() serialization for circular references
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toBe("[object Object]");
+    });
   });
 });

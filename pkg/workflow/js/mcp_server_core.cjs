@@ -198,12 +198,19 @@ function createServer(serverInfo, options = {}) {
  * "handler" field paths using require(). The handler must export a function
  * as its default export.
  *
+ * SECURITY NOTE: Handler paths are loaded from tools.json configuration file,
+ * which should be controlled by the server administrator. When basePath is provided,
+ * relative paths are resolved within it, preventing directory traversal outside
+ * the intended directory. Absolute paths bypass this validation but are still
+ * logged for auditing purposes.
+ *
  * Handler function signature:
  *   async function handler(args: Record<string, unknown>): Promise<unknown>
  *
  * @param {MCPServer} server - The MCP server instance for logging
  * @param {Array<Object>} tools - Array of tool configurations from tools.json
- * @param {string} [basePath] - Optional base path for resolving relative handler paths
+ * @param {string} [basePath] - Optional base path for resolving relative handler paths.
+ *                              When provided, relative paths are validated to be within this directory.
  * @returns {Array<Object>} The tools array with loaded handlers attached
  */
 function loadToolHandlers(server, tools, basePath) {
@@ -233,6 +240,17 @@ function loadToolHandlers(server, tools, basePath) {
     if (basePath && !path.isAbsolute(handlerPath)) {
       resolvedPath = path.resolve(basePath, handlerPath);
       server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+
+      // Security validation: Ensure resolved path is within basePath to prevent directory traversal
+      const normalizedBase = path.resolve(basePath);
+      const normalizedResolved = path.resolve(resolvedPath);
+      if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+        server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+        errorCount++;
+        continue;
+      }
+    } else if (path.isAbsolute(handlerPath)) {
+      server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
     }
 
     // Store the original handler path for reference
@@ -290,7 +308,16 @@ function loadToolHandlers(server, tools, basePath) {
           }
 
           // Otherwise, serialize the result to text
-          const serializedResult = JSON.stringify(result);
+          // Use try-catch for serialization to handle circular references and non-serializable values
+          let serializedResult;
+          try {
+            serializedResult = JSON.stringify(result);
+          } catch (serializationError) {
+            const serializationErrorMessage = serializationError instanceof Error ? serializationError.message : String(serializationError);
+            server.debug(`  [${toolName}] Serialization error: ${serializationErrorMessage}`);
+            // Fall back to String() for non-serializable values
+            serializedResult = String(result);
+          }
           server.debug(
             `  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`
           );
