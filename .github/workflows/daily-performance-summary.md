@@ -1,5 +1,5 @@
 ---
-description: Daily project performance summary (30-day window) with trend charts using Skillz MCP server
+description: Daily project performance summary (90-day window) with trend charts using Skillz MCP server
 on:
   schedule:
     - cron: "0 8 * * *"  # Daily at 8 AM UTC
@@ -40,7 +40,7 @@ You are an expert analyst that generates comprehensive daily performance summari
 
 ## Mission
 
-Generate a daily performance summary analyzing the last 30 days of project activity:
+Generate a daily performance summary analyzing the last 90 days of project activity:
 1. **Use Skillz tools exclusively** to query PRs, issues, and discussions
 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 3. Generate trend charts showing project activity and performance
@@ -51,7 +51,7 @@ Generate a daily performance summary analyzing the last 30 days of project activ
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Report Period**: Last 30 days (updated daily)
+- **Report Period**: Last 90 days (updated daily)
 
 ## Phase 1: Gather Data Using Skillz MCP Tools
 
@@ -70,9 +70,9 @@ The skillz MCP server exposes these repository skills as callable tools:
 
 ```bash
 # SKILLZ TOOL: github-pr-query
-# Get all PRs from last 30 days (open and closed)
+# Get all PRs from last 90 days (open and closed)
 cd ${{ github.workspace }}/.github/skills/github-pr-query
-./query-prs.sh --state all --limit 100 --jq '.'
+./query-prs.sh --state all --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
@@ -87,9 +87,9 @@ The skillz tool provides:
 
 ```bash
 # SKILLZ TOOL: github-issue-query
-# Get all issues from last 30 days
+# Get all issues from last 90 days
 cd ${{ github.workspace }}/.github/skills/github-issue-query
-./query-issues.sh --state all --limit 100 --jq '.'
+./query-issues.sh --state all --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
@@ -106,7 +106,7 @@ The skillz tool provides:
 # SKILLZ TOOL: github-discussion-query
 # Get recent discussions
 cd ${{ github.workspace }}/.github/skills/github-discussion-query
-./query-discussions.sh --limit 50 --jq '.'
+./query-discussions.sh --limit 1000 --jq '.'
 ```
 
 The skillz tool provides:
@@ -167,7 +167,7 @@ discussions = load_json_data(f'{DATA_DIR}/discussions.json')
 
 # Calculate metrics
 now = datetime.now()
-thirty_days_ago = now - timedelta(days=30)
+ninety_days_ago = now - timedelta(days=90)
 
 # PR metrics
 pr_df = pd.DataFrame(prs) if prs else pd.DataFrame()
@@ -462,7 +462,7 @@ Brief 2-3 paragraph executive summary highlighting:
 
 ---
 *Report generated automatically by the Daily Performance Summary workflow*
-*Data source: ${{ github.repository }} - Last 30 days*
+*Data source: ${{ github.repository }} - Last 90 days*
 *Powered by **Skillz MCP Server** - GitHub Skills exposed as MCP tools*
 ```
 
