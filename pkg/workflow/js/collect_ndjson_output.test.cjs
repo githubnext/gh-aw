@@ -218,8 +218,8 @@ describe("collect_ndjson_output.cjs", () => {
     // Since there are errors and no valid items, setFailed should be called
     expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
     const failedMessage = mockCore.setFailed.mock.calls[0][0];
-    expect(failedMessage).toContain("requires a 'body' string field");
-    expect(failedMessage).toContain("requires a 'title' string field");
+    expect(failedMessage).toContain("requires a 'body' field (string)");
+    expect(failedMessage).toContain("requires a 'title' field (string)");
 
     // setOutput should not be called because of early return
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -278,9 +278,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].body).toBe("Test body");
     expect(parsedOutput.items[0].branch).toBe("feature-branch");
     expect(parsedOutput.errors).toHaveLength(3); // Three incomplete PRs should cause errors
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
-    expect(parsedOutput.errors[2]).toContain("requires a 'title' string field");
+    expect(parsedOutput.errors[0]).toContain("requires a 'body' field (string)");
+    expect(parsedOutput.errors[1]).toContain("requires a 'title' field (string)");
+    expect(parsedOutput.errors[2]).toContain("requires a 'title' field (string)");
   });
 
   it("should handle invalid JSON lines", async () => {
@@ -383,8 +383,8 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].title).toBe("Valid Discussion");
     expect(parsedOutput.items[0].body).toBe("Valid body");
     expect(parsedOutput.errors).toHaveLength(2);
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
+    expect(parsedOutput.errors[0]).toContain("requires a 'body' field (string)");
+    expect(parsedOutput.errors[1]).toContain("requires a 'title' field (string)");
   });
 
   it("should skip empty lines", async () => {
@@ -439,9 +439,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].line).toBe(10);
     expect(parsedOutput.items[0].body).toBeDefined();
     expect(parsedOutput.errors).toHaveLength(4); // 4 invalid items
-    expect(parsedOutput.errors.some(e => e.includes("line' must be a positive integer"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'line' number"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'path' string"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("line' must be a valid positive integer"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("'line' is required"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'path' field (string)"))).toBe(true);
     expect(parsedOutput.errors.some(e => e.includes("start_line' must be less than or equal to 'line'"))).toBe(true);
   });
 
@@ -502,9 +502,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[2].operation).toBe("replace");
     expect(parsedOutput.items[0].body).toBeDefined();
     expect(parsedOutput.errors).toHaveLength(3); // 3 invalid items
-    expect(parsedOutput.errors.some(e => e.includes("operation' must be 'replace', 'append', or 'prepend'"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires an 'operation' string field"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' string field"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("operation' must be one of:"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'operation' field (string)"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' field (string)"))).toBe(true);
   });
 
   it("should respect max limits for create-pull-request-review-comment from config", async () => {
@@ -1634,10 +1634,10 @@ Line 3"}
       expect(parsedOutput.items[2]).toEqual({
         type: "create_code_scanning_alert",
         file: "src/complete.js",
-        line: "30",
+        line: 30, // String "30" is normalized to integer 30
         severity: "note", // Should be normalized to lowercase
         message: "Complete example",
-        column: "5",
+        column: 5, // String "5" is normalized to integer 5
         ruleIdSuffix: "complete-rule",
       });
     });
@@ -1662,7 +1662,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
@@ -1692,7 +1692,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
@@ -1782,7 +1782,7 @@ Line 3"}
 
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
-      expect(parsedOutput.errors).toContain("Line 2: create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(parsedOutput.errors).toContain("Line 2: create_code_scanning_alert 'line' is required");
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
@@ -2376,7 +2376,7 @@ Line 3"}
       // When there are only errors and no valid items, setFailed is called instead of setOutput
       expect(mockCore.setFailed).toHaveBeenCalled();
       const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' string field");
+      expect(failedCall).toContain("noop requires a 'message' field (string)");
     });
 
     it("should reject noop with non-string message", async () => {
@@ -2397,7 +2397,7 @@ Line 3"}
       // When there are only errors and no valid items, setFailed is called instead of setOutput
       expect(mockCore.setFailed).toHaveBeenCalled();
       const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' string field");
+      expect(failedCall).toContain("noop requires a 'message' field (string)");
     });
 
     it("should sanitize noop message content", async () => {
