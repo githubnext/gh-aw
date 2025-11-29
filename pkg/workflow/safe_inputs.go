@@ -40,6 +40,113 @@ func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
 }
 
+// ParseSafeInputs parses safe-inputs configuration from frontmatter (standalone function for testing)
+func ParseSafeInputs(frontmatter map[string]any) *SafeInputsConfig {
+	if frontmatter == nil {
+		return nil
+	}
+
+	safeInputs, exists := frontmatter["safe-inputs"]
+	if !exists {
+		return nil
+	}
+
+	safeInputsMap, ok := safeInputs.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	config := &SafeInputsConfig{
+		Tools: make(map[string]*SafeInputToolConfig),
+	}
+
+	for toolName, toolValue := range safeInputsMap {
+		toolMap, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		toolConfig := &SafeInputToolConfig{
+			Name:   toolName,
+			Inputs: make(map[string]*SafeInputParam),
+			Env:    make(map[string]string),
+		}
+
+		// Parse description (required)
+		if desc, exists := toolMap["description"]; exists {
+			if descStr, ok := desc.(string); ok {
+				toolConfig.Description = descStr
+			}
+		}
+
+		// Parse inputs (optional)
+		if inputs, exists := toolMap["inputs"]; exists {
+			if inputsMap, ok := inputs.(map[string]any); ok {
+				for paramName, paramValue := range inputsMap {
+					if paramMap, ok := paramValue.(map[string]any); ok {
+						param := &SafeInputParam{
+							Type: "string", // default type
+						}
+
+						if t, exists := paramMap["type"]; exists {
+							if tStr, ok := t.(string); ok {
+								param.Type = tStr
+							}
+						}
+
+						if desc, exists := paramMap["description"]; exists {
+							if descStr, ok := desc.(string); ok {
+								param.Description = descStr
+							}
+						}
+
+						if def, exists := paramMap["default"]; exists {
+							param.Default = def
+						}
+
+						if req, exists := paramMap["required"]; exists {
+							if reqBool, ok := req.(bool); ok {
+								param.Required = reqBool
+							}
+						}
+
+						toolConfig.Inputs[paramName] = param
+					}
+				}
+			}
+		}
+
+		// Parse script (for JavaScript tools)
+		if script, exists := toolMap["script"]; exists {
+			if scriptStr, ok := script.(string); ok {
+				toolConfig.Script = scriptStr
+			}
+		}
+
+		// Parse run (for shell tools)
+		if run, exists := toolMap["run"]; exists {
+			if runStr, ok := run.(string); ok {
+				toolConfig.Run = runStr
+			}
+		}
+
+		// Parse env (for secrets)
+		if env, exists := toolMap["env"]; exists {
+			if envMap, ok := env.(map[string]any); ok {
+				for envName, envValue := range envMap {
+					if envStr, ok := envValue.(string); ok {
+						toolConfig.Env[envName] = envStr
+					}
+				}
+			}
+		}
+
+		config.Tools[toolName] = toolConfig
+	}
+
+	return config
+}
+
 // extractSafeInputsConfig extracts safe-inputs configuration from frontmatter
 func (c *Compiler) extractSafeInputsConfig(frontmatter map[string]any) *SafeInputsConfig {
 	safeInputsLog.Print("Extracting safe-inputs configuration from frontmatter")
