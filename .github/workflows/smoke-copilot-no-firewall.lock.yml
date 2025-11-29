@@ -3659,7 +3659,7 @@ jobs:
               } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 if (typeof core !== "undefined") {
-                  core.warning(`Failed to parse validation config: ${errorMsg}`);
+                  core.error(`CRITICAL: Failed to parse validation config: ${errorMsg}. Validation will be skipped.`);
                 }
                 cachedValidationConfig = {};
                 return cachedValidationConfig;
@@ -3972,7 +3972,9 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
+                core.warning(
+                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
+                );
               }
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();

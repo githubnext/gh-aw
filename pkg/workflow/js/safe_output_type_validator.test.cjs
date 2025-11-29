@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const mockCore = {
   warning: vi.fn(),
   info: vi.fn(),
+  error: vi.fn(),
 };
 global.core = mockCore;
 
@@ -136,7 +137,7 @@ describe("safe_output_type_validator", () => {
       const config = loadValidationConfig();
 
       expect(config).toEqual({});
-      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalled();
     });
   });
 

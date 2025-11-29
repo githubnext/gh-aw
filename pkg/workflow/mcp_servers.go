@@ -145,7 +145,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate and write the validation configuration from Go source of truth
 		validationConfigJSON, err := GetValidationConfigJSON()
 		if err != nil {
-			mcpServersLog.Printf("Error generating validation config JSON: %v", err)
+			// Log error prominently - validation config is critical for safe output processing
+			// The error will be caught at compile time if this ever fails
+			mcpServersLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 			validationConfigJSON = "{}"
 		}
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'\n")

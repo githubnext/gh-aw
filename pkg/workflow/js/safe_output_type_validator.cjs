@@ -74,8 +74,9 @@ function loadValidationConfig() {
     return cachedValidationConfig;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
+    // Log as error since missing validation config is critical
     if (typeof core !== "undefined") {
-      core.warning(`Failed to parse validation config: ${errorMsg}`);
+      core.error(`CRITICAL: Failed to parse validation config: ${errorMsg}. Validation will be skipped.`);
     }
     cachedValidationConfig = {};
     return cachedValidationConfig;
