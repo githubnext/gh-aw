@@ -112,7 +112,7 @@ When creating multiple issues, use temporary IDs to reference parent issues befo
 ]
 ```
 
-References like `#aw_abc123def456` in issue bodies are automatically replaced with the actual issue number (e.g., `#42`) after the parent issue is created. The `parent` field creates a sub-issue relationship.
+References like `#aw_abc123def456` in issue bodies are automatically replaced with the actual issue number (e.g., `#42`) after the parent issue is created. The `parent` field creates a sub-issue relationship. See [Sub-Issues Guide](/gh-aw/guides/sub-issues/) for detailed patterns.
 
 ### Close Issue (`close-issue:`)
 
@@ -241,6 +241,8 @@ safe-outputs:
 ```
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
+
+See [Sub-Issues Guide](/gh-aw/guides/sub-issues/) for patterns and examples of organizing work with parent-child issue hierarchies.
 
 ### Project Board Updates (`update-project:`)
 
