@@ -14,7 +14,7 @@ permissions:
 
 tracker-id: go-fan-daily
 
-engine: copilot
+engine: claude
 
 network:
   allowed:
@@ -47,7 +47,7 @@ tools:
     - "cat specs/mods/*"
 
 timeout-minutes: 30
-strict: true
+strict: false
 ---
 
 # Go Fan 🐹 - Daily Go Module Reviewer
