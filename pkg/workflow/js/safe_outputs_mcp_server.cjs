@@ -4,184 +4,67 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { execSync } = require("child_process");
 
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { estimateTokens } = require("./estimate_tokens.cjs");
-const { generateCompactSchema } = require("./generate_compact_schema.cjs");
 const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
+const { createServer, registerTool, normalizeTool, start } = require("./mcp_server_core.cjs");
 
-const encoder = new TextEncoder();
+// Server info for safe outputs MCP server
 const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 
-// MCP server log folder - only enabled if GH_AW_MCP_LOG_DIR is explicitly set
+// Create the server instance with optional log directory
 const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
-const LOG_FILE_PATH = MCP_LOG_DIR ? path.join(MCP_LOG_DIR, "server.log") : "";
-
-// Initialize log file - create directory and file if they don't exist
-let logFileInitialized = false;
-function initLogFile() {
-  if (logFileInitialized || !MCP_LOG_DIR || !LOG_FILE_PATH) return;
-  try {
-    if (!fs.existsSync(MCP_LOG_DIR)) {
-      fs.mkdirSync(MCP_LOG_DIR, { recursive: true });
-    }
-    // Initialize/truncate log file with header
-    const timestamp = new Date().toISOString();
-    fs.writeFileSync(LOG_FILE_PATH, `# Safe Outputs MCP Server Log\n# Started: ${timestamp}\n# Version: ${SERVER_INFO.version}\n\n`);
-    logFileInitialized = true;
-  } catch {
-    // Silently ignore errors - logging to stderr will still work
-  }
-}
-
-// Debug function that writes to both stderr and log file (if enabled)
-const debug = msg => {
-  const timestamp = new Date().toISOString();
-  const formattedMsg = `[${timestamp}] [${SERVER_INFO.name}] ${msg}\n`;
-
-  // Always write to stderr
-  process.stderr.write(formattedMsg);
-
-  // Also write to log file if GH_AW_MCP_LOG_DIR is set (initialize on first use)
-  if (MCP_LOG_DIR && LOG_FILE_PATH) {
-    if (!logFileInitialized) {
-      initLogFile();
-    }
-    if (logFileInitialized) {
-      try {
-        fs.appendFileSync(LOG_FILE_PATH, formattedMsg);
-      } catch {
-        // Silently ignore file write errors - stderr logging still works
-      }
-    }
-  }
-};
+const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
 
 // Read configuration from file
 const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
 let safeOutputsConfigRaw;
 
-debug(`Reading config from file: ${configPath}`);
+server.debug(`Reading config from file: ${configPath}`);
 
 try {
   if (fs.existsSync(configPath)) {
-    debug(`Config file exists at: ${configPath}`);
+    server.debug(`Config file exists at: ${configPath}`);
     const configFileContent = fs.readFileSync(configPath, "utf8");
-    debug(`Config file content length: ${configFileContent.length} characters`);
+    server.debug(`Config file content length: ${configFileContent.length} characters`);
     // Don't log raw content to avoid exposing sensitive configuration data
-    debug(`Config file read successfully, attempting to parse JSON`);
+    server.debug(`Config file read successfully, attempting to parse JSON`);
     safeOutputsConfigRaw = JSON.parse(configFileContent);
-    debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+    server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
   } else {
-    debug(`Config file does not exist at: ${configPath}`);
-    debug(`Using minimal default configuration`);
+    server.debug(`Config file does not exist at: ${configPath}`);
+    server.debug(`Using minimal default configuration`);
     safeOutputsConfigRaw = {};
   }
 } catch (error) {
-  debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-  debug(`Falling back to empty configuration`);
+  server.debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+  server.debug(`Falling back to empty configuration`);
   safeOutputsConfigRaw = {};
 }
 
 const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
+server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Handle GH_AW_SAFE_OUTPUTS with default fallback
 const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
 if (!process.env.GH_AW_SAFE_OUTPUTS) {
-  debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+  server.debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
 }
 // Always ensure the directory exists, regardless of whether env var is set
 const outputDir = path.dirname(outputFile);
 if (!fs.existsSync(outputDir)) {
-  debug(`Creating output directory: ${outputDir}`);
+  server.debug(`Creating output directory: ${outputDir}`);
   fs.mkdirSync(outputDir, { recursive: true });
 }
-function writeMessage(obj) {
-  const json = JSON.stringify(obj);
-  debug(`send: ${json}`);
-  const message = json + "\n";
-  const bytes = encoder.encode(message);
-  fs.writeSync(1, bytes);
-}
 
-class ReadBuffer {
-  append(chunk) {
-    this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
-  }
-
-  readMessage() {
-    if (!this._buffer) {
-      return null;
-    }
-
-    const index = this._buffer.indexOf("\n");
-    if (index === -1) {
-      return null;
-    }
-
-    const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
-    this._buffer = this._buffer.subarray(index + 1);
-
-    if (line.trim() === "") {
-      return this.readMessage(); // Skip empty lines recursively
-    }
-
-    try {
-      return JSON.parse(line);
-    } catch (error) {
-      throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-}
-
-const readBuffer = new ReadBuffer();
-function onData(chunk) {
-  readBuffer.append(chunk);
-  processReadBuffer();
-}
-function processReadBuffer() {
-  while (true) {
-    try {
-      const message = readBuffer.readMessage();
-      if (!message) {
-        break;
-      }
-      debug(`recv: ${JSON.stringify(message)}`);
-      handleMessage(message);
-    } catch (error) {
-      // For parse errors, we can't know the request id, so we shouldn't send a response
-      // according to JSON-RPC spec. Just log the error.
-      debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-}
-
-function replyResult(id, result) {
-  if (id === undefined || id === null) return; // notification
-  const res = { jsonrpc: "2.0", id, result };
-  writeMessage(res);
-}
-function replyError(id, code, message) {
-  // Don't send error responses for notifications (id is null/undefined)
-  if (id === undefined || id === null) {
-    debug(`Error for notification: ${message}`);
-    return;
-  }
-
-  const error = { code, message };
-  const res = {
-    jsonrpc: "2.0",
-    id,
-    error,
-  };
-  writeMessage(res);
-}
-
+/**
+ * Append an entry to the safe outputs file
+ * @param {Object} entry - The entry to append
+ */
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
   // Normalize type to use underscores (convert any dashes to underscores)
@@ -194,6 +77,11 @@ function appendSafeOutput(entry) {
   }
 }
 
+/**
+ * Default handler for safe output tools
+ * @param {string} type - The tool type
+ * @returns {Function} Handler function
+ */
 const defaultHandler = type => args => {
   const entry = { ...(args || {}), type };
 
@@ -208,7 +96,7 @@ const defaultHandler = type => args => {
       if (tokens > TOKEN_THRESHOLD) {
         largeContent = value;
         largeFieldName = key;
-        debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+        server.debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
         break;
       }
     }
@@ -247,6 +135,9 @@ const defaultHandler = type => args => {
   };
 };
 
+/**
+ * Handler for upload_asset tool
+ */
 const uploadAssetHandler = args => {
   const branchName = process.env.GH_AW_ASSETS_BRANCH;
   if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
@@ -365,26 +256,26 @@ const createPullRequestHandler = args => {
     const detectedBranch = getCurrentBranch();
 
     if (entry.branch === baseBranch) {
-      debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+      server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
     } else {
-      debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+      server.debug(`Using current branch for create_pull_request: ${detectedBranch}`);
     }
 
     entry.branch = detectedBranch;
   }
 
   // Generate git patch
-  debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
+  server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
   const patchResult = generateGitPatch(entry.branch);
 
   if (!patchResult.success) {
     // Patch generation failed or patch is empty
     const errorMsg = patchResult.error || "Failed to generate patch";
-    debug(`Patch generation failed: ${errorMsg}`);
+    server.debug(`Patch generation failed: ${errorMsg}`);
     throw new Error(errorMsg);
   }
 
-  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+  server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
   appendSafeOutput(entry);
   return {
@@ -419,26 +310,26 @@ const pushToPullRequestBranchHandler = args => {
     const detectedBranch = getCurrentBranch();
 
     if (entry.branch === baseBranch) {
-      debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+      server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
     } else {
-      debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+      server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
     }
 
     entry.branch = detectedBranch;
   }
 
   // Generate git patch
-  debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+  server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
   const patchResult = generateGitPatch(entry.branch);
 
   if (!patchResult.success) {
     // Patch generation failed or patch is empty
     const errorMsg = patchResult.error || "Failed to generate patch";
-    debug(`Patch generation failed: ${errorMsg}`);
+    server.debug(`Patch generation failed: ${errorMsg}`);
     throw new Error(errorMsg);
   }
 
-  debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+  server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
   appendSafeOutput(entry);
   return {
@@ -458,30 +349,28 @@ const pushToPullRequestBranchHandler = args => {
   };
 };
 
-const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
-
 // Load tools from the tools.json file
 const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
 let ALL_TOOLS = [];
 
-debug(`Reading tools from file: ${toolsPath}`);
+server.debug(`Reading tools from file: ${toolsPath}`);
 
 try {
   if (fs.existsSync(toolsPath)) {
-    debug(`Tools file exists at: ${toolsPath}`);
+    server.debug(`Tools file exists at: ${toolsPath}`);
     const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
-    debug(`Tools file content length: ${toolsFileContent.length} characters`);
-    debug(`Tools file read successfully, attempting to parse JSON`);
+    server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
+    server.debug(`Tools file read successfully, attempting to parse JSON`);
     ALL_TOOLS = JSON.parse(toolsFileContent);
-    debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
+    server.debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
   } else {
-    debug(`Tools file does not exist at: ${toolsPath}`);
-    debug(`Using empty tools array`);
+    server.debug(`Tools file does not exist at: ${toolsPath}`);
+    server.debug(`Using empty tools array`);
     ALL_TOOLS = [];
   }
 } catch (error) {
-  debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
-  debug(`Falling back to empty tools array`);
+  server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
+  server.debug(`Falling back to empty tools array`);
   ALL_TOOLS = [];
 }
 
@@ -497,26 +386,22 @@ ALL_TOOLS.forEach(tool => {
   }
 });
 
-debug(`v${SERVER_INFO.version} ready on stdio`);
-debug(`  output file: ${outputFile}`);
-debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
+server.debug(`  output file: ${outputFile}`);
+server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 
-// Create a comprehensive tools map including both predefined tools and dynamic safe-jobs
-const TOOLS = {};
-
-// Add predefined tools that are enabled in configuration
+// Register predefined tools that are enabled in configuration
 ALL_TOOLS.forEach(tool => {
-  if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-    TOOLS[tool.name] = tool;
+  if (Object.keys(safeOutputsConfig).find(config => normalizeTool(config) === tool.name)) {
+    registerTool(server, tool);
   }
 });
 
 // Add safe-jobs as dynamic tools
 Object.keys(safeOutputsConfig).forEach(configKey => {
-  const normalizedKey = normTool(configKey);
+  const normalizedKey = normalizeTool(configKey);
 
   // Skip if it's already a predefined tool
-  if (TOOLS[normalizedKey]) {
+  if (server.tools[normalizedKey]) {
     return;
   }
 
@@ -585,96 +470,12 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
       });
     }
 
-    TOOLS[normalizedKey] = dynamicTool;
+    registerTool(server, dynamicTool);
   }
 });
 
-debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
-if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
+server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
 
-function handleMessage(req) {
-  // Validate basic JSON-RPC structure
-  if (!req || typeof req !== "object") {
-    debug(`Invalid message: not an object`);
-    return;
-  }
-
-  if (req.jsonrpc !== "2.0") {
-    debug(`Invalid message: missing or invalid jsonrpc field`);
-    return;
-  }
-
-  const { id, method, params } = req;
-
-  // Validate method field
-  if (!method || typeof method !== "string") {
-    replyError(id, -32600, "Invalid Request: method must be a string");
-    return;
-  }
-
-  try {
-    if (method === "initialize") {
-      const clientInfo = params?.clientInfo ?? {};
-      console.error(`client info:`, clientInfo);
-      const protocolVersion = params?.protocolVersion ?? undefined;
-      const result = {
-        serverInfo: SERVER_INFO,
-        ...(protocolVersion ? { protocolVersion } : {}),
-        capabilities: {
-          tools: {},
-        },
-      };
-      replyResult(id, result);
-    } else if (method === "tools/list") {
-      const list = [];
-      Object.values(TOOLS).forEach(tool => {
-        const toolDef = {
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.inputSchema,
-        };
-
-        list.push(toolDef);
-      });
-      replyResult(id, { tools: list });
-    } else if (method === "tools/call") {
-      const name = params?.name;
-      const args = params?.arguments ?? {};
-      if (!name || typeof name !== "string") {
-        replyError(id, -32602, "Invalid params: 'name' must be a string");
-        return;
-      }
-      const tool = TOOLS[normTool(name)];
-      if (!tool) {
-        replyError(id, -32601, `Tool not found: ${name} (${normTool(name)})`);
-        return;
-      }
-      const handler = tool.handler || defaultHandler(tool.name);
-      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-      if (requiredFields.length) {
-        const missing = requiredFields.filter(f => {
-          const value = args[f];
-          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-        });
-        if (missing.length) {
-          replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-          return;
-        }
-      }
-      const result = handler(args);
-      const content = result && result.content ? result.content : [];
-      replyResult(id, { content, isError: false });
-    } else if (/^notifications\//.test(method)) {
-      debug(`ignore ${method}`);
-    } else {
-      replyError(id, -32601, `Method not found: ${method}`);
-    }
-  } catch (e) {
-    replyError(id, -32603, e instanceof Error ? e.message : String(e));
-  }
-}
-
-process.stdin.on("data", onData);
-process.stdin.on("error", err => debug(`stdin error: ${err}`));
-process.stdin.resume();
-debug(`listening...`);
+// Start the server with the default handler
+start(server, { defaultHandler });
