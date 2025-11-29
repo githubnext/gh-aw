@@ -62,26 +62,27 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 				if !strings.Contains(output, "<github-context>") {
 					t.Error("Expected <github-context> XML tag in output")
 				}
-				if !strings.Contains(output, "github.repository") {
-					t.Error("Expected repository context in output")
+				// Verify expressions are in the env section (secure pattern)
+				if !strings.Contains(output, "${{ github.repository }}") {
+					t.Error("Expected repository context in env section")
 				}
-				if !strings.Contains(output, "github.workspace") {
-					t.Error("Expected workspace context in output")
+				if !strings.Contains(output, "${{ github.workspace }}") {
+					t.Error("Expected workspace context in env section")
 				}
-				if !strings.Contains(output, "github.event.issue.number") {
-					t.Error("Expected issue number context in output")
+				if !strings.Contains(output, "${{ github.event.issue.number }}") {
+					t.Error("Expected issue number context in env section")
 				}
-				if !strings.Contains(output, "github.event.discussion.number") {
-					t.Error("Expected discussion number context in output")
+				if !strings.Contains(output, "${{ github.event.discussion.number }}") {
+					t.Error("Expected discussion number context in env section")
 				}
-				if !strings.Contains(output, "github.event.pull_request.number") {
-					t.Error("Expected pull request number context in output")
+				if !strings.Contains(output, "${{ github.event.pull_request.number }}") {
+					t.Error("Expected pull request number context in env section")
 				}
-				if !strings.Contains(output, "github.event.comment.id") {
-					t.Error("Expected comment ID context in output")
+				if !strings.Contains(output, "${{ github.event.comment.id }}") {
+					t.Error("Expected comment ID context in env section")
 				}
-				if !strings.Contains(output, "github.run_id") {
-					t.Error("Expected run ID context in output")
+				if !strings.Contains(output, "${{ github.run_id }}") {
+					t.Error("Expected run ID context in env section")
 				}
 			} else {
 				if strings.Contains(output, "Append GitHub context to prompt") {
@@ -89,6 +90,80 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestGenerateGitHubContextSecurePattern verifies that the GitHub context step uses
+// the secure pattern: expressions are extracted into env vars and the heredoc uses
+// shell variable references instead of direct template expressions.
+func TestGenerateGitHubContextSecurePattern(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+	var yaml strings.Builder
+	data := &WorkflowData{
+		Tools: map[string]any{
+			"github": true,
+		},
+		ParsedTools: NewTools(map[string]any{"github": true}),
+	}
+
+	compiler.generateGitHubContextPromptStep(&yaml, data)
+	output := yaml.String()
+
+	// Split output into env section and heredoc section
+	// Find the heredoc content (between "run: |" and "PROMPT_EOF")
+	runIndex := strings.Index(output, "run: |")
+	if runIndex == -1 {
+		t.Fatal("Expected 'run: |' in output")
+	}
+
+	envSection := output[:runIndex]
+	heredocSection := output[runIndex:]
+
+	// Verify that expressions appear in the env section
+	expectedEnvVars := []string{
+		"${{ github.repository }}",
+		"${{ github.workspace }}",
+		"${{ github.event.issue.number }}",
+		"${{ github.event.discussion.number }}",
+		"${{ github.event.pull_request.number }}",
+		"${{ github.event.comment.id }}",
+		"${{ github.run_id }}",
+	}
+
+	for _, expr := range expectedEnvVars {
+		if !strings.Contains(envSection, expr) {
+			t.Errorf("Expected expression '%s' in env section, but not found", expr)
+		}
+	}
+
+	// Verify that GH_AW_EXPR_* environment variables are declared
+	if !strings.Contains(envSection, "GH_AW_EXPR_") {
+		t.Error("Expected GH_AW_EXPR_* environment variables in env section")
+	}
+
+	// Verify that the heredoc does NOT contain direct ${{ }} expressions
+	// It should only contain ${GH_AW_EXPR_*} references
+	heredocStart := strings.Index(heredocSection, "cat << 'PROMPT_EOF'")
+	heredocEnd := strings.Index(heredocSection, "PROMPT_EOF\n")
+	if heredocStart == -1 || heredocEnd == -1 {
+		t.Fatal("Expected heredoc markers in output")
+	}
+
+	heredocContent := heredocSection[heredocStart:heredocEnd]
+
+	// Check that no ${{ }} expressions appear in the heredoc
+	if strings.Contains(heredocContent, "${{ ") {
+		t.Error("Expected NO ${{ }} expressions in heredoc content (should use ${GH_AW_EXPR_*} instead)")
+	}
+
+	// Verify that shell variable references are used in heredoc
+	if !strings.Contains(heredocContent, "${GH_AW_EXPR_") {
+		t.Error("Expected ${GH_AW_EXPR_*} shell variable references in heredoc content")
+	}
+
+	// Verify the envsubst command is used (for shell variable substitution)
+	if !strings.Contains(heredocContent, "envsubst") {
+		t.Error("Expected envsubst command for shell variable substitution")
 	}
 }
 

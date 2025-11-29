@@ -2615,30 +2615,37 @@ jobs:
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_FFBED134: ${{ github.event.comment.id }}
+          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
+          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>
-          {{#if ${{ github.repository }} }}
-          <context name="repository">${{ github.repository }}</context>
+          {{#if ${GH_AW_EXPR_D892F163} }}
+          <context name="repository">${GH_AW_EXPR_D892F163}</context>
           {{/if}}
-          {{#if ${{ github.workspace }} }}
-          <context name="workspace">${{ github.workspace }}</context>
+          {{#if ${GH_AW_EXPR_2D1CC6E7} }}
+          <context name="workspace">${GH_AW_EXPR_2D1CC6E7}</context>
           {{/if}}
-          {{#if ${{ github.event.issue.number }} }}
-          <context name="issue-number">#${{ github.event.issue.number }}</context>
+          {{#if ${GH_AW_EXPR_9C6DBB26} }}
+          <context name="issue-number">#${GH_AW_EXPR_9C6DBB26}</context>
           {{/if}}
-          {{#if ${{ github.event.discussion.number }} }}
-          <context name="discussion-number">#${{ github.event.discussion.number }}</context>
+          {{#if ${GH_AW_EXPR_2497EEDF} }}
+          <context name="discussion-number">#${GH_AW_EXPR_2497EEDF}</context>
           {{/if}}
-          {{#if ${{ github.event.pull_request.number }} }}
-          <context name="pull-request-number">#${{ github.event.pull_request.number }}</context>
+          {{#if ${GH_AW_EXPR_079D8664} }}
+          <context name="pull-request-number">#${GH_AW_EXPR_079D8664}</context>
           {{/if}}
-          {{#if ${{ github.event.comment.id }} }}
-          <context name="comment-id">${{ github.event.comment.id }}</context>
+          {{#if ${GH_AW_EXPR_FFBED134} }}
+          <context name="comment-id">${GH_AW_EXPR_FFBED134}</context>
           {{/if}}
-          {{#if ${{ github.run_id }} }}
-          <context name="workflow-run-id">${{ github.run_id }}</context>
+          {{#if ${GH_AW_EXPR_B50B6E9C} }}
+          <context name="workflow-run-id">${GH_AW_EXPR_B50B6E9C}</context>
           {{/if}}
           <instruction>Use this context information to understand the scope of your work.</instruction>
           </github-context>
