@@ -7,10 +7,10 @@ description: Query GitHub pull requests efficiently with jq argument support for
 
 This skill provides efficient querying of GitHub pull requests with built-in jq filtering support.
 
-## Important: jq Parameter Required
+## Important: jq Parameter is Optional
 
-When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
-This prevents overwhelming responses with large datasets. To retrieve actual PR data, you must provide a `--jq` filter.
+The `--jq` parameter is **optional**. When called without `--jq`, this skill returns **schema and data size information** instead of the full data.
+This prevents overwhelming responses with large datasets and helps you understand the data structure before querying.
 
 Use `--jq '.'` to get all data, or use a more specific filter for targeted results.
 
@@ -69,7 +69,7 @@ Use the `--jq` argument to filter and transform the output:
 - `--state`: Filter by state (open, closed, merged, all). Default: open
 - `--limit`: Maximum number of PRs to fetch. Default: 30
 - `--repo`: Repository in owner/repo format. Default: current repo
-- `--jq`: jq expression for filtering/transforming output
+- `--jq`: (Optional) jq expression for filtering/transforming output. If omitted, returns schema info
 
 ### Example Queries
 
