@@ -668,7 +668,7 @@ func (e *CopilotEngine) GetLogFileForParsing() string {
 }
 
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
-func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig) []string {
 	if tools == nil {
 		tools = make(map[string]any)
 	}
