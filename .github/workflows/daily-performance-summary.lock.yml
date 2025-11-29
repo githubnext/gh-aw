@@ -18,11 +18,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Daily project performance summary (30-day window) with trend charts using Skillz MCP server
+# Daily project performance summary (90-day window) with trend charts using Skillz MCP server
 #
 # Original Frontmatter:
 # ```yaml
-# description: Daily project performance summary (30-day window) with trend charts using Skillz MCP server
+# description: Daily project performance summary (90-day window) with trend charts using Skillz MCP server
 # on:
 #   schedule:
 #     - cron: "0 8 * * *"  # Daily at 8 AM UTC
@@ -409,7 +409,7 @@
 #
 # ## Mission
 #
-# Generate a daily performance summary analyzing the last 30 days of project activity:
+# Generate a daily performance summary analyzing the last 90 days of project activity:
 # 1. **Use Skillz tools exclusively** to query PRs, issues, and discussions
 # 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 # 3. Generate trend charts showing project activity and performance
@@ -420,7 +420,7 @@
 #
 # - **Repository**: ${{ github.repository }}
 # - **Run ID**: ${{ github.run_id }}
-# - **Report Period**: Last 30 days (updated daily)
+# - **Report Period**: Last 90 days (updated daily)
 #
 # ## Phase 1: Gather Data Using Skillz MCP Tools
 #
@@ -439,9 +439,9 @@
 #
 # ```bash
 # # SKILLZ TOOL: github-pr-query
-# # Get all PRs from last 30 days (open and closed)
+# # Get all PRs from last 90 days (open and closed)
 # cd ${{ github.workspace }}/.github/skills/github-pr-query
-# ./query-prs.sh --state all --limit 100 --jq '.'
+# ./query-prs.sh --state all --limit 300 --jq '.'
 # ```
 #
 # The skillz tool provides:
@@ -456,9 +456,9 @@
 #
 # ```bash
 # # SKILLZ TOOL: github-issue-query
-# # Get all issues from last 30 days
+# # Get all issues from last 90 days
 # cd ${{ github.workspace }}/.github/skills/github-issue-query
-# ./query-issues.sh --state all --limit 100 --jq '.'
+# ./query-issues.sh --state all --limit 300 --jq '.'
 # ```
 #
 # The skillz tool provides:
@@ -475,7 +475,7 @@
 # # SKILLZ TOOL: github-discussion-query
 # # Get recent discussions
 # cd ${{ github.workspace }}/.github/skills/github-discussion-query
-# ./query-discussions.sh --limit 50 --jq '.'
+# ./query-discussions.sh --limit 150 --jq '.'
 # ```
 #
 # The skillz tool provides:
@@ -536,7 +536,7 @@
 #
 # # Calculate metrics
 # now = datetime.now()
-# thirty_days_ago = now - timedelta(days=30)
+# ninety_days_ago = now - timedelta(days=90)
 #
 # # PR metrics
 # pr_df = pd.DataFrame(prs) if prs else pd.DataFrame()
@@ -831,7 +831,7 @@
 #
 # ---
 # *Report generated automatically by the Daily Performance Summary workflow*
-# *Data source: ${{ github.repository }} - Last 30 days*
+# *Data source: ${{ github.repository }} - Last 90 days*
 # *Powered by **Skillz MCP Server** - GitHub Skills exposed as MCP tools*
 # ```
 #
@@ -2417,7 +2417,7 @@ jobs:
           
           ## Mission
           
-          Generate a daily performance summary analyzing the last 30 days of project activity:
+          Generate a daily performance summary analyzing the last 90 days of project activity:
           1. **Use Skillz tools exclusively** to query PRs, issues, and discussions
           2. Calculate key performance metrics (velocity, resolution times, activity levels)
           3. Generate trend charts showing project activity and performance
@@ -2428,7 +2428,7 @@ jobs:
           
           - **Repository**: ${GH_AW_EXPR_D892F163}
           - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
-          - **Report Period**: Last 30 days (updated daily)
+          - **Report Period**: Last 90 days (updated daily)
           
           ## Phase 1: Gather Data Using Skillz MCP Tools
           
@@ -2447,9 +2447,9 @@ jobs:
           
           ```bash
           # SKILLZ TOOL: github-pr-query
-          # Get all PRs from last 30 days (open and closed)
+          # Get all PRs from last 90 days (open and closed)
           cd ${GH_AW_EXPR_2D1CC6E7}/.github/skills/github-pr-query
-          ./query-prs.sh --state all --limit 100 --jq '.'
+          ./query-prs.sh --state all --limit 300 --jq '.'
           ```
           
           The skillz tool provides:
@@ -2464,9 +2464,9 @@ jobs:
           
           ```bash
           # SKILLZ TOOL: github-issue-query
-          # Get all issues from last 30 days
+          # Get all issues from last 90 days
           cd ${GH_AW_EXPR_2D1CC6E7}/.github/skills/github-issue-query
-          ./query-issues.sh --state all --limit 100 --jq '.'
+          ./query-issues.sh --state all --limit 300 --jq '.'
           ```
           
           The skillz tool provides:
@@ -2483,7 +2483,7 @@ jobs:
           # SKILLZ TOOL: github-discussion-query
           # Get recent discussions
           cd ${GH_AW_EXPR_2D1CC6E7}/.github/skills/github-discussion-query
-          ./query-discussions.sh --limit 50 --jq '.'
+          ./query-discussions.sh --limit 150 --jq '.'
           ```
           
           The skillz tool provides:
@@ -2544,7 +2544,7 @@ jobs:
           
           # Calculate metrics
           now = datetime.now()
-          thirty_days_ago = now - timedelta(days=30)
+          ninety_days_ago = now - timedelta(days=90)
           
           # PR metrics
           pr_df = pd.DataFrame(prs) if prs else pd.DataFrame()
@@ -2845,7 +2845,7 @@ jobs:
           
           ---
           *Report generated automatically by the Daily Performance Summary workflow*
-          *Data source: ${GH_AW_EXPR_D892F163} - Last 30 days*
+          *Data source: ${GH_AW_EXPR_D892F163} - Last 90 days*
           *Powered by **Skillz MCP Server** - GitHub Skills exposed as MCP tools*
           ```
           
@@ -7011,7 +7011,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily Project Performance Summary Generator (Powered by Skillz)"
-          WORKFLOW_DESCRIPTION: "Daily project performance summary (30-day window) with trend charts using Skillz MCP server"
+          WORKFLOW_DESCRIPTION: "Daily project performance summary (90-day window) with trend charts using Skillz MCP server"
         with:
           script: |
             const fs = require('fs');
