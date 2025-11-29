@@ -1557,9 +1557,6 @@ jobs:
             registerTool("fetch-pr-data", "Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt", {"properties":{"days":{"default":30,"description":"Number of days to look back (default: 30)","type":"number"},"limit":{"default":100,"description":"Maximum number of PRs to fetch (default: 100)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"search":{"description":"Search query for filtering PRs (e.g., 'head:copilot/' for Copilot PRs)","type":"string"},"state":{"default":"all","description":"PR state filter: open, closed, merged, or all (default: all)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["days"] !== undefined) {
-                  env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
-                }
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
@@ -1572,6 +1569,9 @@ jobs:
                 if (args && args["state"] !== undefined) {
                   env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
+                if (args && args["days"] !== undefined) {
+                  env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
+                }
                 const scriptPath = path.join(__dirname, "fetch-pr-data.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
                 const output = stdout + (stderr ? "\nStderr: " + stderr : "");
@@ -1580,6 +1580,36 @@ jobs:
                 return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
               }
             });
+            const LARGE_OUTPUT_THRESHOLD = 500;
+            const CALLS_DIR = "/tmp/gh-aw/safe-inputs/calls";
+            let callCounter = 0;
+            function ensureCallsDir() {
+              if (!fs.existsSync(CALLS_DIR)) {
+                fs.mkdirSync(CALLS_DIR, { recursive: true });
+              }
+            }
+            function handleLargeOutput(result) {
+              if (!result || !result.content || !Array.isArray(result.content)) {
+                return result;
+              }
+              const processedContent = result.content.map((item) => {
+                if (item.type === "text" && typeof item.text === "string" && item.text.length > LARGE_OUTPUT_THRESHOLD) {
+                  ensureCallsDir();
+                  callCounter++;
+                  const timestamp = Date.now();
+                  const filename = "call_" + timestamp + "_" + callCounter + ".txt";
+                  const filepath = path.join(CALLS_DIR, filename);
+                  fs.writeFileSync(filepath, item.text, "utf8");
+                  debug("Large output (" + item.text.length + " chars) written to: " + filepath);
+                  return {
+                    type: "text",
+                    text: "[Output written to file: " + filepath + " (" + item.text.length + " chars)]"
+                  };
+                }
+                return item;
+              });
+              return { ...result, content: processedContent };
+            }
             async function handleMessage(message) {
               if (message.method === "initialize") {
                 debug("Received initialize request");
@@ -1609,7 +1639,8 @@ jobs:
                 }
                 try {
                   const result = await tool.handler(toolArgs);
-                  replyResult(message.id, result);
+                  const processedResult = handleLargeOutput(result);
+                  replyResult(message.id, processedResult);
                 } catch (error) {
                   replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
                 }

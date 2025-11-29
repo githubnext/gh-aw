@@ -423,7 +423,45 @@ function registerTool(name, description, inputSchema, handler) {
 	}
 
 	// Add message handler and start
-	sb.WriteString(`// Handle incoming messages
+	sb.WriteString(`// Large output handling constants
+const LARGE_OUTPUT_THRESHOLD = 500;
+const CALLS_DIR = "/tmp/gh-aw/safe-inputs/calls";
+let callCounter = 0;
+
+// Ensure calls directory exists
+function ensureCallsDir() {
+  if (!fs.existsSync(CALLS_DIR)) {
+    fs.mkdirSync(CALLS_DIR, { recursive: true });
+  }
+}
+
+// Handle large output by writing to file
+function handleLargeOutput(result) {
+  if (!result || !result.content || !Array.isArray(result.content)) {
+    return result;
+  }
+
+  const processedContent = result.content.map((item) => {
+    if (item.type === "text" && typeof item.text === "string" && item.text.length > LARGE_OUTPUT_THRESHOLD) {
+      ensureCallsDir();
+      callCounter++;
+      const timestamp = Date.now();
+      const filename = "call_" + timestamp + "_" + callCounter + ".txt";
+      const filepath = path.join(CALLS_DIR, filename);
+      fs.writeFileSync(filepath, item.text, "utf8");
+      debug("Large output (" + item.text.length + " chars) written to: " + filepath);
+      return {
+        type: "text",
+        text: "[Output written to file: " + filepath + " (" + item.text.length + " chars)]"
+      };
+    }
+    return item;
+  });
+
+  return { ...result, content: processedContent };
+}
+
+// Handle incoming messages
 async function handleMessage(message) {
   if (message.method === "initialize") {
     debug("Received initialize request");
@@ -453,7 +491,8 @@ async function handleMessage(message) {
     }
     try {
       const result = await tool.handler(toolArgs);
-      replyResult(message.id, result);
+      const processedResult = handleLargeOutput(result);
+      replyResult(message.id, processedResult);
     } catch (error) {
       replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
     }

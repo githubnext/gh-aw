@@ -326,6 +326,19 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	if !strings.Contains(script, "tools/call") {
 		t.Error("Script should handle tools/call method")
 	}
+
+	// Check for large output handling
+	if !strings.Contains(script, "LARGE_OUTPUT_THRESHOLD") {
+		t.Error("Script should contain large output threshold constant")
+	}
+
+	if !strings.Contains(script, "/tmp/gh-aw/safe-inputs/calls") {
+		t.Error("Script should contain calls directory path")
+	}
+
+	if !strings.Contains(script, "handleLargeOutput") {
+		t.Error("Script should contain handleLargeOutput function")
+	}
 }
 
 func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {
