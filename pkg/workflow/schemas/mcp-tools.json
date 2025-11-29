@@ -35,6 +35,10 @@
         "annotations": {
           "$ref": "#/definitions/ToolAnnotations",
           "description": "Optional annotations providing hints about the tool's behavior"
+        },
+        "handler": {
+          "type": "string",
+          "description": "Optional file path to a handler module that exports a function to handle tool calls. The path can be resolved by require() at runtime. The handler function signature is: async function handler(args: Record<string, unknown>): Promise<unknown>"
         }
       },
       "additionalProperties": false

@@ -39,6 +39,7 @@ const encoder = new TextEncoder();
  * @property {string} description - Tool description
  * @property {Object} inputSchema - JSON Schema for tool inputs
  * @property {Function} [handler] - Tool handler function
+ * @property {string} [handlerPath] - Optional file path to handler module (original path from config)
  */
 
 /**
@@ -192,6 +193,144 @@ function createServer(serverInfo, options = {}) {
 }
 
 /**
+ * Load handler functions from file paths specified in tools configuration.
+ * This function iterates through tools and loads handler modules from the
+ * "handler" field paths using require(). The handler must export a function
+ * as its default export.
+ *
+ * Handler function signature:
+ *   async function handler(args: Record<string, unknown>): Promise<unknown>
+ *
+ * @param {MCPServer} server - The MCP server instance for logging
+ * @param {Array<Object>} tools - Array of tool configurations from tools.json
+ * @param {string} [basePath] - Optional base path for resolving relative handler paths
+ * @returns {Array<Object>} The tools array with loaded handlers attached
+ */
+function loadToolHandlers(server, tools, basePath) {
+  server.debug(`Loading tool handlers...`);
+  server.debug(`  Total tools to process: ${tools.length}`);
+  server.debug(`  Base path: ${basePath || "(not specified)"}`);
+
+  let loadedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  for (const tool of tools) {
+    const toolName = tool.name || "(unnamed)";
+
+    // Check if tool has a handler path specified
+    if (!tool.handler) {
+      server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+      skippedCount++;
+      continue;
+    }
+
+    const handlerPath = tool.handler;
+    server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+
+    // Resolve the handler path
+    let resolvedPath = handlerPath;
+    if (basePath && !path.isAbsolute(handlerPath)) {
+      resolvedPath = path.resolve(basePath, handlerPath);
+      server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+    }
+
+    // Store the original handler path for reference
+    tool.handlerPath = handlerPath;
+
+    try {
+      server.debug(`  [${toolName}] Loading handler module from: ${resolvedPath}`);
+
+      // Check if file exists before requiring
+      if (!fs.existsSync(resolvedPath)) {
+        server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+        errorCount++;
+        continue;
+      }
+
+      // Load the handler module
+      const handlerModule = require(resolvedPath);
+      server.debug(`  [${toolName}] Handler module loaded successfully`);
+      server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+
+      // Get the handler function (support default export patterns)
+      let handlerFn = handlerModule;
+
+      // Handle ES module default export pattern (module.default)
+      if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+        handlerFn = handlerModule.default;
+        server.debug(`  [${toolName}] Using module.default export`);
+      }
+
+      // Validate that the handler is a function
+      if (typeof handlerFn !== "function") {
+        server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+        server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+        errorCount++;
+        continue;
+      }
+
+      server.debug(`  [${toolName}] Handler function validated successfully`);
+      server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+
+      // Wrap the handler to ensure it returns the expected MCP response format
+      // and handles both sync and async handlers
+      tool.handler = async args => {
+        server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+
+        try {
+          // Call the handler (may be sync or async)
+          const result = await Promise.resolve(handlerFn(args));
+          server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+
+          // If the result is already in MCP format (has content array), return as-is
+          if (result && typeof result === "object" && Array.isArray(result.content)) {
+            server.debug(`  [${toolName}] Result is already in MCP format`);
+            return result;
+          }
+
+          // Otherwise, serialize the result to text
+          const serializedResult = JSON.stringify(result);
+          server.debug(
+            `  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: serializedResult,
+              },
+            ],
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          server.debug(`  [${toolName}] Handler threw error: ${errorMessage}`);
+          throw error;
+        }
+      };
+
+      loadedCount++;
+      server.debug(`  [${toolName}] Handler loaded and wrapped successfully`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      server.debug(`  [${toolName}] ERROR loading handler: ${errorMessage}`);
+      if (error instanceof Error && error.stack) {
+        server.debug(`  [${toolName}] Stack trace: ${error.stack}`);
+      }
+      errorCount++;
+    }
+  }
+
+  server.debug(`Handler loading complete:`);
+  server.debug(`  Loaded: ${loadedCount}`);
+  server.debug(`  Skipped (no handler path): ${skippedCount}`);
+  server.debug(`  Errors: ${errorCount}`);
+
+  return tools;
+}
+
+/**
  * Register a tool with the server
  * @param {MCPServer} server - The MCP server instance
  * @param {Tool} tool - The tool to register
@@ -219,8 +358,9 @@ function normalizeTool(name) {
  * @param {MCPServer} server - The MCP server instance
  * @param {Object} req - The incoming request
  * @param {Function} [defaultHandler] - Default handler for tools without a handler
+ * @returns {Promise<void>}
  */
-function handleMessage(server, req, defaultHandler) {
+async function handleMessage(server, req, defaultHandler) {
   // Validate basic JSON-RPC structure
   if (!req || typeof req !== "object") {
     server.debug(`Invalid message: not an object`);
@@ -298,7 +438,11 @@ function handleMessage(server, req, defaultHandler) {
           return;
         }
       }
-      const result = handler(args);
+
+      // Call handler and await the result (supports both sync and async handlers)
+      server.debug(`Calling handler for tool: ${name}`);
+      const result = await Promise.resolve(handler(args));
+      server.debug(`Handler returned for tool: ${name}`);
       const content = result && result.content ? result.content : [];
       server.replyResult(id, { content, isError: false });
     } else if (/^notifications\//.test(method)) {
@@ -315,8 +459,9 @@ function handleMessage(server, req, defaultHandler) {
  * Process the read buffer and handle messages
  * @param {MCPServer} server - The MCP server instance
  * @param {Function} [defaultHandler] - Default handler for tools without a handler
+ * @returns {Promise<void>}
  */
-function processReadBuffer(server, defaultHandler) {
+async function processReadBuffer(server, defaultHandler) {
   while (true) {
     try {
       const message = server.readBuffer.readMessage();
@@ -324,7 +469,7 @@ function processReadBuffer(server, defaultHandler) {
         break;
       }
       server.debug(`recv: ${JSON.stringify(message)}`);
-      handleMessage(server, message, defaultHandler);
+      await handleMessage(server, message, defaultHandler);
     } catch (error) {
       // For parse errors, we can't know the request id, so we shouldn't send a response
       // according to JSON-RPC spec. Just log the error.
@@ -349,9 +494,9 @@ function start(server, options = {}) {
     throw new Error("No tools registered");
   }
 
-  const onData = chunk => {
+  const onData = async chunk => {
     server.readBuffer.append(chunk);
-    processReadBuffer(server, defaultHandler);
+    await processReadBuffer(server, defaultHandler);
   };
 
   process.stdin.on("data", onData);
@@ -367,4 +512,5 @@ module.exports = {
   handleMessage,
   processReadBuffer,
   start,
+  loadToolHandlers,
 };

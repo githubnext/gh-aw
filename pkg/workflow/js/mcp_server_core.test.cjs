@@ -141,7 +141,7 @@ describe("mcp_server_core.cjs", () => {
     it("should handle initialize method", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
@@ -157,7 +157,7 @@ describe("mcp_server_core.cjs", () => {
     it("should handle tools/list method", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/list",
@@ -171,7 +171,7 @@ describe("mcp_server_core.cjs", () => {
     it("should handle tools/call method with handler", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
@@ -189,7 +189,7 @@ describe("mcp_server_core.cjs", () => {
     it("should return error for unknown tool", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
@@ -207,7 +207,7 @@ describe("mcp_server_core.cjs", () => {
     it("should return error for missing required fields", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
@@ -225,7 +225,7 @@ describe("mcp_server_core.cjs", () => {
     it("should return error for unknown method", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         id: 1,
         method: "unknown/method",
@@ -239,7 +239,7 @@ describe("mcp_server_core.cjs", () => {
     it("should ignore notifications (no response)", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "2.0",
         method: "notifications/initialized",
         // no id - this is a notification
@@ -251,7 +251,7 @@ describe("mcp_server_core.cjs", () => {
     it("should validate JSON-RPC version", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
-      handleMessage(server, {
+      await handleMessage(server, {
         jsonrpc: "1.0", // wrong version
         id: 1,
         method: "test",
@@ -275,7 +275,7 @@ describe("mcp_server_core.cjs", () => {
         content: [{ type: "text", text: `default handler for ${type}` }],
       });
 
-      handleMessage(
+      await handleMessage(
         server,
         {
           jsonrpc: "2.0",
@@ -291,6 +291,359 @@ describe("mcp_server_core.cjs", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].result.content[0].text).toBe("default handler for no_handler_tool");
+    });
+  });
+
+  describe("loadToolHandlers", () => {
+    let server;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+    let tempDir;
+
+    beforeEach(async () => {
+      vi.resetModules();
+
+      // Suppress stderr output during tests
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const { createServer } = await import("./mcp_server_core.cjs");
+      server = createServer({ name: "test-server", version: "1.0.0" });
+
+      // Create a temporary directory for test handler files
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-handlers-"));
+    });
+
+    afterEach(() => {
+      // Clean up temporary directory
+      if (tempDir && fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true });
+      }
+    });
+
+    it("should load a sync handler from file path", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a test handler file
+      const handlerPath = path.join(tempDir, "sync_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = function(args) {
+          return { result: "sync result: " + args.input };
+        };`
+      );
+
+      // Create tool with handler path
+      const tools = [
+        {
+          name: "test_sync_tool",
+          description: "A tool with sync handler",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      // Load handlers
+      loadToolHandlers(server, tools, tempDir);
+
+      // Verify handler was loaded
+      expect(typeof tools[0].handler).toBe("function");
+
+      // Register and call tool
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_sync_tool", arguments: { input: "hello" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toContain("sync result: hello");
+    });
+
+    it("should load an async handler from file path", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a test async handler file
+      const handlerPath = path.join(tempDir, "async_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = async function(args) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+          return { result: "async result: " + args.input };
+        };`
+      );
+
+      // Create tool with handler path
+      const tools = [
+        {
+          name: "test_async_tool",
+          description: "A tool with async handler",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      // Load handlers
+      loadToolHandlers(server, tools, tempDir);
+
+      // Verify handler was loaded
+      expect(typeof tools[0].handler).toBe("function");
+
+      // Register and call tool
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_async_tool", arguments: { input: "world" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toContain("async result: world");
+    });
+
+    it("should handle handler that returns MCP format directly", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a handler that returns MCP format
+      const handlerPath = path.join(tempDir, "mcp_format_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = function(args) {
+          return {
+            content: [{ type: "text", text: "MCP format: " + args.input }]
+          };
+        };`
+      );
+
+      const tools = [
+        {
+          name: "test_mcp_format",
+          description: "A tool returning MCP format",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_mcp_format", arguments: { input: "test" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toBe("MCP format: test");
+    });
+
+    it("should handle handler with module.default export pattern", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a handler with default export pattern
+      const handlerPath = path.join(tempDir, "default_export_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = {
+          default: function(args) {
+            return { result: "default export: " + args.input };
+          }
+        };`
+      );
+
+      const tools = [
+        {
+          name: "test_default_export",
+          description: "A tool with default export",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_default_export", arguments: { input: "hi" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toContain("default export: hi");
+    });
+
+    it("should skip tools without handler path", async () => {
+      const { loadToolHandlers } = await import("./mcp_server_core.cjs");
+
+      const tools = [
+        {
+          name: "tool_without_handler",
+          description: "A tool without handler path",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ];
+
+      const result = loadToolHandlers(server, tools, tempDir);
+
+      // Handler should remain undefined
+      expect(tools[0].handler).toBeUndefined();
+      expect(result).toBe(tools); // Should return the same array
+    });
+
+    it("should handle non-existent handler file", async () => {
+      const { loadToolHandlers } = await import("./mcp_server_core.cjs");
+
+      const tools = [
+        {
+          name: "tool_with_missing_handler",
+          description: "A tool with missing handler file",
+          inputSchema: { type: "object", properties: {} },
+          handler: "/non/existent/handler.cjs",
+        },
+      ];
+
+      // Should not throw, but handler should remain the string path (or be updated to undefined)
+      loadToolHandlers(server, tools, tempDir);
+
+      // Handler should still be the original string (load failed)
+      expect(tools[0].handler).toBe("/non/existent/handler.cjs");
+    });
+
+    it("should handle handler that is not a function", async () => {
+      const { loadToolHandlers } = await import("./mcp_server_core.cjs");
+
+      // Create a handler file that exports an object, not a function
+      const handlerPath = path.join(tempDir, "not_a_function.cjs");
+      fs.writeFileSync(handlerPath, `module.exports = { notAFunction: true };`);
+
+      const tools = [
+        {
+          name: "tool_with_invalid_handler",
+          description: "A tool with invalid handler",
+          inputSchema: { type: "object", properties: {} },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+
+      // Handler should remain the original string (validation failed)
+      expect(tools[0].handler).toBe(handlerPath);
+    });
+
+    it("should handle handler that throws error", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a handler that throws an error
+      const handlerPath = path.join(tempDir, "error_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = function(args) {
+          throw new Error("Handler error: " + args.input);
+        };`
+      );
+
+      const tools = [
+        {
+          name: "test_error_handler",
+          description: "A tool that throws",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: handlerPath,
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_error_handler", arguments: { input: "oops" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32603);
+      expect(results[0].error.message).toContain("Handler error: oops");
+    });
+
+    it("should resolve relative paths from basePath", async () => {
+      const { loadToolHandlers, registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+
+      // Create a handler in a subdirectory
+      const subDir = path.join(tempDir, "handlers");
+      fs.mkdirSync(subDir, { recursive: true });
+      const handlerPath = path.join(subDir, "relative_handler.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `module.exports = function(args) {
+          return { result: "relative: " + args.input };
+        };`
+      );
+
+      // Use relative path in tool definition
+      const tools = [
+        {
+          name: "test_relative_path",
+          description: "A tool with relative handler path",
+          inputSchema: { type: "object", properties: { input: { type: "string" } } },
+          handler: "handlers/relative_handler.cjs",
+        },
+      ];
+
+      loadToolHandlers(server, tools, tempDir);
+
+      expect(typeof tools[0].handler).toBe("function");
+
+      registerTool(server, tools[0]);
+
+      const results = [];
+      server.writeMessage = msg => results.push(msg);
+      server.replyResult = (id, result) => results.push({ jsonrpc: "2.0", id, result });
+      server.replyError = (id, code, message) => results.push({ jsonrpc: "2.0", id, error: { code, message } });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "test_relative_path", arguments: { input: "path" } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].result.content[0].text).toContain("relative: path");
     });
   });
 });
