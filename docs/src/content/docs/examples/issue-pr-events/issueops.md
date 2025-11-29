@@ -122,5 +122,9 @@ safe-outputs:
 {"type": "create_issue", "parent": "aw_abc123def456", "title": "Task 1", "body": "First task"}
 ```
 
-Use `link-sub-issue` to connect existing issues, and filter sub-issues from your issues list with `gh issue list --search "no:parent-issue"`. Assign sub-issues directly to Copilot with `assignees: copilot` for parallel execution.
+:::tip[Hide sub-issues from your issues list]
+Use `no:parent-issue` in your repository's `/issues` page to filter out sub-issues and focus on top-level work items: `/issues?q=no:parent-issue`
+:::
+
+Use `link-sub-issue` to connect existing issues. Assign sub-issues directly to Copilot with `assignees: copilot` for parallel execution.
 
