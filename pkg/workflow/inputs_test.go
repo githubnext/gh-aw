@@ -97,20 +97,21 @@ func TestParseInputDefinition(t *testing.T) {
 			}
 
 			// Check default value
-			if result.Default != tt.expected.Default {
-				// Handle numeric comparison (JSON unmarshals numbers as float64)
-				isEqual := false
-				switch expectedVal := tt.expected.Default.(type) {
-				case int:
+			// Note: The test directly passes values (not JSON), so comparison should be direct.
+			// The special int handling is for the case where int might be represented as float64.
+			defaultsMatch := result.Default == tt.expected.Default
+			if !defaultsMatch {
+				// Handle numeric comparison (JSON/YAML may represent int as float64)
+				if expectedVal, ok := tt.expected.Default.(int); ok {
 					if resultVal, ok := result.Default.(int); ok && resultVal == expectedVal {
-						isEqual = true
+						defaultsMatch = true
 					} else if resultVal, ok := result.Default.(float64); ok && int(resultVal) == expectedVal {
-						isEqual = true // JSON numbers may be float64
+						defaultsMatch = true
 					}
 				}
-				if !isEqual {
-					t.Errorf("Default: got %v, want %v", result.Default, tt.expected.Default)
-				}
+			}
+			if !defaultsMatch {
+				t.Errorf("Default: got %v (%T), want %v (%T)", result.Default, result.Default, tt.expected.Default, tt.expected.Default)
 			}
 
 			// Check options
