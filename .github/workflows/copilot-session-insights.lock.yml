@@ -2455,6 +2455,7 @@ jobs:
                 patchPath: patchPath,
               };
             }
+            const os = require("os");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -2516,6 +2517,15 @@ jobs:
                 }
               };
             }
+            function createDebugErrorFunction(server) {
+              return (prefix, error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                server.debug(`${prefix}${errorMessage}`);
+                if (error instanceof Error && error.stack) {
+                  server.debug(`${prefix}Stack trace: ${error.stack}`);
+                }
+              };
+            }
             function createWriteMessageFunction(server) {
               return obj => {
                 const json = JSON.stringify(obj);
@@ -2554,6 +2564,7 @@ jobs:
                 serverInfo,
                 tools: {},
                 debug: () => {}, 
+                debugError: () => {}, 
                 writeMessage: () => {}, 
                 replyResult: () => {}, 
                 replyError: () => {}, 
@@ -2563,10 +2574,221 @@ jobs:
                 logFileInitialized: false,
               };
               server.debug = createDebugFunction(server);
+              server.debugError = createDebugErrorFunction(server);
               server.writeMessage = createWriteMessageFunction(server);
               server.replyResult = createReplyResultFunction(server);
               server.replyError = createReplyErrorFunction(server);
               return server;
+            }
+            function createWrappedHandler(server, toolName, handlerFn) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+                try {
+                  const result = await Promise.resolve(handlerFn(args));
+                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                  if (result && typeof result === "object" && Array.isArray(result.content)) {
+                    server.debug(`  [${toolName}] Result is already in MCP format`);
+                    return result;
+                  }
+                  let serializedResult;
+                  try {
+                    serializedResult = JSON.stringify(result);
+                  } catch (serializationError) {
+                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+                    serializedResult = String(result);
+                  }
+                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: serializedResult,
+                      },
+                    ],
+                  };
+                } catch (error) {
+                  server.debugError(`  [${toolName}] Handler threw error: `, error);
+                  throw error;
+                }
+              };
+            }
+            function createShellHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+                }
+                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing shell script...`);
+                  execFile(
+                    scriptPath,
+                    [],
+                    {
+                      env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Shell script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
+            }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Shell script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made shell script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+                      }
+                    }
+                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                  } else {
+                    server.debug(`  [${toolName}] Loading JavaScript handler module`);
+                    const handlerModule = require(resolvedPath);
+                    server.debug(`  [${toolName}] Handler module loaded successfully`);
+                    server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+                    let handlerFn = handlerModule;
+                    if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+                      handlerFn = handlerModule.default;
+                      server.debug(`  [${toolName}] Using module.default export`);
+                    }
+                    if (typeof handlerFn !== "function") {
+                      server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+                      server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+                      errorCount++;
+                      continue;
+                    }
+                    server.debug(`  [${toolName}] Handler function validated successfully`);
+                    server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+                    tool.handler = createWrappedHandler(server, toolName, handlerFn);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
+                  }
+                } catch (error) {
+                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
+                  errorCount++;
+                }
+              }
+              server.debug(`Handler loading complete:`);
+              server.debug(`  Loaded: ${loadedCount}`);
+              server.debug(`  Skipped (no handler path): ${skippedCount}`);
+              server.debug(`  Errors: ${errorCount}`);
+              return tools;
             }
             function registerTool(server, tool) {
               const normalizedName = normalizeTool(tool.name);
@@ -2579,7 +2801,7 @@ jobs:
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
             }
-            function handleMessage(server, req, defaultHandler) {
+            async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
                 server.debug(`Invalid message: not an object`);
                 return;
@@ -2648,7 +2870,9 @@ jobs:
                       return;
                     }
                   }
-                  const result = handler(args);
+                  server.debug(`Calling handler for tool: ${name}`);
+                  const result = await Promise.resolve(handler(args));
+                  server.debug(`Handler returned for tool: ${name}`);
                   const content = result && result.content ? result.content : [];
                   server.replyResult(id, { content, isError: false });
                 } else if (/^notifications\//.test(method)) {
@@ -2660,7 +2884,7 @@ jobs:
                 server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
               }
             }
-            function processReadBuffer(server, defaultHandler) {
+            async function processReadBuffer(server, defaultHandler) {
               while (true) {
                 try {
                   const message = server.readBuffer.readMessage();
@@ -2668,7 +2892,7 @@ jobs:
                     break;
                   }
                   server.debug(`recv: ${JSON.stringify(message)}`);
-                  handleMessage(server, message, defaultHandler);
+                  await handleMessage(server, message, defaultHandler);
                 } catch (error) {
                   server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
@@ -2681,9 +2905,9 @@ jobs:
               if (!Object.keys(server.tools).length) {
                 throw new Error("No tools registered");
               }
-              const onData = chunk => {
+              const onData = async chunk => {
                 server.readBuffer.append(chunk);
-                processReadBuffer(server, defaultHandler);
+                await processReadBuffer(server, defaultHandler);
               };
               process.stdin.on("data", onData);
               process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
