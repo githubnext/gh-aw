@@ -3,13 +3,19 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var prLog = logger.New("workflow:pr")
 
 // generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available
 func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
+	prLog.Print("Generating PR checkout step")
 	// Check that permissions allow contents read access
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
+		prLog.Print("Skipping PR checkout step: no contents read access")
 		return // No contents read access, cannot checkout
 	}
 
@@ -31,6 +37,7 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
 	effectiveToken := getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken)
+	prLog.Print("PR checkout step configured with GitHub token")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString(fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 
