@@ -13,18 +13,6 @@ describe("mcp_server_core.cjs", () => {
     delete process.env.GH_AW_MCP_LOG_DIR;
   });
 
-  describe("ReadBuffer re-export", () => {
-    it("should re-export ReadBuffer from read_buffer.cjs", async () => {
-      const { ReadBuffer } = await import("./mcp_server_core.cjs");
-      expect(ReadBuffer).toBeDefined();
-
-      // Basic functionality check
-      const buffer = new ReadBuffer();
-      buffer.append(Buffer.from('{"test":"value"}\n'));
-      expect(buffer.readMessage()).toEqual({ test: "value" });
-    });
-  });
-
   describe("createServer", () => {
     it("should create a server with the given info", async () => {
       const { createServer } = await import("./mcp_server_core.cjs");

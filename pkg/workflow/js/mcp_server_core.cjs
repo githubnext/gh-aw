@@ -361,7 +361,6 @@ function start(server, options = {}) {
 }
 
 module.exports = {
-  ReadBuffer,
   createServer,
   registerTool,
   normalizeTool,
