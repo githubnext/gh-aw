@@ -28,11 +28,18 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var pipLog = logger.New("workflow:pip")
 
 // extractPipPackages extracts pip package names from workflow data
 func extractPipPackages(workflowData *WorkflowData) []string {
-	return collectPackagesFromWorkflow(workflowData, extractPipFromCommands, "")
+	pipLog.Print("Extracting pip packages from workflow data")
+	packages := collectPackagesFromWorkflow(workflowData, extractPipFromCommands, "")
+	pipLog.Printf("Extracted %d pip packages", len(packages))
+	return packages
 }
 
 // extractPipFromCommands extracts pip package names from command strings
@@ -47,11 +54,15 @@ func extractPipFromCommands(commands string) []string {
 
 // extractUvPackages extracts uv package names from workflow data
 func extractUvPackages(workflowData *WorkflowData) []string {
-	return collectPackagesFromWorkflow(workflowData, extractUvFromCommands, "")
+	pipLog.Print("Extracting uv packages from workflow data")
+	packages := collectPackagesFromWorkflow(workflowData, extractUvFromCommands, "")
+	pipLog.Printf("Extracted %d uv packages", len(packages))
+	return packages
 }
 
 // extractUvFromCommands extracts uv package names from command strings
 func extractUvFromCommands(commands string) []string {
+	pipLog.Printf("Extracting uv packages from commands: line_count=%d", len(strings.Split(commands, "\n")))
 	var packages []string
 	lines := strings.Split(commands, "\n")
 

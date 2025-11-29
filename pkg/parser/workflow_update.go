@@ -7,11 +7,15 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
 
+var workflowUpdateLog = logger.New("parser:workflow_update")
+
 // UpdateWorkflowFrontmatter updates the frontmatter of a workflow file using a callback function
 func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter map[string]any) error, verbose bool) error {
+	workflowUpdateLog.Printf("Updating workflow frontmatter: path=%s", workflowPath)
 	// Read the workflow file
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
@@ -51,6 +55,7 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 		return fmt.Errorf("failed to write updated workflow file: %w", err)
 	}
 
+	workflowUpdateLog.Printf("Successfully updated workflow file: %s", workflowPath)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updated workflow file: %s", console.ToRelativePath(workflowPath))))
 	}
@@ -60,8 +65,10 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 
 // EnsureToolsSection ensures the tools section exists in frontmatter and returns it
 func EnsureToolsSection(frontmatter map[string]any) map[string]any {
+	workflowUpdateLog.Print("Ensuring tools section exists in frontmatter")
 	if frontmatter["tools"] == nil {
 		frontmatter["tools"] = make(map[string]any)
+		workflowUpdateLog.Print("Created new tools section")
 	}
 
 	tools, ok := frontmatter["tools"].(map[string]any)
@@ -102,6 +109,7 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 // The YAML library may drop quotes from cron expressions like "0 14 * * 1-5" which
 // causes validation errors since they start with numbers but contain spaces and special chars.
 func QuoteCronExpressions(yamlContent string) string {
+	workflowUpdateLog.Print("Quoting cron expressions in YAML content")
 	// Pattern to match unquoted cron expressions after "cron:"
 	// Matches: cron: 0 14 * * 1-5
 	// Captures the cron value to be quoted

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -138,6 +139,31 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'\n")
 		// Write each line of the indented JSON with proper YAML indentation
 		for _, line := range strings.Split(filteredToolsJSON, "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
+		yaml.WriteString("          EOF\n")
+
+		// Generate and write the validation configuration from Go source of truth
+		// Only include validation for activated safe output types to keep validation.json small
+		var enabledTypes []string
+		if safeOutputConfig != "" {
+			var configMap map[string]any
+			if err := json.Unmarshal([]byte(safeOutputConfig), &configMap); err == nil {
+				for typeName := range configMap {
+					enabledTypes = append(enabledTypes, typeName)
+				}
+			}
+		}
+		validationConfigJSON, err := GetValidationConfigJSON(enabledTypes)
+		if err != nil {
+			// Log error prominently - validation config is critical for safe output processing
+			// The error will be caught at compile time if this ever fails
+			mcpServersLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
+			validationConfigJSON = "{}"
+		}
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'\n")
+		// Write each line of the indented JSON with proper YAML indentation
+		for _, line := range strings.Split(validationConfigJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          EOF\n")

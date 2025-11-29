@@ -756,8 +756,8 @@ since it's not supported by actions/github-script.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+	// Verify that push_to_pull_request_branch job is generated (at proper YAML indentation)
+	if !strings.Contains(lockContentStr, "\n  push_to_pull_request_branch:") {
 		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
 	}
 
@@ -767,17 +767,26 @@ since it's not supported by actions/github-script.
 	}
 
 	// Extract the push_to_pull_request_branch job section
-	jobStartIdx := strings.Index(lockContentStr, "  push_to_pull_request_branch:")
+	// Use newline prefix to ensure we find the YAML job definition, not JavaScript object properties
+	jobStartIdx := strings.Index(lockContentStr, "\n  push_to_pull_request_branch:")
 	if jobStartIdx == -1 {
 		t.Fatal("Could not find push_to_pull_request_branch job section")
 	}
+	jobStartIdx++ // Skip the leading newline
 
-	// Find the next job (or end of file) to get the job boundary
-	jobEndIdx := strings.Index(lockContentStr[jobStartIdx+1:], "\njobs:")
-	if jobEndIdx == -1 {
-		jobEndIdx = len(lockContentStr)
-	} else {
-		jobEndIdx = jobStartIdx + 1 + jobEndIdx
+	// Find the next job by looking for a line starting with exactly 2 spaces followed by a word and colon
+	// This avoids matching JavaScript object properties which have more indentation
+	jobEndIdx := len(lockContentStr)
+	remaining := lockContentStr[jobStartIdx+30:] // Skip past "  push_to_pull_request_branch:"
+	lines := strings.Split(remaining, "\n")
+	offset := jobStartIdx + 30
+	for _, line := range lines {
+		offset += len(line) + 1 // +1 for newline
+		// Match lines that look like YAML job definitions: exactly 2 spaces, then word characters, then colon
+		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strings.Contains(line, ":") {
+			jobEndIdx = offset - len(line) - 1
+			break
+		}
 	}
 
 	jobSection := lockContentStr[jobStartIdx:jobEndIdx]

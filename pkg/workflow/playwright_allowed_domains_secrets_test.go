@@ -32,8 +32,8 @@ tools:
 
 Test secret in allowed_domains.
 `,
-			expectEnvVarPrefix:   "GH_AW_EXPR_",
-			expectMCPConfigValue: "${GH_AW_EXPR_",
+			expectEnvVarPrefix:   "GH_AW_SECRETS_",
+			expectMCPConfigValue: "${GH_AW_SECRETS_",
 			expectRedaction:      true,
 			expectSecretName:     "TEST_DOMAIN",
 		},
@@ -54,8 +54,8 @@ tools:
 
 Test multiple secrets in allowed_domains.
 `,
-			expectEnvVarPrefix:   "GH_AW_EXPR_",
-			expectMCPConfigValue: "${GH_AW_EXPR_",
+			expectEnvVarPrefix:   "GH_AW_SECRETS_",
+			expectMCPConfigValue: "${GH_AW_SECRETS_",
 			expectRedaction:      true,
 			expectSecretName:     "API_KEY",
 		},
@@ -206,10 +206,10 @@ func TestExtractExpressionsFromPlaywrightArgs(t *testing.T) {
 				t.Errorf("Expected %d expressions, got %d", tt.expectedExpressions, len(expressions))
 			}
 
-			// Verify all expressions are in the map
+			// Verify all expressions are in the map with proper GH_AW_ prefix
 			for envVar, originalExpr := range expressions {
-				if !strings.HasPrefix(envVar, "GH_AW_EXPR_") {
-					t.Errorf("Expected env var to start with GH_AW_EXPR_, got %s", envVar)
+				if !strings.HasPrefix(envVar, "GH_AW_") {
+					t.Errorf("Expected env var to start with GH_AW_, got %s", envVar)
 				}
 				if !strings.HasPrefix(originalExpr, "${{") || !strings.HasSuffix(originalExpr, "}}") {
 					t.Errorf("Expected original expression to be wrapped in ${{ }}, got %s", originalExpr)
@@ -233,14 +233,14 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 				"${{ secrets.TEST_DOMAIN }}",
 			},
 			expressions: map[string]string{
-				"GH_AW_EXPR_TEST": "${{ secrets.TEST_DOMAIN }}",
+				"GH_AW_SECRETS_TEST_DOMAIN": "${{ secrets.TEST_DOMAIN }}",
 			},
 			validate: func(t *testing.T, result []string) {
 				if len(result) != 1 {
 					t.Errorf("Expected 1 result, got %d", len(result))
 				}
-				if !strings.Contains(result[0], "${GH_AW_EXPR_") {
-					t.Errorf("Expected result to contain ${GH_AW_EXPR_, got %s", result[0])
+				if !strings.Contains(result[0], "${GH_AW_") {
+					t.Errorf("Expected result to contain ${GH_AW_, got %s", result[0])
 				}
 				if strings.Contains(result[0], "${{ secrets.") {
 					t.Errorf("Result should not contain secret expressions, got %s", result[0])
@@ -255,8 +255,8 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 				"${{ secrets.ANOTHER_SECRET }}",
 			},
 			expressions: map[string]string{
-				"GH_AW_EXPR_API":     "${{ secrets.API_KEY }}",
-				"GH_AW_EXPR_ANOTHER": "${{ secrets.ANOTHER_SECRET }}",
+				"GH_AW_SECRETS_API_KEY":        "${{ secrets.API_KEY }}",
+				"GH_AW_SECRETS_ANOTHER_SECRET": "${{ secrets.ANOTHER_SECRET }}",
 			},
 			validate: func(t *testing.T, result []string) {
 				if len(result) != 3 {

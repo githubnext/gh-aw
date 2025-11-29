@@ -127,7 +127,8 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Verify that environment variables are defined for the expressions
-	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "GH_AW_GITHUB_") {
 		t.Error("Environment variables should be defined for GitHub expressions")
 	}
 }

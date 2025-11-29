@@ -12,7 +12,10 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-engine: copilot
+engine:
+  id: codex
+  model: gpt-5-mini
+strict: false  # Required: codex engine doesn't support network firewall
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
@@ -25,7 +28,6 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
 tools:
   bash:
     - "*"
