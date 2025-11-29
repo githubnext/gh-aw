@@ -2794,6 +2794,13 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_INPUTS_CONCLUSION: ${{ inputs.conclusion }}
+          GH_AW_INPUTS_HEAD_SHA: ${{ inputs.head_sha }}
+          GH_AW_INPUTS_HTML_URL: ${{ inputs.html_url }}
+          GH_AW_INPUTS_RUN_ID: ${{ inputs.run_id }}
+          GH_AW_INPUTS_RUN_NUMBER: ${{ inputs.run_number }}
+          GH_AW_INPUTS_WORKFLOW_NAME: ${{ inputs.workflow_name }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"

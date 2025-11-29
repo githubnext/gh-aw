@@ -1335,6 +1335,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_PROJECT_URL: ${{ github.event.inputs.project_url }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
