@@ -8,6 +8,7 @@ on:
       - '**.go'
       - 'pkg/workflow/**'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/**/*.md'
   workflow_dispatch:
 jobs:
   test:
@@ -306,3 +307,46 @@ jobs:
         run: |
           go test -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+          - name: zizmor
+            flag: --zizmor
+          - name: actionlint
+            flag: --actionlint
+          - name: poutine
+            flag: --poutine
+    concurrency:
+      group: ci-${{ github.ref }}-security-scan-${{ matrix.tool.name }}
+      cancel-in-progress: true
+    name: "Security Scan: ${{ matrix.tool.name }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Run ${{ matrix.tool.name }} security scan
+        run: ./gh-aw compile ${{ matrix.tool.flag }}
