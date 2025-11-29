@@ -10,7 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: write
-engine: codex
+engine: copilot
 strict: false
 tracker-id: daily-performance-summary
 tools:
