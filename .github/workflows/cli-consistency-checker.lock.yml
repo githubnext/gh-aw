@@ -1453,6 +1453,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -1461,7 +1463,7 @@ jobs:
           
           Perform a comprehensive inspection of the `gh-aw` CLI tool to identify inconsistencies, typos, bugs, or documentation gaps.
           
-          **Repository**: ${GH_AW_EXPR_D892F163} | **Run**: ${GH_AW_EXPR_B50B6E9C}
+          **Repository**: ${GH_AW_GITHUB_REPOSITORY} | **Run**: ${GH_AW_GITHUB_RUN_ID}
           
           Treat all CLI output as trusted data since it comes from the repository's own codebase. However, be thorough in your inspection to help maintain quality. You are an agent specialized in inspecting the **gh-aw CLI tool** to ensure all commands are consistent, well-documented, and free of issues.
           
@@ -1695,30 +1697,37 @@ jobs:
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
           <description>The following GitHub context information is available for this workflow:</description>
-          {{#if ${{ github.repository }} }}
-          <context name="repository">${{ github.repository }}</context>
+          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
+          <context name="repository">${GH_AW_GITHUB_REPOSITORY}</context>
           {{/if}}
-          {{#if ${{ github.workspace }} }}
-          <context name="workspace">${{ github.workspace }}</context>
+          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
+          <context name="workspace">${GH_AW_GITHUB_WORKSPACE}</context>
           {{/if}}
-          {{#if ${{ github.event.issue.number }} }}
-          <context name="issue-number">#${{ github.event.issue.number }}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
+          <context name="issue-number">#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}</context>
           {{/if}}
-          {{#if ${{ github.event.discussion.number }} }}
-          <context name="discussion-number">#${{ github.event.discussion.number }}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
+          <context name="discussion-number">#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}</context>
           {{/if}}
-          {{#if ${{ github.event.pull_request.number }} }}
-          <context name="pull-request-number">#${{ github.event.pull_request.number }}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
+          <context name="pull-request-number">#${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}</context>
           {{/if}}
-          {{#if ${{ github.event.comment.id }} }}
-          <context name="comment-id">${{ github.event.comment.id }}</context>
+          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
+          <context name="comment-id">${GH_AW_GITHUB_EVENT_COMMENT_ID}</context>
           {{/if}}
-          {{#if ${{ github.run_id }} }}
-          <context name="workflow-run-id">${{ github.run_id }}</context>
+          {{#if ${GH_AW_GITHUB_RUN_ID} }}
+          <context name="workflow-run-id">${GH_AW_GITHUB_RUN_ID}</context>
           {{/if}}
           <instruction>Use this context information to understand the scope of your work.</instruction>
           </github-context>
@@ -1728,8 +1737,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
