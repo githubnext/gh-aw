@@ -65,6 +65,9 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 		}
 
+		// Extract custom headers from GitHub tool configuration
+		customHeaders := getGitHubHeaders(githubTool)
+
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
 			Lockdown:           lockdown,
@@ -73,6 +76,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			IncludeEnvSection:  r.options.IncludeCopilotFields,
+			CustomHeaders:      customHeaders,
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -482,6 +486,8 @@ type GitHubMCPRemoteOptions struct {
 	AllowedTools []string
 	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
 	IncludeEnvSection bool
+	// CustomHeaders are additional HTTP headers to include (user-provided)
+	CustomHeaders map[string]string
 }
 
 // RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
@@ -498,6 +504,13 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 
 	// Collect headers in a map
 	headers := make(map[string]string)
+
+	// Add custom headers first (allows built-in headers to override if needed)
+	for k, v := range options.CustomHeaders {
+		headers[k] = v
+	}
+
+	// Add built-in Authorization header (may override custom Authorization)
 	headers["Authorization"] = options.AuthorizationValue
 
 	// Add X-MCP-Readonly header if read-only mode is enabled
