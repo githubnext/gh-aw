@@ -1,5 +1,8 @@
 <github-context>
 <description>The following GitHub context information is available for this workflow:</description>
+{{#if ${{ github.actor }} }}
+<context name="actor">${{ github.actor }}</context>
+{{/if}}
 {{#if ${{ github.repository }} }}
 <context name="repository">${{ github.repository }}</context>
 {{/if}}

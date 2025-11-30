@@ -121,6 +121,7 @@ func TestGenerateGitHubContextSecurePattern(t *testing.T) {
 
 	// Verify that expressions appear in the env section with pretty names
 	expectedEnvVars := map[string]string{
+		"GH_AW_GITHUB_ACTOR":                     "${{ github.actor }}",
 		"GH_AW_GITHUB_REPOSITORY":                "${{ github.repository }}",
 		"GH_AW_GITHUB_WORKSPACE":                 "${{ github.workspace }}",
 		"GH_AW_GITHUB_EVENT_ISSUE_NUMBER":        "${{ github.event.issue.number }}",
@@ -241,6 +242,7 @@ func TestGitHubContextTemplateConditionals(t *testing.T) {
 
 	// Check for all expected conditional blocks
 	expectedConditionals := []string{
+		"{{#if ${{ github.actor }} }}",
 		"{{#if ${{ github.repository }} }}",
 		"{{#if ${{ github.workspace }} }}",
 		"{{#if ${{ github.event.issue.number }} }}",
