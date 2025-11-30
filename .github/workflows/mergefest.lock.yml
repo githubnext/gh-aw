@@ -3964,6 +3964,38 @@ jobs:
                 runLogParser,
               };
             }
+            const MAX_TOOL_OUTPUT_LENGTH = 500;
+            const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
+            const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+            class StepSummaryTracker {
+              constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
+                this.currentSize = 0;
+                this.maxSize = maxSize;
+                this.limitReached = false;
+              }
+              add(content) {
+                if (this.limitReached) {
+                  return false;
+                }
+                const contentSize = Buffer.byteLength(content, "utf8");
+                if (this.currentSize + contentSize > this.maxSize) {
+                  this.limitReached = true;
+                  return false;
+                }
+                this.currentSize += contentSize;
+                return true;
+              }
+              isLimitReached() {
+                return this.limitReached;
+              }
+              getSize() {
+                return this.currentSize;
+              }
+              reset() {
+                this.currentSize = 0;
+                this.limitReached = false;
+              }
+            }
             function formatDuration(ms) {
               if (!ms || ms <= 0) return "";
               const seconds = Math.round(ms / 1000);
@@ -4013,7 +4045,7 @@ jobs:
               return toolName;
             }
             function generateConversationMarkdown(logEntries, options) {
-              const { formatToolCallback, formatInitCallback } = options;
+              const { formatToolCallback, formatInitCallback, summaryTracker } = options;
               const toolUsePairs = new Map(); 
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
@@ -4025,37 +4057,69 @@ jobs:
                 }
               }
               let markdown = "";
+              let sizeLimitReached = false;
+              function addContent(content) {
+                if (summaryTracker && !summaryTracker.add(content)) {
+                  sizeLimitReached = true;
+                  return false;
+                }
+                markdown += content;
+                return true;
+              }
               const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
               if (initEntry && formatInitCallback) {
-                markdown += "## 🚀 Initialization\n\n";
+                if (!addContent("## 🚀 Initialization\n\n")) {
+                  return { markdown, commandSummary: [], sizeLimitReached };
+                }
                 const initResult = formatInitCallback(initEntry);
                 if (typeof initResult === "string") {
-                  markdown += initResult;
+                  if (!addContent(initResult)) {
+                    return { markdown, commandSummary: [], sizeLimitReached };
+                  }
                 } else if (initResult && initResult.markdown) {
-                  markdown += initResult.markdown;
+                  if (!addContent(initResult.markdown)) {
+                    return { markdown, commandSummary: [], sizeLimitReached };
+                  }
                 }
-                markdown += "\n";
+                if (!addContent("\n")) {
+                  return { markdown, commandSummary: [], sizeLimitReached };
+                }
               }
-              markdown += "\n## 🤖 Reasoning\n\n";
+              if (!addContent("\n## 🤖 Reasoning\n\n")) {
+                return { markdown, commandSummary: [], sizeLimitReached };
+              }
               for (const entry of logEntries) {
+                if (sizeLimitReached) break;
                 if (entry.type === "assistant" && entry.message?.content) {
                   for (const content of entry.message.content) {
+                    if (sizeLimitReached) break;
                     if (content.type === "text" && content.text) {
                       const text = content.text.trim();
                       if (text && text.length > 0) {
-                        markdown += text + "\n\n";
+                        if (!addContent(text + "\n\n")) {
+                          break;
+                        }
                       }
                     } else if (content.type === "tool_use") {
                       const toolResult = toolUsePairs.get(content.id);
                       const toolMarkdown = formatToolCallback(content, toolResult);
                       if (toolMarkdown) {
-                        markdown += toolMarkdown;
+                        if (!addContent(toolMarkdown)) {
+                          break;
+                        }
                       }
                     }
                   }
                 }
               }
-              markdown += "## 🤖 Commands and Tools\n\n";
+              if (sizeLimitReached) {
+                markdown += SIZE_LIMIT_WARNING;
+                return { markdown, commandSummary: [], sizeLimitReached };
+              }
+              if (!addContent("## 🤖 Commands and Tools\n\n")) {
+                markdown += SIZE_LIMIT_WARNING;
+                return { markdown, commandSummary: [], sizeLimitReached: true };
+              }
               const commandSummary = []; 
               for (const entry of logEntries) {
                 if (entry.type === "assistant" && entry.message?.content) {
@@ -4086,12 +4150,18 @@ jobs:
               }
               if (commandSummary.length > 0) {
                 for (const cmd of commandSummary) {
-                  markdown += `${cmd}\n`;
+                  if (!addContent(`${cmd}\n`)) {
+                    markdown += SIZE_LIMIT_WARNING;
+                    return { markdown, commandSummary, sizeLimitReached: true };
+                  }
                 }
               } else {
-                markdown += "No commands or tools used.\n";
+                if (!addContent("No commands or tools used.\n")) {
+                  markdown += SIZE_LIMIT_WARNING;
+                  return { markdown, commandSummary, sizeLimitReached: true };
+                }
               }
-              return { markdown, commandSummary };
+              return { markdown, commandSummary, sizeLimitReached };
             }
             function generateInformationSection(lastEntry, options = {}) {
               const { additionalInfoCallback } = options;
@@ -4327,19 +4397,10 @@ jobs:
                 }
               }
               if (details && details.trim()) {
-                if (includeDetailedParameters) {
-                  sections.push({
-                    label: "Response",
-                    content: details,
-                  });
-                } else {
-                  const maxDetailsLength = 500;
-                  const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-                  sections.push({
-                    label: "Output",
-                    content: truncatedDetails,
-                  });
-                }
+                sections.push({
+                  label: includeDetailedParameters ? "Response" : "Output",
+                  content: details,
+                });
               }
               return formatToolCallAsDetails({
                 summary,
@@ -4392,7 +4453,7 @@ jobs:
               return logEntries;
             }
             function formatToolCallAsDetails(options) {
-              const { summary, statusIcon, sections, metadata } = options;
+              const { summary, statusIcon, sections, metadata, maxContentLength = MAX_TOOL_OUTPUT_LENGTH } = options;
               let fullSummary = summary;
               if (statusIcon && !summary.startsWith(statusIcon)) {
                 fullSummary = `${statusIcon} ${summary}`;
@@ -4410,12 +4471,16 @@ jobs:
                   continue;
                 }
                 detailsContent += `**${section.label}:**\n\n`;
+                let content = section.content;
+                if (content.length > maxContentLength) {
+                  content = content.substring(0, maxContentLength) + "... (truncated)";
+                }
                 if (section.language) {
                   detailsContent += `\`\`\`\`\`\`${section.language}\n`;
                 } else {
                   detailsContent += "``````\n";
                 }
-                detailsContent += section.content;
+                detailsContent += content;
                 detailsContent += "\n``````\n\n";
               }
               detailsContent = detailsContent.trimEnd();
