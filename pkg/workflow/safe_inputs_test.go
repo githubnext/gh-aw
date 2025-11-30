@@ -339,6 +339,28 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	if !strings.Contains(script, "handleLargeOutput") {
 		t.Error("Script should contain handleLargeOutput function")
 	}
+
+	// Check for structured response fields
+	if !strings.Contains(script, "status") {
+		t.Error("Script should contain status field in structured response")
+	}
+
+	if !strings.Contains(script, "file_path") {
+		t.Error("Script should contain file_path field in structured response")
+	}
+
+	if !strings.Contains(script, "file_size_bytes") {
+		t.Error("Script should contain file_size_bytes field in structured response")
+	}
+
+	// Check for JSON schema extraction with jq
+	if !strings.Contains(script, "extractJsonSchema") {
+		t.Error("Script should contain extractJsonSchema function")
+	}
+
+	if !strings.Contains(script, "json_schema_preview") {
+		t.Error("Script should contain json_schema_preview field for JSON output")
+	}
 }
 
 func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {

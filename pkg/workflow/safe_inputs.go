@@ -435,13 +435,29 @@ function ensureCallsDir() {
   }
 }
 
+// Attempt to extract JSON schema using jq
+async function extractJsonSchema(filepath) {
+  try {
+    // Try to extract a simplified JSON schema showing structure
+    const { stdout } = await execFileAsync("jq", [
+      "-r",
+      "if type == \"array\" then {type: \"array\", length: length, items_schema: (first | if type == \"object\" then (keys | map({(.): \"...\"}) | add) else type end)} elif type == \"object\" then (keys | map({(.): \"...\"}) | add) else {type: type} end",
+      filepath
+    ], { timeout: 5000 });
+    return stdout.trim();
+  } catch (error) {
+    // jq not available or failed - that's okay
+    return null;
+  }
+}
+
 // Handle large output by writing to file
-function handleLargeOutput(result) {
+async function handleLargeOutput(result) {
   if (!result || !result.content || !Array.isArray(result.content)) {
     return result;
   }
 
-  const processedContent = result.content.map((item) => {
+  const processedContent = await Promise.all(result.content.map(async (item) => {
     if (item.type === "text" && typeof item.text === "string" && item.text.length > LARGE_OUTPUT_THRESHOLD) {
       ensureCallsDir();
       callCounter++;
@@ -449,14 +465,34 @@ function handleLargeOutput(result) {
       const filename = "call_" + timestamp + "_" + callCounter + ".txt";
       const filepath = path.join(CALLS_DIR, filename);
       fs.writeFileSync(filepath, item.text, "utf8");
-      debug("Large output (" + item.text.length + " chars) written to: " + filepath);
+      const fileSize = item.text.length;
+      debug("Large output (" + fileSize + " chars) written to: " + filepath);
+
+      // Build structured response
+      let structuredResponse = {
+        status: "output_saved_to_file",
+        file_path: filepath,
+        file_size_bytes: fileSize,
+        file_size_chars: fileSize,
+        message: "Output was too large and has been saved to a file. Read the file to access the full content."
+      };
+
+      // Attempt to extract JSON schema if output looks like JSON
+      if (item.text.trim().startsWith("{") || item.text.trim().startsWith("[")) {
+        const schema = await extractJsonSchema(filepath);
+        if (schema) {
+          structuredResponse.json_schema_preview = schema;
+          structuredResponse.message += " JSON structure preview is provided below.";
+        }
+      }
+
       return {
         type: "text",
-        text: "[Output written to file: " + filepath + " (" + item.text.length + " chars)]"
+        text: JSON.stringify(structuredResponse, null, 2)
       };
     }
     return item;
-  });
+  }));
 
   return { ...result, content: processedContent };
 }
