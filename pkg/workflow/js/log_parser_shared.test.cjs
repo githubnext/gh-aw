@@ -990,5 +990,182 @@ describe("log_parser_shared.cjs", () => {
       expect(result).not.toContain("**Response:**");
       expect(result).not.toContain("**Error:**");
     });
+
+    it("should truncate content exceeding maxContentLength", async () => {
+      const { formatToolCallAsDetails, MAX_TOOL_OUTPUT_LENGTH } = await import("./log_parser_shared.cjs");
+
+      const longContent = "a".repeat(1000);
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: longContent }],
+      });
+
+      // Should contain truncated content (500 chars) plus "... (truncated)"
+      expect(result).toContain("... (truncated)");
+      expect(result.length).toBeLessThan(longContent.length + 200);
+
+      // Verify truncation happens at MAX_TOOL_OUTPUT_LENGTH (500)
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(500);
+    });
+
+    it("should allow custom maxContentLength", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const longContent = "a".repeat(200);
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: longContent }],
+        maxContentLength: 100,
+      });
+
+      // Should contain truncated content (100 chars) plus "... (truncated)"
+      expect(result).toContain("... (truncated)");
+      expect(result).toContain("a".repeat(100));
+      expect(result).not.toContain("a".repeat(101));
+    });
+
+    it("should not truncate content within maxContentLength", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const shortContent = "short content";
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: shortContent }],
+      });
+
+      expect(result).toContain(shortContent);
+      expect(result).not.toContain("truncated");
+    });
+  });
+
+  describe("StepSummaryTracker", () => {
+    it("should track content size", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(1000);
+
+      expect(tracker.add("hello")).toBe(true);
+      expect(tracker.getSize()).toBe(5);
+      expect(tracker.isLimitReached()).toBe(false);
+
+      expect(tracker.add(" world")).toBe(true);
+      expect(tracker.getSize()).toBe(11);
+    });
+
+    it("should detect when limit is reached", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(10);
+
+      expect(tracker.add("12345")).toBe(true);
+      expect(tracker.isLimitReached()).toBe(false);
+
+      // This should fail because it would exceed the limit
+      expect(tracker.add("123456")).toBe(false);
+      expect(tracker.isLimitReached()).toBe(true);
+    });
+
+    it("should reject all content after limit is reached", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(5);
+
+      expect(tracker.add("123456")).toBe(false);
+      expect(tracker.isLimitReached()).toBe(true);
+
+      // Any subsequent add should fail
+      expect(tracker.add("a")).toBe(false);
+      expect(tracker.add("")).toBe(false);
+    });
+
+    it("should reset properly", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(10);
+
+      tracker.add("12345678901"); // Exceeds limit
+      expect(tracker.isLimitReached()).toBe(true);
+
+      tracker.reset();
+      expect(tracker.isLimitReached()).toBe(false);
+      expect(tracker.getSize()).toBe(0);
+
+      expect(tracker.add("hello")).toBe(true);
+    });
+
+    it("should use MAX_STEP_SUMMARY_SIZE as default", async () => {
+      const { StepSummaryTracker, MAX_STEP_SUMMARY_SIZE } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker();
+
+      // Default is 8MB
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(8 * 1024 * 1024);
+      expect(tracker.maxSize).toBe(8 * 1024 * 1024);
+    });
+  });
+
+  describe("generateConversationMarkdown with size tracking", () => {
+    it("should return sizeLimitReached when tracker is not provided", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Hello" }],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+      });
+
+      expect(result.sizeLimitReached).toBe(false);
+    });
+
+    it("should stop rendering when size limit is reached", async () => {
+      const { generateConversationMarkdown, StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      // Use a very small limit to trigger truncation
+      const tracker = new StepSummaryTracker(50);
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "This is a longer message that should trigger the size limit" },
+              { type: "text", text: "This should not be included" },
+            ],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+        summaryTracker: tracker,
+      });
+
+      expect(result.sizeLimitReached).toBe(true);
+      expect(result.markdown).toContain("size limit reached");
+    });
+  });
+
+  describe("constants", () => {
+    it("should export MAX_TOOL_OUTPUT_LENGTH as 500", async () => {
+      const { MAX_TOOL_OUTPUT_LENGTH } = await import("./log_parser_shared.cjs");
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(500);
+    });
+
+    it("should export MAX_STEP_SUMMARY_SIZE as 8MB", async () => {
+      const { MAX_STEP_SUMMARY_SIZE } = await import("./log_parser_shared.cjs");
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(8 * 1024 * 1024);
+    });
   });
 });

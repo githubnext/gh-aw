@@ -7,6 +7,89 @@
  */
 
 /**
+ * Maximum length for tool output content in characters.
+ * Tool output/response sections are truncated to this length to keep step summaries readable.
+ */
+const MAX_TOOL_OUTPUT_LENGTH = 500;
+
+/**
+ * Maximum step summary size in bytes (8MB).
+ * GitHub Actions step summaries have a size limit. We stop rendering additional content
+ * when approaching this limit to prevent workflow failures.
+ */
+const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
+
+/**
+ * Warning message shown when step summary size limit is reached.
+ * This message is added directly to markdown (not tracked) to ensure it's always visible.
+ * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
+ */
+const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+
+/**
+ * Tracks the size of content being added to a step summary.
+ * Used to prevent exceeding GitHub Actions step summary size limits.
+ */
+class StepSummaryTracker {
+  /**
+   * Creates a new step summary size tracker.
+   * @param {number} [maxSize=MAX_STEP_SUMMARY_SIZE] - Maximum allowed size in bytes
+   */
+  constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
+    /** @type {number} */
+    this.currentSize = 0;
+    /** @type {number} */
+    this.maxSize = maxSize;
+    /** @type {boolean} */
+    this.limitReached = false;
+  }
+
+  /**
+   * Adds content to the tracker and returns whether the limit has been reached.
+   * @param {string} content - Content to add
+   * @returns {boolean} True if the content was added, false if the limit was reached
+   */
+  add(content) {
+    if (this.limitReached) {
+      return false;
+    }
+
+    const contentSize = Buffer.byteLength(content, "utf8");
+    if (this.currentSize + contentSize > this.maxSize) {
+      this.limitReached = true;
+      return false;
+    }
+
+    this.currentSize += contentSize;
+    return true;
+  }
+
+  /**
+   * Checks if the limit has been reached.
+   * @returns {boolean} True if the limit has been reached
+   */
+  isLimitReached() {
+    return this.limitReached;
+  }
+
+  /**
+   * Gets the current accumulated size.
+   * @returns {number} Current size in bytes
+   */
+  getSize() {
+    return this.currentSize;
+  }
+
+  /**
+   * Resets the tracker.
+   */
+  reset() {
+    this.currentSize = 0;
+    this.limitReached = false;
+  }
+}
+
+/**
  * Formats duration in milliseconds to human-readable string
  * @param {number} ms - Duration in milliseconds
  * @returns {string} Formatted duration string (e.g., "1s", "1m 30s")
@@ -100,14 +183,18 @@ function formatMcpName(toolName) {
  * Generates markdown summary from conversation log entries
  * This is the core shared logic between Claude and Copilot log parsers
  *
+ * When a summaryTracker is provided, the function tracks the accumulated size
+ * and stops rendering additional content when approaching the step summary limit.
+ *
  * @param {Array} logEntries - Array of log entries with type, message, etc.
  * @param {Object} options - Configuration options
  * @param {Function} options.formatToolCallback - Callback function to format tool use (content, toolResult) => string
  * @param {Function} options.formatInitCallback - Callback function to format initialization (initEntry) => string or {markdown: string, mcpFailures: string[]}
- * @returns {{markdown: string, commandSummary: Array<string>}} Generated markdown and command summary
+ * @param {StepSummaryTracker} [options.summaryTracker] - Optional tracker for step summary size limits
+ * @returns {{markdown: string, commandSummary: Array<string>, sizeLimitReached: boolean}} Generated markdown, command summary, and size limit status
  */
 function generateConversationMarkdown(logEntries, options) {
-  const { formatToolCallback, formatInitCallback } = options;
+  const { formatToolCallback, formatInitCallback, summaryTracker } = options;
 
   const toolUsePairs = new Map(); // Map tool_use_id to tool_result
 
@@ -123,47 +210,90 @@ function generateConversationMarkdown(logEntries, options) {
   }
 
   let markdown = "";
+  let sizeLimitReached = false;
+
+  /**
+   * Helper to add content with size tracking
+   * @param {string} content - Content to add
+   * @returns {boolean} True if content was added, false if limit reached
+   */
+  function addContent(content) {
+    if (summaryTracker && !summaryTracker.add(content)) {
+      sizeLimitReached = true;
+      return false;
+    }
+    markdown += content;
+    return true;
+  }
 
   // Check for initialization data first
   const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
   if (initEntry && formatInitCallback) {
-    markdown += "## 🚀 Initialization\n\n";
+    if (!addContent("## 🚀 Initialization\n\n")) {
+      return { markdown, commandSummary: [], sizeLimitReached };
+    }
     const initResult = formatInitCallback(initEntry);
     // Handle both string and object returns (for backward compatibility)
     if (typeof initResult === "string") {
-      markdown += initResult;
+      if (!addContent(initResult)) {
+        return { markdown, commandSummary: [], sizeLimitReached };
+      }
     } else if (initResult && initResult.markdown) {
-      markdown += initResult.markdown;
+      if (!addContent(initResult.markdown)) {
+        return { markdown, commandSummary: [], sizeLimitReached };
+      }
     }
-    markdown += "\n";
+    if (!addContent("\n")) {
+      return { markdown, commandSummary: [], sizeLimitReached };
+    }
   }
 
-  markdown += "\n## 🤖 Reasoning\n\n";
+  if (!addContent("\n## 🤖 Reasoning\n\n")) {
+    return { markdown, commandSummary: [], sizeLimitReached };
+  }
 
   // Second pass: process assistant messages in sequence
   for (const entry of logEntries) {
+    if (sizeLimitReached) break;
+
     if (entry.type === "assistant" && entry.message?.content) {
       for (const content of entry.message.content) {
+        if (sizeLimitReached) break;
+
         if (content.type === "text" && content.text) {
           // Add reasoning text directly
           const text = content.text.trim();
           if (text && text.length > 0) {
-            markdown += text + "\n\n";
+            if (!addContent(text + "\n\n")) {
+              break;
+            }
           }
         } else if (content.type === "tool_use") {
           // Process tool use with its result
           const toolResult = toolUsePairs.get(content.id);
           const toolMarkdown = formatToolCallback(content, toolResult);
           if (toolMarkdown) {
-            markdown += toolMarkdown;
+            if (!addContent(toolMarkdown)) {
+              break;
+            }
           }
         }
       }
     }
   }
 
-  markdown += "## 🤖 Commands and Tools\n\n";
+  // Add size limit notice if limit was reached
+  if (sizeLimitReached) {
+    markdown += SIZE_LIMIT_WARNING;
+    return { markdown, commandSummary: [], sizeLimitReached };
+  }
+
+  if (!addContent("## 🤖 Commands and Tools\n\n")) {
+    markdown += SIZE_LIMIT_WARNING;
+    return { markdown, commandSummary: [], sizeLimitReached: true };
+  }
+
   const commandSummary = []; // For the succinct summary
 
   // Collect all tool uses for summary
@@ -205,13 +335,19 @@ function generateConversationMarkdown(logEntries, options) {
   // Add command summary
   if (commandSummary.length > 0) {
     for (const cmd of commandSummary) {
-      markdown += `${cmd}\n`;
+      if (!addContent(`${cmd}\n`)) {
+        markdown += SIZE_LIMIT_WARNING;
+        return { markdown, commandSummary, sizeLimitReached: true };
+      }
     }
   } else {
-    markdown += "No commands or tools used.\n";
+    if (!addContent("No commands or tools used.\n")) {
+      markdown += SIZE_LIMIT_WARNING;
+      return { markdown, commandSummary, sizeLimitReached: true };
+    }
   }
 
-  return { markdown, commandSummary };
+  return { markdown, commandSummary, sizeLimitReached };
 }
 
 /**
@@ -552,22 +688,12 @@ function formatToolUse(toolUse, toolResult, options = {}) {
   }
 
   // Add response section if we have details
+  // Note: formatToolCallAsDetails will truncate content to MAX_TOOL_OUTPUT_LENGTH
   if (details && details.trim()) {
-    if (includeDetailedParameters) {
-      // For Copilot: full response
-      sections.push({
-        label: "Response",
-        content: details,
-      });
-    } else {
-      // For Claude: simpler details format, truncate if too long
-      const maxDetailsLength = 500;
-      const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-      sections.push({
-        label: "Output",
-        content: truncatedDetails,
-      });
-    }
+    sections.push({
+      label: includeDetailedParameters ? "Response" : "Output",
+      content: details,
+    });
   }
 
   // Use the shared formatToolCallAsDetails helper
@@ -649,11 +775,15 @@ function parseLogEntries(logContent) {
  * Generic helper to format a tool call as an HTML details section.
  * This is a reusable helper for all code engines (Claude, Copilot, Codex).
  *
+ * Tool output/response content is automatically truncated to MAX_TOOL_OUTPUT_LENGTH (500 chars)
+ * to keep step summaries readable and prevent size limit issues.
+ *
  * @param {Object} options - Configuration options
  * @param {string} options.summary - The summary text to show in the collapsed state (e.g., "✅ github::list_issues")
  * @param {string} [options.statusIcon] - Status icon (✅, ❌, or ❓). If not provided, should be included in summary.
  * @param {Array<{label: string, content: string, language?: string}>} [options.sections] - Array of content sections to show in expanded state
  * @param {string} [options.metadata] - Optional metadata to append to summary (e.g., "~100t", "5s")
+ * @param {number} [options.maxContentLength=MAX_TOOL_OUTPUT_LENGTH] - Maximum length for section content before truncation
  * @returns {string} Formatted HTML details string or plain summary if no sections provided
  *
  * @example
@@ -678,7 +808,7 @@ function parseLogEntries(logContent) {
  * });
  */
 function formatToolCallAsDetails(options) {
-  const { summary, statusIcon, sections, metadata } = options;
+  const { summary, statusIcon, sections, metadata, maxContentLength = MAX_TOOL_OUTPUT_LENGTH } = options;
 
   // Build the full summary line
   let fullSummary = summary;
@@ -704,13 +834,19 @@ function formatToolCallAsDetails(options) {
 
     detailsContent += `**${section.label}:**\n\n`;
 
+    // Truncate content if it exceeds maxContentLength
+    let content = section.content;
+    if (content.length > maxContentLength) {
+      content = content.substring(0, maxContentLength) + "... (truncated)";
+    }
+
     // Use 6 backticks to avoid conflicts with content that may contain 3 or 5 backticks
     if (section.language) {
       detailsContent += `\`\`\`\`\`\`${section.language}\n`;
     } else {
       detailsContent += "``````\n";
     }
-    detailsContent += section.content;
+    detailsContent += content;
     detailsContent += "\n``````\n\n";
   }
 
@@ -720,8 +856,14 @@ function formatToolCallAsDetails(options) {
   return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
 }
 
-// Export functions
+// Export functions and constants
 module.exports = {
+  // Constants
+  MAX_TOOL_OUTPUT_LENGTH,
+  MAX_STEP_SUMMARY_SIZE,
+  // Classes
+  StepSummaryTracker,
+  // Functions
   formatDuration,
   formatBashCommand,
   truncateString,
