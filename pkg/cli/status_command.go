@@ -409,28 +409,41 @@ func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, er
 	cmd := exec.Command("gh", args...)
 	output, err := cmd.Output()
 
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
-
 	if err != nil {
+		// Stop spinner on error
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("failed to execute gh run list command: %w", err)
 	}
 
 	// Check if output is empty
 	if len(output) == 0 {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("gh run list returned empty output")
 	}
 
 	// Validate JSON before unmarshaling
 	if !json.Valid(output) {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("gh run list returned invalid JSON")
 	}
 
 	var runs []WorkflowRun
 	if err := json.Unmarshal(output, &runs); err != nil {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("failed to parse workflow runs: %w", err)
+	}
+
+	// Stop spinner with success message
+	if !verbose {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflow runs", len(runs)))
 	}
 
 	// Build map of latest run for each workflow (first occurrence is the latest)

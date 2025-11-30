@@ -279,11 +279,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	cmd := workflow.ExecGH("run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir)
 	output, err := cmd.CombinedOutput()
 
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
 	if err != nil {
+		// Stop spinner on error
+		if !verbose {
+			spinner.Stop()
+		}
 		if verbose {
 			fmt.Println(console.FormatVerboseMessage(string(output)))
 		}
@@ -302,6 +302,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
+	}
+
+	// Stop spinner with success message
+	if !verbose {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts for run %d", runID))
 	}
 
 	// Flatten single-file artifacts

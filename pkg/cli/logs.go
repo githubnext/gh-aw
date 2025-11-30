@@ -1121,11 +1121,11 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	cmd := exec.Command("gh", args...)
 	output, err := cmd.CombinedOutput()
 
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
 	if err != nil {
+		// Stop spinner on error
+		if !verbose {
+			spinner.Stop()
+		}
 		// Check for authentication errors - GitHub CLI can return different exit codes and messages
 		errMsg := err.Error()
 		outputMsg := string(output)
@@ -1149,7 +1149,16 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 
 	var runs []WorkflowRun
 	if err := json.Unmarshal(output, &runs); err != nil {
+		// Stop spinner on parse error
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
+	}
+
+	// Stop spinner with success message
+	if !verbose {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflow runs", len(runs)))
 	}
 
 	// Store the total count fetched from API before filtering
