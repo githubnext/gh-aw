@@ -195,6 +195,57 @@ describe("log_parser_shared.cjs", () => {
     });
   });
 
+  describe("isLikelyCustomAgent", () => {
+    it("should identify custom agent names with kebab-case", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("add-safe-output-type")).toBe(true);
+      expect(isLikelyCustomAgent("cli-consistency-checker")).toBe(true);
+      expect(isLikelyCustomAgent("create-agentic-workflow")).toBe(true);
+      expect(isLikelyCustomAgent("debug-agentic-workflow")).toBe(true);
+      expect(isLikelyCustomAgent("technical-doc-writer")).toBe(true);
+      expect(isLikelyCustomAgent("shell-2-script")).toBe(true);
+    });
+
+    it("should reject single word names without hyphens", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("bash")).toBe(false);
+      expect(isLikelyCustomAgent("CustomTool")).toBe(false);
+      expect(isLikelyCustomAgent("read")).toBe(false);
+    });
+
+    it("should reject MCP tool names", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("mcp__github__search_issues")).toBe(false);
+      expect(isLikelyCustomAgent("mcp__playwright__navigate")).toBe(false);
+    });
+
+    it("should reject safe output/input prefixed names", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("safeoutputs-create_discussion")).toBe(false);
+      expect(isLikelyCustomAgent("safeinputs-get_data")).toBe(false);
+      expect(isLikelyCustomAgent("safe-outputs")).toBe(false);
+    });
+
+    it("should reject names with uppercase letters", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("Add-Safe-Output-Type")).toBe(false);
+      expect(isLikelyCustomAgent("CLI-Consistency-Checker")).toBe(false);
+    });
+
+    it("should handle null and undefined", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent(null)).toBe(false);
+      expect(isLikelyCustomAgent(undefined)).toBe(false);
+      expect(isLikelyCustomAgent("")).toBe(false);
+    });
+  });
+
   describe("generateConversationMarkdown", () => {
     it("should generate markdown from log entries", async () => {
       const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
@@ -489,6 +540,124 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("playwright::navigate");
       expect(result.markdown).toContain("**Other:**");
       expect(result.markdown).toContain("CustomTool");
+    });
+
+    it("should categorize safe output tools", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          "safeoutputs-create_discussion",
+          "safeoutputs-close_discussion",
+          "safeoutputs-upload_asset",
+          "safeoutputs-missing_tool",
+          "safeoutputs-noop",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_discussion");
+      expect(result.markdown).toContain("close_discussion");
+      expect(result.markdown).toContain("upload_asset");
+      expect(result.markdown).toContain("missing_tool");
+      expect(result.markdown).toContain("noop");
+      // Should NOT contain the prefix in output
+      expect(result.markdown).not.toContain("safeoutputs-");
+    });
+
+    it("should categorize builtin tools", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Builtin:**");
+      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("write_bash");
+      expect(result.markdown).toContain("read_bash");
+      expect(result.markdown).toContain("stop_bash");
+      expect(result.markdown).toContain("list_bash");
+      expect(result.markdown).toContain("grep");
+      expect(result.markdown).toContain("glob");
+      expect(result.markdown).toContain("view");
+      expect(result.markdown).toContain("create");
+      expect(result.markdown).toContain("edit");
+    });
+
+    it("should categorize custom agents", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          "add-safe-output-type",
+          "cli-consistency-checker",
+          "create-agentic-workflow",
+          "debug-agentic-workflow",
+          "technical-doc-writer",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Custom Agents:**");
+      expect(result.markdown).toContain("add-safe-output-type");
+      expect(result.markdown).toContain("cli-consistency-checker");
+      expect(result.markdown).toContain("create-agentic-workflow");
+      expect(result.markdown).toContain("debug-agentic-workflow");
+      expect(result.markdown).toContain("technical-doc-writer");
+    });
+
+    it("should categorize mixed tool set correctly", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          // Core
+          "Bash",
+          // File Operations
+          "Read",
+          "Edit",
+          // Builtin
+          "bash",
+          "write_bash",
+          "grep",
+          "report_intent",
+          // Safe Outputs
+          "safeoutputs-create_discussion",
+          "safeoutputs-noop",
+          // Git/GitHub
+          "mcp__github__search_issues",
+          // MCP
+          "mcp__playwright__navigate",
+          // Custom Agents
+          "add-safe-output-type",
+          "technical-doc-writer",
+          // Other
+          "CustomTool",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      // Verify all categories are present
+      expect(result.markdown).toContain("**Core:**");
+      expect(result.markdown).toContain("**File Operations:**");
+      expect(result.markdown).toContain("**Builtin:**");
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("**Git/GitHub:**");
+      expect(result.markdown).toContain("**MCP:**");
+      expect(result.markdown).toContain("**Custom Agents:**");
+      expect(result.markdown).toContain("**Other:**");
+
+      // Verify specific tools are in correct categories
+      expect(result.markdown).toContain("Bash");
+      expect(result.markdown).toContain("github::search_issues");
+      expect(result.markdown).toContain("playwright::navigate");
     });
 
     it("should format MCP servers status", async () => {
