@@ -282,11 +282,18 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       create-issue:
-        title-prefix: "[ai] "           # Optional: prefix for issue titles  
+        title-prefix: "[ai] "           # Optional: prefix for issue titles
         labels: [automation, agentic]    # Optional: labels to attach to issues
         max: 5                          # Optional: maximum number of issues (default: 1)
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+
+    **Temporary IDs and Sub-Issues:**
+    When creating multiple issues, use `temporary_id` (format: `aw_` + 12 hex chars) to reference parent issues before creation. References like `#aw_abc123def456` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
+    ```json
+    {"type": "create_issue", "temporary_id": "aw_abc123def456", "title": "Parent", "body": "Parent issue"}
+    {"type": "create_issue", "parent": "aw_abc123def456", "title": "Sub-task", "body": "References #aw_abc123def456"}
+    ```
   - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
     ```yaml
     safe-outputs:
@@ -344,6 +351,26 @@ The YAML frontmatter supports these fields:
         max: 3                              # Optional: maximum number of PRs to close (default: 1)
     ```
     When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
+  - `add-labels:` - Safe label addition to issues or PRs
+    ```yaml
+    safe-outputs:
+      add-labels:
+        allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
+        max: 3                                      # Optional: maximum number of labels (default: 3)
+        target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
+    ```
+    When using `safe-outputs.add-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label addition is handled by a separate job with appropriate permissions.
+  - `link-sub-issue:` - Safe sub-issue linking
+    ```yaml
+    safe-outputs:
+      link-sub-issue:
+        parent-required-labels: [epic]     # Optional: parent must have these labels
+        parent-title-prefix: "[Epic]"      # Optional: parent must match this prefix
+        sub-required-labels: [task]        # Optional: sub-issue must have these labels
+        sub-title-prefix: "[Task]"         # Optional: sub-issue must match this prefix
+        max: 1                             # Optional: maximum number of links (default: 1)
+    ```
+    Links issues as sub-issues using GitHub's parent-child relationships. Agent output includes `parent_issue_number` and `sub_issue_number`. Use with `create-issue` temporary IDs or existing issue numbers.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
@@ -966,10 +993,12 @@ on:
   issues:
     types: [opened, reopened]
 permissions:
-  issues: write
-tools:
-  github:
-    allowed: [issue_read, add_issue_comment, update_issue]
+  contents: read
+  actions: read
+safe-outputs:
+  add-labels:
+    allowed: [bug, enhancement, question, documentation]
+  add-comment:
 timeout-minutes: 5
 ---
 
@@ -977,7 +1006,7 @@ timeout-minutes: 5
 
 Analyze issue #${{ github.event.issue.number }} and:
 1. Categorize the issue type
-2. Add appropriate labels  
+2. Add appropriate labels from the allowed list
 3. Post helpful triage comment
 ```
 
@@ -988,8 +1017,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"  # Monday 9AM
 permissions:
-  issues: write
   contents: read
+  actions: read
 tools:
   web-fetch:
   web-search:
@@ -1017,7 +1046,8 @@ on:
   command:
     name: helper-bot
 permissions:
-  issues: write
+  contents: read
+  actions: read
 safe-outputs:
   add-comment:
 ---
