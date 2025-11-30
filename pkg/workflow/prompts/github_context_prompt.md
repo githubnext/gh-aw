@@ -1,28 +1,27 @@
 <github-context>
-<description>The following GitHub context information is available for this workflow:</description>
+The following GitHub context information is available for this workflow:
 {{#if ${{ github.actor }} }}
-<context name="actor">${{ github.actor }}</context>
+- **actor**: ${{ github.actor }}
 {{/if}}
 {{#if ${{ github.repository }} }}
-<context name="repository">${{ github.repository }}</context>
+- **repository**: ${{ github.repository }}
 {{/if}}
 {{#if ${{ github.workspace }} }}
-<context name="workspace">${{ github.workspace }}</context>
+- **workspace**: ${{ github.workspace }}
 {{/if}}
 {{#if ${{ github.event.issue.number }} }}
-<context name="issue-number">#${{ github.event.issue.number }}</context>
+- **issue-number**: #${{ github.event.issue.number }}
 {{/if}}
 {{#if ${{ github.event.discussion.number }} }}
-<context name="discussion-number">#${{ github.event.discussion.number }}</context>
+- **discussion-number**: #${{ github.event.discussion.number }}
 {{/if}}
 {{#if ${{ github.event.pull_request.number }} }}
-<context name="pull-request-number">#${{ github.event.pull_request.number }}</context>
+- **pull-request-number**: #${{ github.event.pull_request.number }}
 {{/if}}
 {{#if ${{ github.event.comment.id }} }}
-<context name="comment-id">${{ github.event.comment.id }}</context>
+- **comment-id**: ${{ github.event.comment.id }}
 {{/if}}
 {{#if ${{ github.run_id }} }}
-<context name="workflow-run-id">${{ github.run_id }}</context>
+- **workflow-run-id**: ${{ github.run_id }}
 {{/if}}
-<instruction>Use this context information to understand the scope of your work.</instruction>
 </github-context>
