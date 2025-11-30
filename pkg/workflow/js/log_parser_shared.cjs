@@ -20,6 +20,13 @@ const MAX_TOOL_OUTPUT_LENGTH = 500;
 const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
 
 /**
+ * Warning message shown when step summary size limit is reached.
+ * This message is added directly to markdown (not tracked) to ensure it's always visible.
+ * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
+ */
+const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+
+/**
  * Tracks the size of content being added to a step summary.
  * Used to prevent exceeding GitHub Actions step summary size limits.
  */
@@ -278,12 +285,12 @@ function generateConversationMarkdown(logEntries, options) {
 
   // Add size limit notice if limit was reached
   if (sizeLimitReached) {
-    markdown += "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+    markdown += SIZE_LIMIT_WARNING;
     return { markdown, commandSummary: [], sizeLimitReached };
   }
 
   if (!addContent("## 🤖 Commands and Tools\n\n")) {
-    markdown += "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+    markdown += SIZE_LIMIT_WARNING;
     return { markdown, commandSummary: [], sizeLimitReached: true };
   }
 
@@ -329,13 +336,13 @@ function generateConversationMarkdown(logEntries, options) {
   if (commandSummary.length > 0) {
     for (const cmd of commandSummary) {
       if (!addContent(`${cmd}\n`)) {
-        markdown += "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+        markdown += SIZE_LIMIT_WARNING;
         return { markdown, commandSummary, sizeLimitReached: true };
       }
     }
   } else {
     if (!addContent("No commands or tools used.\n")) {
-      markdown += "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+      markdown += SIZE_LIMIT_WARNING;
       return { markdown, commandSummary, sizeLimitReached: true };
     }
   }
