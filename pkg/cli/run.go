@@ -43,10 +43,10 @@ func cancelWorkflowRuns(workflowID int64) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		// Update spinner with progress
-		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i, totalRuns))
 		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
+		// Update spinner with progress after cancellation completes
+		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
 	}
 
 	if len(runs) > 0 {
@@ -90,10 +90,10 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		// Update spinner with progress
-		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i, totalRuns))
 		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
+		// Update spinner with progress after cancellation completes
+		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
 	}
 
 	if len(runs) > 0 {
