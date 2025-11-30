@@ -50,7 +50,7 @@ I'll help you try to call the `draw_pelican` tool. Let me first check if there's
     11→
     12→## Discoveries
     13→- Previous attempt confirmed `draw_pelican` tool does not exist
-    14→- Need to report missing functionali...
+    14→- Need to report missing functionali... (truncated)
 ``````
 </details>
 
@@ -86,7 +86,7 @@ The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of 
      7→1. ✓ Check for existing plan (found previous attempt)
      8→2. ✓ Read existing plan
      9→3. ✓ Confirm tool is missing (attempted call - tool does not exist)
-    10→4. ✓ Report missing...
+    10→4. ✓ Report missing... (truncated)
 ``````
 </details>
 
