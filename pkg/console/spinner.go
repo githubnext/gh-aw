@@ -1,11 +1,10 @@
 package console
 
 import (
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
-	"golang.org/x/term"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 // SpinnerWrapper wraps the spinner functionality with TTY detection
@@ -17,7 +16,7 @@ type SpinnerWrapper struct {
 // NewSpinner creates a new spinner with the given message
 // The spinner is automatically disabled when not running in a TTY
 func NewSpinner(message string) *SpinnerWrapper {
-	enabled := term.IsTerminal(int(os.Stdout.Fd())) // Check if stdout is a terminal
+	enabled := tty.IsStdoutTerminal() // Check if stdout is a terminal
 
 	s := &SpinnerWrapper{
 		enabled: enabled,

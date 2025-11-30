@@ -9,7 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/mattn/go-isatty"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var consoleLog = logger.New("console:console")
@@ -64,7 +64,7 @@ var (
 
 // isTTY checks if stdout is a terminal
 func isTTY() bool {
-	return isatty.IsTerminal(os.Stdout.Fd())
+	return tty.IsStdoutTerminal()
 }
 
 // applyStyle conditionally applies styling based on TTY status

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/timeutil"
-	"github.com/mattn/go-isatty"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 // Logger represents a debug logger for a specific namespace
@@ -29,7 +29,7 @@ var (
 	debugColors = os.Getenv("DEBUG_COLORS") != "0"
 
 	// Check if stderr is a terminal (for color support)
-	isTTY = isatty.IsTerminal(os.Stderr.Fd())
+	isTTY = tty.IsStderrTerminal()
 
 	// Color palette - chosen to be readable on both light and dark backgrounds
 	// Using ANSI 256-color codes for better compatibility
