@@ -1877,6 +1877,19 @@
                       "users"
                     ]
                   }
+                },
+                "headers": {
+                  "type": "object",
+                  "description": "Custom HTTP headers for remote mode GitHub MCP server. Only applies when mode is 'remote'. Headers can contain GitHub Actions secrets (e.g., '${{ secrets.MY_TOKEN }}'). Built-in headers (Authorization, X-MCP-Readonly, X-MCP-Lockdown, X-MCP-Toolsets) are automatically added and will override custom headers with the same name.",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "examples": [
+                    {
+                      "Authorization": "Bearer ${{ secrets.MCP_PAT_GITHUB }}",
+                      "X-Custom-Header": "custom-value"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false,
