@@ -353,6 +353,28 @@ func getGitHubAllowedTools(githubTool any) []string {
 	return nil
 }
 
+// getGitHubHeaders extracts custom headers from GitHub tool configuration
+// Returns a map of header names to values, or nil if no headers are specified
+func getGitHubHeaders(githubTool any) map[string]string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if headersValue, exists := toolConfig["headers"]; exists {
+			if headersMap, ok := headersValue.(map[string]any); ok {
+				result := make(map[string]string)
+				for k, v := range headersMap {
+					if str, ok := v.(string); ok {
+						result[k] = str
+					}
+				}
+				return result
+			}
+			if headersMap, ok := headersValue.(map[string]string); ok {
+				return headersMap
+			}
+		}
+	}
+	return nil
+}
+
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := string(constants.DefaultPlaywrightBrowserVersion) // Default Playwright browser Docker image version
 	// Extract version setting from tool properties
