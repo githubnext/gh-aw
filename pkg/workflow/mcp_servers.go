@@ -38,6 +38,11 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		return true
 	}
 
+	// Check if safe-inputs is configured (adds safe-inputs MCP server)
+	if HasSafeInputs(workflowData.SafeInputs) {
+		return true
+	}
+
 	return false
 }
 
@@ -69,6 +74,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Check if safe-outputs is enabled and add to MCP tools
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		mcpTools = append(mcpTools, "safe-outputs")
+	}
+
+	// Check if safe-inputs is configured and add to MCP tools
+	if HasSafeInputs(workflowData.SafeInputs) {
+		mcpTools = append(mcpTools, "safe-inputs")
 	}
 
 	// Generate safe-outputs configuration once to avoid duplicate computation
@@ -178,6 +188,45 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Write safe-inputs MCP server if configured
+	if HasSafeInputs(workflowData.SafeInputs) {
+		yaml.WriteString("      - name: Setup Safe Inputs MCP\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs\n")
+
+		// Generate the MCP server for safe-inputs
+		safeInputsMCPServer := generateSafeInputsMCPServerScript(workflowData.SafeInputs)
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'\n")
+		for _, line := range FormatJavaScriptForYAML(safeInputsMCPServer) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOFSI\n")
+		yaml.WriteString("          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs\n")
+
+		// Generate individual tool files
+		for toolName, toolConfig := range workflowData.SafeInputs.Tools {
+			if toolConfig.Script != "" {
+				// JavaScript tool
+				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
+				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.cjs << 'EOFJS_%s'\n", toolName, toolName))
+				for _, line := range FormatJavaScriptForYAML(toolScript) {
+					yaml.WriteString(line)
+				}
+				yaml.WriteString(fmt.Sprintf("          EOFJS_%s\n", toolName))
+			} else if toolConfig.Run != "" {
+				// Shell script tool
+				toolScript := generateSafeInputShellToolScript(toolConfig)
+				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.sh << 'EOFSH_%s'\n", toolName, toolName))
+				for _, line := range strings.Split(toolScript, "\n") {
+					yaml.WriteString("          " + line + "\n")
+				}
+				yaml.WriteString(fmt.Sprintf("          EOFSH_%s\n", toolName))
+				yaml.WriteString(fmt.Sprintf("          chmod +x /tmp/gh-aw/safe-inputs/%s.sh\n", toolName))
+			}
+		}
+		yaml.WriteString("          \n")
+	}
+
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
 
@@ -185,6 +234,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	needsEnvBlock := false
 	hasGitHub := false
 	hasSafeOutputs := false
+	hasSafeInputs := false
 	hasPlaywright := false
 	var playwrightAllowedDomainsSecrets map[string]string
 	// Note: hasAgenticWorkflows is already declared earlier in this function
@@ -197,6 +247,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if toolName == "safe-outputs" {
 			hasSafeOutputs = true
 			needsEnvBlock = true
+		}
+		if toolName == "safe-inputs" {
+			hasSafeInputs = true
+			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+			if len(safeInputsSecrets) > 0 {
+				needsEnvBlock = true
+			}
 		}
 		if toolName == "agentic-workflows" {
 			needsEnvBlock = true
@@ -234,6 +291,24 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
 				yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
 				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
+			}
+		}
+
+		// Add safe-inputs env vars if present (for secrets passthrough)
+		if hasSafeInputs {
+			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+			if len(safeInputsSecrets) > 0 {
+				// Sort env var names for consistent output
+				envVarNames := make([]string, 0, len(safeInputsSecrets))
+				for envVarName := range safeInputsSecrets {
+					envVarNames = append(envVarNames, envVarName)
+				}
+				sort.Strings(envVarNames)
+
+				for _, envVarName := range envVarNames {
+					secretExpr := safeInputsSecrets[envVarName]
+					yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, secretExpr))
+				}
 			}
 		}
 

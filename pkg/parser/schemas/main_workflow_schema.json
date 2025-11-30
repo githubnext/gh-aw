@@ -4058,6 +4058,123 @@
       "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no wildcard '*' in allowed domains, (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
       "examples": [true, false]
     },
+    "safe-inputs": {
+      "type": "object",
+      "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript) or 'run' (shell) must be specified per tool.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "type": "object",
+          "description": "Custom tool definition. The key is the tool name (lowercase alphanumeric with dashes/underscores).",
+          "required": ["description"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Tool description that explains what the tool does. This is required and will be shown to the AI agent."
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Optional input parameters for the tool using workflow syntax. Each property defines an input with its type and description.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "array", "object"],
+                    "default": "string",
+                    "description": "The JSON schema type of the input parameter."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the input parameter."
+                  },
+                  "required": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether this input is required."
+                  },
+                  "default": {
+                    "description": "Default value for the input parameter."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "script": {
+              "type": "string",
+              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run'."
+            },
+            "run": {
+              "type": "string",
+              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script'."
+            },
+            "env": {
+              "type": "object",
+              "description": "Environment variables to pass to the tool, typically for secrets. Use ${{ secrets.NAME }} syntax.",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "examples": [
+                {
+                  "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+                  "API_KEY": "${{ secrets.MY_API_KEY }}"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": ["script"],
+              "not": { "required": ["run"] }
+            },
+            {
+              "required": ["run"],
+              "not": { "required": ["script"] }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "search-issues": {
+            "description": "Search GitHub issues using the GitHub API",
+            "inputs": {
+              "query": {
+                "type": "string",
+                "description": "Search query for issues",
+                "required": true
+              },
+              "limit": {
+                "type": "number",
+                "description": "Maximum number of results",
+                "default": 10
+              }
+            },
+            "script": "const { Octokit } = require('@octokit/rest');\nconst octokit = new Octokit({ auth: process.env.GH_TOKEN });\nconst result = await octokit.search.issuesAndPullRequests({ q: inputs.query, per_page: inputs.limit });\nreturn result.data.items;",
+            "env": {
+              "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+            }
+          }
+        },
+        {
+          "run-linter": {
+            "description": "Run a custom linter on the codebase",
+            "inputs": {
+              "path": {
+                "type": "string",
+                "description": "Path to lint",
+                "default": "."
+              }
+            },
+            "run": "eslint $INPUT_PATH --format json",
+            "env": {
+              "INPUT_PATH": "${{ inputs.path }}"
+            }
+          }
+        }
+      ]
+    },
     "runtimes": {
       "type": "object",
       "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared workflows are also merged.",

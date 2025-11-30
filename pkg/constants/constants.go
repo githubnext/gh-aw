@@ -193,6 +193,9 @@ const AgentOutputArtifactName = "agent_output.json"
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID = "safeoutputs"
 
+// SafeInputsMCPServerID is the identifier for the safe-inputs MCP server
+const SafeInputsMCPServerID = "safeinputs"
+
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"

@@ -2444,6 +2444,14 @@ roles: []
 # (optional)
 strict: true
 
+# Safe inputs configuration for defining custom lightweight MCP tools as
+# JavaScript or shell scripts. Tools are mounted in an MCP server and have access
+# to secrets specified by the user. Only one of 'script' (JavaScript) or 'run'
+# (shell) must be specified per tool.
+# (optional)
+safe-inputs:
+  {}
+
 # Runtime environment version overrides. Allows customizing runtime versions
 # (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared
 # workflows are also merged.

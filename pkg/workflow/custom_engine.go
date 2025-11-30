@@ -185,6 +185,10 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderSafeOutputsMCP(yaml)
 			},
+			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderSafeInputsMCP(yaml, safeInputs)
+			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 			},
