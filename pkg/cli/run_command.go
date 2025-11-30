@@ -537,6 +537,12 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	// This helps us identify runs that were created after the workflow was triggered
 	startTime := time.Now().UTC()
 
+	// Create spinner outside the loop so we can update it
+	var spinner *console.SpinnerWrapper
+	if !verbose {
+		spinner = console.NewSpinner("Waiting for workflow run to appear...")
+	}
+
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
@@ -546,15 +552,18 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 				delay = maxDelay
 			}
 
+			// Calculate elapsed time since start
+			elapsed := time.Since(startTime).Round(time.Second)
+
 			if verbose {
 				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
-			} else if attempt == 1 {
-				// Show spinner only starting from second attempt to avoid flickering
-				spinner := console.NewSpinner("Waiting for workflow run to appear...")
-				spinner.Start()
-				time.Sleep(delay)
-				spinner.StopWithMessage("✓ Found workflow run")
-				continue
+			} else {
+				// Show spinner starting from second attempt to avoid flickering
+				if attempt == 1 {
+					spinner.Start()
+				}
+				// Update spinner with progress information
+				spinner.UpdateMessage(fmt.Sprintf("Waiting for workflow run... (attempt %d/%d, %v elapsed)", attempt+1, maxRetries, elapsed))
 			}
 			time.Sleep(delay)
 		}
@@ -636,6 +645,9 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 				fmt.Printf("Found recent run (ID: %d) created at %v (started polling at %v)\n",
 					run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
 			}
+			if spinner != nil {
+				spinner.StopWithMessage("✓ Found workflow run")
+			}
 			return runInfo, nil
 		}
 
@@ -658,7 +670,15 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if verbose {
 			fmt.Printf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)\n", run.DatabaseID, attempt+1)
 		}
+		if spinner != nil {
+			spinner.StopWithMessage("✓ Found workflow run")
+		}
 		return runInfo, nil
+	}
+
+	// Stop spinner on failure
+	if spinner != nil {
+		spinner.Stop()
 	}
 
 	// If we exhausted all retries, return the last error

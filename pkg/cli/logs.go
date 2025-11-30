@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -873,9 +874,21 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		actualRuns = runs[:maxRuns]
 	}
 
+	totalRuns := len(actualRuns)
+
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", len(actualRuns))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
 	}
+
+	// Create spinner for progress updates (only in non-verbose mode)
+	var spinner *console.SpinnerWrapper
+	if !verbose {
+		spinner = console.NewSpinner(fmt.Sprintf("Downloading artifacts... (0/%d completed)", totalRuns))
+		spinner.Start()
+	}
+
+	// Use atomic counter for thread-safe progress tracking
+	var completedCount int64
 
 	// Use conc pool for controlled concurrency with results
 	p := pool.NewWithResults[DownloadResult]().WithMaxGoroutines(MaxConcurrentDownloads)
@@ -905,6 +918,11 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					MCPFailures:             summary.MCPFailures,
 					JobDetails:              summary.JobDetails,
 					LogsPath:                runOutputDir,
+				}
+				// Update progress counter
+				completed := atomic.AddInt64(&completedCount, 1)
+				if spinner != nil {
+					spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
 				}
 				return result
 			}
@@ -1045,12 +1063,29 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				}
 			}
 
+			// Update progress counter for completed downloads
+			completed := atomic.AddInt64(&completedCount, 1)
+			if spinner != nil {
+				spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
+			}
+
 			return result
 		})
 	}
 
 	// Wait for all downloads to complete and collect results
 	results := p.Wait()
+
+	// Stop spinner with final success message
+	if spinner != nil {
+		successCount := 0
+		for _, result := range results {
+			if result.Error == nil && !result.Skipped {
+				successCount++
+			}
+		}
+		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts (%d/%d successful)", successCount, totalRuns))
+	}
 
 	if verbose {
 		successCount := 0
