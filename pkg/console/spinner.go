@@ -1,6 +1,7 @@
 package console
 
 import (
+	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -16,14 +17,14 @@ type SpinnerWrapper struct {
 // NewSpinner creates a new spinner with the given message
 // The spinner is automatically disabled when not running in a TTY
 func NewSpinner(message string) *SpinnerWrapper {
-	enabled := tty.IsStdoutTerminal() // Check if stdout is a terminal
+	enabled := tty.IsStderrTerminal() // Check if stderr is a terminal (spinner writes to stderr)
 
 	s := &SpinnerWrapper{
 		enabled: enabled,
 	}
 
 	if enabled {
-		s.spinner = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.spinner = spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
 		s.spinner.Suffix = " " + message
 		_ = s.spinner.Color("cyan") // Ignore error as fallback is fine
 	}
