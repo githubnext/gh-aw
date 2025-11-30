@@ -11,16 +11,22 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+var mcpValidationLog = logger.New("cli:mcp_validation")
+
 // validateServerSecrets checks if required environment variables/secrets are available
 func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActionsSecrets bool) error {
+	mcpValidationLog.Printf("Validating server secrets: server=%s, type=%s, useActionsSecrets=%v", config.Name, config.Type, useActionsSecrets)
+
 	// Extract secrets from the config
 	requiredSecrets := extractSecretsFromConfig(config)
 
 	// Special case: Check for GH_AW_GITHUB_TOKEN when GitHub tool is in remote mode
 	if config.Name == "github" && config.Type == "http" {
+		mcpValidationLog.Print("GitHub remote mode detected, checking for GH_AW_GITHUB_TOKEN")
 		// GitHub remote mode requires GH_AW_GITHUB_TOKEN secret
 		// Check if a custom token is already specified in the env
 		hasCustomToken := false
@@ -51,6 +57,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 	}
 
 	if len(requiredSecrets) == 0 {
+		mcpValidationLog.Printf("No required secrets found, validating %d environment variables", len(config.Env))
 		// No secrets required, proceed with normal env var validation
 		for key, value := range config.Env {
 			// Check if value contains variable references
@@ -113,6 +120,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 	}
 
 	// Check availability of required secrets
+	mcpValidationLog.Printf("Checking availability of %d required secrets", len(requiredSecrets))
 	secretsStatus := checkSecretsAvailability(requiredSecrets, useActionsSecrets)
 
 	// Separate secrets by availability
@@ -143,27 +151,33 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 
 	// Warn about missing secrets
 	if len(missingSecrets) > 0 {
+		mcpValidationLog.Printf("Found %d missing secrets", len(missingSecrets))
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d required secret(s) not found:", len(missingSecrets))))
 		for _, secret := range missingSecrets {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  ✗ %s", secret.Name)))
 		}
 	}
 
+	mcpValidationLog.Printf("Secret validation completed: available=%d, missing=%d", len(availableSecrets), len(missingSecrets))
 	return nil
 }
 
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test
 func validateMCPServerConfiguration(cmdPath string) error {
+	mcpValidationLog.Printf("Validating MCP server configuration: cmdPath=%s", cmdPath)
+
 	// Try to run the status command to verify CLI is working
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var cmd *exec.Cmd
 	if cmdPath != "" {
+		mcpValidationLog.Printf("Using custom command path: %s", cmdPath)
 		// Use custom command path
 		cmd = exec.CommandContext(ctx, cmdPath, "status")
 	} else {
+		mcpValidationLog.Print("Using default gh aw command")
 		// Use default gh aw command
 		cmd = exec.CommandContext(ctx, "gh", "aw", "status")
 	}
@@ -172,8 +186,11 @@ func validateMCPServerConfiguration(cmdPath string) error {
 	if err != nil {
 		// Check for common error cases
 		if ctx.Err() == context.DeadlineExceeded {
+			mcpValidationLog.Print("Status command timed out")
 			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
 		}
+
+		mcpValidationLog.Printf("Status command failed: %v", err)
 
 		// If the command failed, provide helpful error message
 		if cmdPath != "" {
@@ -183,6 +200,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 	}
 
 	// Status command succeeded - configuration is valid
+	mcpValidationLog.Print("MCP server configuration validated successfully")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✅ Configuration validated successfully"))
 	return nil
 }
