@@ -2812,6 +2812,7 @@ jobs:
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -2822,29 +2823,31 @@ jobs:
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           <github-context>
-          <description>The following GitHub context information is available for this workflow:</description>
+          The following GitHub context information is available for this workflow:
+          {{#if ${GH_AW_GITHUB_ACTOR} }}
+          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{/if}}
           {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          <context name="repository">${GH_AW_GITHUB_REPOSITORY}</context>
+          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
           {{/if}}
           {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          <context name="workspace">${GH_AW_GITHUB_WORKSPACE}</context>
+          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
           {{/if}}
           {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          <context name="issue-number">#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}</context>
+          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
           {{/if}}
           {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          <context name="discussion-number">#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}</context>
+          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
           {{/if}}
           {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          <context name="pull-request-number">#${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}</context>
+          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
           {{/if}}
           {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          <context name="comment-id">${GH_AW_GITHUB_EVENT_COMMENT_ID}</context>
+          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
           {{/if}}
           {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          <context name="workflow-run-id">${GH_AW_GITHUB_RUN_ID}</context>
+          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
           {{/if}}
-          <instruction>Use this context information to understand the scope of your work.</instruction>
           </github-context>
           
           PROMPT_EOF
