@@ -699,6 +699,16 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 	allSecrets := make(map[string]string)
 
 	for toolName, toolValue := range tools {
+		// Check if this is the GitHub tool with custom headers (remote mode)
+		if toolName == "github" {
+			if customHeaders := getGitHubHeaders(toolValue); customHeaders != nil {
+				secrets := ExtractSecretsFromMap(customHeaders)
+				for varName, expr := range secrets {
+					allSecrets[varName] = expr
+				}
+			}
+		}
+
 		// Check if this is an MCP tool configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
 			if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
