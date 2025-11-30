@@ -1501,9 +1501,6 @@ jobs:
             registerTool("fetch-pr-data", "Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt", {"properties":{"days":{"default":30,"description":"Number of days to look back (default: 30)","type":"number"},"limit":{"default":100,"description":"Maximum number of PRs to fetch (default: 100)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"search":{"description":"Search query for filtering PRs (e.g., 'head:copilot/' for Copilot PRs)","type":"string"},"state":{"default":"all","description":"PR state filter: open, closed, merged, or all (default: all)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["search"] !== undefined) {
-                  env["INPUT_SEARCH"] = typeof args["search"] === "object" ? JSON.stringify(args["search"]) : String(args["search"]);
-                }
                 if (args && args["state"] !== undefined) {
                   env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
@@ -1515,6 +1512,9 @@ jobs:
                 }
                 if (args && args["repo"] !== undefined) {
                   env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["search"] !== undefined) {
+                  env["INPUT_SEARCH"] = typeof args["search"] === "object" ? JSON.stringify(args["search"]) : String(args["search"]);
                 }
                 const scriptPath = path.join(__dirname, "fetch-pr-data.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
