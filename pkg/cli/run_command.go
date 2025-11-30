@@ -553,7 +553,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 				spinner := console.NewSpinner("Waiting for workflow run to appear...")
 				spinner.Start()
 				time.Sleep(delay)
-				spinner.Stop()
+				spinner.StopWithMessage("✓ Found workflow run")
 				continue
 			}
 			time.Sleep(delay)

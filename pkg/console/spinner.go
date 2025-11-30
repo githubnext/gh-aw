@@ -45,6 +45,15 @@ func (s *SpinnerWrapper) Stop() {
 	}
 }
 
+// StopWithMessage stops the spinner and displays a final message
+// The message will only be displayed if the spinner is enabled (TTY check)
+func (s *SpinnerWrapper) StopWithMessage(msg string) {
+	if s.enabled && s.spinner != nil {
+		s.spinner.FinalMSG = msg + "\n"
+		s.spinner.Stop()
+	}
+}
+
 // UpdateMessage updates the spinner message
 func (s *SpinnerWrapper) UpdateMessage(message string) {
 	if s.enabled && s.spinner != nil {

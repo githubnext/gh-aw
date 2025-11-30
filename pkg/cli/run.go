@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -45,7 +46,11 @@ func cancelWorkflowRuns(workflowID int64) error {
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 	}
 
-	spinner.Stop()
+	if len(runs) > 0 {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Cancelled %d workflow runs", len(runs)))
+	} else {
+		spinner.StopWithMessage("✓ No in-progress workflow runs to cancel")
+	}
 	cancelLog.Print("Workflow run cancellation completed")
 	return nil
 }
@@ -85,7 +90,11 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 	}
 
-	spinner.Stop()
+	if len(runs) > 0 {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Cancelled %d workflow runs", len(runs)))
+	} else {
+		spinner.StopWithMessage("✓ No in-progress workflow runs to cancel")
+	}
 	cancelLog.Print("Workflow run cancellation completed")
 	return nil
 }

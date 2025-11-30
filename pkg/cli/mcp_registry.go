@@ -83,14 +83,15 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	spinner := console.NewSpinner(spinnerMessage)
 	spinner.Start()
 	resp, err := c.httpClient.Do(req)
-	spinner.Stop()
 
 	if err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to search MCP registry: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		spinner.Stop()
 		body, _ := io.ReadAll(resp.Body)
 		// Provide more helpful error messages for common HTTP status codes
 		switch resp.StatusCode {
@@ -110,13 +111,18 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
 	var response ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to parse registry response: %w", err)
 	}
+
+	// Stop spinner with success message
+	spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d servers from registry", len(response.Servers)))
 
 	// Convert servers to flattened format and filter by status
 	mcpRegistryLog.Printf("Processing %d servers from registry", len(response.Servers))
@@ -264,14 +270,15 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverName))
 	spinner.Start()
 	resp, err := c.httpClient.Do(req)
-	spinner.Stop()
 
 	if err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to get MCP server: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		spinner.Stop()
 		body, _ := io.ReadAll(resp.Body)
 		// Provide more helpful error messages for common HTTP status codes
 		switch resp.StatusCode {
@@ -291,13 +298,18 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
 	var response ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
+		spinner.Stop()
 		return nil, fmt.Errorf("failed to parse server response: %w", err)
 	}
+
+	// Stop spinner with success message
+	spinner.StopWithMessage(fmt.Sprintf("✓ Fetched MCP server '%s'", serverName))
 
 	// Find exact match by name, filtering locally
 	for _, server := range response.Servers {
