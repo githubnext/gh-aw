@@ -555,6 +555,9 @@ process.stdin.on("data", async (chunk) => {
 }
 
 // generateSafeInputJavaScriptToolScript generates the JavaScript tool file for a safe-input tool
+// The user's script code is automatically wrapped in a function with module.exports,
+// so users can write simple code without worrying about exports.
+// Input parameters are destructured and available as local variables.
 func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) string {
 	var sb strings.Builder
 
@@ -569,6 +572,24 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 	sb.WriteString(" * @returns {Promise<any>} Tool result\n")
 	sb.WriteString(" */\n")
 	sb.WriteString("async function execute(inputs) {\n")
+
+	// Destructure inputs to make parameters available as local variables
+	if len(toolConfig.Inputs) > 0 {
+		var paramNames []string
+		for paramName := range toolConfig.Inputs {
+			safeName := sanitizeParameterName(paramName)
+			if safeName != paramName {
+				// If sanitized, use alias
+				paramNames = append(paramNames, fmt.Sprintf("%s: %s", paramName, safeName))
+			} else {
+				paramNames = append(paramNames, paramName)
+			}
+		}
+		sort.Strings(paramNames)
+		sb.WriteString(fmt.Sprintf("  const { %s } = inputs || {};\n\n", strings.Join(paramNames, ", ")))
+	}
+
+	// Indent the user's script code
 	sb.WriteString("  " + strings.ReplaceAll(toolConfig.Script, "\n", "\n  ") + "\n")
 	sb.WriteString("}\n\n")
 	sb.WriteString("module.exports = { execute };\n")
