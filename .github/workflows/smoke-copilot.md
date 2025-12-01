@@ -24,6 +24,11 @@ network:
     - node
     - github
     - playwright
+    - clients2.google.com        # Chrome time sync
+    - www.google.com             # Chrome services
+    - accounts.google.com        # Chrome account checks
+    - android.clients.google.com # Chrome internal
+    - example.com                # Common test domain
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
