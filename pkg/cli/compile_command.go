@@ -868,6 +868,11 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 				return fmt.Errorf("watcher channel closed")
 			}
 
+			// Filter out Chmod events (noisy and usually not useful for workflow changes)
+			if event.Has(fsnotify.Chmod) {
+				continue
+			}
+
 			// Only process markdown files and ignore lock files
 			if !strings.HasSuffix(event.Name, ".md") {
 				continue
