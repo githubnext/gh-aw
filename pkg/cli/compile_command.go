@@ -792,8 +792,10 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if info.IsDir() && path != workflowsDir {
 			// Add subdirectories to the watcher
 			if err := watcher.Add(path); err != nil {
-				compileLog.Printf("Failed to watch subdirectory %s: %v", path, err)
-			} else {
+				// Log warning instead of silent ignore
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Failed to watch subdirectory %s: %v", path, err)))
+			} else if verbose {
 				compileLog.Printf("Watching subdirectory: %s", path)
 			}
 		}
