@@ -293,3 +293,126 @@ func TestInteractiveWorkflowBuilder_describeTrigger(t *testing.T) {
 		})
 	}
 }
+
+// TestOptionConstants verifies that all package-level option constants are correctly defined
+func TestOptionConstants(t *testing.T) {
+	t.Run("triggerOptions has expected options", func(t *testing.T) {
+		if len(triggerOptions) == 0 {
+			t.Error("triggerOptions should not be empty")
+		}
+
+		// Verify first option is workflow_dispatch (default)
+		firstOption := triggerOptions[0]
+		if firstOption.Value != "workflow_dispatch" {
+			t.Errorf("first trigger option should be workflow_dispatch, got %s", firstOption.Value)
+		}
+
+		// Count expected options
+		expectedCount := 8
+		if len(triggerOptions) != expectedCount {
+			t.Errorf("triggerOptions should have %d options, got %d", expectedCount, len(triggerOptions))
+		}
+	})
+
+	t.Run("engineOptions has expected options", func(t *testing.T) {
+		if len(engineOptions) == 0 {
+			t.Error("engineOptions should not be empty")
+		}
+
+		// Verify first option is copilot (default)
+		firstOption := engineOptions[0]
+		if firstOption.Value != "copilot" {
+			t.Errorf("first engine option should be copilot, got %s", firstOption.Value)
+		}
+
+		// Count expected options
+		expectedCount := 4
+		if len(engineOptions) != expectedCount {
+			t.Errorf("engineOptions should have %d options, got %d", expectedCount, len(engineOptions))
+		}
+	})
+
+	t.Run("toolOptions has expected options", func(t *testing.T) {
+		if len(toolOptions) == 0 {
+			t.Error("toolOptions should not be empty")
+		}
+
+		// Verify first option is github (default)
+		firstOption := toolOptions[0]
+		if firstOption.Value != "github" {
+			t.Errorf("first tool option should be github, got %s", firstOption.Value)
+		}
+
+		// Count expected options
+		expectedCount := 6
+		if len(toolOptions) != expectedCount {
+			t.Errorf("toolOptions should have %d options, got %d", expectedCount, len(toolOptions))
+		}
+	})
+
+	t.Run("safeOutputOptions has expected options", func(t *testing.T) {
+		if len(safeOutputOptions) == 0 {
+			t.Error("safeOutputOptions should not be empty")
+		}
+
+		// Count expected options
+		expectedCount := 10
+		if len(safeOutputOptions) != expectedCount {
+			t.Errorf("safeOutputOptions should have %d options, got %d", expectedCount, len(safeOutputOptions))
+		}
+	})
+
+	t.Run("networkOptions has expected options", func(t *testing.T) {
+		if len(networkOptions) == 0 {
+			t.Error("networkOptions should not be empty")
+		}
+
+		// Verify first option is defaults (default)
+		firstOption := networkOptions[0]
+		if firstOption.Value != "defaults" {
+			t.Errorf("first network option should be defaults, got %s", firstOption.Value)
+		}
+
+		// Count expected options
+		expectedCount := 2
+		if len(networkOptions) != expectedCount {
+			t.Errorf("networkOptions should have %d options, got %d", expectedCount, len(networkOptions))
+		}
+	})
+}
+
+// TestBuilderDefaults verifies that the builder has sensible defaults
+func TestBuilderDefaults(t *testing.T) {
+	// Create a builder with only WorkflowName set (simulating fresh initialization)
+	builder := &InteractiveWorkflowBuilder{
+		WorkflowName:  "test-workflow",
+		Trigger:       "workflow_dispatch",
+		Engine:        "copilot",
+		Tools:         []string{"github"},
+		NetworkAccess: "defaults",
+	}
+
+	t.Run("default trigger is workflow_dispatch", func(t *testing.T) {
+		if builder.Trigger != "workflow_dispatch" {
+			t.Errorf("default trigger should be workflow_dispatch, got %s", builder.Trigger)
+		}
+	})
+
+	t.Run("default engine is copilot", func(t *testing.T) {
+		if builder.Engine != "copilot" {
+			t.Errorf("default engine should be copilot, got %s", builder.Engine)
+		}
+	})
+
+	t.Run("default tools includes github", func(t *testing.T) {
+		if len(builder.Tools) == 0 || builder.Tools[0] != "github" {
+			t.Errorf("default tools should include github, got %v", builder.Tools)
+		}
+	})
+
+	t.Run("default network access is defaults", func(t *testing.T) {
+		if builder.NetworkAccess != "defaults" {
+			t.Errorf("default network access should be defaults, got %s", builder.NetworkAccess)
+		}
+	})
+}

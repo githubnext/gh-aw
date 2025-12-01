@@ -20,6 +20,59 @@ var interactiveLog = logger.New("cli:interactive")
 // workflowNameRegex validates workflow names contain only alphanumeric characters, hyphens, and underscores
 var workflowNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
+// Package-level option definitions for interactive workflow creation
+var (
+	// triggerOptions defines the available workflow trigger types
+	triggerOptions = []huh.Option[string]{
+		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
+		huh.NewOption("Issue opened or reopened", "issues"),
+		huh.NewOption("Pull request opened or synchronized", "pull_request"),
+		huh.NewOption("Push to main branch", "push"),
+		huh.NewOption("Issue comment created", "issue_comment"),
+		huh.NewOption("Schedule (daily at 9 AM UTC)", "schedule_daily"),
+		huh.NewOption("Schedule (weekly on Monday at 9 AM UTC)", "schedule_weekly"),
+		huh.NewOption("Command trigger (/bot-name)", "command"),
+	}
+
+	// engineOptions defines the available AI engine types
+	engineOptions = []huh.Option[string]{
+		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
+		huh.NewOption("claude - Anthropic Claude coding agent", "claude"),
+		huh.NewOption("codex - OpenAI Codex engine", "codex"),
+		huh.NewOption("custom - Custom engine configuration", "custom"),
+	}
+
+	// toolOptions defines the available tool types for AI workflows
+	toolOptions = []huh.Option[string]{
+		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
+		huh.NewOption("edit - File editing tools", "edit"),
+		huh.NewOption("bash - Shell command tools", "bash"),
+		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
+		huh.NewOption("web-search - Web search tools", "web-search"),
+		huh.NewOption("playwright - Browser automation tools", "playwright"),
+	}
+
+	// safeOutputOptions defines the available safe output types
+	safeOutputOptions = []huh.Option[string]{
+		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
+		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
+		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
+		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
+		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
+		huh.NewOption("update-issue - Update existing issues", "update-issue"),
+		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
+		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
+		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
+		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
+	}
+
+	// networkOptions defines the available network access options
+	networkOptions = []huh.Option[string]{
+		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
+		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
+	}
+)
+
 // isValidWorkflowName checks if the provided workflow name contains only valid characters.
 // Returns false for empty strings (which should be checked separately for a more specific error message).
 func isValidWorkflowName(name string) bool {
@@ -57,7 +110,11 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 	}
 
 	builder := &InteractiveWorkflowBuilder{
-		WorkflowName: workflowName,
+		WorkflowName:  workflowName,
+		Trigger:       "workflow_dispatch", // Default to manual trigger
+		Engine:        "copilot",           // Default to Copilot
+		Tools:         []string{"github"},  // Default to GitHub tools
+		NetworkAccess: "defaults",          // Default to basic infrastructure
 	}
 
 	// If using default workflow name, prompt for a better one
@@ -130,22 +187,11 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 
 // promptForTrigger asks the user to select when the workflow should run
 func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
-	triggerOptions := []huh.Option[string]{
-		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
-		huh.NewOption("Issue opened or reopened", "issues"),
-		huh.NewOption("Pull request opened or synchronized", "pull_request"),
-		huh.NewOption("Push to main branch", "push"),
-		huh.NewOption("Issue comment created", "issue_comment"),
-		huh.NewOption("Schedule (daily at 9 AM UTC)", "schedule_daily"),
-		huh.NewOption("Schedule (weekly on Monday at 9 AM UTC)", "schedule_weekly"),
-		huh.NewOption("Command trigger (/bot-name)", "command"),
-	}
-
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("When should this workflow run?").
-				Description("Select the event that should trigger your agentic workflow").
+				Description("Choose the GitHub event that will trigger this workflow.").
 				Options(triggerOptions...).
 				Height(8).
 				Value(&b.Trigger),
@@ -157,18 +203,11 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 
 // promptForEngine asks the user to select the AI engine
 func (b *InteractiveWorkflowBuilder) promptForEngine() error {
-	engineOptions := []huh.Option[string]{
-		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
-		huh.NewOption("claude - Anthropic Claude Code coding agent", "claude"),
-		huh.NewOption("codex - OpenAI Codex engine", "codex"),
-		huh.NewOption("custom - Custom engine configuration", "custom"),
-	}
-
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Which AI engine should process this workflow?").
-				Description("Copilot is recommended for most use cases").
+				Description("Copilot is recommended for most use cases. Claude offers deeper reasoning for complex tasks.").
 				Options(engineOptions...).
 				Value(&b.Engine),
 		),
@@ -179,15 +218,6 @@ func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 
 // promptForTools asks the user to select which tools the AI can use
 func (b *InteractiveWorkflowBuilder) promptForTools() error {
-	toolOptions := []huh.Option[string]{
-		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
-		huh.NewOption("edit - File editing tools", "edit"),
-		huh.NewOption("bash - Shell command tools", "bash"),
-		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
-		huh.NewOption("web-search - Web search tools", "web-search"),
-		huh.NewOption("playwright - Browser automation tools", "playwright"),
-	}
-
 	var selected []string
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -210,26 +240,13 @@ func (b *InteractiveWorkflowBuilder) promptForTools() error {
 
 // promptForSafeOutputs asks the user to select safe output options
 func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
-	outputOptions := []huh.Option[string]{
-		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
-		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
-		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
-		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
-		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
-		huh.NewOption("update-issue - Update existing issues", "update-issue"),
-		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
-		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
-		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
-		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
-	}
-
 	var selected []string
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("What outputs should the AI be able to create?").
 				Description("Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.").
-				Options(outputOptions...).
+				Options(safeOutputOptions...).
 				Height(8).
 				Value(&selected),
 		),
@@ -245,12 +262,6 @@ func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 
 // promptForNetworkAccess asks about network access requirements
 func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
-	networkOptions := []huh.Option[string]{
-		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
-		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
-	}
-
-	b.NetworkAccess = "defaults" // Set default value
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
