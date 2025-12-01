@@ -16,8 +16,6 @@ imports:
 tools:
   bash: ["*"]
   edit:
-safe-outputs:
-  assign-to-agent:
 ---
 Use the `gh` safe-input tool to get information about the last PR in this repository.
 
