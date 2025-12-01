@@ -1,6 +1,7 @@
 package styles
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -258,8 +259,6 @@ func TestErrorBoxUsesCentralizedBorder(t *testing.T) {
 		Padding(1).
 		Margin(1)
 
-	// Render the same text with both styles and verify they produce similar output
-	// (exact comparison may vary due to color application, but structure should be same)
 	testText := "Test error message"
 	errorBoxResult := ErrorBox.Render(testText)
 	testStyleResult := testStyle.Render(testText)
@@ -272,8 +271,23 @@ func TestErrorBoxUsesCentralizedBorder(t *testing.T) {
 		t.Error("testStyle rendered empty string")
 	}
 
-	// Both should be the same length (same border characters)
-	if len(errorBoxResult) != len(testStyleResult) {
-		t.Errorf("ErrorBox output length (%d) differs from expected (%d)", len(errorBoxResult), len(testStyleResult))
+	// Verify that ErrorBox output contains the rounded border characters
+	// RoundedBorder uses: ╭ (top-left), ╮ (top-right), ╰ (bottom-left), ╯ (bottom-right)
+	if !strings.Contains(errorBoxResult, "╭") {
+		t.Error("ErrorBox missing rounded top-left corner (╭)")
+	}
+	if !strings.Contains(errorBoxResult, "╮") {
+		t.Error("ErrorBox missing rounded top-right corner (╮)")
+	}
+	if !strings.Contains(errorBoxResult, "╰") {
+		t.Error("ErrorBox missing rounded bottom-left corner (╰)")
+	}
+	if !strings.Contains(errorBoxResult, "╯") {
+		t.Error("ErrorBox missing rounded bottom-right corner (╯)")
+	}
+
+	// Both should produce identical output (same border, same styling)
+	if errorBoxResult != testStyleResult {
+		t.Errorf("ErrorBox output differs from expected:\nGot:\n%s\nExpected:\n%s", errorBoxResult, testStyleResult)
 	}
 }
