@@ -5656,6 +5656,20 @@ jobs:
             const AGENT_LOGIN_NAMES = {
               copilot: "copilot-swe-agent",
             };
+            let OctokitConstructor = null;
+            function setOctokitConstructor(constructor) {
+              OctokitConstructor = constructor;
+            }
+            function createOctokitClient(ghToken) {
+              const OctokitClass = OctokitConstructor || require("@octokit/rest").Octokit;
+              const octokit = new OctokitClass({
+                auth: ghToken,
+                baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
+              });
+              return {
+                graphql: octokit.graphql.bind(octokit),
+              };
+            }
             function getAgentName(assignee) {
               const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
               if (AGENT_LOGIN_NAMES[normalized]) {
@@ -5674,26 +5688,8 @@ jobs:
                 }
               `;
               try {
-                let response;
-                if (ghToken) {
-                  const fetchResponse = await fetch("https://api.github.com/graphql", {
-                    method: "POST",
-                    headers: {
-                      Authorization: `Bearer ${ghToken}`,
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      query: query,
-                      variables: { owner, repo },
-                    }),
-                  }).then(res => res.json());
-                  if (fetchResponse.errors && fetchResponse.errors.length > 0) {
-                    throw new Error(fetchResponse.errors[0].message);
-                  }
-                  response = fetchResponse.data;
-                } else {
-                  response = await github.graphql(query, { owner, repo });
-                }
+                const client = ghToken ? createOctokitClient(ghToken) : github;
+                const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository?.suggestedActors?.nodes || [];
                 const knownValues = Object.values(AGENT_LOGIN_NAMES);
                 const available = [];
@@ -5726,26 +5722,8 @@ jobs:
                 }
               `;
               try {
-                let response;
-                if (ghToken) {
-                  const fetchResponse = await fetch("https://api.github.com/graphql", {
-                    method: "POST",
-                    headers: {
-                      Authorization: `Bearer ${ghToken}`,
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      query: query,
-                      variables: { owner, repo },
-                    }),
-                  }).then(res => res.json());
-                  if (fetchResponse.errors && fetchResponse.errors.length > 0) {
-                    throw new Error(fetchResponse.errors[0].message);
-                  }
-                  response = fetchResponse.data;
-                } else {
-                  response = await github.graphql(query, { owner, repo });
-                }
+                const client = ghToken ? createOctokitClient(ghToken) : github;
+                const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository.suggestedActors.nodes;
                 const loginName = AGENT_LOGIN_NAMES[agentName];
                 if (!loginName) {

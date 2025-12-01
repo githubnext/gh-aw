@@ -15,36 +15,33 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
- * Execute a GraphQL query using the provided token via fetch
- * @param {string} query - GraphQL query string
- * @param {Record<string, any>} variables - GraphQL variables
- * @param {string} ghToken - GitHub token for authentication
- * @returns {Promise<any>} GraphQL response data
+ * Octokit constructor function - can be overridden for testing
+ * @type {Function|null}
  */
-async function executeGraphQLWithToken(query, variables, ghToken) {
-  const response = await fetch("https://api.github.com/graphql", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${ghToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query: query,
-      variables: variables,
-    }),
+let OctokitConstructor = null;
+
+/**
+ * Set the Octokit constructor for testing purposes
+ * @param {Function} constructor - Octokit constructor function
+ */
+function setOctokitConstructor(constructor) {
+  OctokitConstructor = constructor;
+}
+
+/**
+ * Create an Octokit client with a custom token for GraphQL queries
+ * @param {string} ghToken - GitHub token for authentication
+ * @returns {Object} Object with graphql method bound to the Octokit instance
+ */
+function createOctokitClient(ghToken) {
+  const OctokitClass = OctokitConstructor || require("@octokit/rest").Octokit;
+  const octokit = new OctokitClass({
+    auth: ghToken,
+    baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
   });
-
-  if (!response.ok) {
-    throw new Error(`GraphQL request failed with status ${response.status}: ${response.statusText}`);
-  }
-
-  const jsonResponse = await response.json();
-
-  if (jsonResponse.errors && jsonResponse.errors.length > 0) {
-    throw new Error(jsonResponse.errors[0].message);
-  }
-
-  return jsonResponse.data;
+  return {
+    graphql: octokit.graphql.bind(octokit),
+  };
 }
 
 /**
@@ -83,14 +80,9 @@ async function getAvailableAgentLogins(owner, repo, ghToken) {
     }
   `;
   try {
-    let response;
-    if (ghToken) {
-      // Use custom token via fetch for the GraphQL query
-      response = await executeGraphQLWithToken(query, { owner, repo }, ghToken);
-    } else {
-      // Fallback to default github object
-      response = await github.graphql(query, { owner, repo });
-    }
+    // Use Octokit client with custom token if provided, otherwise use default github object
+    const client = ghToken ? createOctokitClient(ghToken) : github;
+    const response = await client.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = [];
@@ -133,14 +125,9 @@ async function findAgent(owner, repo, agentName, ghToken) {
   `;
 
   try {
-    let response;
-    if (ghToken) {
-      // Use custom token via fetch for the GraphQL query
-      response = await executeGraphQLWithToken(query, { owner, repo }, ghToken);
-    } else {
-      // Fallback to default github object
-      response = await github.graphql(query, { owner, repo });
-    }
+    // Use Octokit client with custom token if provided, otherwise use default github object
+    const client = ghToken ? createOctokitClient(ghToken) : github;
+    const response = await client.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -512,4 +499,5 @@ module.exports = {
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
+  setOctokitConstructor, // Exposed for testing
 };

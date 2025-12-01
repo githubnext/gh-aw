@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -13,6 +13,9 @@ const mockGithub = {
   graphql: vi.fn(),
 };
 
+// Mock Octokit graphql function for custom token scenarios
+const mockOctokitGraphql = vi.fn();
+
 // Set up global mocks before importing the module
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
@@ -26,11 +29,24 @@ const {
   assignAgentToIssue,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
+  setOctokitConstructor,
 } = await import("./assign_agent_helpers.cjs");
+
+// Mock Octokit constructor function that returns an instance with the mocked graphql
+function MockOctokit() {
+  this.graphql = mockOctokitGraphql;
+}
 
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set up the mock Octokit constructor
+    setOctokitConstructor(MockOctokit);
+  });
+
+  afterEach(() => {
+    // Reset to null so real Octokit is used if not mocked
+    setOctokitConstructor(null);
   });
 
   describe("AGENT_LOGIN_NAMES", () => {
@@ -84,38 +100,22 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
     });
 
-    it("should return available agent logins using fetch when token is provided", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: {
-              repository: {
-                suggestedActors: {
-                  nodes: [
-                    { login: "copilot-swe-agent", __typename: "Bot" },
-                    { login: "some-other-bot", __typename: "Bot" },
-                  ],
-                },
-              },
-            },
-          }),
+    it("should return available agent logins using Octokit when token is provided", async () => {
+      mockOctokitGraphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [
+              { login: "copilot-swe-agent", __typename: "Bot" },
+              { login: "some-other-bot", __typename: "Bot" },
+            ],
+          },
+        },
       });
-      global.fetch = mockFetch;
 
       const result = await getAvailableAgentLogins("owner", "repo", "test-token");
 
       expect(result).toEqual(["copilot-swe-agent"]);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "https://api.github.com/graphql",
-        expect.objectContaining({
-          method: "POST",
-          headers: {
-            Authorization: "Bearer test-token",
-            "Content-Type": "application/json",
-          },
-        })
-      );
+      expect(mockOctokitGraphql).toHaveBeenCalledTimes(1);
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
 
@@ -142,28 +142,13 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list available agent logins"));
     });
 
-    it("should handle fetch errors gracefully when token is provided", async () => {
-      const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
-      global.fetch = mockFetch;
+    it("should handle Octokit errors gracefully when token is provided", async () => {
+      mockOctokitGraphql.mockRejectedValueOnce(new Error("Octokit error"));
 
       const result = await getAvailableAgentLogins("owner", "repo", "test-token");
 
       expect(result).toEqual([]);
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list available agent logins"));
-    });
-
-    it("should handle non-200 HTTP status when token is provided", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-      });
-      global.fetch = mockFetch;
-
-      const result = await getAvailableAgentLogins("owner", "repo", "test-token");
-
-      expect(result).toEqual([]);
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("GraphQL request failed with status 401"));
     });
 
     it("should handle null suggestedActors", async () => {
@@ -198,38 +183,22 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
     });
 
-    it("should find copilot agent and return its ID using fetch when token is provided", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: {
-              repository: {
-                suggestedActors: {
-                  nodes: [
-                    { id: "BOT_12345", login: "copilot-swe-agent", __typename: "Bot" },
-                    { id: "BOT_67890", login: "other-bot", __typename: "Bot" },
-                  ],
-                },
-              },
-            },
-          }),
+    it("should find copilot agent and return its ID using Octokit when token is provided", async () => {
+      mockOctokitGraphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [
+              { id: "BOT_12345", login: "copilot-swe-agent", __typename: "Bot" },
+              { id: "BOT_67890", login: "other-bot", __typename: "Bot" },
+            ],
+          },
+        },
       });
-      global.fetch = mockFetch;
 
       const result = await findAgent("owner", "repo", "copilot", "test-token");
 
       expect(result).toBe("BOT_12345");
-      expect(mockFetch).toHaveBeenCalledWith(
-        "https://api.github.com/graphql",
-        expect.objectContaining({
-          method: "POST",
-          headers: {
-            Authorization: "Bearer test-token",
-            "Content-Type": "application/json",
-          },
-        })
-      );
+      expect(mockOctokitGraphql).toHaveBeenCalledTimes(1);
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
 
@@ -458,43 +427,14 @@ describe("assign_agent_helpers.cjs", () => {
 
   describe("assignAgentToIssueByName", () => {
     it("should successfully assign copilot agent", async () => {
-      // Track fetch call count
-      let fetchCallCount = 0;
-
-      // Mock fetch for findAgent (first call) and assignAgentToIssue mutation (second call)
-      const mockFetch = vi.fn().mockImplementation(() => {
-        fetchCallCount++;
-        if (fetchCallCount === 1) {
-          // First call: findAgent
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve({
-                data: {
-                  repository: {
-                    suggestedActors: {
-                      nodes: [{ id: "AGENT_456", login: "copilot-swe-agent", __typename: "Bot" }],
-                    },
-                  },
-                },
-              }),
-          });
-        } else {
-          // Second call: assignAgentToIssue mutation
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve({
-                data: {
-                  replaceActorsForAssignable: {
-                    __typename: "ReplaceActorsForAssignablePayload",
-                  },
-                },
-              }),
-          });
-        }
+      // Mock findAgent (uses Octokit because token is provided)
+      mockOctokitGraphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ id: "AGENT_456", login: "copilot-swe-agent", __typename: "Bot" }],
+          },
+        },
       });
-      global.fetch = mockFetch;
 
       // Mock getIssueDetails (uses github.graphql because no token parameter is passed to it)
       mockGithub.graphql.mockResolvedValueOnce({
@@ -507,6 +447,19 @@ describe("assign_agent_helpers.cjs", () => {
           },
         },
       });
+
+      // Mock assignAgentToIssue mutation (still uses fetch for the mutation)
+      const mockFetch = vi.fn().mockResolvedValue({
+        json: () =>
+          Promise.resolve({
+            data: {
+              replaceActorsForAssignable: {
+                __typename: "ReplaceActorsForAssignablePayload",
+              },
+            },
+          }),
+      });
+      global.fetch = mockFetch;
 
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot", "test-token");
 
@@ -524,28 +477,15 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return error when agent is not available", async () => {
-      // Track fetch call count
-      let fetchCallCount = 0;
-
-      // Mock fetch for findAgent (first call) and getAvailableAgentLogins (second call)
-      const mockFetch = vi.fn().mockImplementation(() => {
-        fetchCallCount++;
-        // Both calls return empty nodes
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              data: {
-                repository: {
-                  suggestedActors: {
-                    nodes: [], // No agents
-                  },
-                },
-              },
-            }),
-        });
+      // Mock findAgent and getAvailableAgentLogins (both use Octokit with token)
+      // Both calls return empty nodes
+      mockOctokitGraphql.mockResolvedValue({
+        repository: {
+          suggestedActors: {
+            nodes: [], // No agents
+          },
+        },
       });
-      global.fetch = mockFetch;
 
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot", "test-token");
 
@@ -556,21 +496,14 @@ describe("assign_agent_helpers.cjs", () => {
     it("should report already assigned when agent is in assignees", async () => {
       const agentId = "AGENT_456";
 
-      // Mock fetch for findAgent (uses the token)
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: {
-              repository: {
-                suggestedActors: {
-                  nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
-                },
-              },
-            },
-          }),
+      // Mock findAgent (uses Octokit with token)
+      mockOctokitGraphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
+          },
+        },
       });
-      global.fetch = mockFetch;
 
       // Mock getIssueDetails (uses github.graphql)
       mockGithub.graphql.mockResolvedValueOnce({
