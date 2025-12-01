@@ -20,7 +20,8 @@ var interactiveLog = logger.New("cli:interactive")
 // workflowNameRegex validates workflow names contain only alphanumeric characters, hyphens, and underscores
 var workflowNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
-// isValidWorkflowName checks if the provided workflow name contains only valid characters
+// isValidWorkflowName checks if the provided workflow name contains only valid characters.
+// Returns false for empty strings (which should be checked separately for a more specific error message).
 func isValidWorkflowName(name string) bool {
 	return workflowNameRegex.MatchString(name)
 }
