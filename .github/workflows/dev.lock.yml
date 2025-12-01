@@ -1441,7 +1441,7 @@ jobs:
             function registerTool(name, description, inputSchema, handler) {
               tools[name] = { name, description, inputSchema, handler };
             }
-            registerTool("gh", "Execute any gh CLI command using the GH_TOKEN environment variable (set from GITHUB_TOKEN). Supports all gh subcommands including pr, issue, api, repo, run, etc.", {"properties":{"args":{"description":"The gh CLI command arguments (e.g., 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}')","type":"string"}},"required":["args"],"type":"object"}, async (args) => {
+            registerTool("gh", "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>", {"properties":{"args":{"description":"Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'","type":"string"}},"required":["args"],"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
                 if (args && args["args"] !== undefined) {
@@ -1566,13 +1566,10 @@ jobs:
           cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
           #!/bin/bash
           # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command using the GH_TOKEN environment variable (set from GITHUB_TOKEN). Supports all gh subcommands including pr, issue, api, repo, run, etc.
+          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>
           
           set -euo pipefail
           
-          # Execute the gh CLI command with the provided arguments
-          # Note: INPUT_ARGS is validated as a string by the safe-inputs system
-          # The gh CLI handles its own argument parsing and security
           gh $INPUT_ARGS
           
           EOFSH_gh
