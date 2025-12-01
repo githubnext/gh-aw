@@ -80,8 +80,8 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	}
 
 	// Verify tools appear in sorted order in the output
-	// JavaScript tools: alpha-js, beta-js (sorted)
-	// Shell tools: middle-shell, zebra-shell (sorted)
+	// All tools are sorted alphabetically regardless of type (JavaScript or shell):
+	// alpha-js, beta-js, middle-shell, zebra-shell
 	alphaPos := strings.Index(outputs[0], "alpha-js")
 	betaPos := strings.Index(outputs[0], "beta-js")
 	middlePos := strings.Index(outputs[0], "middle-shell")
