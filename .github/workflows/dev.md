@@ -5,7 +5,7 @@ name: Dev
 description: Test workflow for development and experimentation purposes
 timeout-minutes: 5
 strict: false
-engine: claude
+engine: codex
 permissions:
   contents: read
   issues: read
