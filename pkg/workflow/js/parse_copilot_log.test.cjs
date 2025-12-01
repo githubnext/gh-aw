@@ -183,13 +183,13 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(jsonArrayLog);
 
-      expect(result).toContain("🚀 Initialization");
-      expect(result).toContain("🤖 Commands and Tools");
-      expect(result).toContain("copilot-test-123");
-      expect(result).toContain("echo 'Hello World'");
-      expect(result).toContain("Total Cost");
-      expect(result).toContain("<details>");
-      expect(result).toContain("<summary>");
+      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("copilot-test-123");
+      expect(result.markdown).toContain("echo 'Hello World'");
+      expect(result.markdown).toContain("Total Cost");
+      expect(result.markdown).toContain("<details>");
+      expect(result.markdown).toContain("<summary>");
     });
 
     it("should parse mixed format with debug logs and JSON array", () => {
@@ -200,11 +200,11 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(mixedFormatLog);
 
-      expect(result).toContain("🚀 Initialization");
-      expect(result).toContain("🤖 Commands and Tools");
-      expect(result).toContain("copilot-456");
-      expect(result).toContain("safe_outputs::missing-tool");
-      expect(result).toContain("Total Cost");
+      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("copilot-456");
+      expect(result.markdown).toContain("safe_outputs::missing-tool");
+      expect(result.markdown).toContain("Total Cost");
     });
 
     it("should parse mixed format with individual JSON lines (JSONL)", () => {
@@ -218,11 +218,11 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(jsonlFormatLog);
 
-      expect(result).toContain("🚀 Initialization");
-      expect(result).toContain("🤖 Commands and Tools");
-      expect(result).toContain("copilot-789");
-      expect(result).toContain("ls -la");
-      expect(result).toContain("Total Cost");
+      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("copilot-789");
+      expect(result.markdown).toContain("ls -la");
+      expect(result.markdown).toContain("Total Cost");
     });
 
     it("should handle tool calls with details in HTML format", () => {
@@ -264,30 +264,30 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(logWithToolOutput);
 
       // Should contain HTML details tag
-      expect(result).toContain("<details>");
-      expect(result).toContain("<summary>");
-      expect(result).toContain("</summary>");
-      expect(result).toContain("</details>");
+      expect(result.markdown).toContain("<details>");
+      expect(result.markdown).toContain("<summary>");
+      expect(result.markdown).toContain("</summary>");
+      expect(result.markdown).toContain("</details>");
 
       // Summary should contain the command
-      expect(result).toContain("cat README.md");
+      expect(result.markdown).toContain("cat README.md");
 
       // Details should contain the output
-      expect(result).toContain("Project Title");
+      expect(result.markdown).toContain("Project Title");
 
       // Should use 6 backticks (not 5) for code blocks
-      expect(result).toContain("``````json");
-      expect(result).toMatch(/``````\n#/); // Response content should start after 6 backticks
+      expect(result.markdown).toContain("``````json");
+      expect(result.markdown).toMatch(/``````\n#/); // Response content should start after 6 backticks
 
       // Should have Parameters and Response sections
-      expect(result).toContain("**Parameters:**");
-      expect(result).toContain("**Response:**");
+      expect(result.markdown).toContain("**Parameters:**");
+      expect(result.markdown).toContain("**Response:**");
 
       // Parameters should be formatted as JSON
-      expect(result).toContain("``````json");
+      expect(result.markdown).toContain("``````json");
 
       // Verify the structure contains both parameter and response sections
-      const detailsMatch = result.match(/<details>[\s\S]*?<\/details>/);
+      const detailsMatch = result.markdown.match(/<details>[\s\S]*?<\/details>/);
       expect(detailsMatch).toBeDefined();
       const detailsContent = detailsMatch[0];
       expect(detailsContent).toContain("**Parameters:**");
@@ -328,8 +328,8 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(logWithMcpTools);
 
-      expect(result).toContain("github::create_issue");
-      expect(result).toContain("safe_outputs::missing-tool");
+      expect(result.markdown).toContain("github::create_issue");
+      expect(result.markdown).toContain("safe_outputs::missing-tool");
     });
 
     it("should handle unrecognized log format", () => {
@@ -337,13 +337,13 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(invalidLog);
 
-      expect(result).toContain("Log format not recognized");
+      expect(result.markdown).toContain("Log format not recognized");
     });
 
     it("should handle empty log content", () => {
       const result = parseCopilotLog("");
 
-      expect(result).toContain("Log format not recognized");
+      expect(result.markdown).toContain("Log format not recognized");
     });
 
     it("should skip internal file operations in summary", () => {
@@ -378,8 +378,8 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(logWithInternalTools);
 
       // Commands and Tools section should only show Bash
-      expect(result).toContain("🤖 Commands and Tools");
-      const commandsSection = result.split("📊 Information")[0];
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      const commandsSection = result.markdown.split("📊 Information")[0];
       expect(commandsSection).toContain("echo test");
       // Read and Write should not be in the summary
       expect(commandsSection.split("🤖 Reasoning")[0]).not.toContain("Read");
@@ -404,10 +404,10 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(logWithTextMessage);
 
       // Text should be rendered directly in the Reasoning section
-      expect(result).toContain("🤖 Reasoning");
-      expect(result).toContain("Let me analyze the code");
-      expect(result).toContain("## Analysis");
-      expect(result).toContain("could use some improvements");
+      expect(result.markdown).toContain("🤖 Reasoning");
+      expect(result.markdown).toContain("Let me analyze the code");
+      expect(result.markdown).toContain("## Analysis");
+      expect(result.markdown).toContain("could use some improvements");
     });
 
     it("should parse debug log format with tool calls and mark them as successful", () => {
@@ -459,18 +459,18 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLogFormat);
 
       // Should successfully parse the debug log format
-      expect(result).toContain("🤖 Commands and Tools");
-      expect(result).toContain("echo 'Hello World'");
-      expect(result).toContain("github::search_issues");
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      expect(result.markdown).toContain("echo 'Hello World'");
+      expect(result.markdown).toContain("github::search_issues");
 
       // CRITICAL: Tools should be marked as successful (✅) not unknown (❓)
       // This is the fix for the issue - parseDebugLogFormat now creates tool_result entries
-      expect(result).toContain("✅");
-      expect(result).not.toContain("❓ `echo");
-      expect(result).not.toContain("❓ `github::search_issues");
+      expect(result.markdown).toContain("✅");
+      expect(result.markdown).not.toContain("❓ `echo");
+      expect(result.markdown).not.toContain("❓ `github::search_issues");
 
       // Check that the tool calls are in the Commands and Tools section with success icon
-      const commandsSection = result.split("📊 Information")[0];
+      const commandsSection = result.markdown.split("📊 Information")[0];
       expect(commandsSection).toContain("✅ `echo 'Hello World'`");
       expect(commandsSection).toContain("✅ `github::search_issues(...)`");
     });
@@ -530,10 +530,10 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLogWithModelInfo);
 
       // Should successfully parse and display premium model information
-      expect(result).toContain("🚀 Initialization");
-      expect(result).toContain("**Model Name:** Claude Sonnet 4 (Anthropic)");
-      expect(result).toContain("**Premium Model:** Yes");
-      expect(result).toContain("**Required Plans:** pro, pro_plus, max, business, enterprise");
+      expect(result.markdown).toContain("🚀 Initialization");
+      expect(result.markdown).toContain("**Model Name:** Claude Sonnet 4 (Anthropic)");
+      expect(result.markdown).toContain("**Premium Model:** Yes");
+      expect(result.markdown).toContain("**Required Plans:** pro, pro_plus, max, business, enterprise");
     });
 
     it("should handle non-premium models in debug logs", () => {
@@ -560,8 +560,8 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLogNonPremium);
 
       // Should display non-premium model information
-      expect(result).toContain("**Model Name:** GPT-4o (OpenAI)");
-      expect(result).toContain("**Premium Model:** No");
+      expect(result.markdown).toContain("**Model Name:** GPT-4o (OpenAI)");
+      expect(result.markdown).toContain("**Premium Model:** No");
     });
 
     it("should handle model info with cost multiplier", () => {
@@ -589,8 +589,8 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLogWithMultiplier);
 
       // Should display cost multiplier
-      expect(result).toContain("**Premium Model:** Yes (2.5x cost multiplier)");
-      expect(result).toContain("**Required Plans:** enterprise");
+      expect(result.markdown).toContain("**Premium Model:** Yes (2.5x cost multiplier)");
+      expect(result.markdown).toContain("**Required Plans:** enterprise");
     });
 
     it("should display premium requests consumed for premium models", () => {
@@ -653,11 +653,11 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(structuredLog);
 
       // Should display premium requests consumed (always 1 per workflow run, regardless of num_turns)
-      expect(result).toContain("**Premium Requests Consumed:** 1");
-      expect(result).toContain("**Turns:** 5");
-      expect(result).toContain("**Token Usage:**");
-      expect(result).toContain("- Input: 1,000");
-      expect(result).toContain("- Output: 250");
+      expect(result.markdown).toContain("**Premium Requests Consumed:** 1");
+      expect(result.markdown).toContain("**Turns:** 5");
+      expect(result.markdown).toContain("**Token Usage:**");
+      expect(result.markdown).toContain("- Input: 1,000");
+      expect(result.markdown).toContain("- Output: 250");
     });
 
     it("should not display premium requests for non-premium models", () => {
@@ -692,9 +692,9 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(structuredLog);
 
       // Should NOT display premium requests consumed
-      expect(result).not.toContain("Premium Requests Consumed");
-      expect(result).toContain("**Turns:** 3");
-      expect(result).toContain("**Token Usage:**");
+      expect(result.markdown).not.toContain("Premium Requests Consumed");
+      expect(result.markdown).toContain("**Turns:** 3");
+      expect(result.markdown).toContain("**Token Usage:**");
     });
 
     it("should display 1 premium request consumed regardless of number of turns", () => {
@@ -743,9 +743,9 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(structuredLog);
 
       // Should display 1 premium request consumed (default when not specified in log)
-      expect(result).toContain("**Premium Requests Consumed:** 1");
-      expect(result).toContain("**Turns:** 17");
-      expect(result).toContain("**Token Usage:**");
+      expect(result.markdown).toContain("**Premium Requests Consumed:** 1");
+      expect(result.markdown).toContain("**Turns:** 17");
+      expect(result.markdown).toContain("**Token Usage:**");
     });
 
     it("should accumulate token usage across multiple API responses in debug logs", () => {
@@ -791,12 +791,12 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(debugLogWith2Responses);
 
       // Should show accumulated tokens: 100+200=300 input, 50+10=60 output
-      expect(result).toContain("**Token Usage:**");
-      expect(result).toContain("- Input: 300");
-      expect(result).toContain("- Output: 60");
+      expect(result.markdown).toContain("**Token Usage:**");
+      expect(result.markdown).toContain("- Input: 300");
+      expect(result.markdown).toContain("- Output: 60");
 
       // Should have 2 turns
-      expect(result).toContain("**Turns:** 2");
+      expect(result.markdown).toContain("**Turns:** 2");
     });
 
     it("should extract premium request count from log content using regex", () => {
@@ -836,8 +836,8 @@ More log content
       const result = parseCopilotLog(logWithPremiumInfo);
 
       // Should extract 3 from the log content
-      expect(result).toContain("**Premium Requests Consumed:** 3");
-      expect(result).toContain("**Turns:** 10");
+      expect(result.markdown).toContain("**Premium Requests Consumed:** 3");
+      expect(result.markdown).toContain("**Turns:** 10");
     });
   });
 
@@ -910,11 +910,11 @@ More log content
       expect(markdownCall[0]).toContain("🚀 Initialization");
       expect(markdownCall[0]).toContain("integration-test");
 
-      // Verify that core.info was also called with the same content
+      // Verify that core.info was called with plain text summary (contains parser name and model info)
       expect(mockCore.info).toHaveBeenCalled();
-      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🚀 Initialization"));
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== Copilot Execution Summary ==="));
       expect(infoCall).toBeDefined();
-      expect(infoCall[0]).toContain("integration-test");
+      expect(infoCall[0]).toContain("Model: gpt-5");
     });
 
     it("should handle missing log file", async () => {
@@ -967,7 +967,7 @@ More log content
       const result = parseCopilotLog(logWithCommand);
 
       // Check that multi-line commands are normalized to single line
-      expect(result).toContain("echo 'hello world' && ls -la && pwd");
+      expect(result.markdown).toContain("echo 'hello world' && ls -la && pwd");
     });
 
     it("should truncate long strings appropriately", () => {
@@ -993,7 +993,7 @@ More log content
       const result = parseCopilotLog(logWithLongCommand);
 
       // Should truncate and add ellipsis
-      expect(result).toContain("...");
+      expect(result.markdown).toContain("...");
     });
 
     it("should format MCP tool names correctly", () => {
@@ -1017,7 +1017,7 @@ More log content
 
       const result = parseCopilotLog(logWithMcpTool);
 
-      expect(result).toContain("github::create_pull_request");
+      expect(result.markdown).toContain("github::create_pull_request");
     });
 
     it("should extract tools from debug log format", () => {
@@ -1096,24 +1096,24 @@ More log content
       const result = parseCopilotLog(debugLogWithTools);
 
       // Check that tools were extracted and displayed
-      expect(result).toContain("**Available Tools:**");
-      expect(result).toContain("bash");
+      expect(result.markdown).toContain("**Available Tools:**");
+      expect(result.markdown).toContain("bash");
       // Tools are displayed in formatted form (github::create_issue) not internal form (mcp__github__create_issue)
-      expect(result).toContain("github::create_issue");
+      expect(result.markdown).toContain("github::create_issue");
       // safe_outputs tools are shown without prefix in Safe Outputs category
-      expect(result).toContain("**Safe Outputs:**");
-      expect(result).toContain("create_issue");
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_issue");
 
       // Verify tool categories are shown
-      expect(result).toContain("**Git/GitHub:**");
-      expect(result).toContain("**Builtin:**");
+      expect(result.markdown).toContain("**Git/GitHub:**");
+      expect(result.markdown).toContain("**Builtin:**");
 
       // Check that the model info was extracted
-      expect(result).toContain("Claude Sonnet 4.5");
-      expect(result).toContain("**Premium Model:** Yes");
+      expect(result.markdown).toContain("Claude Sonnet 4.5");
+      expect(result.markdown).toContain("**Premium Model:** Yes");
 
       // Check that tool calls are displayed
-      expect(result).toContain("echo test");
+      expect(result.markdown).toContain("echo test");
     });
 
     it("should detect permission denied errors in tool calls from debug logs", () => {
@@ -1171,10 +1171,10 @@ More log content
       const result = parseCopilotLog(debugLogWithPermissionError);
 
       // Should detect the permission error and mark the tool call as failed
-      expect(result).toContain("github::create_issue");
+      expect(result.markdown).toContain("github::create_issue");
 
       // The tool should be marked with ❌ (failed) instead of ✅ (success)
-      const commandsSection = result.split("📊 Information")[0];
+      const commandsSection = result.markdown.split("📊 Information")[0];
       expect(commandsSection).toContain("❌");
       expect(commandsSection).toContain("❌ `github::create_issue(...)`");
 
@@ -1216,32 +1216,32 @@ More log content
       const result = parseCopilotLog(logWithManyTools);
 
       // Verify all GitHub tools are shown (not just first 3 with "and X more")
-      expect(result).toContain("github::create_issue");
-      expect(result).toContain("github::list_issues");
-      expect(result).toContain("github::get_issue");
-      expect(result).toContain("github::create_pull_request");
-      expect(result).toContain("github::list_pull_requests");
-      expect(result).toContain("github::get_pull_request");
-      expect(result).toContain("github::create_discussion");
-      expect(result).toContain("github::list_discussions");
+      expect(result.markdown).toContain("github::create_issue");
+      expect(result.markdown).toContain("github::list_issues");
+      expect(result.markdown).toContain("github::get_issue");
+      expect(result.markdown).toContain("github::create_pull_request");
+      expect(result.markdown).toContain("github::list_pull_requests");
+      expect(result.markdown).toContain("github::get_pull_request");
+      expect(result.markdown).toContain("github::create_discussion");
+      expect(result.markdown).toContain("github::list_discussions");
 
       // Verify safe_outputs tools are shown (without prefix, in Safe Outputs category)
-      expect(result).toContain("**Safe Outputs:**");
-      expect(result).toContain("create_issue");
-      expect(result).toContain("add-comment");
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_issue");
+      expect(result.markdown).toContain("add-comment");
 
       // Verify file operations are shown
-      expect(result).toContain("Read");
-      expect(result).toContain("Write");
-      expect(result).toContain("Edit");
-      expect(result).toContain("LS");
-      expect(result).toContain("Grep");
+      expect(result.markdown).toContain("Read");
+      expect(result.markdown).toContain("Write");
+      expect(result.markdown).toContain("Edit");
+      expect(result.markdown).toContain("LS");
+      expect(result.markdown).toContain("Grep");
 
       // Verify Bash is shown
-      expect(result).toContain("Bash");
+      expect(result.markdown).toContain("Bash");
 
       // Ensure we don't have "and X more" text in the tools list (the pattern used to truncate tool lists)
-      const toolsSection = result.split("## 🤖 Reasoning")[0];
+      const toolsSection = result.markdown.split("## 🤖 Reasoning")[0];
       expect(toolsSection).not.toMatch(/and \d+ more/);
     });
   });

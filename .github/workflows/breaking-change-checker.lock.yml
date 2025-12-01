@@ -3185,81 +3185,9 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
         with:
           script: |
-            function runLogParser(options) {
-              const fs = require("fs");
-              const path = require("path");
-              const { parseLog, parserName, supportsDirectories = false } = options;
-              try {
-                const logPath = process.env.GH_AW_AGENT_OUTPUT;
-                if (!logPath) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logPath)) {
-                  core.info(`Log path not found: ${logPath}`);
-                  return;
-                }
-                let content = "";
-                const stat = fs.statSync(logPath);
-                if (stat.isDirectory()) {
-                  if (!supportsDirectories) {
-                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
-                    return;
-                  }
-                  const files = fs.readdirSync(logPath);
-                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
-                  if (logFiles.length === 0) {
-                    core.info(`No log files found in directory: ${logPath}`);
-                    return;
-                  }
-                  logFiles.sort();
-                  for (const file of logFiles) {
-                    const filePath = path.join(logPath, file);
-                    const fileContent = fs.readFileSync(filePath, "utf8");
-                    if (content.length > 0 && !content.endsWith("\n")) {
-                      content += "\n";
-                    }
-                    content += fileContent;
-                  }
-                } else {
-                  content = fs.readFileSync(logPath, "utf8");
-                }
-                const result = parseLog(content);
-                let markdown = "";
-                let mcpFailures = [];
-                let maxTurnsHit = false;
-                if (typeof result === "string") {
-                  markdown = result;
-                } else if (result && typeof result === "object") {
-                  markdown = result.markdown || "";
-                  mcpFailures = result.mcpFailures || [];
-                  maxTurnsHit = result.maxTurnsHit || false;
-                }
-                if (markdown) {
-                  core.info(markdown);
-                  core.summary.addRaw(markdown).write();
-                  core.info(`${parserName} log parsed successfully`);
-                } else {
-                  core.error(`Failed to parse ${parserName} log`);
-                }
-                if (mcpFailures && mcpFailures.length > 0) {
-                  const failedServers = mcpFailures.join(", ");
-                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
-                }
-                if (maxTurnsHit) {
-                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
-                }
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
-            }
-            const MAX_TOOL_OUTPUT_LENGTH = 500;
-            const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
+            const MAX_TOOL_OUTPUT_LENGTH = 256;
+            const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
+            const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
             const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
             class StepSummaryTracker {
               constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
@@ -3832,6 +3760,177 @@ jobs:
               detailsContent = detailsContent.trimEnd();
               return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
             }
+            function generatePlainTextSummary(logEntries, options = {}) {
+              const { model, parserName = "Agent" } = options;
+              const lines = [];
+              lines.push(`=== ${parserName} Execution Summary ===`);
+              if (model) {
+                lines.push(`Model: ${model}`);
+              }
+              lines.push("");
+              const toolUsePairs = new Map();
+              for (const entry of logEntries) {
+                if (entry.type === "user" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_result" && content.tool_use_id) {
+                      toolUsePairs.set(content.tool_use_id, content);
+                    }
+                  }
+                }
+              }
+              const toolCounts = { total: 0, success: 0, error: 0 };
+              const toolSummary = [];
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      const input = content.input || {};
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue;
+                      }
+                      toolCounts.total++;
+                      const toolResult = toolUsePairs.get(content.id);
+                      const isError = toolResult?.is_error === true;
+                      if (isError) {
+                        toolCounts.error++;
+                      } else {
+                        toolCounts.success++;
+                      }
+                      const statusIcon = isError ? "✗" : "✓";
+                      let displayName;
+                      if (toolName === "Bash") {
+                        const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
+                        displayName = `bash: ${cmd}`;
+                      } else if (toolName.startsWith("mcp__")) {
+                        displayName = formatMcpName(toolName);
+                      } else {
+                        displayName = toolName;
+                      }
+                      if (toolSummary.length < 20) {
+                        toolSummary.push(`  [${statusIcon}] ${displayName}`);
+                      }
+                    }
+                  }
+                }
+              }
+              if (toolSummary.length > 0) {
+                lines.push("Tools/Commands:");
+                lines.push(...toolSummary);
+                if (toolCounts.total > 20) {
+                  lines.push(`  ... and ${toolCounts.total - 20} more`);
+                }
+                lines.push("");
+              }
+              const lastEntry = logEntries[logEntries.length - 1];
+              lines.push("Statistics:");
+              if (lastEntry?.num_turns) {
+                lines.push(`  Turns: ${lastEntry.num_turns}`);
+              }
+              if (lastEntry?.duration_ms) {
+                const duration = formatDuration(lastEntry.duration_ms);
+                if (duration) {
+                  lines.push(`  Duration: ${duration}`);
+                }
+              }
+              if (toolCounts.total > 0) {
+                lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
+              }
+              if (lastEntry?.usage) {
+                const usage = lastEntry.usage;
+                if (usage.input_tokens && usage.output_tokens) {
+                  lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+                }
+              }
+              if (lastEntry?.total_cost_usd) {
+                lines.push(`  Cost: $${lastEntry.total_cost_usd.toFixed(4)}`);
+              }
+              return lines.join("\n");
+            }
+            function runLogParser(options) {
+              const fs = require("fs");
+              const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
+              try {
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
+                if (!logPath) {
+                  core.info("No agent log file specified");
+                  return;
+                }
+                if (!fs.existsSync(logPath)) {
+                  core.info(`Log path not found: ${logPath}`);
+                  return;
+                }
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                    content += fileContent;
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                let logEntries = null;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                  logEntries = result.logEntries || null;
+                }
+                if (markdown) {
+                  if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
+                    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                    const model = initEntry?.model || null;
+                    const plainTextSummary = generatePlainTextSummary(logEntries, {
+                      model,
+                      parserName,
+                    });
+                    core.info(plainTextSummary);
+                  } else {
+                    core.info(`${parserName} log parsed successfully`);
+                  }
+                  core.summary.addRaw(markdown).write();
+                } else {
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
+                }
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -3873,7 +3972,7 @@ jobs:
                   }
                 }
                 if (!logEntries) {
-                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
+                  return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {
                   formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
@@ -3925,10 +4024,13 @@ jobs:
                     return "";
                   },
                 });
-                return markdown;
+                return { markdown, logEntries };
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
+                return {
+                  markdown: `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  logEntries: [],
+                };
               }
             }
             function scanForToolErrors(logContent) {

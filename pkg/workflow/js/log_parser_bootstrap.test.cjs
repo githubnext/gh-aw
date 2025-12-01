@@ -88,10 +88,10 @@ describe("log_parser_bootstrap.cjs", () => {
       });
 
       expect(mockParseLog).toHaveBeenCalledWith(logContent);
-      expect(mockCore.info).toHaveBeenCalledWith("## Parsed Log\n\nSuccess!");
+      // When no logEntries are returned (string result), we log success message
+      expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully");
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Parsed Log\n\nSuccess!");
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully");
 
       // Cleanup
       fs.unlinkSync(logFile);
@@ -116,9 +116,46 @@ describe("log_parser_bootstrap.cjs", () => {
         parserName: "TestParser",
       });
 
-      expect(mockCore.info).toHaveBeenCalledWith("## Result\n");
+      // When no logEntries are returned, we log success message
+      expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully");
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Result\n");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      fs.unlinkSync(logFile);
+      fs.rmdirSync(tmpDir);
+    });
+
+    it("should generate plain text summary when logEntries are available", () => {
+      const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+      const logFile = path.join(tmpDir, "test.log");
+      fs.writeFileSync(logFile, "content");
+
+      process.env.GH_AW_AGENT_OUTPUT = logFile;
+
+      const mockLogEntries = [
+        { type: "system", subtype: "init", model: "gpt-5" },
+        { type: "assistant", message: { content: [{ type: "text", text: "Hello" }] } },
+        { type: "result", num_turns: 2, duration_ms: 5000 },
+      ];
+
+      const mockParseLog = vi.fn().mockReturnValue({
+        markdown: "## Result\n",
+        mcpFailures: [],
+        maxTurnsHit: false,
+        logEntries: mockLogEntries,
+      });
+
+      runLogParser({
+        parseLog: mockParseLog,
+        parserName: "TestParser",
+      });
+
+      // Should generate plain text summary instead of success message
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== TestParser Execution Summary ==="));
+      expect(infoCall).toBeDefined();
+      expect(infoCall[0]).toContain("Model: gpt-5");
+      expect(infoCall[0]).toContain("Turns: 2");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Result\n");
 
       fs.unlinkSync(logFile);
       fs.rmdirSync(tmpDir);
