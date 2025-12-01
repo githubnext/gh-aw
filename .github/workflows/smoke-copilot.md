@@ -15,7 +15,7 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 network:
