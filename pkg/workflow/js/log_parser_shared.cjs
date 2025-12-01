@@ -21,6 +21,12 @@ const MAX_TOOL_OUTPUT_LENGTH = 256;
 const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
 
 /**
+ * Maximum length for bash command display in plain text summaries.
+ * Commands are truncated to this length for compact display.
+ */
+const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
+
+/**
  * Warning message shown when step summary size limit is reached.
  * This message is added directly to markdown (not tracked) to ensure it's always visible.
  * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
@@ -855,7 +861,7 @@ function parseLogEntries(logContent) {
  * Generic helper to format a tool call as an HTML details section.
  * This is a reusable helper for all code engines (Claude, Copilot, Codex).
  *
- * Tool output/response content is automatically truncated to MAX_TOOL_OUTPUT_LENGTH (500 chars)
+ * Tool output/response content is automatically truncated to MAX_TOOL_OUTPUT_LENGTH (256 chars)
  * to keep step summaries readable and prevent size limit issues.
  *
  * @param {Object} options - Configuration options
@@ -1000,12 +1006,12 @@ function generatePlainTextSummary(logEntries, options = {}) {
             toolCounts.success++;
           }
 
-          const statusIcon = isError ? "x" : "✓";
+          const statusIcon = isError ? "✗" : "✓";
 
           // Format tool name compactly
           let displayName;
           if (toolName === "Bash") {
-            const cmd = formatBashCommand(input.command || "").slice(0, 40);
+            const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
             displayName = `bash: ${cmd}`;
           } else if (toolName.startsWith("mcp__")) {
             displayName = formatMcpName(toolName);

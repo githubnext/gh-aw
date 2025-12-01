@@ -1388,7 +1388,7 @@ describe("log_parser_shared.cjs", () => {
 
       expect(result).toContain("Tools/Commands:");
       expect(result).toContain("[✓] bash: echo test");
-      expect(result).toContain("[x] github::create_issue");
+      expect(result).toContain("[✗] github::create_issue");
       expect(result).toContain("Tools: 1/2 succeeded");
     });
 

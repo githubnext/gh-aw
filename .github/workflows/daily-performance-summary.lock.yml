@@ -2383,9 +2383,6 @@ jobs:
             registerTool("github-issue-query", "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of issues to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"Issue state: open, closed, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
                 if (args && args["state"] !== undefined) {
                   env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
@@ -2394,6 +2391,9 @@ jobs:
                 }
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
                 }
                 const scriptPath = path.join(__dirname, "github-issue-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
@@ -2406,6 +2406,9 @@ jobs:
             registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
+                }
                 if (args && args["jq"] !== undefined) {
                   env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
@@ -2414,9 +2417,6 @@ jobs:
                 }
                 if (args && args["repo"] !== undefined) {
                   env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
                 const scriptPath = path.join(__dirname, "github-pr-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
@@ -4969,6 +4969,7 @@ jobs:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
             const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
+            const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
             const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
             class StepSummaryTracker {
               constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
@@ -5578,10 +5579,10 @@ jobs:
                       } else {
                         toolCounts.success++;
                       }
-                      const statusIcon = isError ? "x" : "✓";
+                      const statusIcon = isError ? "✗" : "✓";
                       let displayName;
                       if (toolName === "Bash") {
-                        const cmd = formatBashCommand(input.command || "").slice(0, 40);
+                        const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
                         displayName = `bash: ${cmd}`;
                       } else if (toolName.startsWith("mcp__")) {
                         displayName = formatMcpName(toolName);

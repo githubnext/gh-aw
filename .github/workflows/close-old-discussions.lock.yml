@@ -3360,6 +3360,7 @@ jobs:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
             const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
+            const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
             const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
             class StepSummaryTracker {
               constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
@@ -3969,10 +3970,10 @@ jobs:
                       } else {
                         toolCounts.success++;
                       }
-                      const statusIcon = isError ? "x" : "✓";
+                      const statusIcon = isError ? "✗" : "✓";
                       let displayName;
                       if (toolName === "Bash") {
-                        const cmd = formatBashCommand(input.command || "").slice(0, 40);
+                        const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
                         displayName = `bash: ${cmd}`;
                       } else if (toolName.startsWith("mcp__")) {
                         displayName = formatMcpName(toolName);
