@@ -5,72 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
-
-/**
- * Parse the allowed repos from environment variable
- * @returns {Set<string>} Set of allowed repository slugs
- */
-function parseAllowedRepos() {
-  const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
-  const set = new Set();
-  if (allowedReposEnv) {
-    allowedReposEnv
-      .split(",")
-      .map(repo => repo.trim())
-      .filter(repo => repo)
-      .forEach(repo => set.add(repo));
-  }
-  return set;
-}
-
-/**
- * Get the default target repository
- * @returns {string} Repository slug in "owner/repo" format
- */
-function getDefaultTargetRepo() {
-  // First check if there's a target-repo override
-  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  if (targetRepoSlug) {
-    return targetRepoSlug;
-  }
-  // Fall back to context repo
-  return `${context.repo.owner}/${context.repo.repo}`;
-}
-
-/**
- * Validate that a repo is allowed for discussion creation
- * @param {string} repo - Repository slug to validate
- * @param {string} defaultRepo - Default target repository
- * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
- * @returns {{valid: boolean, error: string|null}}
- */
-function validateRepo(repo, defaultRepo, allowedRepos) {
-  // Default repo is always allowed
-  if (repo === defaultRepo) {
-    return { valid: true, error: null };
-  }
-  // Check if it's in the allowed repos list
-  if (allowedRepos.has(repo)) {
-    return { valid: true, error: null };
-  }
-  return {
-    valid: false,
-    error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
-  };
-}
-
-/**
- * Parse owner and repo from a repository slug
- * @param {string} repoSlug - Repository slug in "owner/repo" format
- * @returns {{owner: string, repo: string}|null}
- */
-function parseRepoSlug(repoSlug) {
-  const parts = repoSlug.split("/");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return null;
-  }
-  return { owner: parts[0], repo: parts[1] };
-}
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -112,7 +47,7 @@ async function fetchRepoDiscussionInfo(owner, repo) {
  * @param {string} categoryConfig - Category ID, name, or slug from config
  * @param {string} itemCategory - Category from agent output item (optional)
  * @param {Array<{id: string, name: string, slug: string}>} categories - Available categories
- * @returns {string|undefined} Resolved category ID
+ * @returns {{id: string, matchType: string, name: string, requestedCategory?: string}|undefined} Resolved category info
  */
 function resolveCategoryId(categoryConfig, itemCategory, categories) {
   // Use item category if provided, otherwise use config
@@ -122,23 +57,28 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
     // Try to match against category IDs first
     const categoryById = categories.find(cat => cat.id === categoryToMatch);
     if (categoryById) {
-      return categoryById.id;
+      return { id: categoryById.id, matchType: "id", name: categoryById.name };
     }
     // Try to match against category names
     const categoryByName = categories.find(cat => cat.name === categoryToMatch);
     if (categoryByName) {
-      return categoryByName.id;
+      return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
     }
     // Try to match against category slugs (routes)
     const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
     if (categoryBySlug) {
-      return categoryBySlug.id;
+      return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
     }
   }
 
   // Fall back to first category if available
   if (categories.length > 0) {
-    return categories[0].id;
+    return {
+      id: categories[0].id,
+      matchType: "fallback",
+      name: categories[0].name,
+      requestedCategory: categoryToMatch,
+    };
   }
 
   return undefined;
@@ -254,7 +194,9 @@ async function main() {
         }
         repoInfo = fetchedInfo;
         repoInfoCache.set(itemRepo, repoInfo);
-        core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+        core.info(
+          `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+        );
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (
@@ -271,11 +213,30 @@ async function main() {
     }
 
     // Resolve category ID for this discussion
-    const categoryId = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
-    if (!categoryId) {
+    const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
+    if (!categoryInfo) {
       core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
       continue;
     }
+
+    // Log how the category was resolved
+    if (categoryInfo.matchType === "name") {
+      core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+    } else if (categoryInfo.matchType === "slug") {
+      core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+    } else if (categoryInfo.matchType === "fallback") {
+      if (categoryInfo.requestedCategory) {
+        const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
+        core.warning(
+          `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
+        );
+        core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+      } else {
+        core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+      }
+    }
+
+    const categoryId = categoryInfo.id;
 
     core.info(
       `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`

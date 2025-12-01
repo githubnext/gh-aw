@@ -36,8 +36,12 @@ async function main() {
         const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
         const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
 
-        let parentDisplay = parentResolved.resolved ? `#${parentResolved.resolved}` : `${item.parent_issue_number} (unresolved)`;
-        let subDisplay = subResolved.resolved ? `#${subResolved.resolved}` : `${item.sub_issue_number} (unresolved)`;
+        let parentDisplay = parentResolved.resolved
+          ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}`
+          : `${item.parent_issue_number} (unresolved)`;
+        let subDisplay = subResolved.resolved
+          ? `${subResolved.resolved.repo}#${subResolved.resolved.number}`
+          : `${item.sub_issue_number} (unresolved)`;
 
         if (parentResolved.wasTemporaryId && parentResolved.resolved) {
           parentDisplay += ` (from ${item.parent_issue_number})`;
@@ -133,14 +137,14 @@ async function main() {
       continue;
     }
 
-    const parentIssueNumber = parentResolved.resolved;
-    const subIssueNumber = subResolved.resolved;
+    const parentIssueNumber = parentResolved.resolved.number;
+    const subIssueNumber = subResolved.resolved.number;
 
     if (parentResolved.wasTemporaryId) {
-      core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to issue #${parentIssueNumber}`);
+      core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
     }
     if (subResolved.wasTemporaryId) {
-      core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to issue #${subIssueNumber}`);
+      core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
     }
 
     // Fetch parent issue to validate filters

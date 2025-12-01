@@ -961,7 +961,19 @@ jobs:
             function normalizeTemporaryId(tempId) {
               return String(tempId).toLowerCase();
             }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
               return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
                 const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
@@ -977,7 +989,17 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
               } catch (error) {
                 if (typeof core !== "undefined") {
                   core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -991,9 +1013,9 @@ jobs:
               }
               const valueStr = String(value);
               if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
                 }
                 return {
                   resolved: null,
@@ -1005,7 +1027,12 @@ jobs:
               if (isNaN(issueNumber) || issueNumber <= 0) {
                 return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
               }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
             }
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
@@ -2172,6 +2199,10 @@ jobs:
                 },
                 "parent": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "temporary_id": {
                   "type": "string"
@@ -3954,7 +3985,19 @@ jobs:
             function normalizeTemporaryId(tempId) {
               return String(tempId).toLowerCase();
             }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
               return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
                 const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
@@ -3970,7 +4013,17 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
               } catch (error) {
                 if (typeof core !== "undefined") {
                   core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -3984,9 +4037,9 @@ jobs:
               }
               const valueStr = String(value);
               if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
                 }
                 return {
                   resolved: null,
@@ -3998,7 +4051,12 @@ jobs:
               if (isNaN(issueNumber) || issueNumber <= 0) {
                 return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
               }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
             }
             const MAX_BODY_LENGTH = 65000;
             const MAX_GITHUB_USERNAME_LENGTH = 39;
@@ -7134,7 +7192,19 @@ jobs:
             function normalizeTemporaryId(tempId) {
               return String(tempId).toLowerCase();
             }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
               return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
                 const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
@@ -7150,7 +7220,17 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
               } catch (error) {
                 if (typeof core !== "undefined") {
                   core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -7164,9 +7244,9 @@ jobs:
               }
               const valueStr = String(value);
               if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
                 }
                 return {
                   resolved: null,
@@ -7178,7 +7258,50 @@ jobs:
               if (isNaN(issueNumber) || issueNumber <= 0) {
                 return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
               }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
             }
             async function main() {
               core.setOutput("issue_number", "");
@@ -7195,6 +7318,12 @@ jobs:
                 return;
               }
               core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
               if (isStaged) {
                 await generateStagedPreview({
                   title: "Create Issues",
@@ -7205,6 +7334,9 @@ jobs:
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
                     if (item.temporary_id) {
                       content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+                    }
+                    if (item.repo) {
+                      content += `**Repository:** ${item.repo}\n\n`;
                     }
                     if (item.body) {
                       content += `**Body:**\n${item.body}\n\n`;
@@ -7237,19 +7369,32 @@ jobs:
               const createdIssues = [];
               for (let i = 0; i < createIssueItems.length; i++) {
                 const createIssueItem = createIssueItems[i];
+                const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping issue: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
                 let effectiveParentIssueNumber;
+                let effectiveParentRepo = itemRepo; 
                 if (createIssueItem.parent !== undefined) {
                   if (isTemporaryId(createIssueItem.parent)) {
                     const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
                     if (resolvedParent !== undefined) {
-                      effectiveParentIssueNumber = resolvedParent;
-                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
+                      effectiveParentIssueNumber = resolvedParent.number;
+                      effectiveParentRepo = resolvedParent.repo;
+                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                     } else {
                       core.warning(
                         `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
@@ -7264,11 +7409,14 @@ jobs:
                     }
                   }
                 } else {
-                  effectiveParentIssueNumber = parentIssueNumber;
+                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                  if (itemRepo === contextRepo) {
+                    effectiveParentIssueNumber = parentIssueNumber;
+                  }
                 }
-                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+                  core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                 }
                 let labels = [...envLabels];
                 if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
@@ -7283,7 +7431,7 @@ jobs:
                   .map(label => (label.length > 64 ? label.substring(0, 64) : label))
                   .filter((label, index, arr) => arr.indexOf(label) === index);
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap);
+                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
                 let bodyLines = processedBody.split("\n");
                 if (!title) {
                   title = createIssueItem.body || "Agent Output";
@@ -7293,8 +7441,12 @@ jobs:
                   title = titlePrefix + title;
                 }
                 if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                  core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
+                  if (effectiveParentRepo === itemRepo) {
+                    bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                  } else {
+                    bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                  }
                 }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -7323,23 +7475,23 @@ jobs:
                   ""
                 );
                 const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
+                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
                 core.info(`Labels: ${labels}`);
                 core.info(`Body length: ${body.length}`);
                 try {
                   const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
+                    owner: repoParts.owner,
+                    repo: repoParts.repo,
                     title: title,
                     body: body,
                     labels: labels,
                   });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
-                  core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
+                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+                  createdIssues.push({ ...issue, _repo: itemRepo });
+                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
+                  core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
                   core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-                  if (effectiveParentIssueNumber) {
+                  if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
                     core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
                     try {
                       core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
@@ -7353,16 +7505,16 @@ jobs:
                         }
                       `;
                       const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
                         issueNumber: effectiveParentIssueNumber,
                       });
                       const parentNodeId = parentResult.repository.issue.id;
                       core.info(`Parent issue node ID: ${parentNodeId}`);
                       core.info(`Fetching node ID for child issue #${issue.number}...`);
                       const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
                         issueNumber: issue.number,
                       });
                       const childNodeId = childResult.repository.issue.id;
@@ -7392,8 +7544,8 @@ jobs:
                       try {
                         core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
                         await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
+                          owner: repoParts.owner,
+                          repo: repoParts.repo,
                           issue_number: effectiveParentIssueNumber,
                           body: `Created related issue: #${issue.number}`,
                         });
@@ -7404,6 +7556,8 @@ jobs:
                         );
                       }
                     }
+                  } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+                    core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
                   } else {
                     core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
                   }
@@ -7414,24 +7568,25 @@ jobs:
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : String(error);
                   if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
                     core.info("Consider enabling issues in repository settings if you want to create issues automatically");
                     continue;
                   }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
                   throw error;
                 }
               }
               if (createdIssues.length > 0) {
                 let summaryContent = "\n\n## GitHub Issues\n";
                 for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                  const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+                  summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              const tempIdMapObject = Object.fromEntries(temporaryIdMap);
-              core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
-              core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
+              const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+              core.setOutput("temporary_id_map", tempIdMapOutput);
+              core.info(`Temporary ID map: ${tempIdMapOutput}`);
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
             (async () => {

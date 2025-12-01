@@ -13,9 +13,9 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
-	Assignees            []string `yaml:"assignees,omitempty"`      // List of users/bots to assign the issue to
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
-	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
+	Assignees            []string `yaml:"assignees,omitempty"`     // List of users/bots to assign the issue to
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository issues
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that issues can be created in
 }
 
 // parseIssuesConfig handles create-issue configuration

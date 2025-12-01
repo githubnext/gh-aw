@@ -13,72 +13,7 @@ const {
   replaceTemporaryIdReferences,
   serializeTemporaryIdMap,
 } = require("./temporary_id.cjs");
-
-/**
- * Parse the allowed repos from environment variable
- * @returns {Set<string>} Set of allowed repository slugs
- */
-function parseAllowedRepos() {
-  const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
-  const set = new Set();
-  if (allowedReposEnv) {
-    allowedReposEnv
-      .split(",")
-      .map(repo => repo.trim())
-      .filter(repo => repo)
-      .forEach(repo => set.add(repo));
-  }
-  return set;
-}
-
-/**
- * Get the default target repository
- * @returns {string} Repository slug in "owner/repo" format
- */
-function getDefaultTargetRepo() {
-  // First check if there's a target-repo override
-  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  if (targetRepoSlug) {
-    return targetRepoSlug;
-  }
-  // Fall back to context repo
-  return `${context.repo.owner}/${context.repo.repo}`;
-}
-
-/**
- * Validate that a repo is allowed for issue creation
- * @param {string} repo - Repository slug to validate
- * @param {string} defaultRepo - Default target repository
- * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
- * @returns {{valid: boolean, error: string|null}}
- */
-function validateRepo(repo, defaultRepo, allowedRepos) {
-  // Default repo is always allowed
-  if (repo === defaultRepo) {
-    return { valid: true, error: null };
-  }
-  // Check if it's in the allowed repos list
-  if (allowedRepos.has(repo)) {
-    return { valid: true, error: null };
-  }
-  return {
-    valid: false,
-    error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
-  };
-}
-
-/**
- * Parse owner and repo from a repository slug
- * @param {string} repoSlug - Repository slug in "owner/repo" format
- * @returns {{owner: string, repo: string}|null}
- */
-function parseRepoSlug(repoSlug) {
-  const parts = repoSlug.split("/");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return null;
-  }
-  return { owner: parts[0], repo: parts[1] };
-}
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -219,7 +154,9 @@ async function main() {
         effectiveParentIssueNumber = parentIssueNumber;
       }
     }
-    core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
+    core.info(
+      `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
+    );
 
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
       core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);

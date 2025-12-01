@@ -204,6 +204,9 @@ var safeInputsMCPServerScript string
 //go:embed js/safe_output_type_validator.cjs
 var safeOutputTypeValidatorScript string
 
+//go:embed js/repo_helpers.cjs
+var repoHelpersScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -245,6 +248,7 @@ func GetJavaScriptSources() map[string]string {
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
+		"repo_helpers.cjs":                repoHelpersScript,
 	}
 }
 
