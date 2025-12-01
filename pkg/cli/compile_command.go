@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -772,15 +773,24 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		}
 	}
 
-	// Set up file system watcher
-	watcher, err := fsnotify.NewWatcher()
+	// Set up file system watcher with buffered events for better handling of burst activity
+	watcher, err := fsnotify.NewBufferedWatcher(100)
 	if err != nil {
 		return fmt.Errorf("failed to create file watcher: %w", err)
 	}
 	defer watcher.Close()
 
+	// addWatchPath adds a path to the watcher with platform-specific configuration.
+	// On Windows, uses a larger buffer (64KB) to prevent event overflow in busy directories.
+	addWatchPath := func(path string) error {
+		if runtime.GOOS == "windows" {
+			return watcher.AddWith(path, fsnotify.WithBufferSize(64*1024))
+		}
+		return watcher.Add(path)
+	}
+
 	// Add the workflows directory to the watcher
-	if err := watcher.Add(workflowsDir); err != nil {
+	if err := addWatchPath(workflowsDir); err != nil {
 		return fmt.Errorf("failed to watch directory %s: %w", workflowsDir, err)
 	}
 
@@ -791,7 +801,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		}
 		if info.IsDir() && path != workflowsDir {
 			// Add subdirectories to the watcher
-			if err := watcher.Add(path); err != nil {
+			if err := addWatchPath(path); err != nil {
 				compileLog.Printf("Failed to watch subdirectory %s: %v", path, err)
 			} else {
 				compileLog.Printf("Watching subdirectory: %s", path)
