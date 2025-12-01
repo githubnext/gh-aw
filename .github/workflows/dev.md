@@ -5,7 +5,7 @@ name: Dev
 description: Find issues with "[deps]" in title and assign to Copilot agent
 timeout-minutes: 5
 strict: false
-engine: copilot
+engine: claude
 permissions:
   contents: read
   issues: read
