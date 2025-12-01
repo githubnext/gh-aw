@@ -1,9 +1,159 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
+
+func TestIsValidWorkflowName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "valid simple name",
+			input:    "my-workflow",
+			expected: true,
+		},
+		{
+			name:     "valid with underscores",
+			input:    "my_workflow",
+			expected: true,
+		},
+		{
+			name:     "valid alphanumeric",
+			input:    "workflow123",
+			expected: true,
+		},
+		{
+			name:     "valid mixed",
+			input:    "my-workflow_v2",
+			expected: true,
+		},
+		{
+			name:     "invalid with spaces",
+			input:    "my workflow",
+			expected: false,
+		},
+		{
+			name:     "invalid with special chars",
+			input:    "my@workflow!",
+			expected: false,
+		},
+		{
+			name:     "invalid with dots",
+			input:    "my.workflow",
+			expected: false,
+		},
+		{
+			name:     "invalid with slashes",
+			input:    "my/workflow",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "valid uppercase",
+			input:    "MyWorkflow",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isValidWorkflowName(tt.input)
+			if result != tt.expected {
+				t.Errorf("isValidWorkflowName(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsAccessibleMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		term     string
+		noColor  string
+		expected bool
+	}{
+		{
+			name:     "TERM=dumb enables accessibility",
+			term:     "dumb",
+			noColor:  "",
+			expected: true,
+		},
+		{
+			name:     "NO_COLOR=1 enables accessibility",
+			term:     "xterm",
+			noColor:  "1",
+			expected: true,
+		},
+		{
+			name:     "NO_COLOR=true enables accessibility",
+			term:     "xterm",
+			noColor:  "true",
+			expected: true,
+		},
+		{
+			name:     "normal terminal without NO_COLOR",
+			term:     "xterm-256color",
+			noColor:  "",
+			expected: false,
+		},
+		{
+			name:     "both TERM=dumb and NO_COLOR set",
+			term:     "dumb",
+			noColor:  "1",
+			expected: true,
+		},
+		{
+			name:     "empty TERM without NO_COLOR",
+			term:     "",
+			noColor:  "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original values
+			origTerm := os.Getenv("TERM")
+			origNoColor := os.Getenv("NO_COLOR")
+
+			// Set test values
+			os.Setenv("TERM", tt.term)
+			if tt.noColor != "" {
+				os.Setenv("NO_COLOR", tt.noColor)
+			} else {
+				os.Unsetenv("NO_COLOR")
+			}
+
+			result := isAccessibleMode()
+
+			// Restore original values
+			if origTerm != "" {
+				os.Setenv("TERM", origTerm)
+			} else {
+				os.Unsetenv("TERM")
+			}
+			if origNoColor != "" {
+				os.Setenv("NO_COLOR", origNoColor)
+			} else {
+				os.Unsetenv("NO_COLOR")
+			}
+
+			if result != tt.expected {
+				t.Errorf("isAccessibleMode() with TERM=%q NO_COLOR=%q = %v, want %v",
+					tt.term, tt.noColor, result, tt.expected)
+			}
+		})
+	}
+}
 
 func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
 	builder := &InteractiveWorkflowBuilder{

@@ -21,7 +21,7 @@ function main() {
 /**
  * Parses Claude log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
- * @returns {{markdown: string, mcpFailures: string[], maxTurnsHit: boolean}} Result with formatted markdown content, MCP failure list, and max-turns status
+ * @returns {{markdown: string, mcpFailures: string[], maxTurnsHit: boolean, logEntries: Array}} Result with formatted markdown content, MCP failure list, max-turns status, and parsed log entries
  */
 function parseClaudeLog(logContent) {
   try {
@@ -33,6 +33,7 @@ function parseClaudeLog(logContent) {
         markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
         mcpFailures: [],
         maxTurnsHit: false,
+        logEntries: [],
       };
     }
 
@@ -107,13 +108,14 @@ function parseClaudeLog(logContent) {
       }
     }
 
-    return { markdown, mcpFailures, maxTurnsHit };
+    return { markdown, mcpFailures, maxTurnsHit, logEntries };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
       mcpFailures: [],
       maxTurnsHit: false,
+      logEntries: [],
     };
   }
 }

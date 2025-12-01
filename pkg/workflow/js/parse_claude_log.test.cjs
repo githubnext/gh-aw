@@ -571,11 +571,11 @@ npm warn exec The following package was not found
       expect(markdownCall[0]).toContain("🚀 Initialization");
       expect(markdownCall[0]).toContain("integration-test");
 
-      // Verify that core.info was also called with the same content (via write helper)
+      // Verify that core.info was called with plain text summary (contains parser name and model info)
       expect(mockCore.info).toHaveBeenCalled();
-      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🚀 Initialization"));
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== Claude Execution Summary ==="));
       expect(infoCall).toBeDefined();
-      expect(infoCall[0]).toContain("integration-test");
+      expect(infoCall[0]).toContain("Model: claude-sonnet-4-20250514");
     });
 
     it("should handle log with MCP failures", async () => {
