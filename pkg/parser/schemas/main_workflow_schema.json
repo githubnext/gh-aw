@@ -1957,7 +1957,7 @@
             },
             {
               "type": "boolean",
-              "description": "Boolean GitHub tool configuration: false disables the tool, true enables all read-only GitHub API functions"
+              "description": "Boolean to explicitly enable (true) or disable (false) the GitHub MCP server. When set to false, the GitHub MCP server is not mounted."
             },
             {
               "type": "string",
@@ -2070,7 +2070,8 @@
             {
               "read-only": true,
               "toolsets": ["repos", "issues"]
-            }
+            },
+            false
           ]
         },
         "bash": {

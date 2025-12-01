@@ -514,6 +514,7 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'pkg/workflow/js/package-lock.json'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -617,6 +618,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.55
       - name: Generate Claude Settings
@@ -5964,6 +5966,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.55
       - name: Execute Claude Code CLI

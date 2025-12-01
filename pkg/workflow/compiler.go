@@ -1540,12 +1540,12 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Get existing github tool configuration
 	githubTool := tools["github"]
 
-	// Check if github tool is explicitly disabled (github: false)
+	// Check if github is explicitly disabled (github: false)
 	if githubTool == false {
-		// Remove the github tool entirely
+		// Remove the github tool entirely when set to false
 		delete(tools, "github")
 	} else {
-		// github tool is not disabled, configure it
+		// Process github tool configuration
 		var githubConfig map[string]any
 
 		if toolConfig, ok := githubTool.(map[string]any); ok {

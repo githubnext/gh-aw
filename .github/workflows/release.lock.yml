@@ -313,6 +313,8 @@
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#   - cli/gh-extension-precompile@v2 (9e2237c30f869ad3bcaed6a4be2cd43564dd421b)
+#     https://github.com/cli/gh-extension-precompile/commit/9e2237c30f869ad3bcaed6a4be2cd43564dd421b
 
 name: "Release"
 "on":
@@ -531,6 +533,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.5.0"
@@ -5656,6 +5659,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
       - name: Execute GitHub Copilot CLI
@@ -5843,7 +5847,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@v2
+        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2
         with:
           build_script_override: scripts/build-release.sh
           go_version_file: go.mod

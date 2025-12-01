@@ -4056,8 +4056,9 @@ tools:
 				"restore-keys: node-modules-",
 			},
 			notExpectedInLock: []string{
-				"cache:",
-				"cache.key:",
+				// Match standalone "cache:" field (at line start) to avoid matching "package-manager-cache:"
+				"\n  cache:",
+				"\ncache:",
 			},
 		},
 		{
@@ -4102,8 +4103,9 @@ tools:
 				"fail-on-cache-miss: false",
 			},
 			notExpectedInLock: []string{
-				"cache:",
-				"cache.key:",
+				// Match standalone "cache:" field (at line start) to avoid matching "package-manager-cache:"
+				"\n  cache:",
+				"\ncache:",
 			},
 		},
 		{
@@ -4144,7 +4146,9 @@ tools:
 				"lookup-only: false",
 			},
 			notExpectedInLock: []string{
-				"cache:",
+				// Match standalone "cache:" field (at line start) to avoid matching "package-manager-cache:"
+				"\n  cache:",
+				"\ncache:",
 			},
 		},
 	}

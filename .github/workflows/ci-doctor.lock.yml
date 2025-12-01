@@ -47,7 +47,7 @@
 #
 # safe-outputs:
 #   create-issue:
-#     title-prefix: "${{ github.workflow }}"
+#     title-prefix: "[CI Failure Doctor] "
 #   add-comment:
 #   messages:
 #     footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*"
@@ -1087,6 +1087,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
       - name: Downloading container images
@@ -1103,7 +1104,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"${{ github.workflow }}\".",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[CI Failure Doctor] \".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -5856,7 +5857,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "${{ github.workflow }}"
+          GH_AW_ISSUE_TITLE_PREFIX: "[CI Failure Doctor] "
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/ea350161ad5dcc9624cf510f134c6a9e39a6f94d/workflows/ci-doctor.md"
@@ -6476,6 +6477,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
       - name: Execute GitHub Copilot CLI

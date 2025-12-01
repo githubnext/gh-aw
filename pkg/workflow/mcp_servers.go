@@ -22,7 +22,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	mcpServersLog.Print("Checking for MCP servers in workflow configuration")
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
-		// Skip tools that are explicitly disabled (tool: false)
+		// Skip if the tool is explicitly disabled (set to false)
 		if toolValue == false {
 			continue
 		}
@@ -64,7 +64,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	workflowTools := workflowData.Tools
 
 	for toolName, toolValue := range workflowTools {
-		// Skip tools that are explicitly disabled (tool: false)
+		// Skip if the tool is explicitly disabled (set to false)
 		if toolValue == false {
 			continue
 		}

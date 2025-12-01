@@ -525,6 +525,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Codex
         run: npm install -g @openai/codex@0.63.0
       - name: Downloading container images
@@ -6104,6 +6105,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Codex
         run: npm install -g @openai/codex@0.63.0
       - name: Run Codex
