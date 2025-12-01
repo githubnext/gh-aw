@@ -420,3 +420,147 @@ func TestGenerateSafeInputShellToolScript(t *testing.T) {
 		t.Error("Script should contain the run command")
 	}
 }
+
+// TestSafeInputsStableCodeGeneration verifies that code generation produces stable, deterministic output
+// when called multiple times with the same input. This ensures tools and inputs are sorted properly.
+func TestSafeInputsStableCodeGeneration(t *testing.T) {
+	// Create a config with multiple tools and inputs to ensure sorting is tested
+	config := &SafeInputsConfig{
+		Tools: map[string]*SafeInputToolConfig{
+			"zebra-tool": {
+				Name:        "zebra-tool",
+				Description: "A tool that starts with Z",
+				Run:         "echo zebra",
+				Inputs: map[string]*SafeInputParam{
+					"zebra-input": {Type: "string", Description: "Zebra input"},
+					"alpha-input": {Type: "number", Description: "Alpha input"},
+					"beta-input":  {Type: "boolean", Description: "Beta input"},
+				},
+				Env: map[string]string{
+					"ZEBRA_SECRET": "${{ secrets.ZEBRA }}",
+					"ALPHA_SECRET": "${{ secrets.ALPHA }}",
+				},
+			},
+			"alpha-tool": {
+				Name:        "alpha-tool",
+				Description: "A tool that starts with A",
+				Script:      "return 'alpha';",
+				Inputs: map[string]*SafeInputParam{
+					"charlie-param": {Type: "string", Description: "Charlie param"},
+					"alpha-param":   {Type: "string", Description: "Alpha param"},
+				},
+			},
+			"middle-tool": {
+				Name:        "middle-tool",
+				Description: "A tool in the middle",
+				Run:         "echo middle",
+			},
+		},
+	}
+
+	// Generate the script multiple times and verify identical output
+	iterations := 10
+	scripts := make([]string, iterations)
+
+	for i := 0; i < iterations; i++ {
+		scripts[i] = generateSafeInputsMCPServerScript(config)
+	}
+
+	// All iterations should produce identical output
+	for i := 1; i < iterations; i++ {
+		if scripts[i] != scripts[0] {
+			t.Errorf("generateSafeInputsMCPServerScript produced different output on iteration %d", i+1)
+			// Find first difference for debugging
+			for j := 0; j < len(scripts[0]) && j < len(scripts[i]); j++ {
+				if scripts[0][j] != scripts[i][j] {
+					start := j - 50
+					if start < 0 {
+						start = 0
+					}
+					end := j + 50
+					if end > len(scripts[0]) {
+						end = len(scripts[0])
+					}
+					if end > len(scripts[i]) {
+						end = len(scripts[i])
+					}
+					t.Errorf("First difference at position %d:\n  Expected: %q\n  Got: %q", j, scripts[0][start:end], scripts[i][start:end])
+					break
+				}
+			}
+		}
+	}
+
+	// Verify tools appear in sorted order (alpha-tool before middle-tool before zebra-tool)
+	alphaPos := strings.Index(scripts[0], `registerTool("alpha-tool"`)
+	middlePos := strings.Index(scripts[0], `registerTool("middle-tool"`)
+	zebraPos := strings.Index(scripts[0], `registerTool("zebra-tool"`)
+
+	if alphaPos == -1 || middlePos == -1 || zebraPos == -1 {
+		t.Error("Script should contain all tools")
+	}
+
+	if !(alphaPos < middlePos && middlePos < zebraPos) {
+		t.Errorf("Tools should be sorted alphabetically: alpha(%d) < middle(%d) < zebra(%d)", alphaPos, middlePos, zebraPos)
+	}
+
+	// Test JavaScript tool script stability
+	jsScripts := make([]string, iterations)
+	for i := 0; i < iterations; i++ {
+		jsScripts[i] = generateSafeInputJavaScriptToolScript(config.Tools["alpha-tool"])
+	}
+
+	for i := 1; i < iterations; i++ {
+		if jsScripts[i] != jsScripts[0] {
+			t.Errorf("generateSafeInputJavaScriptToolScript produced different output on iteration %d", i+1)
+		}
+	}
+
+	// Verify inputs in JSDoc are sorted
+	alphaParamPos := strings.Index(jsScripts[0], "inputs.alpha-param")
+	charlieParamPos := strings.Index(jsScripts[0], "inputs.charlie-param")
+
+	if alphaParamPos == -1 || charlieParamPos == -1 {
+		t.Error("JavaScript script should contain all input parameters in JSDoc")
+	}
+
+	if !(alphaParamPos < charlieParamPos) {
+		t.Errorf("Input parameters should be sorted alphabetically in JSDoc: alpha(%d) < charlie(%d)", alphaParamPos, charlieParamPos)
+	}
+
+	// Test collectSafeInputsSecrets stability
+	secretResults := make([]map[string]string, iterations)
+	for i := 0; i < iterations; i++ {
+		secretResults[i] = collectSafeInputsSecrets(config)
+	}
+
+	// All iterations should produce same key set
+	for i := 1; i < iterations; i++ {
+		if len(secretResults[i]) != len(secretResults[0]) {
+			t.Errorf("collectSafeInputsSecrets produced different number of secrets on iteration %d", i+1)
+		}
+		for key, val := range secretResults[0] {
+			if secretResults[i][key] != val {
+				t.Errorf("collectSafeInputsSecrets produced different value for key %s on iteration %d", key, i+1)
+			}
+		}
+	}
+
+	// Test getSafeInputsEnvVars stability
+	envResults := make([][]string, iterations)
+	for i := 0; i < iterations; i++ {
+		envResults[i] = getSafeInputsEnvVars(config)
+	}
+
+	for i := 1; i < iterations; i++ {
+		if len(envResults[i]) != len(envResults[0]) {
+			t.Errorf("getSafeInputsEnvVars produced different number of env vars on iteration %d", i+1)
+		}
+		for j := range envResults[0] {
+			if envResults[i][j] != envResults[0][j] {
+				t.Errorf("getSafeInputsEnvVars produced different value at position %d on iteration %d: expected %s, got %s",
+					j, i+1, envResults[0][j], envResults[i][j])
+			}
+		}
+	}
+}
