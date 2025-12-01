@@ -1480,15 +1480,6 @@ jobs:
             function registerTool(name, description, inputSchema, handler) {
               tools[name] = { name, description, inputSchema, handler };
             }
-            registerTool("test-js-math", "Test JavaScript math operations", {"properties":{"a":{"description":"First number","type":"number"},"b":{"description":"Second number","type":"number"}},"required":["a","b"],"type":"object"}, async (args) => {
-              try {
-                const toolModule = require("./test-js-math.cjs");
-                const result = await toolModule.execute(args || {});
-                return { content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
             registerTool("test-js-string", "Test JavaScript string operations", {"properties":{"text":{"description":"Input text","type":"string"}},"required":["text"],"type":"object"}, async (args) => {
               try {
                 const toolModule = require("./test-js-string.cjs");
@@ -1501,9 +1492,6 @@ jobs:
             registerTool("fetch-pr-data", "Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt", {"properties":{"days":{"default":30,"description":"Number of days to look back (default: 30)","type":"number"},"limit":{"default":100,"description":"Maximum number of PRs to fetch (default: 100)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"search":{"description":"Search query for filtering PRs (e.g., 'head:copilot/' for Copilot PRs)","type":"string"},"state":{"default":"all","description":"PR state filter: open, closed, merged, or all (default: all)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["days"] !== undefined) {
-                  env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
-                }
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
@@ -1516,10 +1504,22 @@ jobs:
                 if (args && args["state"] !== undefined) {
                   env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
+                if (args && args["days"] !== undefined) {
+                  env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
+                }
                 const scriptPath = path.join(__dirname, "fetch-pr-data.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
                 const output = stdout + (stderr ? "\nStderr: " + stderr : "");
                 return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            registerTool("test-js-math", "Test JavaScript math operations", {"properties":{"a":{"description":"First number","type":"number"},"b":{"description":"Second number","type":"number"}},"required":["a","b"],"type":"object"}, async (args) => {
+              try {
+                const toolModule = require("./test-js-math.cjs");
+                const result = await toolModule.execute(args || {});
+                return { content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] };
               } catch (error) {
                 return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
               }
