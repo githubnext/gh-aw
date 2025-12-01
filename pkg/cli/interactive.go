@@ -122,6 +122,7 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 				Title("When should this workflow run?").
 				Description("Select the event that should trigger your agentic workflow").
 				Options(triggerOptions...).
+				Height(8).
 				Value(&b.Trigger),
 		),
 	)
@@ -169,6 +170,7 @@ func (b *InteractiveWorkflowBuilder) promptForTools() error {
 				Title("Which tools should the AI have access to?").
 				Description("Select all tools that your workflow might need. You can always modify these later.").
 				Options(toolOptions...).
+				Height(8).
 				Value(&selected),
 		),
 	)
@@ -203,6 +205,7 @@ func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 				Title("What outputs should the AI be able to create?").
 				Description("Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.").
 				Options(outputOptions...).
+				Height(8).
 				Value(&selected),
 		),
 	)

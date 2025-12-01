@@ -2360,32 +2360,9 @@ jobs:
             function registerTool(name, description, inputSchema, handler) {
               tools[name] = { name, description, inputSchema, handler };
             }
-            registerTool("github-discussion-query", "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of discussions to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"}},"type":"object"}, async (args) => {
-              try {
-                const env = { ...process.env };
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                if (args && args["jq"] !== undefined) {
-                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
-                }
-                if (args && args["limit"] !== undefined) {
-                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
-                }
-                const scriptPath = path.join(__dirname, "github-discussion-query.sh");
-                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-                return { content: [{ type: "text", text: output }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
             registerTool("github-issue-query", "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of issues to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"Issue state: open, closed, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
-                }
                 if (args && args["jq"] !== undefined) {
                   env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
@@ -2394,6 +2371,9 @@ jobs:
                 }
                 if (args && args["repo"] !== undefined) {
                   env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
                 const scriptPath = path.join(__dirname, "github-issue-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
@@ -2406,9 +2386,6 @@ jobs:
             registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
                 if (args && args["state"] !== undefined) {
                   env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
@@ -2418,7 +2395,30 @@ jobs:
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
                 const scriptPath = path.join(__dirname, "github-pr-query.sh");
+                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+                return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            registerTool("github-discussion-query", "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of discussions to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"}},"type":"object"}, async (args) => {
+              try {
+                const env = { ...process.env };
+                if (args && args["jq"] !== undefined) {
+                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
+                }
+                if (args && args["limit"] !== undefined) {
+                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                const scriptPath = path.join(__dirname, "github-discussion-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
                 const output = stdout + (stderr ? "\nStderr: " + stderr : "");
                 return { content: [{ type: "text", text: output }] };
