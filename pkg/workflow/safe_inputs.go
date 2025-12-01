@@ -330,7 +330,9 @@ function debug(msg) {
 function writeMessage(message) {
   const json = JSON.stringify(message);
   const header = "Content-Length: " + Buffer.byteLength(json) + "\r\n\r\n";
+  debug("Sending response: " + json.substring(0, 200) + (json.length > 200 ? "..." : ""));
   process.stdout.write(header + json);
+  debug("Response sent successfully");
 }
 
 function replyResult(id, result) {
@@ -513,15 +515,19 @@ async function handleLargeOutput(result) {
 
 // Handle incoming messages
 async function handleMessage(message) {
+  debug("Handling message: method=" + message.method + ", id=" + message.id);
   if (message.method === "initialize") {
-    debug("Received initialize request");
-    replyResult(message.id, {
+    debug("Received initialize request with id=" + message.id);
+    const response = {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
       serverInfo
-    });
+    };
+    debug("Sending initialize response: " + JSON.stringify(response));
+    replyResult(message.id, response);
+    debug("Initialize response sent");
   } else if (message.method === "notifications/initialized") {
-    debug("Client initialized");
+    debug("Client initialized notification received");
   } else if (message.method === "tools/list") {
     debug("Received tools/list request");
     const toolList = Object.values(tools).map(t => ({
@@ -529,6 +535,7 @@ async function handleMessage(message) {
       description: t.description,
       inputSchema: t.inputSchema
     }));
+    debug("Returning " + toolList.length + " tools");
     replyResult(message.id, { tools: toolList });
   } else if (message.method === "tools/call") {
     const toolName = message.params?.name;
@@ -556,12 +563,25 @@ async function handleMessage(message) {
 
 // Start server
 debug("Starting safe-inputs MCP server");
+debug("Registered tools: " + Object.keys(tools).join(", "));
+debug("Waiting for input on stdin...");
+
 process.stdin.on("data", async (chunk) => {
+  debug("Received data chunk: " + chunk.length + " bytes");
   readBuffer.append(chunk);
   let message;
   while ((message = readBuffer.readMessage()) !== null) {
+    debug("Parsed message: " + JSON.stringify(message).substring(0, 100));
     await handleMessage(message);
   }
+});
+
+process.stdin.on("end", () => {
+  debug("stdin ended");
+});
+
+process.stdin.on("error", (err) => {
+  debug("stdin error: " + err.message);
 });
 `)
 
