@@ -119,3 +119,14 @@ func buildCategoryEnvVar(envVarName string, category string) []string {
 	}
 	return []string{fmt.Sprintf("          %s: %q\n", envVarName, category)}
 }
+
+// buildAllowedReposEnvVar builds an allowed-repos environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ALLOWED_REPOS".
+// Returns an empty slice if allowedRepos is empty.
+func buildAllowedReposEnvVar(envVarName string, allowedRepos []string) []string {
+	if len(allowedRepos) == 0 {
+		return nil
+	}
+	reposStr := strings.Join(allowedRepos, ",")
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, reposStr)}
+}
