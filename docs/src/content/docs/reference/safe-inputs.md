@@ -174,6 +174,26 @@ safe-inputs:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ```
 
+### Shared gh CLI Tool
+
+The repository includes a reusable shared workflow (`shared/gh.md`) that provides a general-purpose gh CLI tool:
+
+```yaml wrap
+imports:
+  - shared/gh.md
+```
+
+This imports a `gh` tool that accepts any gh CLI command as arguments:
+
+```yaml
+# The agent can use:
+gh with args: "pr list --limit 5"
+gh with args: "issue view 123"
+gh with args: "api repos/{owner}/{repo}"
+```
+
+The shared workflow uses `${{ github.token }}` for authentication, providing access based on the workflow's `permissions` configuration.
+
 ## Input Parameters
 
 Define typed parameters with validation:
