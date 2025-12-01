@@ -14,6 +14,7 @@ permissions:
 imports:
   - shared/gh.md
 tools:
+  github: false
   bash: ["*"]
   edit:
 ---

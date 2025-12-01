@@ -37,6 +37,7 @@
 # imports:
 #   - shared/gh.md
 # tools:
+#   github: false
 #   bash: ["*"]
 #   edit:
 # ```
@@ -276,10 +277,6 @@ jobs:
           node-version: '24'
       - name: Install Codex
         run: npm install -g @openai/codex@0.63.0
-      - name: Downloading container images
-        run: |
-          set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
       - name: Setup Safe Inputs MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs
@@ -467,7 +464,6 @@ jobs:
           
       - name: Setup MCPs
         env:
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -477,26 +473,7 @@ jobs:
           
           [shell_environment_policy]
           inherit = "core"
-          include_only = ["CODEX_API_KEY", "GITHUB_PERSONAL_ACCESS_TOKEN", "HOME", "OPENAI_API_KEY", "PATH"]
-          
-          [mcp_servers.github]
-          user_agent = "dev"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_READ_ONLY=1",
-            "-e",
-            "GITHUB_TOOLSETS=default",
-            "ghcr.io/github/github-mcp-server:v0.23.0"
-          ]
-          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+          include_only = ["CODEX_API_KEY", "HOME", "OPENAI_API_KEY", "PATH"]
           
           [mcp_servers.safeinputs]
           command = "node"
@@ -649,118 +626,6 @@ jobs:
           </file-editing>
           
           PROMPT_EOF
-      - name: Append GitHub context to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <github-context>
-          The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
-          {{/if}}
-          </github-context>
-          
-          PROMPT_EOF
-      - name: Interpolate variables and render templates
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        with:
-          script: |
-            const fs = require("fs");
-            function isTruthy(expr) {
-              const v = expr.trim().toLowerCase();
-              return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
-            }
-            function interpolateVariables(content, variables) {
-              let result = content;
-              for (const [varName, value] of Object.entries(variables)) {
-                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
-                result = result.replace(pattern, value);
-              }
-              return result;
-            }
-            function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]+)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
-                }
-              );
-              result = result.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
-              result = result.replace(/\n{3,}/g, "\n\n");
-              return result;
-            }
-            async function main() {
-              try {
-                const promptPath = process.env.GH_AW_PROMPT;
-                if (!promptPath) {
-                  core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  return;
-                }
-                let content = fs.readFileSync(promptPath, "utf8");
-                const variables = {};
-                for (const [key, value] of Object.entries(process.env)) {
-                  if (key.startsWith("GH_AW_EXPR_")) {
-                    variables[key] = value || "";
-                  }
-                }
-                const varCount = Object.keys(variables).length;
-                if (varCount > 0) {
-                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
-                  content = interpolateVariables(content, variables);
-                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
-                } else {
-                  core.info("No expression variables found, skipping interpolation");
-                }
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
-                if (hasConditionals) {
-                  core.info("Processing conditional template blocks");
-                  content = renderMarkdownTemplate(content);
-                  core.info("Template rendered successfully");
-                } else {
-                  core.info("No conditional blocks found in prompt, skipping template rendering");
-                }
-                fs.writeFileSync(promptPath, content, "utf8");
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error.message : String(error));
-              }
-            }
-            main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

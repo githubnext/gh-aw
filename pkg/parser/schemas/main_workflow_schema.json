@@ -1956,6 +1956,10 @@
               "description": "Empty GitHub tool configuration (enables all read-only GitHub API functions)"
             },
             {
+              "type": "boolean",
+              "description": "Boolean GitHub tool configuration: false disables the tool, true enables all read-only GitHub API functions"
+            },
+            {
               "type": "string",
               "description": "Simple GitHub tool configuration (enables all GitHub API functions)"
             },
