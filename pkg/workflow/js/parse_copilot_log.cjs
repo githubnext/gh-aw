@@ -73,7 +73,7 @@ function parseCopilotLog(logContent) {
     }
 
     if (!logEntries) {
-      return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
+      return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
     }
 
     // Generate conversation markdown using shared function
@@ -141,10 +141,13 @@ function parseCopilotLog(logContent) {
       },
     });
 
-    return markdown;
+    return { markdown, logEntries };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
+    return {
+      markdown: `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+      logEntries: [],
+    };
   }
 }
 

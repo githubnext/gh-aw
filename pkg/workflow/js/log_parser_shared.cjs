@@ -9,15 +9,16 @@
 /**
  * Maximum length for tool output content in characters.
  * Tool output/response sections are truncated to this length to keep step summaries readable.
+ * Reduced from 500 to 256 for more compact output.
  */
-const MAX_TOOL_OUTPUT_LENGTH = 500;
+const MAX_TOOL_OUTPUT_LENGTH = 256;
 
 /**
- * Maximum step summary size in bytes (8MB).
- * GitHub Actions step summaries have a size limit. We stop rendering additional content
- * when approaching this limit to prevent workflow failures.
+ * Maximum step summary size in bytes (1000KB).
+ * GitHub Actions step summaries have a limit of 1024KB. We use 1000KB to leave buffer space.
+ * We stop rendering additional content when approaching this limit to prevent workflow failures.
  */
-const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
+const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
 
 /**
  * Warning message shown when step summary size limit is reached.
@@ -935,6 +936,130 @@ function formatToolCallAsDetails(options) {
   return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
 }
 
+/**
+ * Generates a lightweight plain text summary optimized for raw text rendering.
+ * This is designed for console output (core.info) instead of markdown step summaries.
+ *
+ * The output includes:
+ * - A compact header with model info
+ * - Tool/command summary list (status icon + name only)
+ * - Basic execution statistics
+ *
+ * @param {Array} logEntries - Array of log entries with type, message, etc.
+ * @param {Object} options - Configuration options
+ * @param {string} [options.model] - Model name to include in the header
+ * @param {string} [options.parserName] - Name of the parser (e.g., "Copilot", "Claude")
+ * @returns {string} Plain text summary for console output
+ */
+function generatePlainTextSummary(logEntries, options = {}) {
+  const { model, parserName = "Agent" } = options;
+  const lines = [];
+
+  // Header
+  lines.push(`=== ${parserName} Execution Summary ===`);
+  if (model) {
+    lines.push(`Model: ${model}`);
+  }
+  lines.push("");
+
+  // Collect tool usage summary
+  const toolUsePairs = new Map();
+  for (const entry of logEntries) {
+    if (entry.type === "user" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_result" && content.tool_use_id) {
+          toolUsePairs.set(content.tool_use_id, content);
+        }
+      }
+    }
+  }
+
+  // Count tools and gather summary
+  const toolCounts = { total: 0, success: 0, error: 0 };
+  const toolSummary = [];
+
+  for (const entry of logEntries) {
+    if (entry.type === "assistant" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_use") {
+          const toolName = content.name;
+          const input = content.input || {};
+
+          // Skip internal tools
+          if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+            continue;
+          }
+
+          toolCounts.total++;
+          const toolResult = toolUsePairs.get(content.id);
+          const isError = toolResult?.is_error === true;
+
+          if (isError) {
+            toolCounts.error++;
+          } else {
+            toolCounts.success++;
+          }
+
+          const statusIcon = isError ? "x" : "✓";
+
+          // Format tool name compactly
+          let displayName;
+          if (toolName === "Bash") {
+            const cmd = formatBashCommand(input.command || "").slice(0, 40);
+            displayName = `bash: ${cmd}`;
+          } else if (toolName.startsWith("mcp__")) {
+            displayName = formatMcpName(toolName);
+          } else {
+            displayName = toolName;
+          }
+
+          // Limit to 20 tool summaries
+          if (toolSummary.length < 20) {
+            toolSummary.push(`  [${statusIcon}] ${displayName}`);
+          }
+        }
+      }
+    }
+  }
+
+  // Tool summary section
+  if (toolSummary.length > 0) {
+    lines.push("Tools/Commands:");
+    lines.push(...toolSummary);
+    if (toolCounts.total > 20) {
+      lines.push(`  ... and ${toolCounts.total - 20} more`);
+    }
+    lines.push("");
+  }
+
+  // Statistics
+  const lastEntry = logEntries[logEntries.length - 1];
+  lines.push("Statistics:");
+  if (lastEntry?.num_turns) {
+    lines.push(`  Turns: ${lastEntry.num_turns}`);
+  }
+  if (lastEntry?.duration_ms) {
+    const duration = formatDuration(lastEntry.duration_ms);
+    if (duration) {
+      lines.push(`  Duration: ${duration}`);
+    }
+  }
+  if (toolCounts.total > 0) {
+    lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
+  }
+  if (lastEntry?.usage) {
+    const usage = lastEntry.usage;
+    if (usage.input_tokens && usage.output_tokens) {
+      lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+    }
+  }
+  if (lastEntry?.total_cost_usd) {
+    lines.push(`  Cost: $${lastEntry.total_cost_usd.toFixed(4)}`);
+  }
+
+  return lines.join("\n");
+}
+
 // Export functions and constants
 module.exports = {
   // Constants
@@ -956,4 +1081,5 @@ module.exports = {
   formatToolUse,
   parseLogEntries,
   formatToolCallAsDetails,
+  generatePlainTextSummary,
 };

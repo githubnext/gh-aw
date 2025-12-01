@@ -1170,12 +1170,12 @@ describe("log_parser_shared.cjs", () => {
         sections: [{ label: "Response", content: longContent }],
       });
 
-      // Should contain truncated content (500 chars) plus "... (truncated)"
+      // Should contain truncated content (256 chars) plus "... (truncated)"
       expect(result).toContain("... (truncated)");
       expect(result.length).toBeLessThan(longContent.length + 200);
 
-      // Verify truncation happens at MAX_TOOL_OUTPUT_LENGTH (500)
-      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(500);
+      // Verify truncation happens at MAX_TOOL_OUTPUT_LENGTH (256)
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(256);
     });
 
     it("should allow custom maxContentLength", async () => {
@@ -1270,9 +1270,9 @@ describe("log_parser_shared.cjs", () => {
 
       const tracker = new StepSummaryTracker();
 
-      // Default is 8MB
-      expect(MAX_STEP_SUMMARY_SIZE).toBe(8 * 1024 * 1024);
-      expect(tracker.maxSize).toBe(8 * 1024 * 1024);
+      // Default is 1000KB
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(1000 * 1024);
+      expect(tracker.maxSize).toBe(1000 * 1024);
     });
   });
 
@@ -1327,14 +1327,147 @@ describe("log_parser_shared.cjs", () => {
   });
 
   describe("constants", () => {
-    it("should export MAX_TOOL_OUTPUT_LENGTH as 500", async () => {
+    it("should export MAX_TOOL_OUTPUT_LENGTH as 256", async () => {
       const { MAX_TOOL_OUTPUT_LENGTH } = await import("./log_parser_shared.cjs");
-      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(500);
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(256);
     });
 
-    it("should export MAX_STEP_SUMMARY_SIZE as 8MB", async () => {
+    it("should export MAX_STEP_SUMMARY_SIZE as 1000KB", async () => {
       const { MAX_STEP_SUMMARY_SIZE } = await import("./log_parser_shared.cjs");
-      expect(MAX_STEP_SUMMARY_SIZE).toBe(8 * 1024 * 1024);
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(1000 * 1024);
+    });
+  });
+
+  describe("generatePlainTextSummary", () => {
+    it("should generate plain text summary with model info", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "gpt-5" },
+        { type: "result", num_turns: 3, duration_ms: 60000 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, {
+        model: "gpt-5",
+        parserName: "TestParser",
+      });
+
+      expect(result).toContain("=== TestParser Execution Summary ===");
+      expect(result).toContain("Model: gpt-5");
+      expect(result).toContain("Turns: 3");
+      expect(result).toContain("Duration: 1m");
+    });
+
+    it("should include tool usage statistics", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "test-model" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "1", name: "Bash", input: { command: "echo test" } },
+              { type: "tool_use", id: "2", name: "mcp__github__create_issue", input: {} },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "1", is_error: false },
+              { type: "tool_result", tool_use_id: "2", is_error: true },
+            ],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Tools/Commands:");
+      expect(result).toContain("[✓] bash: echo test");
+      expect(result).toContain("[x] github::create_issue");
+      expect(result).toContain("Tools: 1/2 succeeded");
+    });
+
+    it("should limit tool summaries to 20 items", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      // Create 25 tool uses
+      const toolUses = [];
+      const toolResults = [];
+      for (let i = 0; i < 25; i++) {
+        toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
+        toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
+      }
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        { type: "assistant", message: { content: toolUses } },
+        { type: "user", message: { content: toolResults } },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("... and 5 more");
+    });
+
+    it("should include token usage and cost", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "result",
+          num_turns: 2,
+          usage: { input_tokens: 1000, output_tokens: 500 },
+          total_cost_usd: 0.0025,
+        },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Tokens: 1,000 in / 500 out");
+      expect(result).toContain("Cost: $0.0025");
+    });
+
+    it("should skip internal tools in summary", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "1", name: "Read", input: {} },
+              { type: "tool_use", id: "2", name: "Write", input: {} },
+              { type: "tool_use", id: "3", name: "Bash", input: { command: "test" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "1", is_error: false },
+              { type: "tool_result", tool_use_id: "2", is_error: false },
+              { type: "tool_result", tool_use_id: "3", is_error: false },
+            ],
+          },
+        },
+        { type: "result" },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      // Should only show Bash, not Read or Write
+      expect(result).toContain("bash: test");
+      expect(result).not.toContain("Read");
+      expect(result).not.toContain("Write");
     });
   });
 });

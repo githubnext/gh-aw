@@ -2360,40 +2360,17 @@ jobs:
             function registerTool(name, description, inputSchema, handler) {
               tools[name] = { name, description, inputSchema, handler };
             }
-            registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
-              try {
-                const env = { ...process.env };
-                if (args && args["jq"] !== undefined) {
-                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
-                }
-                if (args && args["limit"] !== undefined) {
-                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
-                }
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
-                }
-                const scriptPath = path.join(__dirname, "github-pr-query.sh");
-                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-                return { content: [{ type: "text", text: output }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
             registerTool("github-discussion-query", "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of discussions to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
+                if (args && args["jq"] !== undefined) {
+                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
+                }
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
                 if (args && args["repo"] !== undefined) {
                   env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                if (args && args["jq"] !== undefined) {
-                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
                 const scriptPath = path.join(__dirname, "github-discussion-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
@@ -2419,6 +2396,29 @@ jobs:
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
                 const scriptPath = path.join(__dirname, "github-issue-query.sh");
+                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+                return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
+              try {
+                const env = { ...process.env };
+                if (args && args["jq"] !== undefined) {
+                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
+                }
+                if (args && args["limit"] !== undefined) {
+                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
+                }
+                const scriptPath = path.join(__dirname, "github-pr-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
                 const output = stdout + (stderr ? "\nStderr: " + stderr : "");
                 return { content: [{ type: "text", text: output }] };
@@ -2534,93 +2534,6 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
-          cat > /tmp/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
-          #!/bin/bash
-          # Auto-generated safe-input tool: github-pr-query
-          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          STATE="${INPUT_STATE:-open}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
-          
-          # Build and execute gh command
-          if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-          else
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
-          fi
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of pull request objects",
-              "item_fields": {
-                "number": "integer - PR number",
-                "title": "string - PR title",
-                "state": "string - PR state (OPEN, CLOSED, MERGED)",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "mergedAt": "string|null - ISO timestamp of merge",
-                "closedAt": "string|null - ISO timestamp of close",
-                "headRefName": "string - Source branch name",
-                "baseRefName": "string - Target branch name",
-                "isDraft": "boolean - Whether PR is a draft",
-                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
-                "additions": "integer - Lines added",
-                "deletions": "integer - Lines deleted",
-                "changedFiles": "integer - Number of files changed",
-                "labels": "array - Array of label objects with name field",
-                "assignees": "array - Array of assignee objects with login field",
-                "reviewRequests": "array - Array of review request objects",
-                "url": "string - PR URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
-              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
-              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
-              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          
-          EOFSH_github-pr-query
-          chmod +x /tmp/gh-aw/safe-inputs/github-pr-query.sh
           cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
           #!/bin/bash
           # Auto-generated safe-input tool: github-discussion-query
@@ -2779,6 +2692,93 @@ jobs:
           
           EOFSH_github-issue-query
           chmod +x /tmp/gh-aw/safe-inputs/github-issue-query.sh
+          cat > /tmp/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-pr-query
+          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of pull request objects",
+              "item_fields": {
+                "number": "integer - PR number",
+                "title": "string - PR title",
+                "state": "string - PR state (OPEN, CLOSED, MERGED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "mergedAt": "string|null - ISO timestamp of merge",
+                "closedAt": "string|null - ISO timestamp of close",
+                "headRefName": "string - Source branch name",
+                "baseRefName": "string - Target branch name",
+                "isDraft": "boolean - Whether PR is a draft",
+                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
+                "additions": "integer - Lines added",
+                "deletions": "integer - Lines deleted",
+                "changedFiles": "integer - Number of files changed",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "reviewRequests": "array - Array of review request objects",
+                "url": "string - PR URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
+              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-pr-query
+          chmod +x /tmp/gh-aw/safe-inputs/github-pr-query.sh
           
       - name: Setup MCPs
         env:
@@ -4967,81 +4967,8 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
-            function runLogParser(options) {
-              const fs = require("fs");
-              const path = require("path");
-              const { parseLog, parserName, supportsDirectories = false } = options;
-              try {
-                const logPath = process.env.GH_AW_AGENT_OUTPUT;
-                if (!logPath) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logPath)) {
-                  core.info(`Log path not found: ${logPath}`);
-                  return;
-                }
-                let content = "";
-                const stat = fs.statSync(logPath);
-                if (stat.isDirectory()) {
-                  if (!supportsDirectories) {
-                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
-                    return;
-                  }
-                  const files = fs.readdirSync(logPath);
-                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
-                  if (logFiles.length === 0) {
-                    core.info(`No log files found in directory: ${logPath}`);
-                    return;
-                  }
-                  logFiles.sort();
-                  for (const file of logFiles) {
-                    const filePath = path.join(logPath, file);
-                    const fileContent = fs.readFileSync(filePath, "utf8");
-                    if (content.length > 0 && !content.endsWith("\n")) {
-                      content += "\n";
-                    }
-                    content += fileContent;
-                  }
-                } else {
-                  content = fs.readFileSync(logPath, "utf8");
-                }
-                const result = parseLog(content);
-                let markdown = "";
-                let mcpFailures = [];
-                let maxTurnsHit = false;
-                if (typeof result === "string") {
-                  markdown = result;
-                } else if (result && typeof result === "object") {
-                  markdown = result.markdown || "";
-                  mcpFailures = result.mcpFailures || [];
-                  maxTurnsHit = result.maxTurnsHit || false;
-                }
-                if (markdown) {
-                  core.info(markdown);
-                  core.summary.addRaw(markdown).write();
-                  core.info(`${parserName} log parsed successfully`);
-                } else {
-                  core.error(`Failed to parse ${parserName} log`);
-                }
-                if (mcpFailures && mcpFailures.length > 0) {
-                  const failedServers = mcpFailures.join(", ");
-                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
-                }
-                if (maxTurnsHit) {
-                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
-                }
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
-            }
-            const MAX_TOOL_OUTPUT_LENGTH = 500;
-            const MAX_STEP_SUMMARY_SIZE = 8 * 1024 * 1024;
+            const MAX_TOOL_OUTPUT_LENGTH = 256;
+            const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
             const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
             class StepSummaryTracker {
               constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
@@ -5613,6 +5540,177 @@ jobs:
               }
               detailsContent = detailsContent.trimEnd();
               return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+            }
+            function generatePlainTextSummary(logEntries, options = {}) {
+              const { model, parserName = "Agent" } = options;
+              const lines = [];
+              lines.push(`=== ${parserName} Execution Summary ===`);
+              if (model) {
+                lines.push(`Model: ${model}`);
+              }
+              lines.push("");
+              const toolUsePairs = new Map();
+              for (const entry of logEntries) {
+                if (entry.type === "user" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_result" && content.tool_use_id) {
+                      toolUsePairs.set(content.tool_use_id, content);
+                    }
+                  }
+                }
+              }
+              const toolCounts = { total: 0, success: 0, error: 0 };
+              const toolSummary = [];
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      const input = content.input || {};
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue;
+                      }
+                      toolCounts.total++;
+                      const toolResult = toolUsePairs.get(content.id);
+                      const isError = toolResult?.is_error === true;
+                      if (isError) {
+                        toolCounts.error++;
+                      } else {
+                        toolCounts.success++;
+                      }
+                      const statusIcon = isError ? "x" : "✓";
+                      let displayName;
+                      if (toolName === "Bash") {
+                        const cmd = formatBashCommand(input.command || "").slice(0, 40);
+                        displayName = `bash: ${cmd}`;
+                      } else if (toolName.startsWith("mcp__")) {
+                        displayName = formatMcpName(toolName);
+                      } else {
+                        displayName = toolName;
+                      }
+                      if (toolSummary.length < 20) {
+                        toolSummary.push(`  [${statusIcon}] ${displayName}`);
+                      }
+                    }
+                  }
+                }
+              }
+              if (toolSummary.length > 0) {
+                lines.push("Tools/Commands:");
+                lines.push(...toolSummary);
+                if (toolCounts.total > 20) {
+                  lines.push(`  ... and ${toolCounts.total - 20} more`);
+                }
+                lines.push("");
+              }
+              const lastEntry = logEntries[logEntries.length - 1];
+              lines.push("Statistics:");
+              if (lastEntry?.num_turns) {
+                lines.push(`  Turns: ${lastEntry.num_turns}`);
+              }
+              if (lastEntry?.duration_ms) {
+                const duration = formatDuration(lastEntry.duration_ms);
+                if (duration) {
+                  lines.push(`  Duration: ${duration}`);
+                }
+              }
+              if (toolCounts.total > 0) {
+                lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
+              }
+              if (lastEntry?.usage) {
+                const usage = lastEntry.usage;
+                if (usage.input_tokens && usage.output_tokens) {
+                  lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+                }
+              }
+              if (lastEntry?.total_cost_usd) {
+                lines.push(`  Cost: $${lastEntry.total_cost_usd.toFixed(4)}`);
+              }
+              return lines.join("\n");
+            }
+            function runLogParser(options) {
+              const fs = require("fs");
+              const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
+              try {
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
+                if (!logPath) {
+                  core.info("No agent log file specified");
+                  return;
+                }
+                if (!fs.existsSync(logPath)) {
+                  core.info(`Log path not found: ${logPath}`);
+                  return;
+                }
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                    content += fileContent;
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                let logEntries = null;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                  logEntries = result.logEntries || null;
+                }
+                if (markdown) {
+                  if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
+                    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                    const model = initEntry?.model || null;
+                    const plainTextSummary = generatePlainTextSummary(logEntries, {
+                      model,
+                      parserName,
+                    });
+                    core.info(plainTextSummary);
+                  } else {
+                    core.info(`${parserName} log parsed successfully`);
+                  }
+                  core.summary.addRaw(markdown).write();
+                } else {
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
+                }
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
             }
             function main() {
               runLogParser({
