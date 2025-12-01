@@ -3165,6 +3165,24 @@ jobs:
               }
               return toolName;
             }
+            function isLikelyCustomAgent(toolName) {
+              if (!toolName || typeof toolName !== "string") {
+                return false;
+              }
+              if (!toolName.includes("-")) {
+                return false;
+              }
+              if (toolName.includes("__")) {
+                return false;
+              }
+              if (toolName.toLowerCase().startsWith("safe")) {
+                return false;
+              }
+              if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(toolName)) {
+                return false;
+              }
+              return true;
+            }
             function generateConversationMarkdown(logEntries, options) {
               const { formatToolCallback, formatInitCallback, summaryTracker } = options;
               const toolUsePairs = new Map(); 
@@ -3379,19 +3397,53 @@ jobs:
                 const categories = {
                   Core: [],
                   "File Operations": [],
+                  Builtin: [],
+                  "Safe Outputs": [],
+                  "Safe Inputs": [],
                   "Git/GitHub": [],
                   MCP: [],
+                  "Custom Agents": [],
                   Other: [],
                 };
+                const builtinTools = [
+                  "bash",
+                  "write_bash",
+                  "read_bash",
+                  "stop_bash",
+                  "list_bash",
+                  "grep",
+                  "glob",
+                  "view",
+                  "create",
+                  "edit",
+                  "store_memory",
+                  "code_review",
+                  "codeql_checker",
+                  "report_progress",
+                  "report_intent",
+                  "gh-advisory-database",
+                ];
+                const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
+                  const toolLower = tool.toLowerCase();
                   if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
                     categories["Core"].push(tool);
                   } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
                     categories["File Operations"].push(tool);
+                  } else if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+                    categories["Builtin"].push(tool);
+                  } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+                    const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+                    categories["Safe Outputs"].push(toolName);
+                  } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+                    const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+                    categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else if (isLikelyCustomAgent(tool)) {
+                    categories["Custom Agents"].push(tool);
                   } else {
                     categories["Other"].push(tool);
                   }
