@@ -200,9 +200,36 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if HasSafeInputs(workflowData.SafeInputs) {
 		yaml.WriteString("      - name: Setup Safe Inputs MCP\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")
 
-		// Generate the MCP server for safe-inputs
+		// Write the reusable MCP server core modules
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'\n")
+		for _, line := range FormatJavaScriptForYAML(GetReadBufferScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_READ_BUFFER\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'\n")
+		for _, line := range FormatJavaScriptForYAML(GetMCPServerCoreScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_MCP_CORE\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeInputsMCPServerScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_SAFE_INPUTS_SERVER\n")
+
+		// Generate the tools.json configuration file
+		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'\n")
+		for _, line := range strings.Split(toolsJSON, "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
+		yaml.WriteString("          EOF_TOOLS_JSON\n")
+
+		// Generate the MCP server entry point
 		safeInputsMCPServer := generateSafeInputsMCPServerScript(workflowData.SafeInputs)
 		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'\n")
 		for _, line := range FormatJavaScriptForYAML(safeInputsMCPServer) {
