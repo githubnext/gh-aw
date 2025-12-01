@@ -8,7 +8,7 @@ safe-inputs:
         description: "The gh CLI command arguments (e.g., 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}')"
         required: true
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
     run: |
       # Execute the gh CLI command with the provided arguments
       # Note: INPUT_ARGS is validated as a string by the safe-inputs system
