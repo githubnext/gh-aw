@@ -188,7 +188,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add tool permission arguments based on configuration
-	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs)
+	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData)
 	if len(toolArgs) > 0 {
 		copilotLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
@@ -413,7 +413,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	// Add safe-inputs secrets to env for passthrough to MCP servers
-	if HasSafeInputs(workflowData.SafeInputs) {
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 		for varName, secretExpr := range safeInputsSecrets {
 			// Only add if not already in env
@@ -431,7 +431,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
-	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, "        ")
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData, "        ")
 	if toolArgsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")
@@ -683,7 +683,7 @@ func (e *CopilotEngine) GetLogFileForParsing() string {
 }
 
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
-func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig) []string {
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData) []string {
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -732,8 +732,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID)
 	}
 
-	// Handle safe_inputs MCP server - allow the server if safe inputs are configured
-	if HasSafeInputs(safeInputs) {
+	// Handle safe_inputs MCP server - allow the server if safe inputs are configured and feature flag is enabled
+	if IsSafeInputsEnabled(safeInputs, workflowData) {
 		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID)
 	}
 
@@ -830,8 +830,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 }
 
 // generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument
-func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, indent string) string {
-	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, safeInputs)
+func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData, indent string) string {
+	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, safeInputs, workflowData)
 	if len(toolArgs) == 0 {
 		return ""
 	}

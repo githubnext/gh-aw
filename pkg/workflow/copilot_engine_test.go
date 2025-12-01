@@ -391,7 +391,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, nil)
+			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, nil, nil)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)
@@ -443,7 +443,7 @@ func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, nil, tt.indent)
+			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, nil, nil, tt.indent)
 
 			if result != tt.expected {
 				t.Errorf("Expected comment:\n%s\nGot:\n%s", tt.expected, result)
