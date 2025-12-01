@@ -107,6 +107,15 @@ post-steps:
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
+## Pre-flight Checks (MUST DO FIRST)
+
+Before running any tests, verify that both GitHub MCP and Playwright MCP are working:
+
+1. **Verify GitHub MCP**: Try to list 1 recent PR using the GitHub MCP tool
+2. **Verify Playwright MCP**: Try a simple playwright browser launch
+
+**CRITICAL: If either GitHub MCP or Playwright MCP fails to respond or returns an error, IMMEDIATELY exit with a failure message. Do NOT proceed with the rest of the tests. Report which tool failed and stop.**
+
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
