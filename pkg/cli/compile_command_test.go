@@ -674,7 +674,10 @@ This is a test workflow.
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := workflow.NewCompiler(false, "", "test")
-			compiler.SetSkipValidation(!tt.validate)
+			// Note: SetSkipValidation controls schema validation, which is
+			// different from the validateActionSHAs parameter we're testing.
+			// We skip schema validation here to focus on the security tool independence test.
+			compiler.SetSkipValidation(true)
 
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
