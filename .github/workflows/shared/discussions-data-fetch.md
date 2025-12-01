@@ -23,6 +23,8 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_AW_DISCUSSIONS_COUNT: ${{ github.aw.inputs.count }}
+      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_NAME: ${{ github.event.repository.name }}
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/discussions-data
@@ -65,7 +67,7 @@ steps:
           
           RESULT=$(gh api graphql -f query="
             query {
-              repository(owner: \"${{ github.repository_owner }}\", name: \"${{ github.event.repository.name }}\") {
+              repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME\") {
                 discussions(first: 100, states: [OPEN]${CURSOR_ARG}) {
                   pageInfo {
                     hasNextPage

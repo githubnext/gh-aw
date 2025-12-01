@@ -24,7 +24,7 @@ network: defaults
 
 safe-outputs:
   create-issue:
-    title-prefix: "${{ github.workflow }}"
+    title-prefix: "[CI Failure Doctor] "
   add-comment:
   messages:
     footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*"
