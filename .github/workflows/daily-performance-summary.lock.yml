@@ -2360,12 +2360,52 @@ jobs:
             function registerTool(name, description, inputSchema, handler) {
               tools[name] = { name, description, inputSchema, handler };
             }
-            registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
+            registerTool("github-discussion-query", "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of discussions to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"}},"type":"object"}, async (args) => {
+              try {
+                const env = { ...process.env };
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["jq"] !== undefined) {
+                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
+                }
+                if (args && args["limit"] !== undefined) {
+                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                const scriptPath = path.join(__dirname, "github-discussion-query.sh");
+                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+                return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            registerTool("github-issue-query", "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of issues to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"Issue state: open, closed, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
                 if (args && args["jq"] !== undefined) {
                   env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
+                if (args && args["limit"] !== undefined) {
+                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
+                }
+                if (args && args["repo"] !== undefined) {
+                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
+                }
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
+                }
+                const scriptPath = path.join(__dirname, "github-issue-query.sh");
+                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
+                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
+                return { content: [{ type: "text", text: output }] };
+              } catch (error) {
+                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
+              }
+            });
+            registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
+              try {
+                const env = { ...process.env };
                 if (args && args["limit"] !== undefined) {
                   env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
                 }
@@ -2379,52 +2419,6 @@ jobs:
                   env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
                 const scriptPath = path.join(__dirname, "github-pr-query.sh");
-                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-                return { content: [{ type: "text", text: output }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
-            registerTool("github-discussion-query", "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of discussions to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"}},"type":"object"}, async (args) => {
-              try {
-                const env = { ...process.env };
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
-                }
-                if (args && args["jq"] !== undefined) {
-                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
-                }
-                if (args && args["limit"] !== undefined) {
-                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
-                }
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                const scriptPath = path.join(__dirname, "github-discussion-query.sh");
-                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-                return { content: [{ type: "text", text: output }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
-            registerTool("github-issue-query", "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of issues to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"Issue state: open, closed, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
-              try {
-                const env = { ...process.env };
-                if (args && args["limit"] !== undefined) {
-                  env["INPUT_LIMIT"] = typeof args["limit"] === "object" ? JSON.stringify(args["limit"]) : String(args["limit"]);
-                }
-                if (args && args["repo"] !== undefined) {
-                  env["INPUT_REPO"] = typeof args["repo"] === "object" ? JSON.stringify(args["repo"]) : String(args["repo"]);
-                }
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
-                }
-                if (args && args["jq"] !== undefined) {
-                  env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
-                }
-                const scriptPath = path.join(__dirname, "github-issue-query.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
                 const output = stdout + (stderr ? "\nStderr: " + stderr : "");
                 return { content: [{ type: "text", text: output }] };
@@ -2540,93 +2534,6 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
-          cat > /tmp/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
-          #!/bin/bash
-          # Auto-generated safe-input tool: github-pr-query
-          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          STATE="${INPUT_STATE:-open}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
-          
-          # Build and execute gh command
-          if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-          else
-            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
-          fi
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of pull request objects",
-              "item_fields": {
-                "number": "integer - PR number",
-                "title": "string - PR title",
-                "state": "string - PR state (OPEN, CLOSED, MERGED)",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "mergedAt": "string|null - ISO timestamp of merge",
-                "closedAt": "string|null - ISO timestamp of close",
-                "headRefName": "string - Source branch name",
-                "baseRefName": "string - Target branch name",
-                "isDraft": "boolean - Whether PR is a draft",
-                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
-                "additions": "integer - Lines added",
-                "deletions": "integer - Lines deleted",
-                "changedFiles": "integer - Number of files changed",
-                "labels": "array - Array of label objects with name field",
-                "assignees": "array - Array of assignee objects with login field",
-                "reviewRequests": "array - Array of review request objects",
-                "url": "string - PR URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
-              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
-              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
-              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          
-          EOFSH_github-pr-query
-          chmod +x /tmp/gh-aw/safe-inputs/github-pr-query.sh
           cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
           #!/bin/bash
           # Auto-generated safe-input tool: github-discussion-query
@@ -2785,6 +2692,93 @@ jobs:
           
           EOFSH_github-issue-query
           chmod +x /tmp/gh-aw/safe-inputs/github-issue-query.sh
+          cat > /tmp/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-pr-query
+          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of pull request objects",
+              "item_fields": {
+                "number": "integer - PR number",
+                "title": "string - PR title",
+                "state": "string - PR state (OPEN, CLOSED, MERGED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "mergedAt": "string|null - ISO timestamp of merge",
+                "closedAt": "string|null - ISO timestamp of close",
+                "headRefName": "string - Source branch name",
+                "baseRefName": "string - Target branch name",
+                "isDraft": "boolean - Whether PR is a draft",
+                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
+                "additions": "integer - Lines added",
+                "deletions": "integer - Lines deleted",
+                "changedFiles": "integer - Number of files changed",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "reviewRequests": "array - Array of review request objects",
+                "url": "string - PR URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
+              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-pr-query
+          chmod +x /tmp/gh-aw/safe-inputs/github-pr-query.sh
           
       - name: Setup MCPs
         env:

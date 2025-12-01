@@ -1501,6 +1501,9 @@ jobs:
             registerTool("fetch-pr-data", "Fetches pull request data from GitHub using gh CLI. Returns JSON array of PRs with fields: number, title, author, headRefName, createdAt, state, url, body, labels, updatedAt, closedAt, mergedAt", {"properties":{"days":{"default":30,"description":"Number of days to look back (default: 30)","type":"number"},"limit":{"default":100,"description":"Maximum number of PRs to fetch (default: 100)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"search":{"description":"Search query for filtering PRs (e.g., 'head:copilot/' for Copilot PRs)","type":"string"},"state":{"default":"all","description":"PR state filter: open, closed, merged, or all (default: all)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
+                if (args && args["state"] !== undefined) {
+                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
+                }
                 if (args && args["days"] !== undefined) {
                   env["INPUT_DAYS"] = typeof args["days"] === "object" ? JSON.stringify(args["days"]) : String(args["days"]);
                 }
@@ -1512,9 +1515,6 @@ jobs:
                 }
                 if (args && args["search"] !== undefined) {
                   env["INPUT_SEARCH"] = typeof args["search"] === "object" ? JSON.stringify(args["search"]) : String(args["search"]);
-                }
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
                 }
                 const scriptPath = path.join(__dirname, "fetch-pr-data.sh");
                 const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
@@ -1632,6 +1632,26 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/test-js-math.cjs << 'EOFJS_test-js-math'
+            async function execute(inputs) {
+              const { a, b } = inputs || {};
+              const sum = a + b;
+              const product = a * b;
+              return { sum, product, inputs: { a, b } };
+            }
+            module.exports = { execute };
+          EOFJS_test-js-math
+          cat > /tmp/gh-aw/safe-inputs/test-js-string.cjs << 'EOFJS_test-js-string'
+            async function execute(inputs) {
+              const { text } = inputs || {};
+              return {
+                original: text,
+                uppercase: text.toUpperCase(),
+                length: text.length
+              };
+            }
+            module.exports = { execute };
+          EOFJS_test-js-string
           cat > /tmp/gh-aw/safe-inputs/fetch-pr-data.sh << 'EOFSH_fetch-pr-data'
           #!/bin/bash
           # Auto-generated safe-input tool: fetch-pr-data
@@ -1665,26 +1685,6 @@ jobs:
           
           EOFSH_fetch-pr-data
           chmod +x /tmp/gh-aw/safe-inputs/fetch-pr-data.sh
-          cat > /tmp/gh-aw/safe-inputs/test-js-math.cjs << 'EOFJS_test-js-math'
-            async function execute(inputs) {
-              const { a, b } = inputs || {};
-              const sum = a + b;
-              const product = a * b;
-              return { sum, product, inputs: { a, b } };
-            }
-            module.exports = { execute };
-          EOFJS_test-js-math
-          cat > /tmp/gh-aw/safe-inputs/test-js-string.cjs << 'EOFJS_test-js-string'
-            async function execute(inputs) {
-              const { text } = inputs || {};
-              return {
-                original: text,
-                uppercase: text.toUpperCase(),
-                length: text.length
-              };
-            }
-            module.exports = { execute };
-          EOFJS_test-js-string
           
       - name: Setup MCPs
         env:
