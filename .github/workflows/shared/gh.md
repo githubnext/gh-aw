@@ -1,7 +1,7 @@
 ---
 safe-inputs:
   gh:
-    description: "Execute any gh CLI command with access to the repository's GITHUB_TOKEN. Supports all gh subcommands including pr, issue, api, repo, run, etc."
+    description: "Execute any gh CLI command using the GH_TOKEN environment variable (set from GITHUB_TOKEN). Supports all gh subcommands including pr, issue, api, repo, run, etc."
     inputs:
       args:
         type: string
@@ -11,12 +11,14 @@ safe-inputs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Execute the gh CLI command with the provided arguments
+      # Note: INPUT_ARGS is validated as a string by the safe-inputs system
+      # The gh CLI handles its own argument parsing and security
       gh $INPUT_ARGS
 ---
 <!--
 ## gh CLI Safe Input Tool
 
-This shared workflow provides a `gh` safe-input tool that allows agents to execute any GitHub CLI (`gh`) command using the repository's `GITHUB_TOKEN`.
+This shared workflow provides a `gh` safe-input tool that allows agents to execute any GitHub CLI (`gh`) command using the `GH_TOKEN` environment variable (populated from `GITHUB_TOKEN`).
 
 ### Usage
 
@@ -27,11 +29,11 @@ imports:
   - shared/gh.md
 ```
 
-The agent can then use the tool to execute any gh CLI command:
-- `gh` with `args: "pr list --limit 5"` lists the last 5 PRs
-- `gh` with `args: "issue view 123"` views issue #123
-- `gh` with `args: "api repos/{owner}/{repo}"` calls the GitHub API
-- `gh` with `args: "pr view 456 --json title,body,author"` gets PR details as JSON
+The agent can then use the tool to execute any gh CLI command by calling the `gh` safe-input with args parameter:
+- Call `gh` with `args: "pr list --limit 5"` to list the last 5 PRs
+- Call `gh` with `args: "issue view 123"` to view issue #123  
+- Call `gh` with `args: "api repos/{owner}/{repo}"` to call the GitHub API
+- Call `gh` with `args: "pr view 456 --json title,body,author"` to get PR details as JSON
 
 ### Parameters
 
@@ -39,26 +41,19 @@ The agent can then use the tool to execute any gh CLI command:
 |-----------|------|----------|-------------|
 | args | string | yes | The gh CLI command arguments |
 
-### Example Commands
+### Example Tool Invocations
 
-```bash
-# List PRs
-gh args: "pr list --limit 10"
+When using the safe-input tool, provide the args parameter:
 
-# Get PR details as JSON
-gh args: "pr view 123 --json number,title,body,author,state,createdAt,mergedAt"
-
-# List issues
-gh args: "issue list --state open --limit 20"
-
-# Call the GitHub API
-gh args: "api repos/{owner}/{repo}/pulls/123"
-
-# Search code
-gh args: "search code 'function myFunc' --repo owner/repo"
+```
+gh with args: "pr list --limit 10"
+gh with args: "pr view 123 --json number,title,body,author,state,createdAt,mergedAt"
+gh with args: "issue list --state open --limit 20"
+gh with args: "api repos/{owner}/{repo}/pulls/123"
+gh with args: "search code 'function myFunc' --repo owner/repo"
 ```
 
 ### Security
 
-This tool uses the repository's `GITHUB_TOKEN` which has limited permissions based on the workflow's `permissions` configuration. The agent can only perform actions that the token allows.
+This tool uses the `GH_TOKEN` environment variable (populated from `GITHUB_TOKEN`) which has limited permissions based on the workflow's `permissions` configuration. The agent can only perform actions that the token allows.
 -->
