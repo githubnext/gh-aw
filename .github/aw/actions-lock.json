@@ -70,6 +70,11 @@
       "version": "v5",
       "sha": "e58605a9b6da7c637471fab8847a5e5a6b8df081"
     },
+    "cli/gh-extension-precompile@v2": {
+      "repo": "cli/gh-extension-precompile",
+      "version": "v2",
+      "sha": "9e2237c30f869ad3bcaed6a4be2cd43564dd421b"
+    },
     "denoland/setup-deno@v2": {
       "repo": "denoland/setup-deno",
       "version": "v2",
