@@ -1,4 +1,5 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getOctokitClient } = require("./get_octokit_client.cjs");
 
 /**
  * @typedef {Object} UpdateProjectOutput
@@ -75,15 +76,7 @@ async function updateProject(output) {
 
   let githubClient = github;
   if (process.env.PROJECT_GITHUB_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.PROJECT_GITHUB_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
-    githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
-    };
+    githubClient = getOctokitClient(process.env.PROJECT_GITHUB_TOKEN);
   }
 
   try {

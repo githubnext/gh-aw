@@ -5838,6 +5838,17 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            let getOctokitFactory = null;
+            function setGetOctokitFactory(factory) {
+              getOctokitFactory = factory;
+            }
+            function getOctokitClient(token) {
+              if (getOctokitFactory) {
+                return getOctokitFactory(token);
+              }
+              const { getOctokit } = __original_require__("@actions/github");
+              return getOctokit(token);
+            }
             function parseProjectInput(projectInput) {
               if (!projectInput || typeof projectInput !== "string") {
                 throw new Error(
@@ -5872,15 +5883,7 @@ jobs:
               const campaignId = output.campaign_id || generateCampaignId(displayName);
               let githubClient = github;
               if (process.env.PROJECT_GITHUB_TOKEN) {
-                const { Octokit } = require("@octokit/rest");
-                const octokit = new Octokit({
-                  auth: process.env.PROJECT_GITHUB_TOKEN,
-                  baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-                });
-                githubClient = {
-                  graphql: octokit.graphql.bind(octokit),
-                  rest: octokit.rest,
-                };
+                githubClient = getOctokitClient(process.env.PROJECT_GITHUB_TOKEN);
               }
               try {
                 const repoResult = await githubClient.graphql(
