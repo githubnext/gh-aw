@@ -9,48 +9,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
 
-var (
-	headerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B")).
-			MarginBottom(1)
-
-	serverNameStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#BD93F9"))
-
-	typeStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#8BE9FD"))
-
-	errorBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#FF5555")).
-			Padding(1).
-			Margin(1)
-)
-
 // inspectMCPServer connects to an MCP server and queries its capabilities
 func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	mcpInspectServerLog.Printf("Inspecting MCP server: name=%s, type=%s", config.Name, config.Type)
 	fmt.Printf("%s %s (%s)\n",
-		serverNameStyle.Render("📡 "+config.Name),
-		typeStyle.Render(config.Type),
-		typeStyle.Render(buildConnectionString(config)))
+		styles.ServerName.Render("📡 "+config.Name),
+		styles.ServerType.Render(config.Type),
+		styles.ServerType.Render(buildConnectionString(config)))
 
 	// Validate secrets/environment variables
 	mcpInspectServerLog.Print("Validating server secrets")
 	if err := validateServerSecrets(config, verbose, useActionsSecrets); err != nil {
 		mcpInspectServerLog.Printf("Secret validation failed: %v", err)
-		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Secret validation failed: %s", err)))
+		fmt.Print(styles.ErrorBox.Render(fmt.Sprintf("❌ Secret validation failed: %s", err)))
 		return nil // Don't return error, just show validation failure
 	}
 
@@ -59,7 +39,7 @@ func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose 
 	info, err := connectToMCPServer(config, verbose)
 	if err != nil {
 		mcpInspectServerLog.Printf("Connection failed: %v", err)
-		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Connection failed: %s", err)))
+		fmt.Print(styles.ErrorBox.Render(fmt.Sprintf("❌ Connection failed: %s", err)))
 		return nil // Don't return error, just show connection failure
 	}
 
@@ -323,7 +303,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 		if toolFilter != "" {
 			displayDetailedToolInfo(info, toolFilter)
 		} else {
-			fmt.Printf("\n%s\n", headerStyle.Render("🛠️  Tool Access Status"))
+			fmt.Printf("\n%s\n", styles.Header.Render("🛠️  Tool Access Status"))
 
 			// Configure options for inspect command
 			// Use a slightly shorter truncation length than list-tools for better fit
@@ -351,7 +331,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 
 	// Display resources (skip if showing specific tool details)
 	if toolFilter == "" && len(info.Resources) > 0 {
-		fmt.Printf("\n%s\n", headerStyle.Render("📚 Available Resources"))
+		fmt.Printf("\n%s\n", styles.Header.Render("📚 Available Resources"))
 
 		headers := []string{"URI", "Name", "Description", "MIME Type"}
 		rows := make([][]string, 0, len(info.Resources))
@@ -381,7 +361,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 
 	// Display roots (skip if showing specific tool details)
 	if toolFilter == "" && len(info.Roots) > 0 {
-		fmt.Printf("\n%s\n", headerStyle.Render("🌳 Available Roots"))
+		fmt.Printf("\n%s\n", styles.Header.Render("🌳 Available Roots"))
 
 		headers := []string{"URI", "Name"}
 		rows := make([][]string, 0, len(info.Roots))
@@ -433,7 +413,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 		}
 	}
 
-	fmt.Printf("\n%s\n", headerStyle.Render(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
+	fmt.Printf("\n%s\n", styles.Header.Render(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
 
 	// Display basic information
 	fmt.Printf("📋 **Name:** %s\n", foundTool.Name)
@@ -457,7 +437,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display annotations if available
 	if foundTool.Annotations != nil {
-		fmt.Printf("\n%s\n", headerStyle.Render("⚙️  Tool Attributes"))
+		fmt.Printf("\n%s\n", styles.Header.Render("⚙️  Tool Attributes"))
 
 		if foundTool.Annotations.ReadOnlyHint {
 			fmt.Printf("🔒 **Read-only:** This tool does not modify its environment\n")
@@ -488,7 +468,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display input schema
 	if foundTool.InputSchema != nil {
-		fmt.Printf("\n%s\n", headerStyle.Render("📥 Input Schema"))
+		fmt.Printf("\n%s\n", styles.Header.Render("📥 Input Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.InputSchema, "", "  "); err == nil {
 			fmt.Printf("```json\n%s\n```\n", string(schemaJSON))
 		} else {
@@ -500,7 +480,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display output schema
 	if foundTool.OutputSchema != nil {
-		fmt.Printf("\n%s\n", headerStyle.Render("📤 Output Schema"))
+		fmt.Printf("\n%s\n", styles.Header.Render("📤 Output Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.OutputSchema, "", "  "); err == nil {
 			fmt.Printf("```json\n%s\n```\n", string(schemaJSON))
 		} else {
