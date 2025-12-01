@@ -309,6 +309,7 @@ jobs:
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
 
   security-scan:
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
