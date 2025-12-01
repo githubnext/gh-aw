@@ -34,59 +34,6 @@ var commonWorkflowNames = []string{
 	"documentation-check",
 }
 
-// Package-level option definitions for interactive workflow creation
-var (
-	// triggerOptions defines the available workflow trigger types
-	triggerOptions = []huh.Option[string]{
-		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
-		huh.NewOption("Issue opened or reopened", "issues"),
-		huh.NewOption("Pull request opened or synchronized", "pull_request"),
-		huh.NewOption("Push to main branch", "push"),
-		huh.NewOption("Issue comment created", "issue_comment"),
-		huh.NewOption("Schedule (daily at 9 AM UTC)", "schedule_daily"),
-		huh.NewOption("Schedule (weekly on Monday at 9 AM UTC)", "schedule_weekly"),
-		huh.NewOption("Command trigger (/bot-name)", "command"),
-	}
-
-	// engineOptions defines the available AI engine types
-	engineOptions = []huh.Option[string]{
-		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
-		huh.NewOption("claude - Anthropic Claude coding agent", "claude"),
-		huh.NewOption("codex - OpenAI Codex engine", "codex"),
-		huh.NewOption("custom - Custom engine configuration", "custom"),
-	}
-
-	// toolOptions defines the available tool types for AI workflows
-	toolOptions = []huh.Option[string]{
-		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
-		huh.NewOption("edit - File editing tools", "edit"),
-		huh.NewOption("bash - Shell command tools", "bash"),
-		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
-		huh.NewOption("web-search - Web search tools", "web-search"),
-		huh.NewOption("playwright - Browser automation tools", "playwright"),
-	}
-
-	// safeOutputOptions defines the available safe output types
-	safeOutputOptions = []huh.Option[string]{
-		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
-		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
-		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
-		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
-		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
-		huh.NewOption("update-issue - Update existing issues", "update-issue"),
-		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
-		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
-		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
-		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
-	}
-
-	// networkOptions defines the available network access options
-	networkOptions = []huh.Option[string]{
-		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
-		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
-	}
-)
-
 // isValidWorkflowName checks if the provided workflow name contains only valid characters.
 // Returns false for empty strings (which should be checked separately for a more specific error message).
 func isValidWorkflowName(name string) bool {
