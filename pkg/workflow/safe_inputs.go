@@ -347,8 +347,15 @@ function registerTool(name, description, inputSchema, handler) {
 
 `)
 
-	// Register each tool
-	for toolName, toolConfig := range safeInputs.Tools {
+	// Register each tool (sorted by name for stable code generation)
+	toolNames := make([]string, 0, len(safeInputs.Tools))
+	for toolName := range safeInputs.Tools {
+		toolNames = append(toolNames, toolName)
+	}
+	sort.Strings(toolNames)
+
+	for _, toolName := range toolNames {
+		toolConfig := safeInputs.Tools[toolName]
 		sb.WriteString(fmt.Sprintf("// Register tool: %s\n", toolName))
 
 		// Build input schema
@@ -399,7 +406,14 @@ function registerTool(name, description, inputSchema, handler) {
     const env = { ...process.env };
 `, toolName, toolConfig.Description, string(inputSchemaJSON)))
 
+			// Sort input names for stable code generation
+			inputNames := make([]string, 0, len(toolConfig.Inputs))
 			for paramName := range toolConfig.Inputs {
+				inputNames = append(inputNames, paramName)
+			}
+			sort.Strings(inputNames)
+
+			for _, paramName := range inputNames {
 				// Use bracket notation for safer property access
 				safeEnvName := strings.ToUpper(sanitizeParameterName(paramName))
 				sb.WriteString(fmt.Sprintf(`    if (args && args[%q] !== undefined) {
@@ -566,7 +580,14 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 	sb.WriteString("/**\n")
 	sb.WriteString(" * " + toolConfig.Description + "\n")
 	sb.WriteString(" * @param {Object} inputs - Input parameters\n")
-	for paramName, param := range toolConfig.Inputs {
+	// Sort input names for stable code generation in JSDoc
+	inputNamesForDoc := make([]string, 0, len(toolConfig.Inputs))
+	for paramName := range toolConfig.Inputs {
+		inputNamesForDoc = append(inputNamesForDoc, paramName)
+	}
+	sort.Strings(inputNamesForDoc)
+	for _, paramName := range inputNamesForDoc {
+		param := toolConfig.Inputs[paramName]
 		sb.WriteString(fmt.Sprintf(" * @param {%s} inputs.%s - %s\n", param.Type, paramName, param.Description))
 	}
 	sb.WriteString(" * @returns {Promise<any>} Tool result\n")
@@ -640,9 +661,24 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 		return secrets
 	}
 
-	for _, toolConfig := range safeInputs.Tools {
-		for envName, envValue := range toolConfig.Env {
-			secrets[envName] = envValue
+	// Sort tool names for consistent behavior when same env var appears in multiple tools
+	toolNames := make([]string, 0, len(safeInputs.Tools))
+	for toolName := range safeInputs.Tools {
+		toolNames = append(toolNames, toolName)
+	}
+	sort.Strings(toolNames)
+
+	for _, toolName := range toolNames {
+		toolConfig := safeInputs.Tools[toolName]
+		// Sort env var names for consistent order within each tool
+		envNames := make([]string, 0, len(toolConfig.Env))
+		for envName := range toolConfig.Env {
+			envNames = append(envNames, envName)
+		}
+		sort.Strings(envNames)
+
+		for _, envName := range envNames {
+			secrets[envName] = toolConfig.Env[envName]
 		}
 	}
 

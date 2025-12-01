@@ -2386,9 +2386,6 @@ jobs:
             registerTool("github-pr-query", "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.", {"properties":{"jq":{"description":"jq filter expression to apply to output. If not provided, returns schema info instead of full data.","type":"string"},"limit":{"description":"Maximum number of PRs to fetch (default: 30)","type":"number"},"repo":{"description":"Repository in owner/repo format (defaults to current repository)","type":"string"},"state":{"description":"PR state: open, closed, merged, all (default: open)","type":"string"}},"type":"object"}, async (args) => {
               try {
                 const env = { ...process.env };
-                if (args && args["state"] !== undefined) {
-                  env["INPUT_STATE"] = typeof args["state"] === "object" ? JSON.stringify(args["state"]) : String(args["state"]);
-                }
                 if (args && args["jq"] !== undefined) {
                   env["INPUT_JQ"] = typeof args["jq"] === "object" ? JSON.stringify(args["jq"]) : String(args["jq"]);
                 }
@@ -2545,7 +2542,6 @@ jobs:
           
           # Default values
           REPO="${INPUT_REPO:-}"
-          STATE="${INPUT_STATE:-open}"
           LIMIT="${INPUT_LIMIT:-30}"
           JQ_FILTER="${INPUT_JQ:-}"
           
