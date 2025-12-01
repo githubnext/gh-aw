@@ -5461,19 +5461,24 @@ jobs:
               if (categoryToMatch) {
                 const categoryById = categories.find(cat => cat.id === categoryToMatch);
                 if (categoryById) {
-                  return categoryById.id;
+                  return { id: categoryById.id, matchType: "id", name: categoryById.name };
                 }
                 const categoryByName = categories.find(cat => cat.name === categoryToMatch);
                 if (categoryByName) {
-                  return categoryByName.id;
+                  return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
                 }
                 const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
                 if (categoryBySlug) {
-                  return categoryBySlug.id;
+                  return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
                 }
               }
               if (categories.length > 0) {
-                return categories[0].id;
+                return {
+                  id: categories[0].id,
+                  matchType: "fallback",
+                  name: categories[0].name,
+                  requestedCategory: categoryToMatch,
+                };
               }
               return undefined;
             }
@@ -5564,7 +5569,9 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+                    core.info(
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                    );
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     if (
@@ -5579,11 +5586,27 @@ jobs:
                     throw error;
                   }
                 }
-                const categoryId = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
-                if (!categoryId) {
+                const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
+                if (!categoryInfo) {
                   core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
                   continue;
                 }
+                if (categoryInfo.matchType === "name") {
+                  core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "slug") {
+                  core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "fallback") {
+                  if (categoryInfo.requestedCategory) {
+                    const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
+                    core.warning(
+                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
+                    );
+                    core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  } else {
+                    core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  }
+                }
+                const categoryId = categoryInfo.id;
                 core.info(
                   `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
                 );
