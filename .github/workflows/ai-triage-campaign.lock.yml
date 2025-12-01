@@ -4544,6 +4544,17 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            let getOctokitFactory = null;
+            function setGetOctokitFactory(factory) {
+              getOctokitFactory = factory;
+            }
+            function getOctokitClient(token) {
+              if (getOctokitFactory) {
+                return getOctokitFactory(token);
+              }
+              const { getOctokit } = __original_require__("@actions/github");
+              return getOctokit(token);
+            }
             const AGENT_LOGIN_NAMES = {
               copilot: "copilot-swe-agent",
             };
@@ -4554,7 +4565,7 @@ jobs:
               }
               return null;
             }
-            async function getAvailableAgentLogins(owner, repo) {
+            async function getAvailableAgentLogins(owner, repo, ghToken) {
               const query = `
                 query($owner: String!, $repo: String!) {
                   repository(owner: $owner, name: $repo) {
@@ -4565,7 +4576,8 @@ jobs:
                 }
               `;
               try {
-                const response = await github.graphql(query, { owner, repo });
+                const client = ghToken ? getOctokitClient(ghToken) : github;
+                const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository?.suggestedActors?.nodes || [];
                 const knownValues = Object.values(AGENT_LOGIN_NAMES);
                 const available = [];
@@ -4581,7 +4593,7 @@ jobs:
                 return [];
               }
             }
-            async function findAgent(owner, repo, agentName) {
+            async function findAgent(owner, repo, agentName, ghToken) {
               const query = `
                 query($owner: String!, $repo: String!) {
                   repository(owner: $owner, name: $repo) {
@@ -4598,7 +4610,8 @@ jobs:
                 }
               `;
               try {
-                const response = await github.graphql(query, { owner, repo });
+                const client = ghToken ? getOctokitClient(ghToken) : github;
+                const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository.suggestedActors.nodes;
                 const loginName = AGENT_LOGIN_NAMES[agentName];
                 if (!loginName) {
@@ -4842,10 +4855,10 @@ jobs:
               }
               try {
                 core.info(`Looking for ${agentName} coding agent...`);
-                const agentId = await findAgent(owner, repo, agentName);
+                const agentId = await findAgent(owner, repo, agentName, ghToken);
                 if (!agentId) {
                   const error = `${agentName} coding agent is not available for this repository`;
-                  const available = await getAvailableAgentLogins(owner, repo);
+                  const available = await getAvailableAgentLogins(owner, repo, ghToken);
                   const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
                   return { success: false, error: enrichedError };
                 }
@@ -4951,7 +4964,7 @@ jobs:
                   let agentId = agentCache[agentName];
                   if (!agentId) {
                     core.info(`Looking for ${agentName} coding agent...`);
-                    agentId = await findAgent(targetOwner, targetRepo, agentName);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName, mutationToken);
                     if (!agentId) {
                       throw new Error(`${agentName} coding agent is not available for this repository`);
                     }
@@ -4988,7 +5001,7 @@ jobs:
                   let errorMessage = error instanceof Error ? error.message : String(error);
                   if (errorMessage.includes("coding agent is not available for this repository")) {
                     try {
-                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+                      const available = await getAvailableAgentLogins(targetOwner, targetRepo, mutationToken);
                       if (available.length > 0) {
                         errorMessage += ` (available agents: ${available.join(", ")})`;
                       }
