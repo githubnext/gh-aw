@@ -292,74 +292,58 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		},
 	}
 
+	// Test the entry point script
 	script := generateSafeInputsMCPServerScript(config)
 
-	// Check for basic MCP server structure
-	if !strings.Contains(script, "safeinputs") {
-		t.Error("Script should contain server name 'safeinputs'")
+	// Check for modular server entry point structure
+	if !strings.Contains(script, "safe_inputs_mcp_server.cjs") {
+		t.Error("Script should reference the modular MCP server module")
 	}
 
-	// Check for tool registration
-	if !strings.Contains(script, `registerTool("search-issues"`) {
-		t.Error("Script should register search-issues tool")
+	if !strings.Contains(script, "startSafeInputsServer") {
+		t.Error("Script should use startSafeInputsServer function")
 	}
 
-	if !strings.Contains(script, `registerTool("echo-message"`) {
-		t.Error("Script should register echo-message tool")
+	if !strings.Contains(script, "tools.json") {
+		t.Error("Script should reference tools.json configuration file")
+	}
+
+	if !strings.Contains(script, "/tmp/gh-aw/safe-inputs/logs") {
+		t.Error("Script should specify log directory")
+	}
+
+	// Test the tools configuration JSON
+	toolsJSON := generateSafeInputsToolsConfig(config)
+
+	if !strings.Contains(toolsJSON, `"serverName": "safeinputs"`) {
+		t.Error("Tools config should contain server name 'safeinputs'")
+	}
+
+	if !strings.Contains(toolsJSON, `"name": "search-issues"`) {
+		t.Error("Tools config should contain search-issues tool")
+	}
+
+	if !strings.Contains(toolsJSON, `"name": "echo-message"`) {
+		t.Error("Tools config should contain echo-message tool")
 	}
 
 	// Check for JavaScript tool handler
-	if !strings.Contains(script, "search-issues.cjs") {
-		t.Error("Script should reference JavaScript tool file")
+	if !strings.Contains(toolsJSON, `"handler": "search-issues.cjs"`) {
+		t.Error("Tools config should reference JavaScript tool handler file")
 	}
 
 	// Check for shell tool handler
-	if !strings.Contains(script, "echo-message.sh") {
-		t.Error("Script should reference shell script file")
+	if !strings.Contains(toolsJSON, `"handler": "echo-message.sh"`) {
+		t.Error("Tools config should reference shell script handler file")
 	}
 
-	// Check for MCP methods
-	if !strings.Contains(script, "tools/list") {
-		t.Error("Script should handle tools/list method")
+	// Check for input schema
+	if !strings.Contains(toolsJSON, `"description": "Search query"`) {
+		t.Error("Tools config should contain input descriptions")
 	}
 
-	if !strings.Contains(script, "tools/call") {
-		t.Error("Script should handle tools/call method")
-	}
-
-	// Check for large output handling
-	if !strings.Contains(script, "LARGE_OUTPUT_THRESHOLD") {
-		t.Error("Script should contain large output threshold constant")
-	}
-
-	if !strings.Contains(script, "/tmp/gh-aw/safe-inputs/calls") {
-		t.Error("Script should contain calls directory path")
-	}
-
-	if !strings.Contains(script, "handleLargeOutput") {
-		t.Error("Script should contain handleLargeOutput function")
-	}
-
-	// Check for structured response fields
-	if !strings.Contains(script, "status") {
-		t.Error("Script should contain status field in structured response")
-	}
-
-	if !strings.Contains(script, "file_path") {
-		t.Error("Script should contain file_path field in structured response")
-	}
-
-	if !strings.Contains(script, "file_size_bytes") {
-		t.Error("Script should contain file_size_bytes field in structured response")
-	}
-
-	// Check for JSON schema extraction with jq
-	if !strings.Contains(script, "extractJsonSchema") {
-		t.Error("Script should contain extractJsonSchema function")
-	}
-
-	if !strings.Contains(script, "json_schema_preview") {
-		t.Error("Script should contain json_schema_preview field for JSON output")
+	if !strings.Contains(toolsJSON, `"required"`) {
+		t.Error("Tools config should contain required fields array")
 	}
 }
 
@@ -458,46 +442,60 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 		},
 	}
 
-	// Generate the script multiple times and verify identical output
+	// Generate the entry point script multiple times and verify identical output
 	iterations := 10
-	scripts := make([]string, iterations)
+	entryScripts := make([]string, iterations)
 
 	for i := 0; i < iterations; i++ {
-		scripts[i] = generateSafeInputsMCPServerScript(config)
+		entryScripts[i] = generateSafeInputsMCPServerScript(config)
 	}
 
-	// All iterations should produce identical output
+	// All entry point script iterations should produce identical output
 	for i := 1; i < iterations; i++ {
-		if scripts[i] != scripts[0] {
+		if entryScripts[i] != entryScripts[0] {
 			t.Errorf("generateSafeInputsMCPServerScript produced different output on iteration %d", i+1)
+		}
+	}
+
+	// Generate the tools config JSON multiple times and verify identical output
+	toolsConfigs := make([]string, iterations)
+
+	for i := 0; i < iterations; i++ {
+		toolsConfigs[i] = generateSafeInputsToolsConfig(config)
+	}
+
+	// All tools config iterations should produce identical output
+	for i := 1; i < iterations; i++ {
+		if toolsConfigs[i] != toolsConfigs[0] {
+			t.Errorf("generateSafeInputsToolsConfig produced different output on iteration %d", i+1)
 			// Find first difference for debugging
-			for j := 0; j < len(scripts[0]) && j < len(scripts[i]); j++ {
-				if scripts[0][j] != scripts[i][j] {
+			for j := 0; j < len(toolsConfigs[0]) && j < len(toolsConfigs[i]); j++ {
+				if toolsConfigs[0][j] != toolsConfigs[i][j] {
 					start := j - 50
 					if start < 0 {
 						start = 0
 					}
 					end := j + 50
-					if end > len(scripts[0]) {
-						end = len(scripts[0])
+					if end > len(toolsConfigs[0]) {
+						end = len(toolsConfigs[0])
 					}
-					if end > len(scripts[i]) {
-						end = len(scripts[i])
+					if end > len(toolsConfigs[i]) {
+						end = len(toolsConfigs[i])
 					}
-					t.Errorf("First difference at position %d:\n  Expected: %q\n  Got: %q", j, scripts[0][start:end], scripts[i][start:end])
+					t.Errorf("First difference at position %d:\n  Expected: %q\n  Got: %q", j, toolsConfigs[0][start:end], toolsConfigs[i][start:end])
 					break
 				}
 			}
 		}
 	}
 
-	// Verify tools appear in sorted order (alpha-tool before middle-tool before zebra-tool)
-	alphaPos := strings.Index(scripts[0], `registerTool("alpha-tool"`)
-	middlePos := strings.Index(scripts[0], `registerTool("middle-tool"`)
-	zebraPos := strings.Index(scripts[0], `registerTool("zebra-tool"`)
+	// Verify tools appear in sorted order in tools.json (alpha-tool before middle-tool before zebra-tool)
+	alphaPos := strings.Index(toolsConfigs[0], `"name": "alpha-tool"`)
+	middlePos := strings.Index(toolsConfigs[0], `"name": "middle-tool"`)
+	zebraPos := strings.Index(toolsConfigs[0], `"name": "zebra-tool"`)
 
 	if alphaPos == -1 || middlePos == -1 || zebraPos == -1 {
-		t.Error("Script should contain all tools")
+		t.Error("Tools config should contain all tools")
 	}
 
 	if !(alphaPos < middlePos && middlePos < zebraPos) {

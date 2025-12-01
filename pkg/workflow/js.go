@@ -198,6 +198,9 @@ var readBufferScript string
 //go:embed js/mcp_server_core.cjs
 var mcpServerCoreScript string
 
+//go:embed js/safe_inputs_mcp_server.cjs
+var safeInputsMCPServerScript string
+
 //go:embed js/safe_output_type_validator.cjs
 var safeOutputTypeValidatorScript string
 
@@ -240,6 +243,7 @@ func GetJavaScriptSources() map[string]string {
 		"update_runner.cjs":               updateRunnerScript,
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
+		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
 	}
 }
@@ -693,4 +697,19 @@ func GetSafeOutputsMCPServerScript() string {
 // GetSafeOutputsToolsJSON returns the JSON content for the safe outputs tools definitions
 func GetSafeOutputsToolsJSON() string {
 	return safeOutputsToolsJSON
+}
+
+// GetReadBufferScript returns the embedded read_buffer.cjs script
+func GetReadBufferScript() string {
+	return readBufferScript
+}
+
+// GetMCPServerCoreScript returns the embedded mcp_server_core.cjs script
+func GetMCPServerCoreScript() string {
+	return mcpServerCoreScript
+}
+
+// GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
+func GetSafeInputsMCPServerScript() string {
+	return safeInputsMCPServerScript
 }

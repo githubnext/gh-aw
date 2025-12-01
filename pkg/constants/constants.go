@@ -196,6 +196,9 @@ const SafeOutputsMCPServerID = "safeoutputs"
 // SafeInputsMCPServerID is the identifier for the safe-inputs MCP server
 const SafeInputsMCPServerID = "safeinputs"
 
+// SafeInputsMCPVersion is the version of the safe-inputs MCP server
+const SafeInputsMCPVersion = "1.0.0"
+
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"

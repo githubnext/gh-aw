@@ -279,77 +279,32 @@ func (c *Compiler) extractSafeInputsConfig(frontmatter map[string]any) *SafeInpu
 // SafeInputsDirectory is the directory where safe-inputs files are generated
 const SafeInputsDirectory = "/tmp/gh-aw/safe-inputs"
 
-// generateSafeInputsMCPServerScript generates a self-contained MCP server for safe-inputs
-func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
-	var sb strings.Builder
-
-	// Write the MCP server core inline (simplified version for safe-inputs)
-	sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server
-
-const fs = require("fs");
-const path = require("path");
-const { execFile } = require("child_process");
-const { promisify } = require("util");
-
-const execFileAsync = promisify(execFile);
-
-// Simple ReadBuffer implementation for JSON-RPC parsing
-class ReadBuffer {
-  constructor() {
-    this.buffer = Buffer.alloc(0);
-  }
-  append(chunk) {
-    this.buffer = Buffer.concat([this.buffer, chunk]);
-  }
-  readMessage() {
-    const headerEndIndex = this.buffer.indexOf("\r\n\r\n");
-    if (headerEndIndex === -1) return null;
-    const header = this.buffer.slice(0, headerEndIndex).toString();
-    const match = header.match(/Content-Length:\s*(\d+)/i);
-    if (!match) return null;
-    const contentLength = parseInt(match[1], 10);
-    const messageStart = headerEndIndex + 4;
-    if (this.buffer.length < messageStart + contentLength) return null;
-    const content = this.buffer.slice(messageStart, messageStart + contentLength).toString();
-    this.buffer = this.buffer.slice(messageStart + contentLength);
-    return JSON.parse(content);
-  }
+// SafeInputsToolJSON represents a tool configuration for the tools.json file
+type SafeInputsToolJSON struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"inputSchema"`
+	Handler     string         `json:"handler,omitempty"`
 }
 
-// Create MCP server
-const serverInfo = { name: "safeinputs", version: "1.0.0" };
-const tools = {};
-const readBuffer = new ReadBuffer();
-
-function debug(msg) {
-  const timestamp = new Date().toISOString();
-  process.stderr.write("[" + timestamp + "] [safeinputs] " + msg + "\n");
+// SafeInputsConfigJSON represents the tools.json configuration file structure
+type SafeInputsConfigJSON struct {
+	ServerName string               `json:"serverName"`
+	Version    string               `json:"version"`
+	LogDir     string               `json:"logDir,omitempty"`
+	Tools      []SafeInputsToolJSON `json:"tools"`
 }
 
-function writeMessage(message) {
-  const json = JSON.stringify(message);
-  const header = "Content-Length: " + Buffer.byteLength(json) + "\r\n\r\n";
-  debug("Sending response: " + json.substring(0, 200) + (json.length > 200 ? "..." : ""));
-  process.stdout.write(header + json);
-  debug("Response sent successfully");
-}
+// generateSafeInputsToolsConfig generates the tools.json configuration for the safe-inputs MCP server
+func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
+	config := SafeInputsConfigJSON{
+		ServerName: "safeinputs",
+		Version:    constants.SafeInputsMCPVersion,
+		LogDir:     SafeInputsDirectory + "/logs",
+		Tools:      []SafeInputsToolJSON{},
+	}
 
-function replyResult(id, result) {
-  writeMessage({ jsonrpc: "2.0", id, result });
-}
-
-function replyError(id, code, message) {
-  writeMessage({ jsonrpc: "2.0", id, error: { code, message } });
-}
-
-function registerTool(name, description, inputSchema, handler) {
-  tools[name] = { name, description, inputSchema, handler };
-}
-
-`)
-
-	// Register each tool (sorted by name for stable code generation)
+	// Sort tool names for stable output
 	toolNames := make([]string, 0, len(safeInputs.Tools))
 	for toolName := range safeInputs.Tools {
 		toolNames = append(toolNames, toolName)
@@ -358,7 +313,6 @@ function registerTool(name, description, inputSchema, handler) {
 
 	for _, toolName := range toolNames {
 		toolConfig := safeInputs.Tools[toolName]
-		sb.WriteString(fmt.Sprintf("// Register tool: %s\n", toolName))
 
 		// Build input schema
 		inputSchema := map[string]any{
@@ -369,14 +323,23 @@ function registerTool(name, description, inputSchema, handler) {
 		props := inputSchema["properties"].(map[string]any)
 		var required []string
 
-		for paramName, param := range toolConfig.Inputs {
-			props[paramName] = map[string]any{
+		// Sort input names for stable output
+		inputNames := make([]string, 0, len(toolConfig.Inputs))
+		for paramName := range toolConfig.Inputs {
+			inputNames = append(inputNames, paramName)
+		}
+		sort.Strings(inputNames)
+
+		for _, paramName := range inputNames {
+			param := toolConfig.Inputs[paramName]
+			propDef := map[string]any{
 				"type":        param.Type,
 				"description": param.Description,
 			}
 			if param.Default != nil {
-				props[paramName].(map[string]any)["default"] = param.Default
+				propDef["default"] = param.Default
 			}
+			props[paramName] = propDef
 			if param.Required {
 				required = append(required, paramName)
 			}
@@ -387,201 +350,49 @@ function registerTool(name, description, inputSchema, handler) {
 			inputSchema["required"] = required
 		}
 
-		inputSchemaJSON, _ := json.Marshal(inputSchema)
-
+		// Determine handler path based on script type
+		var handler string
 		if toolConfig.Script != "" {
-			sb.WriteString(fmt.Sprintf(`registerTool(%q, %q, %s, async (args) => {
-  try {
-    const toolModule = require("./%s.cjs");
-    const result = await toolModule.execute(args || {});
-    return { content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] };
-  } catch (error) {
-    return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-  }
-});
-
-`, toolName, toolConfig.Description, string(inputSchemaJSON), toolName))
-		} else {
-			sb.WriteString(fmt.Sprintf(`registerTool(%q, %q, %s, async (args) => {
-  try {
-    // Set input parameters as environment variables
-    const env = { ...process.env };
-`, toolName, toolConfig.Description, string(inputSchemaJSON)))
-
-			// Sort input names for stable code generation
-			inputNames := make([]string, 0, len(toolConfig.Inputs))
-			for paramName := range toolConfig.Inputs {
-				inputNames = append(inputNames, paramName)
-			}
-			sort.Strings(inputNames)
-
-			for _, paramName := range inputNames {
-				// Use bracket notation for safer property access
-				safeEnvName := strings.ToUpper(sanitizeParameterName(paramName))
-				sb.WriteString(fmt.Sprintf(`    if (args && args[%q] !== undefined) {
-      env["INPUT_%s"] = typeof args[%q] === "object" ? JSON.stringify(args[%q]) : String(args[%q]);
-    }
-`, paramName, safeEnvName, paramName, paramName, paramName))
-			}
-
-			sb.WriteString(fmt.Sprintf(`
-    const scriptPath = path.join(__dirname, "%s.sh");
-    const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-    const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-    return { content: [{ type: "text", text: output }] };
-  } catch (error) {
-    return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-  }
-});
-
-`, toolName))
+			handler = toolName + ".cjs"
+		} else if toolConfig.Run != "" {
+			handler = toolName + ".sh"
 		}
+
+		config.Tools = append(config.Tools, SafeInputsToolJSON{
+			Name:        toolName,
+			Description: toolConfig.Description,
+			InputSchema: inputSchema,
+			Handler:     handler,
+		})
 	}
 
-	// Add message handler and start
-	sb.WriteString(`// Large output handling constants
-const LARGE_OUTPUT_THRESHOLD = 500;
-const CALLS_DIR = "/tmp/gh-aw/safe-inputs/calls";
-let callCounter = 0;
-
-// Ensure calls directory exists
-function ensureCallsDir() {
-  if (!fs.existsSync(CALLS_DIR)) {
-    fs.mkdirSync(CALLS_DIR, { recursive: true });
-  }
+	jsonBytes, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		safeInputsLog.Printf("Error marshaling tools config: %v", err)
+		return "{}"
+	}
+	return string(jsonBytes)
 }
 
-// Attempt to extract JSON schema using jq
-async function extractJsonSchema(filepath) {
-  try {
-    // Try to extract a simplified JSON schema showing structure
-    const { stdout } = await execFileAsync("jq", [
-      "-r",
-      "if type == \"array\" then {type: \"array\", length: length, items_schema: (first | if type == \"object\" then (keys | map({(.): \"...\"}) | add) else type end)} elif type == \"object\" then (keys | map({(.): \"...\"}) | add) else {type: type} end",
-      filepath
-    ], { timeout: 5000 });
-    return stdout.trim();
-  } catch (error) {
-    // jq not available or failed - that's okay
-    return null;
-  }
-}
+// generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
+// This uses the reusable safe_inputs_mcp_server.cjs module and reads tool configuration from tools.json
+func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
+	var sb strings.Builder
 
-// Handle large output by writing to file
-async function handleLargeOutput(result) {
-  if (!result || !result.content || !Array.isArray(result.content)) {
-    return result;
-  }
+	// Write a simple entry point that uses the modular MCP server
+	sb.WriteString(`// @ts-check
+// Auto-generated safe-inputs MCP server entry point
+// This script uses the reusable safe_inputs_mcp_server module
 
-  const processedContent = await Promise.all(result.content.map(async (item) => {
-    if (item.type === "text" && typeof item.text === "string" && item.text.length > LARGE_OUTPUT_THRESHOLD) {
-      ensureCallsDir();
-      callCounter++;
-      const timestamp = Date.now();
-      const filename = "call_" + timestamp + "_" + callCounter + ".txt";
-      const filepath = path.join(CALLS_DIR, filename);
-      fs.writeFileSync(filepath, item.text, "utf8");
-      const fileSize = item.text.length;
-      debug("Large output (" + fileSize + " chars) written to: " + filepath);
+const path = require("path");
+const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 
-      // Build structured response
-      let structuredResponse = {
-        status: "output_saved_to_file",
-        file_path: filepath,
-        file_size_bytes: fileSize,
-        file_size_chars: fileSize,
-        message: "Output was too large and has been saved to a file. Read the file to access the full content."
-      };
+// Configuration file path (generated alongside this script)
+const configPath = path.join(__dirname, "tools.json");
 
-      // Attempt to extract JSON schema if output looks like JSON
-      if (item.text.trim().startsWith("{") || item.text.trim().startsWith("[")) {
-        const schema = await extractJsonSchema(filepath);
-        if (schema) {
-          structuredResponse.json_schema_preview = schema;
-          structuredResponse.message += " JSON structure preview is provided below.";
-        }
-      }
-
-      return {
-        type: "text",
-        text: JSON.stringify(structuredResponse, null, 2)
-      };
-    }
-    return item;
-  }));
-
-  return { ...result, content: processedContent };
-}
-
-// Handle incoming messages
-async function handleMessage(message) {
-  debug("Handling message: method=" + message.method + ", id=" + message.id);
-  if (message.method === "initialize") {
-    debug("Received initialize request with id=" + message.id);
-    const response = {
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
-      serverInfo
-    };
-    debug("Sending initialize response: " + JSON.stringify(response));
-    replyResult(message.id, response);
-    debug("Initialize response sent");
-  } else if (message.method === "notifications/initialized") {
-    debug("Client initialized notification received");
-  } else if (message.method === "tools/list") {
-    debug("Received tools/list request");
-    const toolList = Object.values(tools).map(t => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema
-    }));
-    debug("Returning " + toolList.length + " tools");
-    replyResult(message.id, { tools: toolList });
-  } else if (message.method === "tools/call") {
-    const toolName = message.params?.name;
-    const toolArgs = message.params?.arguments || {};
-    debug("Received tools/call for: " + toolName);
-    const tool = tools[toolName];
-    if (!tool) {
-      replyError(message.id, -32601, "Unknown tool: " + toolName);
-      return;
-    }
-    try {
-      const result = await tool.handler(toolArgs);
-      const processedResult = handleLargeOutput(result);
-      replyResult(message.id, processedResult);
-    } catch (error) {
-      replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
-    }
-  } else {
-    debug("Unknown method: " + message.method);
-    if (message.id !== undefined) {
-      replyError(message.id, -32601, "Method not found");
-    }
-  }
-}
-
-// Start server
-debug("Starting safe-inputs MCP server");
-debug("Registered tools: " + Object.keys(tools).join(", "));
-debug("Waiting for input on stdin...");
-
-process.stdin.on("data", async (chunk) => {
-  debug("Received data chunk: " + chunk.length + " bytes");
-  readBuffer.append(chunk);
-  let message;
-  while ((message = readBuffer.readMessage()) !== null) {
-    debug("Parsed message: " + JSON.stringify(message).substring(0, 100));
-    await handleMessage(message);
-  }
-});
-
-process.stdin.on("end", () => {
-  debug("stdin ended");
-});
-
-process.stdin.on("error", (err) => {
-  debug("stdin error: " + err.message);
+// Start the server
+startSafeInputsServer(configPath, {
+  logDir: "/tmp/gh-aw/safe-inputs/logs"
 });
 `)
 

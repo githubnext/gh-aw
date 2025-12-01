@@ -279,191 +279,593 @@ jobs:
         run: npm install -g @openai/codex@0.63.0
       - name: Setup Safe Inputs MCP
         run: |
-          mkdir -p /tmp/gh-aw/safe-inputs
-          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+          mkdir -p /tmp/gh-aw/safe-inputs/logs
+          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
+            class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
+                }
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); 
+                }
+                try {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            module.exports = {
+              ReadBuffer,
+            };
+          EOF_READ_BUFFER
+          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
             const fs = require("fs");
             const path = require("path");
             const { execFile } = require("child_process");
-            const { promisify } = require("util");
-            const execFileAsync = promisify(execFile);
-            class ReadBuffer {
-              constructor() {
-                this.buffer = Buffer.alloc(0);
-              }
-              append(chunk) {
-                this.buffer = Buffer.concat([this.buffer, chunk]);
-              }
-              readMessage() {
-                const headerEndIndex = this.buffer.indexOf("\r\n\r\n");
-                if (headerEndIndex === -1) return null;
-                const header = this.buffer.slice(0, headerEndIndex).toString();
-                const match = header.match(/Content-Length:\s*(\d+)/i);
-                if (!match) return null;
-                const contentLength = parseInt(match[1], 10);
-                const messageStart = headerEndIndex + 4;
-                if (this.buffer.length < messageStart + contentLength) return null;
-                const content = this.buffer.slice(messageStart, messageStart + contentLength).toString();
-                this.buffer = this.buffer.slice(messageStart + contentLength);
-                return JSON.parse(content);
-              }
-            }
-            const serverInfo = { name: "safeinputs", version: "1.0.0" };
-            const tools = {};
-            const readBuffer = new ReadBuffer();
-            function debug(msg) {
-              const timestamp = new Date().toISOString();
-              process.stderr.write("[" + timestamp + "] [safeinputs] " + msg + "\n");
-            }
-            function writeMessage(message) {
-              const json = JSON.stringify(message);
-              const header = "Content-Length: " + Buffer.byteLength(json) + "\r\n\r\n";
-              debug("Sending response: " + json.substring(0, 200) + (json.length > 200 ? "..." : ""));
-              process.stdout.write(header + json);
-              debug("Response sent successfully");
-            }
-            function replyResult(id, result) {
-              writeMessage({ jsonrpc: "2.0", id, result });
-            }
-            function replyError(id, code, message) {
-              writeMessage({ jsonrpc: "2.0", id, error: { code, message } });
-            }
-            function registerTool(name, description, inputSchema, handler) {
-              tools[name] = { name, description, inputSchema, handler };
-            }
-            registerTool("gh", "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>", {"properties":{"args":{"description":"Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'","type":"string"}},"required":["args"],"type":"object"}, async (args) => {
+            const os = require("os");
+            const { ReadBuffer } = require("./read_buffer.cjs");
+            const encoder = new TextEncoder();
+            function initLogFile(server) {
+              if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
               try {
-                const env = { ...process.env };
-                if (args && args["args"] !== undefined) {
-                  env["INPUT_ARGS"] = typeof args["args"] === "object" ? JSON.stringify(args["args"]) : String(args["args"]);
+                if (!fs.existsSync(server.logDir)) {
+                  fs.mkdirSync(server.logDir, { recursive: true });
                 }
-                const scriptPath = path.join(__dirname, "gh.sh");
-                const { stdout, stderr } = await execFileAsync("bash", [scriptPath], { env });
-                const output = stdout + (stderr ? "\nStderr: " + stderr : "");
-                return { content: [{ type: "text", text: output }] };
-              } catch (error) {
-                return { content: [{ type: "text", text: "Error: " + (error instanceof Error ? error.message : String(error)) }], isError: true };
-              }
-            });
-            const LARGE_OUTPUT_THRESHOLD = 500;
-            const CALLS_DIR = "/tmp/gh-aw/safe-inputs/calls";
-            let callCounter = 0;
-            function ensureCallsDir() {
-              if (!fs.existsSync(CALLS_DIR)) {
-                fs.mkdirSync(CALLS_DIR, { recursive: true });
+                const timestamp = new Date().toISOString();
+                fs.writeFileSync(
+                  server.logFilePath,
+                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
+                );
+                server.logFileInitialized = true;
+              } catch {
               }
             }
-            async function extractJsonSchema(filepath) {
-              try {
-                const { stdout } = await execFileAsync("jq", [
-                  "-r",
-                  "if type == \"array\" then {type: \"array\", length: length, items_schema: (first | if type == \"object\" then (keys | map({(.): \"...\"}) | add) else type end)} elif type == \"object\" then (keys | map({(.): \"...\"}) | add) else {type: type} end",
-                  filepath
-                ], { timeout: 5000 });
-                return stdout.trim();
-              } catch (error) {
-                return null;
-              }
-            }
-            async function handleLargeOutput(result) {
-              if (!result || !result.content || !Array.isArray(result.content)) {
-                return result;
-              }
-              const processedContent = await Promise.all(result.content.map(async (item) => {
-                if (item.type === "text" && typeof item.text === "string" && item.text.length > LARGE_OUTPUT_THRESHOLD) {
-                  ensureCallsDir();
-                  callCounter++;
-                  const timestamp = Date.now();
-                  const filename = "call_" + timestamp + "_" + callCounter + ".txt";
-                  const filepath = path.join(CALLS_DIR, filename);
-                  fs.writeFileSync(filepath, item.text, "utf8");
-                  const fileSize = item.text.length;
-                  debug("Large output (" + fileSize + " chars) written to: " + filepath);
-                  let structuredResponse = {
-                    status: "output_saved_to_file",
-                    file_path: filepath,
-                    file_size_bytes: fileSize,
-                    file_size_chars: fileSize,
-                    message: "Output was too large and has been saved to a file. Read the file to access the full content."
-                  };
-                  if (item.text.trim().startsWith("{") || item.text.trim().startsWith("[")) {
-                    const schema = await extractJsonSchema(filepath);
-                    if (schema) {
-                      structuredResponse.json_schema_preview = schema;
-                      structuredResponse.message += " JSON structure preview is provided below.";
+            function createDebugFunction(server) {
+              return msg => {
+                const timestamp = new Date().toISOString();
+                const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
+                process.stderr.write(formattedMsg);
+                if (server.logDir && server.logFilePath) {
+                  if (!server.logFileInitialized) {
+                    initLogFile(server);
+                  }
+                  if (server.logFileInitialized) {
+                    try {
+                      fs.appendFileSync(server.logFilePath, formattedMsg);
+                    } catch {
                     }
                   }
-                  return {
-                    type: "text",
-                    text: JSON.stringify(structuredResponse, null, 2)
-                  };
                 }
-                return item;
-              }));
-              return { ...result, content: processedContent };
+              };
             }
-            async function handleMessage(message) {
-              debug("Handling message: method=" + message.method + ", id=" + message.id);
-              if (message.method === "initialize") {
-                debug("Received initialize request with id=" + message.id);
-                const response = {
-                  protocolVersion: "2024-11-05",
-                  capabilities: { tools: {} },
-                  serverInfo
-                };
-                debug("Sending initialize response: " + JSON.stringify(response));
-                replyResult(message.id, response);
-                debug("Initialize response sent");
-              } else if (message.method === "notifications/initialized") {
-                debug("Client initialized notification received");
-              } else if (message.method === "tools/list") {
-                debug("Received tools/list request");
-                const toolList = Object.values(tools).map(t => ({
-                  name: t.name,
-                  description: t.description,
-                  inputSchema: t.inputSchema
-                }));
-                debug("Returning " + toolList.length + " tools");
-                replyResult(message.id, { tools: toolList });
-              } else if (message.method === "tools/call") {
-                const toolName = message.params?.name;
-                const toolArgs = message.params?.arguments || {};
-                debug("Received tools/call for: " + toolName);
-                const tool = tools[toolName];
-                if (!tool) {
-                  replyError(message.id, -32601, "Unknown tool: " + toolName);
+            function createDebugErrorFunction(server) {
+              return (prefix, error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                server.debug(`${prefix}${errorMessage}`);
+                if (error instanceof Error && error.stack) {
+                  server.debug(`${prefix}Stack trace: ${error.stack}`);
+                }
+              };
+            }
+            function createWriteMessageFunction(server) {
+              return obj => {
+                const json = JSON.stringify(obj);
+                server.debug(`send: ${json}`);
+                const message = json + "\n";
+                const bytes = encoder.encode(message);
+                fs.writeSync(1, bytes);
+              };
+            }
+            function createReplyResultFunction(server) {
+              return (id, result) => {
+                if (id === undefined || id === null) return; 
+                const res = { jsonrpc: "2.0", id, result };
+                server.writeMessage(res);
+              };
+            }
+            function createReplyErrorFunction(server) {
+              return (id, code, message) => {
+                if (id === undefined || id === null) {
+                  server.debug(`Error for notification: ${message}`);
                   return;
                 }
+                const error = { code, message };
+                const res = {
+                  jsonrpc: "2.0",
+                  id,
+                  error,
+                };
+                server.writeMessage(res);
+              };
+            }
+            function createServer(serverInfo, options = {}) {
+              const logDir = options.logDir || undefined;
+              const logFilePath = logDir ? path.join(logDir, "server.log") : undefined;
+              const server = {
+                serverInfo,
+                tools: {},
+                debug: () => {}, 
+                debugError: () => {}, 
+                writeMessage: () => {}, 
+                replyResult: () => {}, 
+                replyError: () => {}, 
+                readBuffer: new ReadBuffer(),
+                logDir,
+                logFilePath,
+                logFileInitialized: false,
+              };
+              server.debug = createDebugFunction(server);
+              server.debugError = createDebugErrorFunction(server);
+              server.writeMessage = createWriteMessageFunction(server);
+              server.replyResult = createReplyResultFunction(server);
+              server.replyError = createReplyErrorFunction(server);
+              return server;
+            }
+            function createWrappedHandler(server, toolName, handlerFn) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
                 try {
-                  const result = await tool.handler(toolArgs);
-                  const processedResult = handleLargeOutput(result);
-                  replyResult(message.id, processedResult);
+                  const result = await Promise.resolve(handlerFn(args));
+                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                  if (result && typeof result === "object" && Array.isArray(result.content)) {
+                    server.debug(`  [${toolName}] Result is already in MCP format`);
+                    return result;
+                  }
+                  let serializedResult;
+                  try {
+                    serializedResult = JSON.stringify(result);
+                  } catch (serializationError) {
+                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+                    serializedResult = String(result);
+                  }
+                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: serializedResult,
+                      },
+                    ],
+                  };
                 } catch (error) {
-                  replyError(message.id, -32603, error instanceof Error ? error.message : String(error));
+                  server.debugError(`  [${toolName}] Handler threw error: `, error);
+                  throw error;
                 }
-              } else {
-                debug("Unknown method: " + message.method);
-                if (message.id !== undefined) {
-                  replyError(message.id, -32601, "Method not found");
+              };
+            }
+            function createShellHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+                }
+                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing shell script...`);
+                  execFile(
+                    scriptPath,
+                    [],
+                    {
+                      env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Shell script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
+            }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Shell script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made shell script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+                      }
+                    }
+                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                  } else {
+                    server.debug(`  [${toolName}] Loading JavaScript handler module`);
+                    const handlerModule = require(resolvedPath);
+                    server.debug(`  [${toolName}] Handler module loaded successfully`);
+                    server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+                    let handlerFn = handlerModule;
+                    if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+                      handlerFn = handlerModule.default;
+                      server.debug(`  [${toolName}] Using module.default export`);
+                    }
+                    if (typeof handlerFn !== "function") {
+                      server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+                      server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+                      errorCount++;
+                      continue;
+                    }
+                    server.debug(`  [${toolName}] Handler function validated successfully`);
+                    server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+                    tool.handler = createWrappedHandler(server, toolName, handlerFn);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
+                  }
+                } catch (error) {
+                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
+                  errorCount++;
+                }
+              }
+              server.debug(`Handler loading complete:`);
+              server.debug(`  Loaded: ${loadedCount}`);
+              server.debug(`  Skipped (no handler path): ${skippedCount}`);
+              server.debug(`  Errors: ${errorCount}`);
+              return tools;
+            }
+            function registerTool(server, tool) {
+              const normalizedName = normalizeTool(tool.name);
+              server.tools[normalizedName] = {
+                ...tool,
+                name: normalizedName,
+              };
+              server.debug(`Registered tool: ${normalizedName}`);
+            }
+            function normalizeTool(name) {
+              return name.replace(/-/g, "_").toLowerCase();
+            }
+            async function handleMessage(server, req, defaultHandler) {
+              if (!req || typeof req !== "object") {
+                server.debug(`Invalid message: not an object`);
+                return;
+              }
+              if (req.jsonrpc !== "2.0") {
+                server.debug(`Invalid message: missing or invalid jsonrpc field`);
+                return;
+              }
+              const { id, method, params } = req;
+              if (!method || typeof method !== "string") {
+                server.replyError(id, -32600, "Invalid Request: method must be a string");
+                return;
+              }
+              try {
+                if (method === "initialize") {
+                  const clientInfo = params?.clientInfo ?? {};
+                  server.debug(`client info: ${JSON.stringify(clientInfo)}`);
+                  const protocolVersion = params?.protocolVersion ?? undefined;
+                  const result = {
+                    serverInfo: server.serverInfo,
+                    ...(protocolVersion ? { protocolVersion } : {}),
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                  server.replyResult(id, result);
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  server.replyResult(id, { tools: list });
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    server.replyError(id, -32602, "Invalid params: 'name' must be a string");
+                    return;
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    server.replyError(id, -32601, `Tool not found: ${name} (${normalizeTool(name)})`);
+                    return;
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    server.replyError(id, -32603, `No handler for tool: ${name}`);
+                    return;
+                  }
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  if (requiredFields.length) {
+                    const missing = requiredFields.filter(f => {
+                      const value = args[f];
+                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+                    });
+                    if (missing.length) {
+                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                      return;
+                    }
+                  }
+                  server.debug(`Calling handler for tool: ${name}`);
+                  const result = await Promise.resolve(handler(args));
+                  server.debug(`Handler returned for tool: ${name}`);
+                  const content = result && result.content ? result.content : [];
+                  server.replyResult(id, { content, isError: false });
+                } else if (/^notifications\//.test(method)) {
+                  server.debug(`ignore ${method}`);
+                } else {
+                  server.replyError(id, -32601, `Method not found: ${method}`);
+                }
+              } catch (e) {
+                server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
+              }
+            }
+            async function processReadBuffer(server, defaultHandler) {
+              while (true) {
+                try {
+                  const message = server.readBuffer.readMessage();
+                  if (!message) {
+                    break;
+                  }
+                  server.debug(`recv: ${JSON.stringify(message)}`);
+                  await handleMessage(server, message, defaultHandler);
+                } catch (error) {
+                  server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
             }
-            debug("Starting safe-inputs MCP server");
-            debug("Registered tools: " + Object.keys(tools).join(", "));
-            debug("Waiting for input on stdin...");
-            process.stdin.on("data", async (chunk) => {
-              debug("Received data chunk: " + chunk.length + " bytes");
-              readBuffer.append(chunk);
-              let message;
-              while ((message = readBuffer.readMessage()) !== null) {
-                debug("Parsed message: " + JSON.stringify(message).substring(0, 100));
-                await handleMessage(message);
+            function start(server, options = {}) {
+              const { defaultHandler } = options;
+              server.debug(`v${server.serverInfo.version} ready on stdio`);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) {
+                throw new Error("No tools registered");
               }
-            });
-            process.stdin.on("end", () => {
-              debug("stdin ended");
-            });
-            process.stdin.on("error", (err) => {
-              debug("stdin error: " + err.message);
+              const onData = async chunk => {
+                server.readBuffer.append(chunk);
+                await processReadBuffer(server, defaultHandler);
+              };
+              process.stdin.on("data", onData);
+              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
+              process.stdin.resume();
+              server.debug(`listening...`);
+            }
+            module.exports = {
+              createServer,
+              registerTool,
+              normalizeTool,
+              handleMessage,
+              processReadBuffer,
+              start,
+              loadToolHandlers,
+            };
+          EOF_MCP_CORE
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
+            const fs = require("fs");
+            const path = require("path");
+            const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+            function loadConfig(configPath) {
+              if (!fs.existsSync(configPath)) {
+                throw new Error(`Configuration file not found: ${configPath}`);
+              }
+              const configContent = fs.readFileSync(configPath, "utf-8");
+              const config = JSON.parse(configContent);
+              if (!config.tools || !Array.isArray(config.tools)) {
+                throw new Error("Configuration must contain a 'tools' array");
+              }
+              return config;
+            }
+            function startSafeInputsServer(configPath, options = {}) {
+              const config = loadConfig(configPath);
+              const basePath = path.dirname(configPath);
+              const serverName = config.serverName || "safeinputs";
+              const version = config.version || "1.0.0";
+              const logDir = options.logDir || config.logDir || undefined;
+              const server = createServer({ name: serverName, version }, { logDir });
+              server.debug(`Loading safe-inputs configuration from: ${configPath}`);
+              server.debug(`Base path for handlers: ${basePath}`);
+              server.debug(`Tools to load: ${config.tools.length}`);
+              const tools = loadToolHandlers(server, config.tools, basePath);
+              for (const tool of tools) {
+                registerTool(server, tool);
+              }
+              start(server);
+            }
+            function createJsToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            function createShellToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            if (require.main === module) {
+              const args = process.argv.slice(2);
+              if (args.length < 1) {
+                console.error("Usage: node safe_inputs_mcp_server.cjs <config.json> [--log-dir <path>]");
+                process.exit(1);
+              }
+              const configPath = args[0];
+              const options = {};
+              for (let i = 1; i < args.length; i++) {
+                if (args[i] === "--log-dir" && args[i + 1]) {
+                  options.logDir = args[i + 1];
+                  i++;
+                }
+              }
+              try {
+                startSafeInputsServer(configPath, options);
+              } catch (error) {
+                console.error(`Error starting safe-inputs server: ${error instanceof Error ? error.message : String(error)}`);
+                process.exit(1);
+              }
+            }
+            module.exports = {
+              loadConfig,
+              startSafeInputsServer,
+              createJsToolConfig,
+              createShellToolConfig,
+            };
+          EOF_SAFE_INPUTS_SERVER
+          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
+          {
+            "serverName": "safeinputs",
+            "version": "1.0.0",
+            "logDir": "/tmp/gh-aw/safe-inputs/logs",
+            "tools": [
+              {
+                "name": "gh",
+                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "gh.sh"
+              }
+            ]
+          }
+          EOF_TOOLS_JSON
+          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            startSafeInputsServer(configPath, {
+              logDir: "/tmp/gh-aw/safe-inputs/logs"
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
