@@ -1632,6 +1632,26 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/test-js-math.cjs << 'EOFJS_test-js-math'
+            async function execute(inputs) {
+              const { a, b } = inputs || {};
+              const sum = a + b;
+              const product = a * b;
+              return { sum, product, inputs: { a, b } };
+            }
+            module.exports = { execute };
+          EOFJS_test-js-math
+          cat > /tmp/gh-aw/safe-inputs/test-js-string.cjs << 'EOFJS_test-js-string'
+            async function execute(inputs) {
+              const { text } = inputs || {};
+              return {
+                original: text,
+                uppercase: text.toUpperCase(),
+                length: text.length
+              };
+            }
+            module.exports = { execute };
+          EOFJS_test-js-string
           cat > /tmp/gh-aw/safe-inputs/fetch-pr-data.sh << 'EOFSH_fetch-pr-data'
           #!/bin/bash
           # Auto-generated safe-input tool: fetch-pr-data
@@ -1665,26 +1685,6 @@ jobs:
           
           EOFSH_fetch-pr-data
           chmod +x /tmp/gh-aw/safe-inputs/fetch-pr-data.sh
-          cat > /tmp/gh-aw/safe-inputs/test-js-math.cjs << 'EOFJS_test-js-math'
-            async function execute(inputs) {
-              const { a, b } = inputs || {};
-              const sum = a + b;
-              const product = a * b;
-              return { sum, product, inputs: { a, b } };
-            }
-            module.exports = { execute };
-          EOFJS_test-js-math
-          cat > /tmp/gh-aw/safe-inputs/test-js-string.cjs << 'EOFJS_test-js-string'
-            async function execute(inputs) {
-              const { text } = inputs || {};
-              return {
-                original: text,
-                uppercase: text.toUpperCase(),
-                length: text.length
-              };
-            }
-            module.exports = { execute };
-          EOFJS_test-js-string
           
       - name: Setup MCPs
         env:
