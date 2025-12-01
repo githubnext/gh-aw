@@ -53,7 +53,6 @@
 #     labels: [automation, cloclo]
 #   add-comment:
 #     max: 1
-#   push-to-pull-request-branch:
 #   messages:
 #     footer: "> 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*"
 #     run-started: "🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}..."
@@ -77,7 +76,6 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   pre_activation --> activation
 #   agent --> add_comment
 #   create_pull_request --> add_comment
@@ -87,14 +85,10 @@
 #   activation --> conclusion
 #   create_pull_request --> conclusion
 #   add_comment --> conclusion
-#   push_to_pull_request_branch --> conclusion
 #   agent --> create_pull_request
 #   activation --> create_pull_request
 #   detection --> create_pull_request
 #   agent --> detection
-#   agent --> push_to_pull_request_branch
-#   activation --> push_to_pull_request_branch
-#   detection --> push_to_pull_request_branch
 # ```
 #
 # Original Prompt:
@@ -185,7 +179,7 @@
 # # Now you know which fields exist and can use them in your analysis
 # ```
 #
-# # Claude Command Processor - /cloclo
+# # /cloclo
 #
 # You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
 #
@@ -251,9 +245,8 @@
 # 1. Use the **Serena MCP** for code analysis and understanding
 # 2. Use the **gh-aw MCP** to inspect existing workflows if relevant
 # 3. Make necessary code changes using the **edit** tool
-# 4. **If called from a pull request comment**: Push changes to the PR branch using the `push-to-pull-request-branch` safe output
-# 5. **If called from elsewhere**: Create a new pull request via the `create-pull-request` safe output
-# 6. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
+# 4. **ALWAYS create a new pull request** via the `create-pull-request` safe output (do not push directly to existing branches)
+# 5. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
 #
 # ### If Web Automation Is Needed:
 # 1. Use **Playwright** to interact with web pages
@@ -330,8 +323,8 @@
 #
 # Now analyze the content above and execute the appropriate action. Remember:
 # - ✨ **ALWAYS add a glamorous comment** summarizing your work on the original conversation thread
-# - ✅ Use safe outputs (create-pull-request, add-comment, push-to-pull-request-branch)
-# - ✅ If called from a PR comment and making code changes, use `push-to-pull-request-branch` to push to the PR branch
+# - ✅ Use safe outputs (create-pull-request, add-comment)
+# - ✅ **ALWAYS create a new pull request** for code changes (do not push directly to existing branches)
 # - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
 # - ✅ Store context in cache memory if needed
 # - ✅ Add 👍 reaction after posting comments
@@ -359,7 +352,7 @@
 #   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Claude Command Processor - /cloclo"
+name: "/cloclo"
 "on":
   discussion:
     types:
@@ -399,7 +392,7 @@ concurrency:
   cancel-in-progress: false
   group: ${{ github.workflow }}-${{ github.ref }}-cloclo
 
-run-name: "Claude Command Processor - /cloclo"
+run-name: "/cloclo"
 
 jobs:
   activation:
@@ -887,7 +880,7 @@ jobs:
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: cloclo
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"runSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"runFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
           script: |
@@ -1321,7 +1314,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
           GH_AW_ENGINE_ID: "claude"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"runSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"runFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
@@ -2114,7 +2107,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0}}
+          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -2172,34 +2165,6 @@ jobs:
                 "type": "object"
               },
               "name": "create_pull_request"
-            },
-            {
-              "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "branch": {
-                    "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.",
-                    "type": "string"
-                  },
-                  "message": {
-                    "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).",
-                    "type": "string"
-                  },
-                  "pull_request_number": {
-                    "description": "Pull request number to push changes to. Required when the workflow target is '*' (any PR).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "push_to_pull_request_branch"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -2321,26 +2286,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
-                }
-              }
-            },
-            "push_to_pull_request_branch": {
-              "defaultMax": 1,
-              "fields": {
-                "branch": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "message": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "pull_request_number": {
-                  "issueOrPRNumber": true
                 }
               }
             }
@@ -3393,7 +3338,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "2.0.55",
-              workflow_name: "Claude Command Processor - /cloclo",
+              workflow_name: "/cloclo",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3566,7 +3511,7 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          # Claude Command Processor - /cloclo
+          # /cloclo
           
           You are a Claude-powered assistant inspired by the legendary French singer Claude François. Like Cloclo, your responses are glamorous, engaging, and always leave a lasting impression! Your task is to analyze the content and execute the requested action using safe outputs, **always** adding a beautiful summary comment on the original conversation thread.
           
@@ -3632,9 +3577,8 @@ jobs:
           1. Use the **Serena MCP** for code analysis and understanding
           2. Use the **gh-aw MCP** to inspect existing workflows if relevant
           3. Make necessary code changes using the **edit** tool
-          4. **If called from a pull request comment**: Push changes to the PR branch using the `push-to-pull-request-branch` safe output
-          5. **If called from elsewhere**: Create a new pull request via the `create-pull-request` safe output
-          6. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
+          4. **ALWAYS create a new pull request** via the `create-pull-request` safe output (do not push directly to existing branches)
+          5. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
           
           ### If Web Automation Is Needed:
           1. Use **Playwright** to interact with web pages
@@ -3711,8 +3655,8 @@ jobs:
           
           Now analyze the content above and execute the appropriate action. Remember:
           - ✨ **ALWAYS add a glamorous comment** summarizing your work on the original conversation thread
-          - ✅ Use safe outputs (create-pull-request, add-comment, push-to-pull-request-branch)
-          - ✅ If called from a PR comment and making code changes, use `push-to-pull-request-branch` to push to the PR branch
+          - ✅ Use safe outputs (create-pull-request, add-comment)
+          - ✅ **ALWAYS create a new pull request** for code changes (do not push directly to existing branches)
           - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
           - ✅ Store context in cache memory if needed
           - ✅ Add 👍 reaction after posting comments
@@ -6252,7 +6196,6 @@ jobs:
       - activation
       - create_pull_request
       - add_comment
-      - push_to_pull_request_branch
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -6293,7 +6236,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6385,7 +6328,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6498,7 +6441,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"runSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"runFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
@@ -6787,7 +6730,7 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          GH_AW_WORKFLOW_NAME: "/cloclo"
           GH_AW_ENGINE_ID: "claude"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}...\",\"runSuccess\":\"🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟\",\"runFailure\":\"🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!\"}"
         with:
@@ -7380,7 +7323,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Claude Command Processor - /cloclo"
+          WORKFLOW_NAME: "/cloclo"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -7755,512 +7698,6 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
-            }
-            await main();
-
-  push_to_pull_request_branch:
-    needs:
-      - agent
-      - activation
-      - detection
-    if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
-      (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Push to Branch
-        id: push_to_pull_request_branch
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_TOKEN: ${{ github.token }}
-          GH_AW_PUSH_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_WORKFLOW_NAME: "Claude Command Processor - /cloclo"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message, "commit");
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              if (!commentId) {
-                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-                return;
-              }
-              core.info(`Updating activation comment ${commentId}`);
-              let repoOwner = context.repo.owner;
-              let repoName = context.repo.repo;
-              if (commentRepo) {
-                const parts = commentRepo.split("/");
-                if (parts.length === 2) {
-                  repoOwner = parts[0];
-                  repoName = parts[1];
-                } else {
-                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-                }
-              }
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const currentComment = await github.graphql(
-                    `
-                    query($commentId: ID!) {
-                      node(id: $commentId) {
-                        ... on DiscussionComment {
-                          body
-                        }
-                      }
-                    }`,
-                    { commentId: commentId }
-                  );
-                  if (!currentComment?.node?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                    return;
-                  }
-                  const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: updatedBody }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  if (!currentComment?.data?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted");
-                    return;
-                  }
-                  const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              if (agentOutputFile.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              const target = process.env.GH_AW_PUSH_TARGET || "triggering";
-              const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
-                core.error("Patch file generation failed - this is an error condition that requires investigation");
-                core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
-                core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
-                const previewLength = Math.min(500, patchContent.length);
-                core.error(`Patch file preview (first ${previewLength} characters):`);
-                core.error(patchContent.substring(0, previewLength));
-                core.setFailed(message);
-                return;
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  core.setFailed(message);
-                  return;
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              }
-              core.info(`Target configuration: ${target}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
-              if (!pushItem) {
-                core.info("No push-to-pull-request-branch item found in agent output");
-                return;
-              }
-              core.info("Found push-to-pull-request-branch item");
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Push to PR Branch",
-                  description: "The following changes would be pushed if staged mode was disabled:",
-                  items: [{ target, commit_message: pushItem.commit_message }],
-                  renderItem: item => {
-                    let content = "";
-                    content += `**Target:** ${item.target}\n\n`;
-                    if (item.commit_message) {
-                      content += `**Commit Message:** ${item.commit_message}\n\n`;
-                    }
-                    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                      if (patchStats.trim()) {
-                        content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                      } else {
-                        content += `**Changes:** No changes (empty patch)\n\n`;
-                      }
-                    }
-                    return content;
-                  },
-                });
-                return;
-              }
-              if (target !== "*" && target !== "triggering") {
-                const pullNumber = parseInt(target, 10);
-                if (isNaN(pullNumber)) {
-                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
-                  return;
-                }
-              }
-              let pullNumber;
-              if (target === "triggering") {
-                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
-                if (!pullNumber) {
-                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
-                  return;
-                }
-              } else if (target === "*") {
-                if (pushItem.pull_number) {
-                  pullNumber = parseInt(pushItem.pull_number, 10);
-                }
-              } else {
-                pullNumber = parseInt(target, 10);
-              }
-              let branchName;
-              let prTitle = "";
-              let prLabels = [];
-              try {
-                const prInfoRes = await exec.getExecOutput(`gh`, [
-                  `pr`,
-                  `view`,
-                  `${pullNumber}`,
-                  `--json`,
-                  `headRefName,title,labels`,
-                  `--jq`,
-                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
-                ]);
-                if (prInfoRes.exitCode === 0) {
-                  const prData = JSON.parse(prInfoRes.stdout.trim());
-                  branchName = prData.headRefName;
-                  prTitle = prData.title || "";
-                  prLabels = prData.labels || [];
-                } else {
-                  throw new Error("No PR data found");
-                }
-              } catch (error) {
-                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
-                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
-                return;
-              }
-              core.info(`Target branch: ${branchName}`);
-              core.info(`PR title: ${prTitle}`);
-              core.info(`PR labels: ${prLabels.join(", ")}`);
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
-                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
-                return;
-              }
-              const requiredLabelsStr = process.env.GH_AW_PR_LABELS;
-              if (requiredLabelsStr) {
-                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
-                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
-                if (missingLabels.length > 0) {
-                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
-                  return;
-                }
-              }
-              if (titlePrefix) {
-                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
-              }
-              if (requiredLabelsStr) {
-                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
-              }
-              const hasChanges = !isEmpty;
-              core.info(`Switching to branch: ${branchName}`);
-              try {
-                await exec.exec("git fetch origin");
-              } catch (fetchError) {
-                core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
-                return;
-              }
-              try {
-                await exec.exec(`git rev-parse --verify origin/${branchName}`);
-              } catch (verifyError) {
-                core.setFailed(
-                  `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
-                );
-                return;
-              }
-              try {
-                await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                core.info(`Checked out existing branch from origin: ${branchName}`);
-              } catch (checkoutError) {
-                core.setFailed(
-                  `Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`
-                );
-                return;
-              }
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                try {
-                  const commitTitleSuffix = process.env.GH_AW_COMMIT_TITLE_SUFFIX;
-                  if (commitTitleSuffix) {
-                    core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
-                    let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchContent = patchContent.replace(
-                      /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`
-                    );
-                    fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
-                  }
-                  const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  const patchLines = finalPatchContent.split("\n");
-                  const previewLineCount = Math.min(100, patchLines.length);
-                  core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                  for (let i = 0; i < previewLineCount; i++) {
-                    core.info(patchLines[i]);
-                  }
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info(`Changes committed and pushed to branch: ${branchName}`);
-                } catch (error) {
-                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
-                    core.info("Recent commits (last 5):");
-                    core.info(logResult.stdout);
-                    const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
-                    core.info("Uncommitted changes:");
-                    core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
-                    const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch diff:");
-                    core.info(patchDiffResult.stdout);
-                    const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
-                    core.info("Failed patch (full):");
-                    core.info(patchFullResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
-              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
-              const commitSha = commitShaRes.stdout.trim();
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const repoUrl = context.payload.repository
-                ? context.payload.repository.html_url
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-              const pushUrl = `${repoUrl}/tree/${branchName}`;
-              const commitUrl = `${repoUrl}/commit/${commitSha}`;
-              core.setOutput("branch_name", branchName);
-              core.setOutput("commit_sha", commitSha);
-              core.setOutput("push_url", pushUrl);
-              if (hasChanges) {
-                await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
-              }
-              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
-              const summaryContent = hasChanges
-                ? `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
-            - **URL**: [${pushUrl}](${pushUrl})
-            `
-                : `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Status**: No changes to apply (noop operation)
-            - **URL**: [${pushUrl}](${pushUrl})
-            `;
-              await core.summary.addRaw(summaryContent).write();
             }
             await main();
 
