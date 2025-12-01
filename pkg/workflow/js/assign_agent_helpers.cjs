@@ -15,6 +15,39 @@ const AGENT_LOGIN_NAMES = {
 };
 
 /**
+ * Execute a GraphQL query using the provided token via fetch
+ * @param {string} query - GraphQL query string
+ * @param {Record<string, any>} variables - GraphQL variables
+ * @param {string} ghToken - GitHub token for authentication
+ * @returns {Promise<any>} GraphQL response data
+ */
+async function executeGraphQLWithToken(query, variables, ghToken) {
+  const response = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ghToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: query,
+      variables: variables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GraphQL request failed with status ${response.status}: ${response.statusText}`);
+  }
+
+  const jsonResponse = await response.json();
+
+  if (jsonResponse.errors && jsonResponse.errors.length > 0) {
+    throw new Error(jsonResponse.errors[0].message);
+  }
+
+  return jsonResponse.data;
+}
+
+/**
  * Check if an assignee is a known coding agent (bot)
  * @param {string} assignee - Assignee name (may include @ prefix)
  * @returns {string|null} Agent name if it's a known agent, null otherwise
@@ -36,9 +69,10 @@ function getAgentName(assignee) {
  * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
  * @param {string} owner
  * @param {string} repo
+ * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string[]>}
  */
-async function getAvailableAgentLogins(owner, repo) {
+async function getAvailableAgentLogins(owner, repo, ghToken) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -49,7 +83,14 @@ async function getAvailableAgentLogins(owner, repo) {
     }
   `;
   try {
-    const response = await github.graphql(query, { owner, repo });
+    let response;
+    if (ghToken) {
+      // Use custom token via fetch for the GraphQL query
+      response = await executeGraphQLWithToken(query, { owner, repo }, ghToken);
+    } else {
+      // Fallback to default github object
+      response = await github.graphql(query, { owner, repo });
+    }
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = [];
@@ -71,9 +112,10 @@ async function getAvailableAgentLogins(owner, repo) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
+ * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
-async function findAgent(owner, repo, agentName) {
+async function findAgent(owner, repo, agentName, ghToken) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -91,7 +133,14 @@ async function findAgent(owner, repo, agentName) {
   `;
 
   try {
-    const response = await github.graphql(query, { owner, repo });
+    let response;
+    if (ghToken) {
+      // Use custom token via fetch for the GraphQL query
+      response = await executeGraphQLWithToken(query, { owner, repo }, ghToken);
+    } else {
+      // Fallback to default github object
+      response = await github.graphql(query, { owner, repo });
+    }
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -410,13 +459,13 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghT
   }
 
   try {
-    // Find agent
+    // Find agent - use the provided token for the GraphQL query
     core.info(`Looking for ${agentName} coding agent...`);
-    const agentId = await findAgent(owner, repo, agentName);
+    const agentId = await findAgent(owner, repo, agentName, ghToken);
     if (!agentId) {
       const error = `${agentName} coding agent is not available for this repository`;
-      // Enrich with available agent logins
-      const available = await getAvailableAgentLogins(owner, repo);
+      // Enrich with available agent logins - also use the provided token
+      const available = await getAvailableAgentLogins(owner, repo, ghToken);
       const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
       return { success: false, error: enrichedError };
     }

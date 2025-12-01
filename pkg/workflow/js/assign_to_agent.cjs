@@ -112,11 +112,11 @@ async function main() {
 
     // Assign the agent to the issue using GraphQL
     try {
-      // Find agent (use cache if available)
+      // Find agent (use cache if available) - use mutationToken for the GraphQL query
       let agentId = agentCache[agentName];
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(targetOwner, targetRepo, agentName);
+        agentId = await findAgent(targetOwner, targetRepo, agentName, mutationToken);
         if (!agentId) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
@@ -161,9 +161,9 @@ async function main() {
     } catch (error) {
       let errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
-        // Enrich with available agent logins to aid troubleshooting
+        // Enrich with available agent logins to aid troubleshooting - use mutationToken
         try {
-          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+          const available = await getAvailableAgentLogins(targetOwner, targetRepo, mutationToken);
           if (available.length > 0) {
             errorMessage += ` (available agents: ${available.join(", ")})`;
           }
