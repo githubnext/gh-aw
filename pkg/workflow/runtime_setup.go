@@ -111,6 +111,9 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "node-version",
 		DefaultVersion: string(constants.DefaultNodeVersion),
 		Commands:       []string{"node", "npm", "npx", "yarn", "pnpm"},
+		ExtraWithFields: map[string]string{
+			"package-manager-cache": "false", // Disable caching by default to prevent cache poisoning in release workflows
+		},
 	},
 	{
 		ID:             "python",
