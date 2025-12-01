@@ -222,7 +222,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     core.info("Using github object (configured with github-token at step level) for mutation");
 
     // Use default github object (configured with github-token at step level)
-    core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+    core.debug(`GraphQL mutation with ${actorIds.length} actor(s)`);
     const response = await github.graphql(mutation, {
       assignableId: issueId,
       actorIds: actorIds,
@@ -288,7 +288,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
           }
         `;
         core.info("Using github object for fallback mutation");
-        core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+        core.debug(`Fallback GraphQL mutation for agent '${agentName}'`);
         const fallbackResp = await github.graphql(fallbackMutation, {
           assignableId: issueId,
           assigneeIds: [agentId],
