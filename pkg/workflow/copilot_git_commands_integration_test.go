@@ -129,7 +129,7 @@ func (c *Compiler) parseCopilotWorkflowMarkdownContentWithToolArgs(content strin
 		SafeOutputs: safeOutputs,
 		AI:          "copilot",
 	}
-	allowedToolArgs := engine.computeCopilotToolArguments(topTools, safeOutputs, nil)
+	allowedToolArgs := engine.computeCopilotToolArguments(topTools, safeOutputs, nil, workflowData)
 
 	return workflowData, allowedToolArgs, nil
 }
