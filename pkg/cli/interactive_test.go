@@ -74,6 +74,42 @@ func TestIsValidWorkflowName(t *testing.T) {
 	}
 }
 
+func TestCommonWorkflowNamesAreValid(t *testing.T) {
+	// Ensure all suggested workflow names are themselves valid
+	if len(commonWorkflowNames) == 0 {
+		t.Error("commonWorkflowNames should not be empty")
+	}
+
+	for _, name := range commonWorkflowNames {
+		if !isValidWorkflowName(name) {
+			t.Errorf("commonWorkflowNames contains invalid workflow name: %q", name)
+		}
+	}
+}
+
+func TestCommonWorkflowNamesHasExpectedPatterns(t *testing.T) {
+	// Verify that common workflow patterns are included
+	expectedPatterns := []string{
+		"issue-triage",
+		"pr-review-helper",
+		"security-scan",
+		"daily-report",
+		"weekly-summary",
+	}
+
+	// Convert to map for O(1) lookup
+	workflowNamesSet := make(map[string]bool, len(commonWorkflowNames))
+	for _, name := range commonWorkflowNames {
+		workflowNamesSet[name] = true
+	}
+
+	for _, expected := range expectedPatterns {
+		if !workflowNamesSet[expected] {
+			t.Errorf("commonWorkflowNames should include %q", expected)
+		}
+	}
+}
+
 func TestIsAccessibleMode(t *testing.T) {
 	tests := []struct {
 		name     string
