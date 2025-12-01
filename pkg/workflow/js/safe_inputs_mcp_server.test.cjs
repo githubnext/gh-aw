@@ -383,4 +383,405 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       expect(results[0].error.message).toContain("Tool not found");
     });
   });
+
+  describe("end-to-end server process", () => {
+    it("should write files, launch server, initialize, call echo tool and verify result", async () => {
+      const { spawn } = await import("child_process");
+
+      // 1. Write the safe inputs files
+
+      // Copy mcp_server_core.cjs
+      const mcpServerCorePath = path.join(tempDir, "mcp_server_core.cjs");
+      const mcpServerCoreContent = fs.readFileSync(path.join(__dirname, "mcp_server_core.cjs"), "utf-8");
+      fs.writeFileSync(mcpServerCorePath, mcpServerCoreContent);
+
+      // Copy read_buffer.cjs
+      const readBufferPath = path.join(tempDir, "read_buffer.cjs");
+      const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
+      fs.writeFileSync(readBufferPath, readBufferContent);
+
+      // Copy safe_inputs_mcp_server.cjs
+      const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
+      const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
+      fs.writeFileSync(safeinputsServerPath, safeinputsServerContent);
+
+      // Create an echo tool handler
+      const echoHandlerPath = path.join(tempDir, "echo.cjs");
+      fs.writeFileSync(
+        echoHandlerPath,
+        `module.exports = function(args) {
+  return { message: "Echo: " + args.message };
+};`
+      );
+
+      // Create the tools.json configuration with echo tool
+      const toolsConfigPath = path.join(tempDir, "tools.json");
+      const toolsConfig = {
+        serverName: "test-safeinputs",
+        version: "1.0.0",
+        tools: [
+          {
+            name: "echo",
+            description: "Echoes the input message back",
+            inputSchema: {
+              type: "object",
+              properties: {
+                message: { type: "string", description: "The message to echo" },
+              },
+              required: ["message"],
+            },
+            handler: "echo.cjs",
+          },
+        ],
+      };
+      fs.writeFileSync(toolsConfigPath, JSON.stringify(toolsConfig, null, 2));
+
+      // 2. Launch the server as a child process
+      const serverProcess = spawn("node", [safeinputsServerPath, toolsConfigPath], {
+        cwd: tempDir,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env },
+      });
+
+      // Collect stderr output for debugging
+      let stderrOutput = "";
+      serverProcess.stderr.on("data", chunk => {
+        stderrOutput += chunk.toString();
+      });
+
+      // Set up promise-based message handling
+      let stdoutBuffer = "";
+      const receivedMessages = [];
+
+      serverProcess.stdout.on("data", chunk => {
+        stdoutBuffer += chunk.toString();
+        // Parse complete JSON messages (newline-delimited)
+        const lines = stdoutBuffer.split("\n");
+        stdoutBuffer = lines.pop() || ""; // Keep incomplete line in buffer
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              receivedMessages.push(JSON.parse(line));
+            } catch (e) {
+              // Ignore parse errors for incomplete messages
+            }
+          }
+        }
+      });
+
+      /**
+       * Send a JSON-RPC message and wait for a response
+       * @param {object} message - The JSON-RPC message to send
+       * @param {number} timeoutMs - Timeout in milliseconds
+       * @returns {Promise<object>} The response message
+       */
+      function sendAndWait(message, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+          const startLength = receivedMessages.length;
+          const startTime = Date.now();
+
+          // Send the message
+          serverProcess.stdin.write(JSON.stringify(message) + "\n");
+
+          // Poll for response
+          const checkInterval = setInterval(() => {
+            if (receivedMessages.length > startLength) {
+              clearInterval(checkInterval);
+              resolve(receivedMessages[receivedMessages.length - 1]);
+            } else if (Date.now() - startTime > timeoutMs) {
+              clearInterval(checkInterval);
+              reject(new Error(`Timeout waiting for response to ${message.method}. Stderr: ${stderrOutput}`));
+            }
+          }, 10);
+        });
+      }
+
+      try {
+        // Give the server a moment to start
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 3. Send initialize request
+        const initResponse = await sendAndWait({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: "2024-11-05" },
+        });
+
+        expect(initResponse.jsonrpc).toBe("2.0");
+        expect(initResponse.id).toBe(1);
+        expect(initResponse.result).toBeDefined();
+        expect(initResponse.result.serverInfo.name).toBe("test-safeinputs");
+        expect(initResponse.result.serverInfo.version).toBe("1.0.0");
+        expect(initResponse.result.protocolVersion).toBe("2024-11-05");
+        expect(initResponse.result.capabilities).toEqual({ tools: {} });
+
+        // Send initialized notification (MCP protocol requirement)
+        serverProcess.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+
+        // 4. Call the echo tool
+        const echoResponse = await sendAndWait({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "echo",
+            arguments: { message: "Hello, MCP!" },
+          },
+        });
+
+        expect(echoResponse.jsonrpc).toBe("2.0");
+        expect(echoResponse.id).toBe(2);
+        expect(echoResponse.result).toBeDefined();
+        expect(echoResponse.result.content).toBeDefined();
+        expect(echoResponse.result.content.length).toBe(1);
+        expect(echoResponse.result.content[0].type).toBe("text");
+
+        // 5. Verify the result
+        const echoResult = JSON.parse(echoResponse.result.content[0].text);
+        expect(echoResult.message).toBe("Echo: Hello, MCP!");
+      } finally {
+        // Clean up: kill the server process
+        serverProcess.kill("SIGTERM");
+        await new Promise(resolve => serverProcess.on("close", resolve));
+      }
+    }, 15000); // 15 second timeout for the full test
+
+    it("should handle tools/list request in spawned process", async () => {
+      const { spawn } = await import("child_process");
+
+      // Write the necessary files
+      const mcpServerCorePath = path.join(tempDir, "mcp_server_core.cjs");
+      const mcpServerCoreContent = fs.readFileSync(path.join(__dirname, "mcp_server_core.cjs"), "utf-8");
+      fs.writeFileSync(mcpServerCorePath, mcpServerCoreContent);
+
+      const readBufferPath = path.join(tempDir, "read_buffer.cjs");
+      const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
+      fs.writeFileSync(readBufferPath, readBufferContent);
+
+      const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
+      const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
+      fs.writeFileSync(safeinputsServerPath, safeinputsServerContent);
+
+      // Create tools.json with multiple tools (no handlers needed for list)
+      const toolsConfigPath = path.join(tempDir, "tools.json");
+      const toolsConfig = {
+        serverName: "list-test-server",
+        version: "2.0.0",
+        tools: [
+          {
+            name: "tool_one",
+            description: "First test tool",
+            inputSchema: { type: "object", properties: { a: { type: "string" } } },
+          },
+          {
+            name: "tool_two",
+            description: "Second test tool",
+            inputSchema: { type: "object", properties: { b: { type: "number" } } },
+          },
+        ],
+      };
+      fs.writeFileSync(toolsConfigPath, JSON.stringify(toolsConfig, null, 2));
+
+      const serverProcess = spawn("node", [safeinputsServerPath, toolsConfigPath], {
+        cwd: tempDir,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stderrOutput = "";
+      serverProcess.stderr.on("data", chunk => {
+        stderrOutput += chunk.toString();
+      });
+
+      let stdoutBuffer = "";
+      const receivedMessages = [];
+
+      serverProcess.stdout.on("data", chunk => {
+        stdoutBuffer += chunk.toString();
+        const lines = stdoutBuffer.split("\n");
+        stdoutBuffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              receivedMessages.push(JSON.parse(line));
+            } catch (e) {
+              // Ignore
+            }
+          }
+        }
+      });
+
+      function sendAndWait(message, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+          const startLength = receivedMessages.length;
+          const startTime = Date.now();
+          serverProcess.stdin.write(JSON.stringify(message) + "\n");
+
+          const checkInterval = setInterval(() => {
+            if (receivedMessages.length > startLength) {
+              clearInterval(checkInterval);
+              resolve(receivedMessages[receivedMessages.length - 1]);
+            } else if (Date.now() - startTime > timeoutMs) {
+              clearInterval(checkInterval);
+              reject(new Error(`Timeout. Stderr: ${stderrOutput}`));
+            }
+          }, 10);
+        });
+      }
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Initialize
+        await sendAndWait({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {},
+        });
+
+        // List tools
+        const listResponse = await sendAndWait({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/list",
+        });
+
+        expect(listResponse.result.tools).toHaveLength(2);
+        const toolNames = listResponse.result.tools.map(t => t.name);
+        expect(toolNames).toContain("tool_one");
+        expect(toolNames).toContain("tool_two");
+      } finally {
+        serverProcess.kill("SIGTERM");
+        await new Promise(resolve => serverProcess.on("close", resolve));
+      }
+    }, 15000);
+
+    it("should handle shell script echo tool in spawned process", async () => {
+      const { spawn } = await import("child_process");
+
+      // Write the necessary files
+      const mcpServerCorePath = path.join(tempDir, "mcp_server_core.cjs");
+      const mcpServerCoreContent = fs.readFileSync(path.join(__dirname, "mcp_server_core.cjs"), "utf-8");
+      fs.writeFileSync(mcpServerCorePath, mcpServerCoreContent);
+
+      const readBufferPath = path.join(tempDir, "read_buffer.cjs");
+      const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
+      fs.writeFileSync(readBufferPath, readBufferContent);
+
+      const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
+      const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
+      fs.writeFileSync(safeinputsServerPath, safeinputsServerContent);
+
+      // Create a shell script echo handler
+      const echoShPath = path.join(tempDir, "echo.sh");
+      fs.writeFileSync(
+        echoShPath,
+        `#!/bin/bash
+echo "Shell echo: $INPUT_MESSAGE"
+echo "result=Shell echo: $INPUT_MESSAGE" >> $GITHUB_OUTPUT
+`,
+        { mode: 0o755 }
+      );
+
+      // Create tools.json with shell script handler
+      const toolsConfigPath = path.join(tempDir, "tools.json");
+      const toolsConfig = {
+        serverName: "shell-echo-server",
+        version: "1.0.0",
+        tools: [
+          {
+            name: "shell_echo",
+            description: "Echoes message using shell script",
+            inputSchema: {
+              type: "object",
+              properties: { message: { type: "string" } },
+              required: ["message"],
+            },
+            handler: "echo.sh",
+          },
+        ],
+      };
+      fs.writeFileSync(toolsConfigPath, JSON.stringify(toolsConfig, null, 2));
+
+      const serverProcess = spawn("node", [safeinputsServerPath, toolsConfigPath], {
+        cwd: tempDir,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stderrOutput = "";
+      serverProcess.stderr.on("data", chunk => {
+        stderrOutput += chunk.toString();
+      });
+
+      let stdoutBuffer = "";
+      const receivedMessages = [];
+
+      serverProcess.stdout.on("data", chunk => {
+        stdoutBuffer += chunk.toString();
+        const lines = stdoutBuffer.split("\n");
+        stdoutBuffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              receivedMessages.push(JSON.parse(line));
+            } catch (e) {
+              // Ignore
+            }
+          }
+        }
+      });
+
+      function sendAndWait(message, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+          const startLength = receivedMessages.length;
+          const startTime = Date.now();
+          serverProcess.stdin.write(JSON.stringify(message) + "\n");
+
+          const checkInterval = setInterval(() => {
+            if (receivedMessages.length > startLength) {
+              clearInterval(checkInterval);
+              resolve(receivedMessages[receivedMessages.length - 1]);
+            } else if (Date.now() - startTime > timeoutMs) {
+              clearInterval(checkInterval);
+              reject(new Error(`Timeout. Stderr: ${stderrOutput}`));
+            }
+          }, 10);
+        });
+      }
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Initialize
+        await sendAndWait({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {},
+        });
+
+        // Call shell echo tool
+        const echoResponse = await sendAndWait({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "shell_echo",
+            arguments: { message: "Hello from shell!" },
+          },
+        });
+
+        expect(echoResponse.result).toBeDefined();
+        expect(echoResponse.result.content).toBeDefined();
+
+        const resultContent = JSON.parse(echoResponse.result.content[0].text);
+        expect(resultContent.stdout).toContain("Shell echo: Hello from shell!");
+        expect(resultContent.outputs.result).toBe("Shell echo: Hello from shell!");
+      } finally {
+        serverProcess.kill("SIGTERM");
+        await new Promise(resolve => serverProcess.on("close", resolve));
+      }
+    }, 15000);
+  });
 });
