@@ -2534,6 +2534,83 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-discussion-query
+          # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,author,createdAt,updatedAt,body,category,labels,comments,answer,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of discussion objects",
+              "item_fields": {
+                "number": "integer - Discussion number",
+                "title": "string - Discussion title",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "body": "string - Discussion body content",
+                "category": "object - Category info with name field",
+                "labels": "array - Array of label objects with name field",
+                "comments": "object - Comments info with totalCount field",
+                "answer": "object|null - Accepted answer if exists",
+                "url": "string - Discussion URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get discussion numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get discussions by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get discussions in category", "query": ".[] | select(.category.name == \"Ideas\")"},
+              {"description": "Get answered discussions", "query": ".[] | select(.answer != null)"},
+              {"description": "Get unanswered discussions", "query": ".[] | select(.answer == null) | {number, title, category: .category.name}"},
+              {"description": "Count by category", "query": "group_by(.category.name) | map({category: .[0].category.name, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          EOFSH_github-discussion-query
+          chmod +x /tmp/gh-aw/safe-inputs/github-discussion-query.sh
           cat > /tmp/gh-aw/safe-inputs/github-issue-query.sh << 'EOFSH_github-issue-query'
           #!/bin/bash
           # Auto-generated safe-input tool: github-issue-query
@@ -2702,83 +2779,6 @@ jobs:
           
           EOFSH_github-pr-query
           chmod +x /tmp/gh-aw/safe-inputs/github-pr-query.sh
-          cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
-          #!/bin/bash
-          # Auto-generated safe-input tool: github-discussion-query
-          # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
-          
-          set -euo pipefail
-          
-          set -e
-          
-          # Default values
-          REPO="${INPUT_REPO:-}"
-          LIMIT="${INPUT_LIMIT:-30}"
-          JQ_FILTER="${INPUT_JQ:-}"
-          
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,author,createdAt,updatedAt,body,category,labels,comments,answer,url"
-          
-          # Build and execute gh command
-          if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
-          else
-            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS")
-          fi
-          
-          # Apply jq filter if specified
-          if [[ -n "$JQ_FILTER" ]]; then
-            jq "$JQ_FILTER" <<< "$OUTPUT"
-          else
-            # Return schema and size instead of full data
-            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
-            DATA_SIZE=${#OUTPUT}
-            
-            # Validate values are numeric
-            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
-              ITEM_COUNT=0
-            fi
-            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
-              DATA_SIZE=0
-            fi
-            
-            cat << EOF
-          {
-            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
-            "item_count": $ITEM_COUNT,
-            "data_size_bytes": $DATA_SIZE,
-            "schema": {
-              "type": "array",
-              "description": "Array of discussion objects",
-              "item_fields": {
-                "number": "integer - Discussion number",
-                "title": "string - Discussion title",
-                "author": "object - Author info with login field",
-                "createdAt": "string - ISO timestamp of creation",
-                "updatedAt": "string - ISO timestamp of last update",
-                "body": "string - Discussion body content",
-                "category": "object - Category info with name field",
-                "labels": "array - Array of label objects with name field",
-                "comments": "object - Comments info with totalCount field",
-                "answer": "object|null - Accepted answer if exists",
-                "url": "string - Discussion URL"
-              }
-            },
-            "suggested_queries": [
-              {"description": "Get all data", "query": "."},
-              {"description": "Get discussion numbers and titles", "query": ".[] | {number, title}"},
-              {"description": "Get discussions by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
-              {"description": "Get discussions in category", "query": ".[] | select(.category.name == \"Ideas\")"},
-              {"description": "Get answered discussions", "query": ".[] | select(.answer != null)"},
-              {"description": "Get unanswered discussions", "query": ".[] | select(.answer == null) | {number, title, category: .category.name}"},
-              {"description": "Count by category", "query": "group_by(.category.name) | map({category: .[0].category.name, count: length})"}
-            ]
-          }
-          EOF
-          fi
-          
-          EOFSH_github-discussion-query
-          chmod +x /tmp/gh-aw/safe-inputs/github-discussion-query.sh
           
       - name: Setup MCPs
         env:
