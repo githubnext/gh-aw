@@ -22,6 +22,10 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	mcpServersLog.Print("Checking for MCP servers in workflow configuration")
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
+		// Skip if the tool is explicitly disabled (set to false)
+		if toolValue == false {
+			continue
+		}
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			return true
 		}
@@ -60,6 +64,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	workflowTools := workflowData.Tools
 
 	for toolName, toolValue := range workflowTools {
+		// Skip if the tool is explicitly disabled (set to false)
+		if toolValue == false {
+			continue
+		}
 		// Standard MCP tools
 		if toolName == "github" || toolName == "playwright" || toolName == "serena" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)

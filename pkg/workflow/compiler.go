@@ -1539,39 +1539,47 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 
 	// Get existing github tool configuration
 	githubTool := tools["github"]
-	var githubConfig map[string]any
 
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		githubConfig = make(map[string]any)
-		for k, v := range toolConfig {
-			githubConfig[k] = v
-		}
+	// Check if github is explicitly disabled (github: false)
+	if githubTool == false {
+		// Remove the github tool entirely when set to false
+		delete(tools, "github")
 	} else {
-		githubConfig = make(map[string]any)
-	}
+		// Process github tool configuration
+		var githubConfig map[string]any
 
-	// Get existing allowed tools
-	var existingAllowed []any
-	if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
-		if allowedSlice, ok := allowed.([]any); ok {
-			existingAllowed = allowedSlice
+		if toolConfig, ok := githubTool.(map[string]any); ok {
+			githubConfig = make(map[string]any)
+			for k, v := range toolConfig {
+				githubConfig[k] = v
+			}
+		} else {
+			githubConfig = make(map[string]any)
 		}
-	}
 
-	// Create a set of existing tools for efficient lookup
-	existingToolsSet := make(map[string]bool)
-	for _, tool := range existingAllowed {
-		if toolStr, ok := tool.(string); ok {
-			existingToolsSet[toolStr] = true
+		// Get existing allowed tools
+		var existingAllowed []any
+		if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
+			if allowedSlice, ok := allowed.([]any); ok {
+				existingAllowed = allowedSlice
+			}
 		}
-	}
 
-	// Only set allowed tools if explicitly configured
-	// Don't add default tools - let the MCP server use all available tools
-	if len(existingAllowed) > 0 {
-		githubConfig["allowed"] = existingAllowed
+		// Create a set of existing tools for efficient lookup
+		existingToolsSet := make(map[string]bool)
+		for _, tool := range existingAllowed {
+			if toolStr, ok := tool.(string); ok {
+				existingToolsSet[toolStr] = true
+			}
+		}
+
+		// Only set allowed tools if explicitly configured
+		// Don't add default tools - let the MCP server use all available tools
+		if len(existingAllowed) > 0 {
+			githubConfig["allowed"] = existingAllowed
+		}
+		tools["github"] = githubConfig
 	}
-	tools["github"] = githubConfig
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
