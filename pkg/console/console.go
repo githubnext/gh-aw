@@ -267,7 +267,7 @@ func RenderTable(config TableConfig) string {
 	t := table.New().
 		Headers(config.Headers...).
 		Rows(allRows...).
-		Border(lipgloss.NormalBorder()).
+		Border(styles.NormalBorder).
 		BorderStyle(styles.TableBorder).
 		StyleFunc(styleFunc)
 

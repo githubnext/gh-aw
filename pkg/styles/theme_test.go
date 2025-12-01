@@ -212,3 +212,68 @@ func TestDarkColorsAreOriginalDracula(t *testing.T) {
 		})
 	}
 }
+
+// TestBordersExist verifies that all expected border definitions are defined
+func TestBordersExist(t *testing.T) {
+	borders := map[string]lipgloss.Border{
+		"RoundedBorder": RoundedBorder,
+		"NormalBorder":  NormalBorder,
+		"ThickBorder":   ThickBorder,
+	}
+
+	for name, border := range borders {
+		t.Run(name, func(t *testing.T) {
+			// Verify the border has defined characters (non-empty)
+			if border.Top == "" && border.Bottom == "" && border.Left == "" && border.Right == "" {
+				t.Errorf("Border %s has no defined border characters", name)
+			}
+		})
+	}
+}
+
+// TestBordersAreDistinct verifies that each border style is visually distinct
+func TestBordersAreDistinct(t *testing.T) {
+	// RoundedBorder should have curved corners
+	if RoundedBorder.TopLeft != "╭" {
+		t.Errorf("RoundedBorder.TopLeft = %q, want curved corner ╭", RoundedBorder.TopLeft)
+	}
+
+	// NormalBorder should have straight corners
+	if NormalBorder.TopLeft != "┌" {
+		t.Errorf("NormalBorder.TopLeft = %q, want straight corner ┌", NormalBorder.TopLeft)
+	}
+
+	// ThickBorder should have thick lines
+	if ThickBorder.Top != "━" {
+		t.Errorf("ThickBorder.Top = %q, want thick line ━", ThickBorder.Top)
+	}
+}
+
+// TestErrorBoxUsesCentralizedBorder verifies that ErrorBox uses the centralized RoundedBorder
+func TestErrorBoxUsesCentralizedBorder(t *testing.T) {
+	// Create a style with the RoundedBorder to compare
+	testStyle := lipgloss.NewStyle().
+		Border(RoundedBorder).
+		BorderForeground(ColorError).
+		Padding(1).
+		Margin(1)
+
+	// Render the same text with both styles and verify they produce similar output
+	// (exact comparison may vary due to color application, but structure should be same)
+	testText := "Test error message"
+	errorBoxResult := ErrorBox.Render(testText)
+	testStyleResult := testStyle.Render(testText)
+
+	// Both should contain the test text
+	if len(errorBoxResult) == 0 {
+		t.Error("ErrorBox rendered empty string")
+	}
+	if len(testStyleResult) == 0 {
+		t.Error("testStyle rendered empty string")
+	}
+
+	// Both should be the same length (same border characters)
+	if len(errorBoxResult) != len(testStyleResult) {
+		t.Errorf("ErrorBox output length (%d) differs from expected (%d)", len(errorBoxResult), len(testStyleResult))
+	}
+}

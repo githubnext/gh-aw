@@ -70,6 +70,22 @@ var (
 	}
 )
 
+// Border definitions for consistent styling across CLI output.
+// These provide a centralized set of border styles that adapt based on context.
+var (
+	// RoundedBorder is used for error boxes, emphasis boxes, and informational panels.
+	// It provides a softer, more polished appearance with rounded corners.
+	RoundedBorder = lipgloss.RoundedBorder()
+
+	// NormalBorder is used for standard tables and section dividers.
+	// It provides clean, simple borders suitable for data presentation.
+	NormalBorder = lipgloss.NormalBorder()
+
+	// ThickBorder is used for high-emphasis boxes and critical information.
+	// It draws more attention with heavier visual weight.
+	ThickBorder = lipgloss.ThickBorder()
+)
+
 // Pre-configured styles for common use cases
 
 // Error style for error messages - bold red
@@ -187,7 +203,7 @@ var ServerType = lipgloss.NewStyle().
 
 // ErrorBox style for error boxes with rounded borders
 var ErrorBox = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(RoundedBorder).
 	BorderForeground(ColorError).
 	Padding(1).
 	Margin(1)
