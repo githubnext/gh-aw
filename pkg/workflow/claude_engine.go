@@ -271,7 +271,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add safe-inputs secrets to env for passthrough to MCP servers
-	if HasSafeInputs(workflowData.SafeInputs) {
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 		// Sort keys for consistent output
 		var keys []string

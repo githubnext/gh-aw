@@ -5,11 +5,21 @@ sidebar:
   order: 750
 ---
 
+:::caution[Experimental Feature]
+The `safe-inputs` feature requires a feature flag to be enabled. You must enable it using either:
+- Frontmatter: `features: { safe-inputs: true }`
+- Environment variable: `GH_AW_FEATURES=safe-inputs`
+
+Without the feature flag, `safe-inputs` configurations will be ignored during compilation.
+:::
+
 The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript or shell scripts. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
 
 ## Quick Start
 
 ```yaml wrap
+features:
+  safe-inputs: true
 safe-inputs:
   greet-user:
     description: "Greet a user by name"
@@ -313,6 +323,8 @@ A workflow using multiple safe-input tools:
 ---
 on: workflow_dispatch
 engine: copilot
+features:
+  safe-inputs: true
 imports:
   - shared/pr-data-safe-input.md
 safe-inputs:

@@ -42,8 +42,8 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		return true
 	}
 
-	// Check if safe-inputs is configured (adds safe-inputs MCP server)
-	if HasSafeInputs(workflowData.SafeInputs) {
+	// Check if safe-inputs is configured and feature flag is enabled (adds safe-inputs MCP server)
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		return true
 	}
 
@@ -84,8 +84,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
 
-	// Check if safe-inputs is configured and add to MCP tools
-	if HasSafeInputs(workflowData.SafeInputs) {
+	// Check if safe-inputs is configured and feature flag is enabled, add to MCP tools
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		mcpTools = append(mcpTools, "safe-inputs")
 	}
 
@@ -196,8 +196,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Write safe-inputs MCP server if configured
-	if HasSafeInputs(workflowData.SafeInputs) {
+	// Write safe-inputs MCP server if configured and feature flag is enabled
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		yaml.WriteString("      - name: Setup Safe Inputs MCP\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")

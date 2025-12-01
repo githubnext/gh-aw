@@ -168,7 +168,7 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	}
 
 	// Add safe-inputs secrets to env for passthrough to MCP servers
-	if HasSafeInputs(workflowData.SafeInputs) {
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 		for varName, secretExpr := range safeInputsSecrets {
 			// Only add if not already in env
@@ -388,8 +388,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer.RenderSafeOutputsMCP(yaml)
 			}
 		case "safe-inputs":
-			// Add safe-inputs MCP server if safe-inputs are configured
-			hasSafeInputs := workflowData != nil && HasSafeInputs(workflowData.SafeInputs)
+			// Add safe-inputs MCP server if safe-inputs are configured and feature flag is enabled
+			hasSafeInputs := workflowData != nil && IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
 			if hasSafeInputs {
 				renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs)
 			}
