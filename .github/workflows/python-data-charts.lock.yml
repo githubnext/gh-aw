@@ -1312,6 +1312,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.5.0"
@@ -7946,6 +7947,7 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
       - name: Execute GitHub Copilot CLI
