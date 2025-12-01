@@ -15,7 +15,6 @@ tools:
 safe-outputs:
   assign-to-agent:
     name: copilot
-    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
 ---
 # Dependency Issue Assignment
 

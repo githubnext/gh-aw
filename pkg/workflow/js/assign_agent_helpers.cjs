@@ -186,12 +186,11 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
- * @param {string} ghToken - GitHub token for the mutation. Must have:
+ * @param {string} [ghToken] - GitHub token for the mutation (optional, uses built-in github object if not provided).
+ *   Token must have:
  *   - Write actions/contents/issues/pull-requests permissions
  *   - A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions
- *   - Note: The token source varies by caller:
- *     - assign_to_agent.cjs uses GH_AW_AGENT_TOKEN (agent-specific token)
- *     - assign_issue.cjs uses GH_TOKEN (general issue assignment token)
+ *   - Note: assign_to_agent.cjs uses the built-in github object authenticated via step-level github-token (GH_AW_AGENT_TOKEN by default)
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
@@ -215,36 +214,18 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
   `;
 
   try {
-    // SECURITY: Use provided token for the mutation
+    // Use Octokit client with custom token if provided, otherwise use default github object
     // The mutation requires: Write actions/contents/issues/pull-requests
-    if (!ghToken) {
-      core.error("GitHub token is not set. Cannot perform assignment mutation.");
-      return false;
-    }
-    core.info("Using provided GitHub token for mutation");
+    core.info(ghToken ? "Using provided GitHub token for mutation" : "Using built-in github object for mutation");
+    const client = ghToken ? getOctokitClient(ghToken) : github;
 
-    // Make raw GraphQL request with custom token using variables
     core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-    const response = await fetch("https://api.github.com/graphql", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ghToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          assignableId: issueId,
-          actorIds: actorIds,
-        },
-      }),
-    }).then(res => res.json());
+    const response = await client.graphql(mutation, {
+      assignableId: issueId,
+      actorIds: actorIds,
+    });
 
-    if (response.errors && response.errors.length > 0) {
-      throw new Error(response.errors[0].message);
-    }
-
-    if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
+    if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
       return true;
     } else {
       core.error("Unexpected response from GitHub API");

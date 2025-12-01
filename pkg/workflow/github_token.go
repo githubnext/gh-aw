@@ -46,3 +46,17 @@ func getEffectiveCopilotGitHubToken(customToken, toplevelToken string) string {
 	tokenLog.Print("Using default Copilot GitHub token fallback")
 	return "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
 }
+
+// getEffectiveAgentGitHubToken returns the GitHub token to use for agent assignment operations,
+// with precedence:
+// 1. Custom token passed as parameter (e.g., from safe-outputs config github-token field)
+// 2. secrets.GH_AW_AGENT_TOKEN (default token for agent assignment)
+// Note: This is specifically for assign-to-agent operations which require elevated permissions.
+func getEffectiveAgentGitHubToken(customToken string) string {
+	if customToken != "" {
+		tokenLog.Print("Using custom agent GitHub token")
+		return customToken
+	}
+	tokenLog.Print("Using default agent GitHub token (GH_AW_AGENT_TOKEN)")
+	return "${{ secrets.GH_AW_AGENT_TOKEN }}"
+}

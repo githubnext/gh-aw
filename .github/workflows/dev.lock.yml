@@ -38,7 +38,6 @@
 # safe-outputs:
 #   assign-to-agent:
 #     name: copilot
-#     github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
 # ```
 #
 # Job Dependency Graph:
@@ -4088,7 +4087,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 1
-          GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN }}
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "claude"
         with:
@@ -4303,30 +4301,14 @@ jobs:
                 }
               `;
               try {
-                if (!ghToken) {
-                  core.error("GitHub token is not set. Cannot perform assignment mutation.");
-                  return false;
-                }
-                core.info("Using provided GitHub token for mutation");
+                core.info(ghToken ? "Using provided GitHub token for mutation" : "Using built-in github object for mutation");
+                const client = ghToken ? getOctokitClient(ghToken) : github;
                 core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await fetch("https://api.github.com/graphql", {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${ghToken}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    query: mutation,
-                    variables: {
-                      assignableId: issueId,
-                      actorIds: actorIds,
-                    },
-                  }),
-                }).then(res => res.json());
-                if (response.errors && response.errors.length > 0) {
-                  throw new Error(response.errors[0].message);
-                }
-                if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
+                const response = await client.graphql(mutation, {
+                  assignableId: issueId,
+                  actorIds: actorIds,
+                });
+                if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
                   core.error("Unexpected response from GitHub API");
@@ -4546,11 +4528,6 @@ jobs:
                   core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
                 }
               }
-              const mutationToken = process.env.GH_AW_AGENT_TOKEN;
-              if (!mutationToken) {
-                core.setFailed("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
-                return;
-              }
               const agentCache = {};
               const results = [];
               for (const item of itemsToProcess) {
@@ -4574,7 +4551,7 @@ jobs:
                   let agentId = agentCache[agentName];
                   if (!agentId) {
                     core.info(`Looking for ${agentName} coding agent...`);
-                    agentId = await findAgent(targetOwner, targetRepo, agentName, mutationToken);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName);
                     if (!agentId) {
                       throw new Error(`${agentName} coding agent is not available for this repository`);
                     }
@@ -4597,7 +4574,7 @@ jobs:
                     continue;
                   }
                   core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, mutationToken);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
                   if (!success) {
                     throw new Error(`Failed to assign ${agentName} via GraphQL`);
                   }
@@ -4611,7 +4588,7 @@ jobs:
                   let errorMessage = error instanceof Error ? error.message : String(error);
                   if (errorMessage.includes("coding agent is not available for this repository")) {
                     try {
-                      const available = await getAvailableAgentLogins(targetOwner, targetRepo, mutationToken);
+                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
                       if (available.length > 0) {
                         errorMessage += ` (available agents: ${available.join(", ")})`;
                       }
