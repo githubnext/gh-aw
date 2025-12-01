@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -266,6 +267,20 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		for key, value := range workflowData.EngineConfig.Env {
 			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+
+	// Add safe-inputs secrets to env for passthrough to MCP servers
+	if HasSafeInputs(workflowData.SafeInputs) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		// Sort keys for consistent output
+		var keys []string
+		for key := range safeInputsSecrets {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, safeInputsSecrets[key]))
 		}
 	}
 

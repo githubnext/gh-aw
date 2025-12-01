@@ -412,6 +412,17 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		}
 	}
 
+	// Add safe-inputs secrets to env for passthrough to MCP servers
+	if HasSafeInputs(workflowData.SafeInputs) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName, secretExpr := range safeInputsSecrets {
+			// Only add if not already in env
+			if _, exists := env[varName]; !exists {
+				env[varName] = secretExpr
+			}
+		}
+	}
+
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
