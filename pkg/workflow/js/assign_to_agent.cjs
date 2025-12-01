@@ -12,6 +12,13 @@ const {
   generatePermissionErrorSummary,
 } = require("./assign_agent_helpers.cjs");
 
+/**
+ * Assign agents to issues based on agent output
+ *
+ * IMPORTANT: This script requires the `github-token` parameter to be set at the step level
+ * in actions/github-script. The github object will be configured with the correct token.
+ */
+
 async function main() {
   const result = loadAgentOutput();
   if (!result.success) {
@@ -77,12 +84,8 @@ async function main() {
     }
   }
 
-  // Get the mutation token from environment
-  const mutationToken = process.env.GH_AW_AGENT_TOKEN;
-  if (!mutationToken) {
-    core.setFailed("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
-    return;
-  }
+  // Note: The github object is configured with the correct token via github-token at step level
+  // We no longer need to validate GH_AW_AGENT_TOKEN since the token is passed to the github object
 
   // Cache agent IDs to avoid repeated lookups
   const agentCache = {};
@@ -111,12 +114,13 @@ async function main() {
     }
 
     // Assign the agent to the issue using GraphQL
+    // The github object is configured with the correct token via github-token at step level
     try {
-      // Find agent (use cache if available) - use mutationToken for the GraphQL query
+      // Find agent (use cache if available) - uses default github object
       let agentId = agentCache[agentName];
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(targetOwner, targetRepo, agentName, mutationToken);
+        agentId = await findAgent(targetOwner, targetRepo, agentName);
         if (!agentId) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
@@ -124,7 +128,7 @@ async function main() {
         core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
       }
 
-      // Get issue details (ID and current assignees) via GraphQL
+      // Get issue details (ID and current assignees) via GraphQL - uses default github object
       core.info("Getting issue details...");
       const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
       if (!issueDetails) {
@@ -144,9 +148,9 @@ async function main() {
         continue;
       }
 
-      // Assign agent using GraphQL mutation
+      // Assign agent using GraphQL mutation - uses default github object
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, mutationToken);
+      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);
@@ -161,9 +165,9 @@ async function main() {
     } catch (error) {
       let errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
-        // Enrich with available agent logins to aid troubleshooting - use mutationToken
+        // Enrich with available agent logins to aid troubleshooting - uses default github object
         try {
-          const available = await getAvailableAgentLogins(targetOwner, targetRepo, mutationToken);
+          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
           if (available.length > 0) {
             errorMessage += ` (available agents: ${available.join(", ")})`;
           }

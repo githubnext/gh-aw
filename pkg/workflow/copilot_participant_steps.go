@@ -95,6 +95,7 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 		steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))
 		steps = append(steps, fmt.Sprintf("          ISSUE_NUMBER: ${{ steps.%s.outputs.%s }}\n", config.ConditionStepID, config.ConditionOutputKey))
 		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, FormatJavaScriptForYAML(getAssignIssueScript())...)
 
