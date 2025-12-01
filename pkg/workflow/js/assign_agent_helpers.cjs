@@ -6,6 +6,8 @@
  * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
  */
 
+const { getOctokitClient, setGetOctokitFactory } = require("./get_octokit_client.cjs");
+
 /**
  * Map agent names to their GitHub bot login names
  * @type {Record<string, string>}
@@ -13,36 +15,6 @@
 const AGENT_LOGIN_NAMES = {
   copilot: "copilot-swe-agent",
 };
-
-/**
- * Octokit constructor function - can be overridden for testing
- * @type {Function|null}
- */
-let OctokitConstructor = null;
-
-/**
- * Set the Octokit constructor for testing purposes
- * @param {Function} constructor - Octokit constructor function
- */
-function setOctokitConstructor(constructor) {
-  OctokitConstructor = constructor;
-}
-
-/**
- * Create an Octokit client with a custom token for GraphQL queries
- * @param {string} ghToken - GitHub token for authentication
- * @returns {Object} Object with graphql method bound to the Octokit instance
- */
-function createOctokitClient(ghToken) {
-  const OctokitClass = OctokitConstructor || require("@octokit/rest").Octokit;
-  const octokit = new OctokitClass({
-    auth: ghToken,
-    baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-  });
-  return {
-    graphql: octokit.graphql.bind(octokit),
-  };
-}
 
 /**
  * Check if an assignee is a known coding agent (bot)
@@ -81,7 +53,7 @@ async function getAvailableAgentLogins(owner, repo, ghToken) {
   `;
   try {
     // Use Octokit client with custom token if provided, otherwise use default github object
-    const client = ghToken ? createOctokitClient(ghToken) : github;
+    const client = ghToken ? getOctokitClient(ghToken) : github;
     const response = await client.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
@@ -126,7 +98,7 @@ async function findAgent(owner, repo, agentName, ghToken) {
 
   try {
     // Use Octokit client with custom token if provided, otherwise use default github object
-    const client = ghToken ? createOctokitClient(ghToken) : github;
+    const client = ghToken ? getOctokitClient(ghToken) : github;
     const response = await client.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
@@ -499,5 +471,5 @@ module.exports = {
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
-  setOctokitConstructor, // Exposed for testing
+  setGetOctokitFactory, // Exposed for testing (re-exported from get_octokit_client.cjs)
 };

@@ -103,6 +103,9 @@ var loadAgentOutputScript string
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
 
+//go:embed js/get_octokit_client.cjs
+var getOctokitClientScript string
+
 //go:embed js/assign_agent_helpers.cjs
 var assignAgentHelpersScript string
 
@@ -210,6 +213,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_workflow_name.cjs":      sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":           loadAgentOutputScript,
 		"staged_preview.cjs":              stagedPreviewScript,
+		"get_octokit_client.cjs":          getOctokitClientScript,
 		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,

@@ -29,24 +29,24 @@ const {
   assignAgentToIssue,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
-  setOctokitConstructor,
+  setGetOctokitFactory,
 } = await import("./assign_agent_helpers.cjs");
 
-// Mock Octokit constructor function that returns an instance with the mocked graphql
-function MockOctokit() {
-  this.graphql = mockOctokitGraphql;
-}
+// Mock Octokit instance with graphql method
+const mockOctokitInstance = {
+  graphql: mockOctokitGraphql,
+};
 
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set up the mock Octokit constructor
-    setOctokitConstructor(MockOctokit);
+    // Set up the mock getOctokit factory
+    setGetOctokitFactory(() => mockOctokitInstance);
   });
 
   afterEach(() => {
-    // Reset to null so real Octokit is used if not mocked
-    setOctokitConstructor(null);
+    // Reset to null so real getOctokit is used if not mocked
+    setGetOctokitFactory(null);
   });
 
   describe("AGENT_LOGIN_NAMES", () => {

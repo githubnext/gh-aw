@@ -4544,23 +4544,20 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            let getOctokitFactory = null;
+            function setGetOctokitFactory(factory) {
+              getOctokitFactory = factory;
+            }
+            function getOctokitClient(token) {
+              if (getOctokitFactory) {
+                return getOctokitFactory(token);
+              }
+              const { getOctokit } = __original_require__("@actions/github");
+              return getOctokit(token);
+            }
             const AGENT_LOGIN_NAMES = {
               copilot: "copilot-swe-agent",
             };
-            let OctokitConstructor = null;
-            function setOctokitConstructor(constructor) {
-              OctokitConstructor = constructor;
-            }
-            function createOctokitClient(ghToken) {
-              const OctokitClass = OctokitConstructor || require("@octokit/rest").Octokit;
-              const octokit = new OctokitClass({
-                auth: ghToken,
-                baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-              });
-              return {
-                graphql: octokit.graphql.bind(octokit),
-              };
-            }
             function getAgentName(assignee) {
               const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
               if (AGENT_LOGIN_NAMES[normalized]) {
@@ -4579,7 +4576,7 @@ jobs:
                 }
               `;
               try {
-                const client = ghToken ? createOctokitClient(ghToken) : github;
+                const client = ghToken ? getOctokitClient(ghToken) : github;
                 const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository?.suggestedActors?.nodes || [];
                 const knownValues = Object.values(AGENT_LOGIN_NAMES);
@@ -4613,7 +4610,7 @@ jobs:
                 }
               `;
               try {
-                const client = ghToken ? createOctokitClient(ghToken) : github;
+                const client = ghToken ? getOctokitClient(ghToken) : github;
                 const response = await client.graphql(query, { owner, repo });
                 const actors = response.repository.suggestedActors.nodes;
                 const loginName = AGENT_LOGIN_NAMES[agentName];
