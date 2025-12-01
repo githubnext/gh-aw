@@ -1,5 +1,5 @@
 ---
-description: Daily project performance summary (90-day window) with trend charts using Skillz MCP server
+description: Daily project performance summary (90-day window) with trend charts using safe-inputs
 on:
   schedule:
     - cron: "0 8 * * *"  # Daily at 8 AM UTC
@@ -10,7 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: write
-engine: copilot
+engine: codex
 strict: false
 tracker-id: daily-performance-summary
 tools:
@@ -27,21 +27,21 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 imports:
-  - shared/mcp/skillz.md
+  - shared/github-queries-safe-input.md
   - shared/trending-charts-simple.md
   - shared/reporting.md
 ---
 
-# Daily Project Performance Summary Generator (Powered by Skillz)
+# Daily Project Performance Summary Generator (Using Safe Inputs)
 
-You are an expert analyst that generates comprehensive daily performance summaries using the **Skillz MCP server** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
+You are an expert analyst that generates comprehensive daily performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 
-**IMPORTANT**: This workflow demonstrates the power of Skillz - a custom skills-based MCP server that exposes repository-specific tools. All data gathering MUST be done through the skillz tools.
+**IMPORTANT**: This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`. All data gathering MUST be done through these tools.
 
 ## Mission
 
 Generate a daily performance summary analyzing the last 90 days of project activity:
-1. **Use Skillz tools exclusively** to query PRs, issues, and discussions
+1. **Use safe-input tools** to query PRs, issues, and discussions
 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 3. Generate trend charts showing project activity and performance
 4. Create a discussion with the comprehensive performance report
@@ -53,63 +53,54 @@ Generate a daily performance summary analyzing the last 90 days of project activ
 - **Run ID**: ${{ github.run_id }}
 - **Report Period**: Last 90 days (updated daily)
 
-## Phase 1: Gather Data Using Skillz MCP Tools
+## Phase 1: Gather Data Using Safe-Input Tools
 
-**CRITICAL**: Use the skillz MCP server tools to query GitHub data. The skills are located in `.github/skills/` and are exposed as MCP tools by the skillz server.
+**CRITICAL**: Use the safe-input tools to query GitHub data. These tools are imported from `shared/github-queries-safe-input.md` and provide the same functionality as the previous Skillz-based approach.
 
-### Available Skillz Tools
+### Available Safe-Input Tools
 
-The skillz MCP server exposes these repository skills as callable tools:
+The following tools are available for querying GitHub data:
 - **github-pr-query** - Query pull requests with jq filtering
 - **github-issue-query** - Query issues with jq filtering  
 - **github-discussion-query** - Query discussions with jq filtering
 
-### 1.1 Query Pull Requests with Skillz
+### 1.1 Query Pull Requests
 
-**Use the `github-pr-query` skillz tool** to get PR data:
+**Use the `github-pr-query` safe-input tool** to get PR data:
 
-```bash
-# SKILLZ TOOL: github-pr-query
-# Get all PRs from last 90 days (open and closed)
-cd ${{ github.workspace }}/.github/skills/github-pr-query
-./query-prs.sh --state all --limit 1000 --jq '.'
+```
+github-pr-query with state: "all", limit: 1000, jq: "."
 ```
 
-The skillz tool provides:
+The tool provides:
 - PR count by state (open, closed, merged)
 - Time to merge for merged PRs
 - Authors contributing PRs
 - Review decision distribution
 
-### 1.2 Query Issues with Skillz
+### 1.2 Query Issues
 
-**Use the `github-issue-query` skillz tool** to get issue data:
+**Use the `github-issue-query` safe-input tool** to get issue data:
 
-```bash
-# SKILLZ TOOL: github-issue-query
-# Get all issues from last 90 days
-cd ${{ github.workspace }}/.github/skills/github-issue-query
-./query-issues.sh --state all --limit 1000 --jq '.'
+```
+github-issue-query with state: "all", limit: 1000, jq: "."
 ```
 
-The skillz tool provides:
+The tool provides:
 - Issue count by state (open, closed)
 - Time to close for closed issues
 - Label distribution
 - Authors creating issues
 
-### 1.3 Query Discussions with Skillz
+### 1.3 Query Discussions
 
-**Use the `github-discussion-query` skillz tool** to get discussion data:
+**Use the `github-discussion-query` safe-input tool** to get discussion data:
 
-```bash
-# SKILLZ TOOL: github-discussion-query
-# Get recent discussions
-cd ${{ github.workspace }}/.github/skills/github-discussion-query
-./query-discussions.sh --limit 1000 --jq '.'
+```
+github-discussion-query with limit: 1000, jq: "."
 ```
 
-The skillz tool provides:
+The tool provides:
 - Discussion count by category
 - Answered vs unanswered discussions
 - Active discussion authors
@@ -463,25 +454,25 @@ Brief 2-3 paragraph executive summary highlighting:
 ---
 *Report generated automatically by the Daily Performance Summary workflow*
 *Data source: ${{ github.repository }} - Last 90 days*
-*Powered by **Skillz MCP Server** - GitHub Skills exposed as MCP tools*
+*Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
 ```
 
 ## Success Criteria
 
 A successful run will:
-- ✅ **Query data using Skillz tools** (github-pr-query, github-issue-query, github-discussion-query)
-- ✅ Calculate comprehensive performance metrics from skillz output
+- ✅ **Query data using safe-input tools** (github-pr-query, github-issue-query, github-discussion-query)
+- ✅ Calculate comprehensive performance metrics from tool output
 - ✅ Generate 3 high-quality trend charts
 - ✅ Upload charts as assets
 - ✅ Close previous daily performance discussions
 - ✅ Create a new discussion with the complete report
 
-## Skillz Usage Reminder
+## Safe-Input Tools Usage Reminder
 
-This workflow demonstrates the Skillz MCP server pattern:
-1. Skills are defined in `.github/skills/` as directories with `SKILL.md` and helper scripts
-2. The skillz MCP server mounts these skills and exposes them as callable tools
-3. Each skill can have its own jq-based filtering for efficient data querying
-4. Skills are authenticated with `GH_TOKEN` and `GITHUB_TOKEN` for GitHub API access
+This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`:
+1. Tools are defined in the shared workflow with shell script implementations
+2. Each tool supports jq-based filtering for efficient data querying
+3. Tools are authenticated with `GITHUB_TOKEN` for GitHub API access
+4. Call tools with parameters like: `github-pr-query with state: "all", limit: 1000, jq: "."`
 
-Begin your analysis now. **Use the skillz tools** to gather data, run Python analysis, generate charts, and create the discussion report.
+Begin your analysis now. **Use the safe-input tools** to gather data, run Python analysis, generate charts, and create the discussion report.
