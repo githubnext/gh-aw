@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
@@ -245,22 +246,6 @@ func FormatWarningMessage(message string) string {
 	return applyStyle(warningStyle, "⚠ ") + message
 }
 
-// Table rendering styles
-var (
-	tableHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#6272A4"))
-
-	tableCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#F8F8F2"))
-
-	tableBorderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#6272A4"))
-
-	tableSeparatorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#44475A"))
-)
-
 // TableConfig represents configuration for table rendering
 type TableConfig struct {
 	Headers   []string
@@ -270,7 +255,28 @@ type TableConfig struct {
 	TotalRow  []string
 }
 
-// RenderTable renders a formatted table using lipgloss
+// Table rendering styles for lipgloss/table
+var (
+	tableHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#6272A4"))
+
+	tableCellStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#F8F8F2"))
+
+	tableTotalStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#50FA7B"))
+
+	tableTitleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#50FA7B"))
+
+	tableBorderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#44475A"))
+)
+
+// RenderTable renders a formatted table using lipgloss/table package
 func RenderTable(config TableConfig) string {
 	if len(config.Headers) == 0 {
 		consoleLog.Print("No headers provided for table rendering")
@@ -282,87 +288,46 @@ func RenderTable(config TableConfig) string {
 
 	// Title
 	if config.Title != "" {
-		titleStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B"))
-		output.WriteString(applyStyle(titleStyle, config.Title))
+		output.WriteString(applyStyle(tableTitleStyle, config.Title))
 		output.WriteString("\n")
 	}
 
-	// Calculate column widths
-	colWidths := make([]int, len(config.Headers))
-	for i, header := range config.Headers {
-		colWidths[i] = len(header)
-	}
-
-	// Check row data for max widths
+	// Build rows including total row if specified
 	allRows := config.Rows
 	if config.ShowTotal && len(config.TotalRow) > 0 {
 		allRows = append(allRows, config.TotalRow)
 	}
 
-	for _, row := range allRows {
-		for i, cell := range row {
-			if i < len(colWidths) && len(cell) > colWidths[i] {
-				colWidths[i] = len(cell)
-			}
+	// Determine row count for styling purposes
+	dataRowCount := len(config.Rows)
+
+	// Create style function that applies different styles based on row type
+	styleFunc := func(row, col int) lipgloss.Style {
+		if !isTTY() {
+			return lipgloss.NewStyle()
 		}
+		if row == table.HeaderRow {
+			return tableHeaderStyle
+		}
+		// If we have a total row and this is the last row
+		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
+			return tableTotalStyle
+		}
+		return tableCellStyle
 	}
 
-	// Render header
-	output.WriteString(renderTableRow(config.Headers, colWidths, tableHeaderStyle))
-	output.WriteString("\n")
+	// Create table with lipgloss/table package
+	t := table.New().
+		Headers(config.Headers...).
+		Rows(allRows...).
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(tableBorderStyle).
+		StyleFunc(styleFunc)
 
-	// Header separator
-	separatorChars := make([]string, len(config.Headers))
-	for i, width := range colWidths {
-		separatorChars[i] = strings.Repeat("-", width)
-	}
-	output.WriteString(applyStyle(tableSeparatorStyle, renderTableRow(separatorChars, colWidths, tableSeparatorStyle)))
-	output.WriteString("\n")
-
-	// Render data rows
-	for _, row := range config.Rows {
-		output.WriteString(renderTableRow(row, colWidths, tableCellStyle))
-		output.WriteString("\n")
-	}
-
-	// Total row if specified
-	if config.ShowTotal && len(config.TotalRow) > 0 {
-		// Total separator
-		output.WriteString(applyStyle(tableSeparatorStyle, renderTableRow(separatorChars, colWidths, tableSeparatorStyle)))
-		output.WriteString("\n")
-
-		// Total row with bold styling
-		totalStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B"))
-		output.WriteString(renderTableRow(config.TotalRow, colWidths, totalStyle))
-		output.WriteString("\n")
-	}
+	output.WriteString(t.String())
 	output.WriteString("\n")
 
 	return output.String()
-}
-
-// renderTableRow renders a single table row with proper spacing
-func renderTableRow(cells []string, colWidths []int, style lipgloss.Style) string {
-	var row strings.Builder
-
-	for i, cell := range cells {
-		if i < len(colWidths) {
-			// Pad cell to column width
-			paddedCell := fmt.Sprintf("%-*s", colWidths[i], cell)
-			row.WriteString(applyStyle(style, paddedCell))
-
-			// Add separator between columns (except last)
-			if i < len(cells)-1 {
-				row.WriteString(applyStyle(tableBorderStyle, " | "))
-			}
-		}
-	}
-
-	return row.String()
 }
 
 // FormatLocationMessage formats a file/directory location message
