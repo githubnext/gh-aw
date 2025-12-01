@@ -97,7 +97,10 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 		relPath,
 	)
 
-	// In verbose mode, show the command that users can run directly
+	// Always show that actionlint is running (regular verbosity)
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint on %s", relPath)))
+
+	// In verbose mode, also show the command that users can run directly
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir rhysd/actionlint:latest -format '{{json .}}' %s",
 			gitRoot, relPath)

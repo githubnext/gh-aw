@@ -104,7 +104,10 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		"--quiet", // Disable progress output
 	)
 
-	// In verbose mode, show the command that users can run directly
+	// Always show that poutine is running (regular verbosity)
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running poutine security scanner"))
+
+	// In verbose mode, also show the command that users can run directly
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
 			gitRoot)
