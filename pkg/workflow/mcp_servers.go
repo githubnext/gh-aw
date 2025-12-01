@@ -203,8 +203,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          EOFSI\n")
 		yaml.WriteString("          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs\n")
 
-		// Generate individual tool files
-		for toolName, toolConfig := range workflowData.SafeInputs.Tools {
+		// Generate individual tool files (sorted by name for stable code generation)
+		safeInputToolNames := make([]string, 0, len(workflowData.SafeInputs.Tools))
+		for toolName := range workflowData.SafeInputs.Tools {
+			safeInputToolNames = append(safeInputToolNames, toolName)
+		}
+		sort.Strings(safeInputToolNames)
+
+		for _, toolName := range safeInputToolNames {
+			toolConfig := workflowData.SafeInputs.Tools[toolName]
 			if toolConfig.Script != "" {
 				// JavaScript tool
 				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
