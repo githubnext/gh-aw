@@ -1,6 +1,7 @@
 package styles
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -210,5 +211,83 @@ func TestDarkColorsAreOriginalDracula(t *testing.T) {
 				t.Errorf("%s.Dark = %s, want %s (original Dracula color)", name, actual, expected)
 			}
 		})
+	}
+}
+
+// TestBordersExist verifies that all expected border definitions are defined
+func TestBordersExist(t *testing.T) {
+	borders := map[string]lipgloss.Border{
+		"RoundedBorder": RoundedBorder,
+		"NormalBorder":  NormalBorder,
+		"ThickBorder":   ThickBorder,
+	}
+
+	for name, border := range borders {
+		t.Run(name, func(t *testing.T) {
+			// Verify the border has defined characters (non-empty)
+			if border.Top == "" && border.Bottom == "" && border.Left == "" && border.Right == "" {
+				t.Errorf("Border %s has no defined border characters", name)
+			}
+		})
+	}
+}
+
+// TestBordersAreDistinct verifies that each border style is visually distinct
+func TestBordersAreDistinct(t *testing.T) {
+	// RoundedBorder should have curved corners
+	if RoundedBorder.TopLeft != "╭" {
+		t.Errorf("RoundedBorder.TopLeft = %q, want curved corner ╭", RoundedBorder.TopLeft)
+	}
+
+	// NormalBorder should have straight corners
+	if NormalBorder.TopLeft != "┌" {
+		t.Errorf("NormalBorder.TopLeft = %q, want straight corner ┌", NormalBorder.TopLeft)
+	}
+
+	// ThickBorder should have thick lines
+	if ThickBorder.Top != "━" {
+		t.Errorf("ThickBorder.Top = %q, want thick line ━", ThickBorder.Top)
+	}
+}
+
+// TestErrorBoxUsesCentralizedBorder verifies that ErrorBox uses the centralized RoundedBorder
+func TestErrorBoxUsesCentralizedBorder(t *testing.T) {
+	// Create a style with the RoundedBorder to compare
+	testStyle := lipgloss.NewStyle().
+		Border(RoundedBorder).
+		BorderForeground(ColorError).
+		Padding(1).
+		Margin(1)
+
+	testText := "Test error message"
+	errorBoxResult := ErrorBox.Render(testText)
+	testStyleResult := testStyle.Render(testText)
+
+	// Both should contain the test text
+	if len(errorBoxResult) == 0 {
+		t.Error("ErrorBox rendered empty string")
+	}
+	if len(testStyleResult) == 0 {
+		t.Error("testStyle rendered empty string")
+	}
+
+	// Verify that ErrorBox output contains the rounded border characters
+	// RoundedBorder uses: ╭ (top-left), ╮ (top-right), ╰ (bottom-left), ╯ (bottom-right)
+	if !strings.Contains(errorBoxResult, "╭") {
+		t.Error("ErrorBox missing rounded top-left corner (╭)")
+	}
+	if !strings.Contains(errorBoxResult, "╮") {
+		t.Error("ErrorBox missing rounded top-right corner (╮)")
+	}
+	if !strings.Contains(errorBoxResult, "╰") {
+		t.Error("ErrorBox missing rounded bottom-left corner (╰)")
+	}
+	if !strings.Contains(errorBoxResult, "╯") {
+		t.Error("ErrorBox missing rounded bottom-right corner (╯)")
+	}
+
+	// Both should produce identical output (same border, same styling)
+	if errorBoxResult != testStyleResult {
+		t.Errorf("ErrorBox output differs from expected:\nGot:\n%s\nExpected:\n%s", errorBoxResult, testStyleResult)
 	}
 }
