@@ -995,9 +995,10 @@ npm warn exec The following package was not found
       expect(result.markdown).toContain("github::create_discussion");
       expect(result.markdown).toContain("github::list_discussions");
 
-      // Verify safe_outputs tools are shown
-      expect(result.markdown).toContain("safe_outputs-create_issue");
-      expect(result.markdown).toContain("safe_outputs-add-comment");
+      // Verify safe_outputs tools are shown (without prefix, in Safe Outputs category)
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_issue");
+      expect(result.markdown).toContain("add-comment");
 
       // Verify file operations are shown
       expect(result.markdown).toContain("Read");

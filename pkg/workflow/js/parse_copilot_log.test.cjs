@@ -1100,11 +1100,13 @@ More log content
       expect(result).toContain("bash");
       // Tools are displayed in formatted form (github::create_issue) not internal form (mcp__github__create_issue)
       expect(result).toContain("github::create_issue");
-      expect(result).toContain("safe_outputs-create_issue");
+      // safe_outputs tools are shown without prefix in Safe Outputs category
+      expect(result).toContain("**Safe Outputs:**");
+      expect(result).toContain("create_issue");
 
       // Verify tool categories are shown
       expect(result).toContain("**Git/GitHub:**");
-      expect(result).toContain("**Other:**");
+      expect(result).toContain("**Builtin:**");
 
       // Check that the model info was extracted
       expect(result).toContain("Claude Sonnet 4.5");
@@ -1223,9 +1225,10 @@ More log content
       expect(result).toContain("github::create_discussion");
       expect(result).toContain("github::list_discussions");
 
-      // Verify safe_outputs tools are shown
-      expect(result).toContain("safe_outputs-create_issue");
-      expect(result).toContain("safe_outputs-add-comment");
+      // Verify safe_outputs tools are shown (without prefix, in Safe Outputs category)
+      expect(result).toContain("**Safe Outputs:**");
+      expect(result).toContain("create_issue");
+      expect(result).toContain("add-comment");
 
       // Verify file operations are shown
       expect(result).toContain("Read");

@@ -180,6 +180,43 @@ function formatMcpName(toolName) {
 }
 
 /**
+ * Checks if a tool name looks like a custom agent (kebab-case with multiple words)
+ * Custom agents have names like: add-safe-output-type, cli-consistency-checker, etc.
+ * @param {string} toolName - The tool name to check
+ * @returns {boolean} True if the tool name appears to be a custom agent
+ */
+function isLikelyCustomAgent(toolName) {
+  // Custom agents are kebab-case with at least one hyphen and multiple word segments
+  // They should not start with common prefixes like 'mcp__', 'safe', etc.
+  if (!toolName || typeof toolName !== "string") {
+    return false;
+  }
+
+  // Must contain at least one hyphen
+  if (!toolName.includes("-")) {
+    return false;
+  }
+
+  // Should not contain double underscores (MCP tools)
+  if (toolName.includes("__")) {
+    return false;
+  }
+
+  // Should not start with safe (safeoutputs, safeinputs handled separately)
+  if (toolName.toLowerCase().startsWith("safe")) {
+    return false;
+  }
+
+  // Should be all lowercase with hyphens (kebab-case)
+  // Allow letters, numbers, and hyphens only
+  if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(toolName)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Generates markdown summary from conversation log entries
  * This is the core shared logic between Claude and Copilot log parsers
  *
@@ -495,25 +532,67 @@ function formatInitializationSummary(initEntry, options = {}) {
   if (initEntry.tools && Array.isArray(initEntry.tools)) {
     markdown += "**Available Tools:**\n";
 
-    // Categorize tools
+    // Categorize tools with improved groupings
     /** @type {{ [key: string]: string[] }} */
     const categories = {
       Core: [],
       "File Operations": [],
+      Builtin: [],
+      "Safe Outputs": [],
+      "Safe Inputs": [],
       "Git/GitHub": [],
       MCP: [],
+      "Custom Agents": [],
       Other: [],
     };
 
+    // Builtin tools that come with gh-aw / Copilot
+    const builtinTools = [
+      "bash",
+      "write_bash",
+      "read_bash",
+      "stop_bash",
+      "list_bash",
+      "grep",
+      "glob",
+      "view",
+      "create",
+      "edit",
+      "store_memory",
+      "code_review",
+      "codeql_checker",
+      "report_progress",
+      "report_intent",
+      "gh-advisory-database",
+    ];
+
+    // Internal tools that are specific to Copilot CLI
+    const internalTools = ["fetch_copilot_cli_documentation"];
+
     for (const tool of initEntry.tools) {
+      const toolLower = tool.toLowerCase();
+
       if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
         categories["Core"].push(tool);
       } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
         categories["File Operations"].push(tool);
+      } else if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+        categories["Builtin"].push(tool);
+      } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+        categories["Safe Outputs"].push(toolName);
+      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+        categories["Safe Inputs"].push(toolName);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));
       } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
         categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+      } else if (isLikelyCustomAgent(tool)) {
+        // Custom agents typically have hyphenated names (kebab-case)
+        categories["Custom Agents"].push(tool);
       } else {
         categories["Other"].push(tool);
       }
@@ -869,6 +948,7 @@ module.exports = {
   truncateString,
   estimateTokens,
   formatMcpName,
+  isLikelyCustomAgent,
   generateConversationMarkdown,
   generateInformationSection,
   formatMcpParameters,
