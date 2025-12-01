@@ -167,6 +167,17 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 		}
 	}
 
+	// Add safe-inputs secrets to env for passthrough to MCP servers
+	if HasSafeInputs(workflowData.SafeInputs) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName, secretExpr := range safeInputsSecrets {
+			// Only add if not already in env
+			if _, exists := env[varName]; !exists {
+				env[varName] = secretExpr
+			}
+		}
+	}
+
 	// Generate the step for Codex execution
 	stepName := "Run Codex"
 	var stepLines []string
