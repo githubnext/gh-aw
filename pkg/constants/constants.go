@@ -77,6 +77,10 @@ const DefaultHaskellVersion Version = "9.10"
 // DefaultDenoVersion is the default version of Deno for runtime setup
 const DefaultDenoVersion Version = "2.x"
 
+// DefaultRustVersion is the default version of Rust for runtime setup
+// Uses "stable" to get the latest stable Rust version
+const DefaultRustVersion Version = "stable"
+
 // Timeout constants using time.Duration for type safety and clear units
 
 // DefaultAgenticWorkflowTimeout is the default timeout for agentic workflow execution

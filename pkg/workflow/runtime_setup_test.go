@@ -118,6 +118,21 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			expected: []string{"haskell"},
 		},
 		{
+			name:     "cargo command",
+			command:  "cargo build",
+			expected: []string{"rust"},
+		},
+		{
+			name:     "rustc command",
+			command:  "rustc main.rs",
+			expected: []string{"rust"},
+		},
+		{
+			name:     "rustup command",
+			command:  "rustup update",
+			expected: []string{"rust"},
+		},
+		{
 			name:     "multiple commands",
 			command:  "npm install && python test.py",
 			expected: []string{"node", "python"},
@@ -367,6 +382,18 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 				"Setup Haskell",
 				"haskell-actions/setup@d5d0f498b388e1a0eab1cd150202f664c5738e35",
 				"ghc-version: '9.10'",
+			},
+		},
+		{
+			name: "generates rust setup",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("rust"), Version: "stable"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Rust",
+				"dtolnay/rust-toolchain@6d9817901c499d6b02debbb57edb38d33daa680b",
+				"toolchain: 'stable'",
 			},
 		},
 		{

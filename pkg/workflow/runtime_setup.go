@@ -131,6 +131,15 @@ var knownRuntimes = []*Runtime{
 		Commands:       []string{"ruby", "gem", "bundle"},
 	},
 	{
+		ID:             "rust",
+		Name:           "Rust",
+		ActionRepo:     "dtolnay/rust-toolchain",
+		ActionVersion:  "stable",
+		VersionField:   "toolchain",
+		DefaultVersion: string(constants.DefaultRustVersion),
+		Commands:       []string{"cargo", "rustc", "rustup"},
+	},
+	{
 		ID:             "uv",
 		Name:           "uv",
 		ActionRepo:     "astral-sh/setup-uv",

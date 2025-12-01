@@ -75,6 +75,11 @@
       "version": "v2",
       "sha": "e95548e56dfa95d4e1a28d6f422fafe75c4c26fb"
     },
+    "dtolnay/rust-toolchain@stable": {
+      "repo": "dtolnay/rust-toolchain",
+      "version": "stable",
+      "sha": "6d9817901c499d6b02debbb57edb38d33daa680b"
+    },
     "erlef/setup-beam@v1": {
       "repo": "erlef/setup-beam",
       "version": "v1",

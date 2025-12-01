@@ -100,6 +100,11 @@
       "version": "v1",
       "sha": "e5517072e87f198d9533967ae13d97c11b604005"
     },
+    "dtolnay/rust-toolchain@stable": {
+      "repo": "dtolnay/rust-toolchain",
+      "version": "stable",
+      "sha": "6d9817901c499d6b02debbb57edb38d33daa680b"
+    },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",
       "version": "v8.2.1",
