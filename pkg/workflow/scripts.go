@@ -184,6 +184,11 @@ func getAssignToAgentScript() string {
 	return DefaultScriptRegistry.Get("assign_to_agent")
 }
 
+// getAssignToUserScript returns the bundled assign_to_user script
+func getAssignToUserScript() string {
+	return DefaultScriptRegistry.Get("assign_to_user")
+}
+
 // getAssignCopilotToCreatedIssuesScript returns the bundled assign_copilot_to_created_issues script
 func getAssignCopilotToCreatedIssuesScript() string {
 	return DefaultScriptRegistry.Get("assign_copilot_to_created_issues")

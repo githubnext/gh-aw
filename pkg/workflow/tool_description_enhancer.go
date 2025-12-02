@@ -252,6 +252,16 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "assign_to_user":
+		if config := safeOutputs.AssignToUser; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be assigned to user.", config.Max))
+			}
+			if len(config.Allowed) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these users can be assigned: %s.", strings.Join(config.Allowed, ", ")))
+			}
+		}
+
 	case "noop":
 		// noop has no configurable constraints
 	}

@@ -244,6 +244,17 @@ interface AssignToAgentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for assigning a user to an issue
+ */
+interface AssignToUserItem extends BaseSafeOutputItem {
+  type: "assign_to_user";
+  /** Issue number to assign user to */
+  issue_number: number | string;
+  /** GitHub username to assign to the issue */
+  username: string;
+}
+
+/**
  * JSONL item for updating a release
  */
 interface UpdateReleaseItem extends BaseSafeOutputItem {
@@ -298,6 +309,7 @@ type SafeOutputItem =
   | UploadAssetItem
   | AssignMilestoneItem
   | AssignToAgentItem
+  | AssignToUserItem
   | UpdateReleaseItem
   | NoOpItem
   | LinkSubIssueItem;
@@ -331,6 +343,7 @@ export {
   UploadAssetItem,
   AssignMilestoneItem,
   AssignToAgentItem,
+  AssignToUserItem,
   UpdateReleaseItem,
   NoOpItem,
   LinkSubIssueItem,

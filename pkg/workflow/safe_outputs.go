@@ -42,6 +42,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.AssignToAgent != nil ||
+		safeOutputs.AssignToUser != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.UpdatePullRequests != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
@@ -351,6 +352,76 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				} else if assignToAgent == nil {
 					// Handle null case: create empty config
 					config.AssignToAgent = &AssignToAgentConfig{}
+				}
+			}
+
+			// Handle assign-to-user
+			if assignToUser, exists := outputMap["assign-to-user"]; exists {
+				if userMap, ok := assignToUser.(map[string]any); ok {
+					userConfig := &AssignToUserConfig{}
+
+					// Parse max (optional)
+					if maxCount, exists := userMap["max"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							userConfig.Max = maxCountInt
+						}
+					}
+
+					// Parse github-token
+					if githubToken, exists := userMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							userConfig.GitHubToken = githubTokenStr
+						}
+					}
+
+					// Parse target
+					if target, exists := userMap["target"]; exists {
+						if targetStr, ok := target.(string); ok {
+							userConfig.Target = targetStr
+						}
+					}
+
+					// Parse target-repo
+					if targetRepo, exists := userMap["target-repo"]; exists {
+						if targetRepoStr, ok := targetRepo.(string); ok {
+							userConfig.TargetRepoSlug = targetRepoStr
+						}
+					}
+
+					// Parse allowed users (optional)
+					if allowed, exists := userMap["allowed"]; exists {
+						if allowedArray, ok := allowed.([]any); ok {
+							var allowedStrings []string
+							for _, user := range allowedArray {
+								if userStr, ok := user.(string); ok {
+									allowedStrings = append(allowedStrings, userStr)
+								}
+							}
+							userConfig.Allowed = allowedStrings
+						}
+					}
+
+					config.AssignToUser = userConfig
+				} else if assignToUser == nil {
+					// Handle null case: create empty config
+					config.AssignToUser = &AssignToUserConfig{}
 				}
 			}
 
@@ -1026,6 +1097,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["assign_to_agent"] = assignToAgentConfig
 		}
+		if data.SafeOutputs.AssignToUser != nil {
+			assignToUserConfig := map[string]any{}
+			if data.SafeOutputs.AssignToUser.Max > 0 {
+				assignToUserConfig["max"] = data.SafeOutputs.AssignToUser.Max
+			}
+			if len(data.SafeOutputs.AssignToUser.Allowed) > 0 {
+				assignToUserConfig["allowed"] = data.SafeOutputs.AssignToUser.Allowed
+			}
+			safeOutputsConfig["assign_to_user"] = assignToUserConfig
+		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
 			// Always include max (use configured value or default)
@@ -1227,6 +1308,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.AssignToAgent != nil {
 		enabledTools["assign_to_agent"] = true
+	}
+	if data.SafeOutputs.AssignToUser != nil {
+		enabledTools["assign_to_user"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true

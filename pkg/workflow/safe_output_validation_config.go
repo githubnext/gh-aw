@@ -100,6 +100,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"agent":        {Type: "string", Sanitize: true, MaxLength: 128},
 		},
 	},
+	"assign_to_user": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_number": {Required: true, PositiveInteger: true},
+			"username":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxGitHubUsernameLength},
+		},
+	},
 	"update_issue": {
 		DefaultMax:       1,
 		CustomValidation: "requiresOneOf:status,title,body",

@@ -450,6 +450,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.AssignMilestone != nil
 	case "assign-to-agent":
 		return config.AssignToAgent != nil
+	case "assign-to-user":
+		return config.AssignToUser != nil
 	case "update-issue":
 		return config.UpdateIssues != nil
 	case "update-pull-request":
@@ -527,6 +529,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.AssignToAgent == nil && importedConfig.AssignToAgent != nil {
 		result.AssignToAgent = importedConfig.AssignToAgent
+	}
+	if result.AssignToUser == nil && importedConfig.AssignToUser != nil {
+		result.AssignToUser = importedConfig.AssignToUser
 	}
 	if result.UpdateIssues == nil && importedConfig.UpdateIssues != nil {
 		result.UpdateIssues = importedConfig.UpdateIssues
