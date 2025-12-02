@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -11,12 +10,9 @@ var closeDiscussionLog = logger.New("workflow:close_discussion")
 
 // CloseDiscussionsConfig holds configuration for closing GitHub discussions from agent output
 type CloseDiscussionsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	RequiredLabels       []string `yaml:"required-labels,omitempty"`       // Required labels for closing
-	RequiredTitlePrefix  string   `yaml:"required-title-prefix,omitempty"` // Required title prefix for closing
-	RequiredCategory     string   `yaml:"required-category,omitempty"`     // Required category for closing
-	Target               string   `yaml:"target,omitempty"`                // Target for close: "triggering" (default), "*" (any discussion), or explicit number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`           // Target repository for cross-repo operations
+	BaseSafeOutputConfig             `yaml:",inline"`
+	SafeOutputTargetConfig           `yaml:",inline"`
+	SafeOutputDiscussionFilterConfig `yaml:",inline"`
 }
 
 // parseCloseDiscussionsConfig handles close-discussion configuration
@@ -26,52 +22,16 @@ func (c *Compiler) parseCloseDiscussionsConfig(outputMap map[string]any) *CloseD
 		closeDiscussionsConfig := &CloseDiscussionsConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse required-labels
-			if requiredLabels, exists := configMap["required-labels"]; exists {
-				if labelList, ok := requiredLabels.([]any); ok {
-					for _, label := range labelList {
-						if labelStr, ok := label.(string); ok {
-							closeDiscussionsConfig.RequiredLabels = append(closeDiscussionsConfig.RequiredLabels, labelStr)
-						}
-					}
-				}
-				closeDiscussionLog.Printf("Required labels configured: %v", closeDiscussionsConfig.RequiredLabels)
-			}
-
-			// Parse required-title-prefix
-			if requiredTitlePrefix, exists := configMap["required-title-prefix"]; exists {
-				if prefix, ok := requiredTitlePrefix.(string); ok {
-					closeDiscussionsConfig.RequiredTitlePrefix = prefix
-					closeDiscussionLog.Printf("Required title prefix configured: %q", prefix)
-				}
-			}
-
-			// Parse required-category
-			if requiredCategory, exists := configMap["required-category"]; exists {
-				if category, ok := requiredCategory.(string); ok {
-					closeDiscussionsConfig.RequiredCategory = category
-					closeDiscussionLog.Printf("Required category configured: %q", category)
-				}
-			}
-
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					closeDiscussionsConfig.Target = targetStr
-					closeDiscussionLog.Printf("Target configured: %q", targetStr)
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			// Parse target config
+			targetConfig, isInvalid := ParseTargetConfig(configMap)
 			if isInvalid {
 				closeDiscussionLog.Print("Invalid target-repo configuration")
-				return nil // Invalid configuration, return nil to cause validation error
+				return nil
 			}
-			if targetRepoSlug != "" {
-				closeDiscussionLog.Printf("Target repository configured: %s", targetRepoSlug)
-			}
-			closeDiscussionsConfig.TargetRepoSlug = targetRepoSlug
+			closeDiscussionsConfig.SafeOutputTargetConfig = targetConfig
+
+			// Parse discussion filter config (required-labels, required-title-prefix, required-category)
+			closeDiscussionsConfig.SafeOutputDiscussionFilterConfig = ParseDiscussionFilterConfig(configMap)
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &closeDiscussionsConfig.BaseSafeOutputConfig, 1)
@@ -95,25 +55,22 @@ func (c *Compiler) buildCreateOutputCloseDiscussionJob(data *WorkflowData, mainJ
 		return nil, fmt.Errorf("safe-outputs.close-discussion configuration is required")
 	}
 
-	// Build custom environment variables specific to close-discussion
-	var customEnvVars []string
+	cfg := data.SafeOutputs.CloseDiscussions
 
-	if len(data.SafeOutputs.CloseDiscussions.RequiredLabels) > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS: %q\n", strings.Join(data.SafeOutputs.CloseDiscussions.RequiredLabels, ",")))
+	// Build custom environment variables specific to close-discussion using shared helpers
+	closeJobConfig := CloseJobConfig{
+		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
+		SafeOutputFilterConfig: cfg.SafeOutputFilterConfig,
 	}
-	if data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX: %q\n", data.SafeOutputs.CloseDiscussions.RequiredTitlePrefix))
-	}
-	if data.SafeOutputs.CloseDiscussions.RequiredCategory != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY: %q\n", data.SafeOutputs.CloseDiscussions.RequiredCategory))
-	}
-	if data.SafeOutputs.CloseDiscussions.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_DISCUSSION_TARGET: %q\n", data.SafeOutputs.CloseDiscussions.Target))
-	}
+	customEnvVars := BuildCloseJobEnvVars("GH_AW_CLOSE_DISCUSSION", closeJobConfig)
+
+	// Add required-category env var (discussion-specific)
+	customEnvVars = append(customEnvVars, BuildRequiredCategoryEnvVar("GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY", cfg.RequiredCategory)...)
+
 	closeDiscussionLog.Printf("Configured %d custom environment variables for discussion close", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CloseDiscussions.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -125,8 +82,7 @@ func (c *Compiler) buildCreateOutputCloseDiscussionJob(data *WorkflowData, mainJ
 	// Build job condition with discussion event check only for "triggering" target
 	// If target is "*" (any discussion) or explicitly set, allow agent to provide discussion_number
 	jobCondition := BuildSafeOutputType("close_discussion")
-	if data.SafeOutputs.CloseDiscussions != nil &&
-		(data.SafeOutputs.CloseDiscussions.Target == "" || data.SafeOutputs.CloseDiscussions.Target == "triggering") {
+	if cfg.Target == "" || cfg.Target == "triggering" {
 		// Only require event discussion context for "triggering" target
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.discussion.number"),
@@ -146,7 +102,7 @@ func (c *Compiler) buildCreateOutputCloseDiscussionJob(data *WorkflowData, mainJ
 		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.CloseDiscussions.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.CloseDiscussions.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

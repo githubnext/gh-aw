@@ -6,10 +6,9 @@ import (
 
 // AssignMilestoneConfig holds configuration for assigning milestones to issues from agent output
 type AssignMilestoneConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	Allowed              []string `yaml:"allowed,omitempty"`     // Optional list of allowed milestone titles or IDs
-	Target               string   `yaml:"target,omitempty"`      // Target for milestone assignment: "triggering" (default) or explicit issue number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository assignments
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed milestone titles or IDs
 }
 
 // buildAssignMilestoneJob creates the assign_milestone job
@@ -18,46 +17,23 @@ func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName strin
 		return nil, fmt.Errorf("safe-outputs.assign-milestone configuration is required")
 	}
 
-	// Handle case where AssignMilestone is not nil
-	var allowedMilestones []string
+	cfg := data.SafeOutputs.AssignMilestone
+
+	// Handle max count with default of 1
 	maxCount := 1
-
-	allowedMilestones = data.SafeOutputs.AssignMilestone.Allowed
-	if data.SafeOutputs.AssignMilestone.Max > 0 {
-		maxCount = data.SafeOutputs.AssignMilestone.Max
+	if cfg.Max > 0 {
+		maxCount = cfg.Max
 	}
 
-	// Build custom environment variables specific to assign-milestone
-	var customEnvVars []string
-
-	// Pass the allowed milestones list (empty string if no restrictions)
-	if len(allowedMilestones) > 0 {
-		allowedMilestonesStr := ""
-		for i, milestone := range allowedMilestones {
-			if i > 0 {
-				allowedMilestonesStr += ","
-			}
-			allowedMilestonesStr += milestone
-		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MILESTONE_ALLOWED: %q\n", allowedMilestonesStr))
+	// Build custom environment variables using shared helpers
+	listJobConfig := ListJobConfig{
+		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
+		Allowed:                cfg.Allowed,
 	}
-
-	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MILESTONE_MAX_COUNT: %d\n", maxCount))
-
-	// Pass the target configuration
-	if data.SafeOutputs.AssignMilestone.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MILESTONE_TARGET: %q\n", data.SafeOutputs.AssignMilestone.Target))
-	}
+	customEnvVars := BuildListJobEnvVars("GH_AW_MILESTONE", listJobConfig, maxCount)
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AssignMilestone.TargetRepoSlug)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.AssignMilestone != nil {
-		token = data.SafeOutputs.AssignMilestone.GitHubToken
-	}
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -74,8 +50,8 @@ func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName strin
 		Script:         getAssignMilestoneScript(),
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
-		Token:          token,
+		Token:          cfg.GitHubToken,
 		Condition:      BuildSafeOutputType("assign_milestone"),
-		TargetRepoSlug: data.SafeOutputs.AssignMilestone.TargetRepoSlug,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

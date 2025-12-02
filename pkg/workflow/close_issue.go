@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -11,11 +10,9 @@ var closeIssueLog = logger.New("workflow:close_issue")
 
 // CloseIssuesConfig holds configuration for closing GitHub issues from agent output
 type CloseIssuesConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	RequiredLabels       []string `yaml:"required-labels,omitempty"`       // Required labels for closing
-	RequiredTitlePrefix  string   `yaml:"required-title-prefix,omitempty"` // Required title prefix for closing
-	Target               string   `yaml:"target,omitempty"`                // Target for close: "triggering" (default), "*" (any issue), or explicit number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`           // Target repository for cross-repo operations
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 }
 
 // parseCloseIssuesConfig handles close-issue configuration
@@ -25,44 +22,14 @@ func (c *Compiler) parseCloseIssuesConfig(outputMap map[string]any) *CloseIssues
 		closeIssuesConfig := &CloseIssuesConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse required-labels
-			if requiredLabels, exists := configMap["required-labels"]; exists {
-				if labelList, ok := requiredLabels.([]any); ok {
-					for _, label := range labelList {
-						if labelStr, ok := label.(string); ok {
-							closeIssuesConfig.RequiredLabels = append(closeIssuesConfig.RequiredLabels, labelStr)
-						}
-					}
-				}
-				closeIssueLog.Printf("Required labels configured: %v", closeIssuesConfig.RequiredLabels)
-			}
-
-			// Parse required-title-prefix
-			if requiredTitlePrefix, exists := configMap["required-title-prefix"]; exists {
-				if prefix, ok := requiredTitlePrefix.(string); ok {
-					closeIssuesConfig.RequiredTitlePrefix = prefix
-					closeIssueLog.Printf("Required title prefix configured: %q", prefix)
-				}
-			}
-
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					closeIssuesConfig.Target = targetStr
-					closeIssueLog.Printf("Target configured: %q", targetStr)
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			// Parse close job config (target, target-repo, required-labels, required-title-prefix)
+			closeJobConfig, isInvalid := ParseCloseJobConfig(configMap)
 			if isInvalid {
 				closeIssueLog.Print("Invalid target-repo configuration")
-				return nil // Invalid configuration, return nil to cause validation error
+				return nil
 			}
-			if targetRepoSlug != "" {
-				closeIssueLog.Printf("Target repository configured: %s", targetRepoSlug)
-			}
-			closeIssuesConfig.TargetRepoSlug = targetRepoSlug
+			closeIssuesConfig.SafeOutputTargetConfig = closeJobConfig.SafeOutputTargetConfig
+			closeIssuesConfig.SafeOutputFilterConfig = closeJobConfig.SafeOutputFilterConfig
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &closeIssuesConfig.BaseSafeOutputConfig, 1)
@@ -86,22 +53,18 @@ func (c *Compiler) buildCreateOutputCloseIssueJob(data *WorkflowData, mainJobNam
 		return nil, fmt.Errorf("safe-outputs.close-issue configuration is required")
 	}
 
-	// Build custom environment variables specific to close-issue
-	var customEnvVars []string
+	cfg := data.SafeOutputs.CloseIssues
 
-	if len(data.SafeOutputs.CloseIssues.RequiredLabels) > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_ISSUE_REQUIRED_LABELS: %q\n", strings.Join(data.SafeOutputs.CloseIssues.RequiredLabels, ",")))
+	// Build custom environment variables specific to close-issue using shared helpers
+	closeJobConfig := CloseJobConfig{
+		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
+		SafeOutputFilterConfig: cfg.SafeOutputFilterConfig,
 	}
-	if data.SafeOutputs.CloseIssues.RequiredTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX: %q\n", data.SafeOutputs.CloseIssues.RequiredTitlePrefix))
-	}
-	if data.SafeOutputs.CloseIssues.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_ISSUE_TARGET: %q\n", data.SafeOutputs.CloseIssues.Target))
-	}
+	customEnvVars := BuildCloseJobEnvVars("GH_AW_CLOSE_ISSUE", closeJobConfig)
 	closeIssueLog.Printf("Configured %d custom environment variables for issue close", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CloseIssues.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -113,8 +76,7 @@ func (c *Compiler) buildCreateOutputCloseIssueJob(data *WorkflowData, mainJobNam
 	// Build job condition with issue event check only for "triggering" target
 	// If target is "*" (any issue) or explicitly set, allow agent to provide issue_number
 	jobCondition := BuildSafeOutputType("close_issue")
-	if data.SafeOutputs.CloseIssues != nil &&
-		(data.SafeOutputs.CloseIssues.Target == "" || data.SafeOutputs.CloseIssues.Target == "triggering") {
+	if cfg.Target == "" || cfg.Target == "triggering" {
 		// Only require event issue context for "triggering" target
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),
@@ -134,7 +96,7 @@ func (c *Compiler) buildCreateOutputCloseIssueJob(data *WorkflowData, mainJobNam
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.CloseIssues.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.CloseIssues.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

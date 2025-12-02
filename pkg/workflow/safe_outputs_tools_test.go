@@ -89,7 +89,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "add labels enabled",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					Max: 5,
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
 				},
 			},
 			expectedTools: []string{"add_labels"},
@@ -135,7 +135,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
 				AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
-				AddLabels:    &AddLabelsConfig{Max: 3},
+				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 			},
 			expectedTools: []string{"create_issue", "add_comment", "add_labels"},
 		},
@@ -149,8 +149,8 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				CreatePullRequests:              &CreatePullRequestsConfig{},
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
 				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100}},
-				AddLabels:                       &AddLabelsConfig{Max: 3},
-				AddReviewer:                     &AddReviewerConfig{Max: 3},
+				AddLabels:                       &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+				AddReviewer:                     &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				UpdateIssues:                    &UpdateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				PushToPullRequestBranch:         &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
 				UploadAssets:                    &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
@@ -395,8 +395,8 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Add labels to an issue.",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug", "enhancement", "question"},
-					Max:     5,
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					Allowed:              []string{"bug", "enhancement", "question"},
 				},
 			},
 			wantContains: []string{
@@ -465,8 +465,8 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 				Labels:               []string{"bot", "enhancement"},
 			},
 			AddLabels: &AddLabelsConfig{
-				Allowed: []string{"bug", "enhancement"},
-				Max:     3,
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+				Allowed:              []string{"bug", "enhancement"},
 			},
 		},
 	}
