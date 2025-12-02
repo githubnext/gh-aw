@@ -72,12 +72,7 @@ The agent can now call `slack-notify` with a message, and the custom job execute
 
 ## Architecture
 
-Custom safe outputs separate read and write operations for security:
-
-1. **Read operations**: Use MCP servers configured with `allowed:` lists limiting to read-only tools
-2. **Write operations**: Use custom jobs that run after the agent completes, with appropriate permissions
-
-This separation ensures the agent cannot directly access secrets or perform write operations—only the custom job can, and only after the agent explicitly calls the safe output tool.
+Custom safe outputs separate read and write operations: agents use read-only MCP servers with `allowed:` tool lists, while custom jobs handle write operations with secret access after agent completion.
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -97,7 +92,7 @@ This separation ensures the agent cannot directly access secrets or perform writ
 
 ### Step 1: Define the MCP Server (Read-Only)
 
-Create a shared configuration file with the MCP server for read operations:
+Create a shared configuration with read-only MCP tools:
 
 ```yaml wrap
 ---
@@ -114,11 +109,11 @@ mcp-servers:
 ---
 ```
 
-Use `container:` for Docker-based servers or `command:`/`args:` for npx commands. List only read-only tools in `allowed` and store tokens in GitHub Secrets.
+Use `container:` for Docker servers or `command:`/`args:` for npx. List only read-only tools in `allowed`.
 
 ### Step 2: Define the Custom Job (Write Operations)
 
-In the same shared configuration file, add a custom job under `safe-outputs.jobs` for write operations:
+Add a custom job under `safe-outputs.jobs` for write operations:
 
 ```yaml wrap
 ---
@@ -202,11 +197,11 @@ safe-outputs:
 ---
 ```
 
-The `description` appears in MCP tool registration. All custom jobs require an `inputs` section defining parameters. Use `output` for custom success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling. Store configurations in `.github/workflows/shared/` for reusability.
+All jobs require `description` and `inputs`. Use `output` for success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling.
 
-### Step 3: Use the Custom Safe Output in a Workflow
+### Step 3: Use in Workflow
 
-Import the shared configuration in your workflow:
+Import the configuration:
 
 ```aw wrap
 ---
@@ -228,11 +223,9 @@ Analyze the issue: "${{ needs.activation.outputs.text }}"
 Search for the GitHub Issues page in Notion using the read-only Notion tools, then add a summary comment using the notion-add-comment safe-job.
 ```
 
-The `imports` directive loads both the MCP server and safe-job. The agent uses read-only tools to query, then calls the safe-job tool which executes with write permissions after completion.
+The agent uses read-only tools to query, then calls the safe-job which executes with write permissions after completion.
 
 ## Safe Job Reference
-
-Custom jobs are defined under `safe-outputs.jobs` in your workflow frontmatter. Each job becomes an MCP tool that the agent can call.
 
 ### Job Properties
 
@@ -250,30 +243,25 @@ Custom jobs are defined under `safe-outputs.jobs` in your workflow frontmatter. 
 
 ### Input Types
 
-Every custom job must define `inputs`. These become the tool's parameters that the agent provides when calling the tool.
+All jobs must define `inputs`:
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `string` | Text input | `"production"` |
-| `boolean` | True/false toggle | `"true"` or `"false"` |
-| `choice` | Selection from options | `["staging", "production"]` |
+| Type | Description |
+|------|-------------|
+| `string` | Text input |
+| `boolean` | True/false (as strings: `"true"` or `"false"`) |
+| `choice` | Selection from predefined options |
 
 ```yaml wrap
 inputs:
-  # Required string input
   message:
     description: "Message content"
     required: true
     type: string
-
-  # Optional boolean with default
   notify:
     description: "Send notification"
     required: false
     type: boolean
     default: "true"
-
-  # Choice from predefined options
   environment:
     description: "Target environment"
     required: true
@@ -281,52 +269,17 @@ inputs:
     options: ["staging", "production"]
 ```
 
-:::note
-All input values are passed as strings. For booleans, use `"true"` or `"false"` string values and parse them in your steps.
-:::
-
 ### Environment Variables
-
-Custom jobs automatically receive these environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `GH_AW_AGENT_OUTPUT` | Path to JSON file containing agent output |
+| `GH_AW_AGENT_OUTPUT` | Path to JSON file with agent output |
 | `GH_AW_SAFE_OUTPUTS_STAGED` | Set to `"true"` in staged mode |
-| `${{ inputs.NAME }}` | Each input parameter as a variable |
+| `${{ inputs.NAME }}` | Each input as a variable |
 
-### Accessing Inputs in Steps
+Access inputs using `${{ inputs.name }}` in steps or via `process.env` in JavaScript.
 
-Access inputs using GitHub Actions expressions:
-
-```yaml wrap
-steps:
-  - name: Use inputs
-    env:
-      MESSAGE: "${{ inputs.message }}"
-      ENV: "${{ inputs.environment }}"
-    run: |
-      echo "Message: $MESSAGE"
-      echo "Environment: $ENV"
-```
-
-For JavaScript steps with `actions/github-script@v8`, access inputs via environment variables:
-
-```yaml wrap
-steps:
-  - name: Process with JavaScript
-    uses: actions/github-script@v8
-    env:
-      MESSAGE: "${{ inputs.message }}"
-    with:
-      script: |
-        const message = process.env.MESSAGE;
-        core.info(`Received: ${message}`);
-```
-
-## Complete Examples
-
-### Simple Shell-Based Job
+## Complete Example
 
 ```yaml wrap title="Send a webhook notification"
 safe-outputs:
@@ -351,7 +304,6 @@ safe-outputs:
             TITLE: "${{ inputs.title }}"
             BODY: "${{ inputs.body }}"
           run: |
-            # Use jq to safely escape JSON content
             PAYLOAD=$(jq -n --arg title "$TITLE" --arg body "$BODY" \
               '{title: $title, body: $body}')
             curl -X POST "$WEBHOOK_URL" \
@@ -361,9 +313,7 @@ safe-outputs:
 
 ## Importing Custom Jobs
 
-Custom jobs can be defined in shared files and imported into workflows.
-
-### Basic Import
+Define jobs in shared files under `.github/workflows/shared/` and import them:
 
 ```aw wrap
 ---
@@ -380,118 +330,57 @@ imports:
 Handle the issue and notify via Slack and Jira.
 ```
 
-### Conflict Detection
-
-If two imported files define jobs with the same name, compilation fails:
-
-```
-failed to merge safe-jobs: safe-job name conflict: 'notify' is defined in both main workflow and included files
-```
-
-Rename one of the jobs to resolve the conflict.
+Jobs with duplicate names cause compilation errors—rename to resolve conflicts.
 
 ## Best Practices
 
 ### Error Handling
 
-Always handle errors gracefully using GitHub Actions' `core` utilities:
+Use `core.setFailed()` for errors and validate required inputs:
 
 ```javascript
-// Check required inputs
 if (!process.env.API_KEY) {
   core.setFailed('API_KEY secret is not configured');
   return;
 }
 
-// Handle API errors
 try {
   const response = await fetch(url);
   if (!response.ok) {
     core.setFailed(`API error (${response.status}): ${await response.text()}`);
     return;
   }
-  // Success
   core.info('Operation completed successfully');
 } catch (error) {
   core.setFailed(`Request failed: ${error.message}`);
 }
 ```
 
-### Logging Levels
-
-Use appropriate logging levels for visibility:
-
-| Function | When to Use |
-|----------|-------------|
-| `core.debug()` | Detailed debugging info (hidden by default) |
-| `core.info()` | Normal operation messages |
-| `core.warning()` | Non-fatal issues |
-| `core.error()` | Error messages (doesn't stop the job) |
-| `core.setFailed()` | Fatal errors (stops the job) |
-
 ### Security
 
-- Store all secrets in GitHub Secrets, never hardcode them
-- Use environment variables to pass secrets to steps
-- Limit permissions to only what the job needs
-- Validate all inputs before using them
+Store secrets in GitHub Secrets and pass via environment variables. Limit job permissions to minimum required and validate all inputs.
 
 ### Staged Mode Support
 
-Custom jobs should respect staged mode by checking `GH_AW_SAFE_OUTPUTS_STAGED`:
+Check `GH_AW_SAFE_OUTPUTS_STAGED` to preview operations without executing:
 
 ```javascript
-const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
-const notificationText = process.env.MESSAGE;
-
-if (isStaged) {
+if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
   core.info('🎭 Staged mode: would send notification');
-  await core.summary.addRaw('## Preview\nWould send: ' + notificationText).write();
+  await core.summary.addRaw('## Preview\nWould send: ' + process.env.MESSAGE).write();
   return;
 }
-
 // Actually send the notification
 ```
 
 ## Troubleshooting
 
-### Job Not Appearing as a Tool
-
-**Problem**: The agent doesn't see your custom job as a callable tool.
-
-**Solutions**:
-1. Ensure `inputs` section is defined—jobs without inputs aren't registered as tools
-2. Check that `description` is set—this is the tool description shown to the agent
-3. Verify the import path is correct in your workflow
-4. Run `gh aw compile` to check for configuration errors
-
-### Secrets Not Available
-
-**Problem**: Environment variables from secrets are empty.
-
-**Solutions**:
-1. Verify the secret exists in repository settings
-2. Check the secret name matches exactly (case-sensitive)
-3. Ensure the secret is referenced correctly: `"${{ secrets.SECRET_NAME }}"`
-
-### Job Fails Silently
-
-**Problem**: The job exits without error but nothing happens.
-
-**Solutions**:
-1. Add `core.info()` logging to trace execution
-2. Check `if (!response.ok)` conditions are handled
-3. Ensure `core.setFailed()` is called on errors
-4. Review job logs in the GitHub Actions run
-
-### Agent Calls Wrong Tool
-
-**Problem**: The agent calls a different safe output instead of your custom job.
-
-**Solutions**:
-1. Make the `description` more specific and unique
-2. In your workflow prompt, explicitly mention the custom job name
-3. Use distinct naming that doesn't overlap with built-in safe outputs
+| Issue | Solution |
+|-------|----------|
+| Job not appearing as tool | Ensure `inputs` and `description` are defined; verify import path; run `gh aw compile` |
+| Secrets not available | Check secret exists in repository settings and name matches exactly (case-sensitive) |
+| Job fails silently | Add `core.info()` logging and ensure `core.setFailed()` is called on errors |
+| Agent calls wrong tool | Make `description` specific and unique; explicitly mention job name in prompt |
 
 ## Related Documentation
 
