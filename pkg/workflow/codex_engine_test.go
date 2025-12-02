@@ -735,29 +735,29 @@ func TestCodexEngineSafeInputsSecrets(t *testing.T) {
 	}
 }
 
-// TestCodexEngineHttpMCPServerSkipped verifies that HTTP MCP servers
-// do not generate empty TOML sections in the Codex config
-func TestCodexEngineHttpMCPServerSkipped(t *testing.T) {
+// TestCodexEngineHttpMCPServerRendered verifies that HTTP MCP servers
+// are properly rendered in TOML format for Codex
+func TestCodexEngineHttpMCPServerRendered(t *testing.T) {
 	engine := NewCodexEngine()
 
 	tests := []struct {
-		name             string
-		tools            map[string]any
-		mcpTools         []string
-		shouldNotContain []string
+		name          string
+		tools         map[string]any
+		mcpTools      []string
+		shouldContain []string
 	}{
 		{
-			name: "HTTP MCP server should be skipped",
+			name: "HTTP MCP server should be rendered with url",
 			tools: map[string]any{
 				"gh-aw": map[string]any{
 					"type": "http",
 					"url":  "http://localhost:8765",
 				},
-				"github": map[string]any{},
 			},
-			mcpTools: []string{"gh-aw", "github"},
-			shouldNotContain: []string{
+			mcpTools: []string{"gh-aw"},
+			shouldContain: []string{
 				"[mcp_servers.gh-aw]",
+				"url = \"http://localhost:8765\"",
 			},
 		},
 		{
@@ -768,8 +768,30 @@ func TestCodexEngineHttpMCPServerSkipped(t *testing.T) {
 				},
 			},
 			mcpTools: []string{"my-http-server"},
-			shouldNotContain: []string{
+			shouldContain: []string{
 				"[mcp_servers.my-http-server]",
+				"url = \"https://api.example.com/mcp\"",
+			},
+		},
+		{
+			name: "HTTP MCP server with headers",
+			tools: map[string]any{
+				"api-server": map[string]any{
+					"type": "http",
+					"url":  "https://api.example.com/mcp",
+					"headers": map[string]any{
+						"Authorization": "Bearer token123",
+						"X-Custom":      "value",
+					},
+				},
+			},
+			mcpTools: []string{"api-server"},
+			shouldContain: []string{
+				"[mcp_servers.api-server]",
+				"url = \"https://api.example.com/mcp\"",
+				"http_headers = {",
+				"\"Authorization\" = \"Bearer token123\"",
+				"\"X-Custom\" = \"value\"",
 			},
 		},
 	}
@@ -782,9 +804,9 @@ func TestCodexEngineHttpMCPServerSkipped(t *testing.T) {
 
 			result := yaml.String()
 
-			for _, notExpected := range tt.shouldNotContain {
-				if strings.Contains(result, notExpected) {
-					t.Errorf("Expected MCP config NOT to contain %q (HTTP MCP servers should be skipped in TOML format), got:\n%s", notExpected, result)
+			for _, expected := range tt.shouldContain {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected MCP config to contain %q, got:\n%s", expected, result)
 				}
 			}
 		})

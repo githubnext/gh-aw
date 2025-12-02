@@ -375,9 +375,8 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		}
 	case "http":
 		if renderer.Format == "toml" {
-			// TOML format doesn't support HTTP type in some engines
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type '%s', but %s only supports 'stdio'. Ignoring this server.", toolName, mcpType, renderer.Format)))
-			return nil
+			// TOML format for HTTP MCP servers uses url and http_headers
+			propertyOrder = []string{"url", "http_headers"}
 		} else {
 			// JSON format - include copilot fields if required
 			if renderer.RequiresCopilotFields {
@@ -393,7 +392,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		}
 	default:
 		if renderer.Format == "toml" {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio", toolName, mcpType)))
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))
 		} else {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))
 		}
@@ -430,6 +429,10 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				existingProperties = append(existingProperties, prop)
 			}
 		case "headers":
+			if len(mcpConfig.Headers) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "http_headers":
 			if len(mcpConfig.Headers) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
@@ -578,11 +581,32 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 			}
 		case "url":
-			comma := ","
-			if isLast {
-				comma = ""
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, mcpConfig.URL)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.URL, comma)
 			}
-			fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.URL, comma)
+		case "http_headers":
+			// TOML format for HTTP headers (Codex style)
+			if len(mcpConfig.Headers) > 0 {
+				fmt.Fprintf(yaml, "%shttp_headers = { ", renderer.IndentLevel)
+				headerKeys := make([]string, 0, len(mcpConfig.Headers))
+				for key := range mcpConfig.Headers {
+					headerKeys = append(headerKeys, key)
+				}
+				sort.Strings(headerKeys)
+				for i, headerKey := range headerKeys {
+					if i > 0 {
+						yaml.WriteString(", ")
+					}
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", headerKey, mcpConfig.Headers[headerKey])
+				}
+				yaml.WriteString(" }\n")
+			}
 		case "headers":
 			comma := ","
 			if isLast {
