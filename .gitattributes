@@ -1,6 +1,6 @@
 .changeset/*.md linguist-generated=true merge=ours
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
 .github/workflows/dev.md merge=ours
-.github/instructions/github-agentic-workflows.instructions.md linguist-generated=true merge=ours
+.github/aw/github-agentic-workflows.md linguist-generated=true merge=ours
 pkg/cli/workflows/*.lock.yml linguist-generated=true merge=ours
 pkg/workflow/js/*.js linguist-generated=true
