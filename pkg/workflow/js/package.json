@@ -6,7 +6,7 @@
     "@actions/github-script": "github:actions/github-script",
     "@actions/glob": "^0.5.0",
     "@actions/io": "^2.0.0",
-    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@modelcontextprotocol/sdk": "^1.24.0",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.10",
     "@vitest/ui": "^4.0.10",
