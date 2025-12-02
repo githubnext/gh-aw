@@ -245,10 +245,10 @@ func TestVersionConstants(t *testing.T) {
 		value    Version
 		expected Version
 	}{
-		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.0.55"},
+		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.0.56"},
 		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.365"},
 		{"DefaultCodexVersion", DefaultCodexVersion, "0.63.0"},
-		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.23.0"},
+		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.24.0"},
 		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.5.0"},
 		{"DefaultPlaywrightMCPVersion", DefaultPlaywrightMCPVersion, "0.0.49"},
 		{"DefaultPlaywrightBrowserVersion", DefaultPlaywrightBrowserVersion, "v1.57.0"},
