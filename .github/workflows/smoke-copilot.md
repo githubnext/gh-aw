@@ -13,10 +13,12 @@ permissions:
   pull-requests: read
   issues: read
 name: Smoke Copilot
-engine:
-  id: copilot
-  model: gpt-5-mini
+engine: copilot
 network:
+  allowed:
+    - defaults
+    - node
+    - github
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
