@@ -77,12 +77,8 @@ async function main() {
     }
   }
 
-  // Get the mutation token from environment
-  const mutationToken = process.env.GH_AW_AGENT_TOKEN;
-  if (!mutationToken) {
-    core.setFailed("GH_AW_AGENT_TOKEN environment variable is not set. Cannot perform assignment mutation.");
-    return;
-  }
+  // The github-token is set at the step level, so the built-in github object is authenticated
+  // with the correct token (GH_AW_AGENT_TOKEN by default)
 
   // Cache agent IDs to avoid repeated lookups
   const agentCache = {};
@@ -112,11 +108,11 @@ async function main() {
 
     // Assign the agent to the issue using GraphQL
     try {
-      // Find agent (use cache if available) - use mutationToken for the GraphQL query
+      // Find agent (use cache if available) - uses built-in github object authenticated via github-token
       let agentId = agentCache[agentName];
       if (!agentId) {
         core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(targetOwner, targetRepo, agentName, mutationToken);
+        agentId = await findAgent(targetOwner, targetRepo, agentName);
         if (!agentId) {
           throw new Error(`${agentName} coding agent is not available for this repository`);
         }
@@ -144,9 +140,9 @@ async function main() {
         continue;
       }
 
-      // Assign agent using GraphQL mutation
+      // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, mutationToken);
+      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);
@@ -161,9 +157,9 @@ async function main() {
     } catch (error) {
       let errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
-        // Enrich with available agent logins to aid troubleshooting - use mutationToken
+        // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
-          const available = await getAvailableAgentLogins(targetOwner, targetRepo, mutationToken);
+          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
           if (available.length > 0) {
             errorMessage += ` (available agents: ${available.join(", ")})`;
           }

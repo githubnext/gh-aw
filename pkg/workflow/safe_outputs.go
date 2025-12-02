@@ -648,12 +648,17 @@ type GitHubScriptStepConfig struct {
 	// This should be true for Copilot-related operations like creating agent tasks,
 	// assigning copilot to issues, or adding copilot as PR reviewer
 	UseCopilotToken bool
+
+	// UseAgentToken indicates whether to use the agent token preference chain
+	// (config token > GH_AW_AGENT_TOKEN)
+	// This should be true for agent assignment operations (assign-to-agent)
+	UseAgentToken bool
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
 // This extracts the repeated pattern found across safe output job builders
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
-	safeOutputsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v)", config.StepName, config.UseCopilotToken)
+	safeOutputsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v, useAgentToken=%v)", config.StepName, config.UseCopilotToken, config.UseAgentToken)
 
 	var steps []string
 
@@ -680,7 +685,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseCopilotToken {
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
@@ -723,7 +730,9 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseCopilotToken {
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
@@ -774,6 +783,7 @@ type SafeOutputJobConfig struct {
 	PostSteps       []string          // Optional steps to run after the GitHub Script step
 	Token           string            // GitHub token for this output type
 	UseCopilotToken bool              // Whether to use Copilot token preference chain
+	UseAgentToken   bool              // Whether to use agent token preference chain (config token > GH_AW_AGENT_TOKEN)
 	TargetRepoSlug  string            // Target repository for cross-repo operations
 }
 
@@ -808,6 +818,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		Script:          config.Script,
 		Token:           config.Token,
 		UseCopilotToken: config.UseCopilotToken,
+		UseAgentToken:   config.UseAgentToken,
 	})
 	steps = append(steps, scriptSteps...)
 

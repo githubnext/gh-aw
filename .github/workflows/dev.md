@@ -2,25 +2,42 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Test workflow for development and experimentation purposes
+description: Find issues with "[deps]" in title and assign to Copilot agent
 timeout-minutes: 5
 strict: false
-engine: codex
+engine: claude
 permissions:
   contents: read
   issues: read
-  pull-requests: read
-  discussions: read
-imports:
-  - shared/gh.md
 tools:
-  github: false
-  bash: ["*"]
-  edit:
+  github:
+    toolsets: [repos, issues]
+safe-outputs:
+  assign-to-agent:
+    name: copilot
 ---
-Use the `gh` safe-input tool to get information about the last PR in this repository.
+# Dependency Issue Assignment
 
-1. First, use the `gh` tool with `args: "pr list --limit 1 --json number,title,body,author,state,createdAt,mergedAt,url"` to get the most recent PR
-2. Summarize the PR including its title, author, state, and a brief description of what it does
+Find an open issue in this repository with "[deps]" in the title and assign it to the Copilot agent for resolution.
 
-Present the summary in a clear format.
+## Task
+
+1. **Search for issues**: Use GitHub search to find open issues with "[deps]" in the title:
+   ```
+   is:issue is:open "[deps]" in:title repo:${{ github.repository }}
+   ```
+
+2. **Filter out assigned issues**: Skip any issues that already have Copilot as an assignee.
+
+3. **Assign to Copilot**: For the first suitable issue found, use the `assign_to_agent` tool to assign it to the Copilot agent.
+
+**Agent Output Format:**
+```json
+{
+  "type": "assign_to_agent",
+  "issue_number": <issue_number>,
+  "agent": "copilot"
+}
+```
+
+If no suitable issues are found, output a message indicating that no "[deps]" issues are available for assignment.

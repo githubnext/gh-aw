@@ -76,6 +76,21 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
+// addSafeOutputAgentGitHubTokenForConfig adds github-token to the with section for agent assignment operations
+// Uses precedence: config token > GH_AW_AGENT_TOKEN (default)
+// This is specifically for assign-to-agent operations which require elevated permissions.
+func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+		*steps = append(*steps, "          github-token: ${{ steps.app-token.outputs.token }}\n")
+		return
+	}
+
+	// Get effective token: config token > GH_AW_AGENT_TOKEN
+	effectiveToken := getEffectiveAgentGitHubToken(configToken)
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
 // getEffectiveGitHubTokenForSafeOutput returns the effective token to use for safe outputs
 // If app is configured, it uses the app token; otherwise falls back to the configured token or default
 func (c *Compiler) getEffectiveGitHubTokenForSafeOutput(customToken string, data *WorkflowData) string {
