@@ -75,7 +75,7 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Verify copilot instructions were created
-			copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
+			copilotInstructionsPath := filepath.Join(tempDir, ".github", "aw", "github-agentic-workflows.md")
 			if _, err := os.Stat(copilotInstructionsPath); os.IsNotExist(err) {
 				t.Errorf("Expected copilot instructions file to exist")
 			}
@@ -144,7 +144,7 @@ func TestInitRepository_Idempotent(t *testing.T) {
 		t.Errorf("Expected .gitattributes file to exist after second call")
 	}
 
-	copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
+	copilotInstructionsPath := filepath.Join(tempDir, ".github", "aw", "github-agentic-workflows.md")
 	if _, err := os.Stat(copilotInstructionsPath); os.IsNotExist(err) {
 		t.Errorf("Expected copilot instructions file to exist after second call")
 	}

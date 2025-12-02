@@ -871,7 +871,7 @@ Use this checklist when creating or reviewing GitHub Actions workflows:
 - [Security Guide](../docs/src/content/docs/guides/security.md)
 - [Safe Outputs](../docs/src/content/docs/reference/safe-outputs/)
 - [Network Configuration](../docs/src/content/docs/reference/network/)
-- [Static Analysis Tools](../.github/instructions/github-agentic-workflows.instructions.md)
+- [GitHub Agentic Workflows Instructions](../.github/aw/github-agentic-workflows.md)
 
 ---
 

@@ -55,7 +55,7 @@ Create a new agentic workflow markdown file in `.github/workflows/` based on the
 **CRITICAL FIRST STEP**: Before generating any workflow, you MUST read and understand the workflow format by loading:
 
 ```bash
-cat /home/runner/work/gh-aw/gh-aw/.github/instructions/github-agentic-workflows.instructions.md
+cat /home/runner/work/gh-aw/gh-aw/.github/aw/github-agentic-workflows.md
 ```
 
 This file contains the complete specification for agentic workflow format including:
@@ -264,7 +264,7 @@ Clear statement of the workflow's purpose.
 
 ## Important Notes
 
-- **Follow the documentation**: Always reference `.github/instructions/github-agentic-workflows.instructions.md`
+- **Follow the documentation**: Always reference `.github/aw/github-agentic-workflows.md`
 - **Test compilation**: Always compile the workflow before pushing
 - **Use push-to-pull-request-branch**: Use the safe output to commit and push changes
 - **Repository agnostic**: Don't specialize for the gh-aw repository

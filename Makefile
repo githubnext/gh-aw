@@ -285,7 +285,7 @@ generate-labs:
 sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
-	@cp .github/instructions/github-agentic-workflows.instructions.md pkg/cli/templates/
+	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/create-agentic-workflow.md pkg/cli/templates/
 	@cp .github/agents/setup-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/create-shared-agentic-workflow.md pkg/cli/templates/
