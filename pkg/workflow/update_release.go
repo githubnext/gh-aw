@@ -53,8 +53,11 @@ func (c *Compiler) parseUpdateReleaseConfig(outputMap map[string]any) *UpdateRel
 		updateReleaseConfig := &UpdateReleaseConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target config (target-repo)
-			targetConfig, _ := ParseTargetConfig(configMap)
+			// Parse target config (target-repo) with validation
+			targetConfig, isInvalid := ParseTargetConfig(configMap)
+			if isInvalid {
+				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
+			}
 			updateReleaseConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse common base fields with default max of 1

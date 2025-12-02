@@ -69,8 +69,11 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 		updateIssuesConfig := &UpdateIssuesConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target config (target, target-repo)
-			targetConfig, _ := ParseTargetConfig(configMap)
+			// Parse target config (target, target-repo) with validation
+			targetConfig, isInvalid := ParseTargetConfig(configMap)
+			if isInvalid {
+				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
+			}
 			updateIssuesConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse status - presence of the key (even if nil/empty) indicates field can be updated

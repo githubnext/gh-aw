@@ -209,7 +209,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					// Parse target config (target, target-repo)
+					// Parse target config (target, target-repo) - validation errors are handled gracefully
 					targetConfig, _ := ParseTargetConfig(agentMap)
 					agentConfig.SafeOutputTargetConfig = targetConfig
 
