@@ -21,6 +21,66 @@ tools:
   github:
     toolsets: [default, pull_requests]
 
+steps:
+  - name: Search for candidate issues
+    id: search_issues
+    uses: actions/github-script@v8
+    with:
+      script: |
+        const { owner, repo } = context.repo;
+        const labels = ['task', 'issue monster', 'plan'];
+        let allIssues = [];
+        
+        for (const label of labels) {
+          try {
+            const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+            core.info(`Searching: ${query}`);
+            const response = await github.rest.search.issuesAndPullRequests({
+              q: query,
+              per_page: 100,
+              sort: 'created',
+              order: 'desc'
+            });
+            core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+            allIssues.push(...response.data.items);
+          } catch (error) {
+            core.warning(`Error searching for label "${label}": ${error.message}`);
+          }
+        }
+        
+        // Deduplicate by issue number
+        const seen = new Set();
+        const uniqueIssues = allIssues.filter(issue => {
+          if (seen.has(issue.number)) return false;
+          seen.add(issue.number);
+          return true;
+        });
+        
+        // Sort by created date descending
+        uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+        const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+        
+        core.info(`Total unique issues found: ${uniqueIssues.length}`);
+        if (uniqueIssues.length > 0) {
+          core.info(`Issues:\n${issueList}`);
+        }
+        
+        core.setOutput('issue_count', uniqueIssues.length);
+        core.setOutput('issue_numbers', issueNumbers);
+        core.setOutput('issue_list', issueList);
+        
+        // Fail if no issues found to prevent agent from running
+        if (uniqueIssues.length === 0) {
+          core.info('🍽️ No issues available - the plate is empty!');
+          core.setOutput('has_issues', 'false');
+        } else {
+          core.setOutput('has_issues', 'true');
+        }
+
+if: ${{ steps.search_issues.outputs.has_issues == 'true' }}
+
 safe-outputs:
   assign-to-agent:
     max: 1
@@ -48,31 +108,23 @@ Find one issue that needs work and assign it to the Copilot agent for resolution
 
 ## Step-by-Step Process
 
-### 1. Search for Issues with "issue monster" or "task" Label
+### 1. Review Pre-Searched Issue List
 
-Search for issues with either the "issue monster" label or the "task" label. Since GitHub search doesn't support OR between labels directly, run **two separate searches** and combine the results:
+The issue search has already been performed in a previous step. The following issues with labels "task", "issue monster", or "plan" are available:
 
-**Search 1 - "task" label:**
-```
-is:issue is:open label:task repo:${{ github.repository }}
-```
+**Issue Count**: ${{ steps.search_issues.outputs.issue_count }}
+**Issue Numbers**: ${{ steps.search_issues.outputs.issue_numbers }}
 
-**Search 2 - "issue monster" label:**
+**Available Issues:**
 ```
-is:issue is:open label:"issue monster" repo:${{ github.repository }}
+${{ steps.search_issues.outputs.issue_list }}
 ```
 
-Combine results from both searches, removing duplicates if any issue has both labels.
+Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
 
-**Sort by**: `created` (descending) - prioritize the freshest/most recent issues first
+### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
 
-**If no issues are found:**
-- Output a message: "🍽️ No issues available - the plate is empty!"
-- **STOP** and do not proceed further
-
-### 1a. Handle Parent-Child Issue Relationships (for "task" labeled issues)
-
-For issues with the "task" label, check if they are sub-issues linked to a parent issue:
+For issues with the "task" or "plan" label, check if they are sub-issues linked to a parent issue:
 
 1. **Identify if the issue is a sub-issue**: Check if the issue has a parent issue link (via GitHub's sub-issue feature or by parsing the issue body for parent references like "Parent: #123" or "Part of #123")
 
@@ -94,7 +146,7 @@ For issues with the "task" label, check if they are sub-issues linked to a paren
 For each issue found, check if it's already assigned to Copilot:
 - Look for issues that have Copilot as an assignee
 - Check if there's already an open pull request linked to it
-- **For "task" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
+- **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
 
 **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 
@@ -154,15 +206,15 @@ Om nom nom! 🍪
 - ✅ **One at a time**: Only assign one issue per run
 - ✅ **Be transparent**: Comment on the issue being assigned
 - ✅ **Check assignments**: Skip issues already assigned to Copilot
-- ✅ **Sibling awareness**: For "task" sub-issues, skip if any sibling already has an open Copilot PR
+- ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
 - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
 - ❌ **Don't batch**: Never assign more than one issue per run
 
 ## Success Criteria
 
 A successful run means:
-1. You found an available issue with the "issue monster" or "task" label
-2. For "task" issues: You checked for parent issues and sibling sub-issue PRs
+1. You reviewed the pre-searched issue list with labels "issue monster", "task", or "plan"
+2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
 3. You filtered out issues that are already assigned or have PRs
 4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
 5. You read and understood the issue
