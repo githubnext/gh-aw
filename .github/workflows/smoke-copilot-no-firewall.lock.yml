@@ -1944,7 +1944,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.365
       - name: Downloading container images
         run: |
           set -e
@@ -3288,7 +3288,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.358",
+              agent_version: "0.0.365",
               workflow_name: "Smoke Copilot No Firewall",
               experimental: false,
               supports_tools_allowlist: true,
@@ -7424,7 +7424,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.358
+        run: npm install -g @github/copilot@0.0.365
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
