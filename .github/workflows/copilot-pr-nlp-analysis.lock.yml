@@ -1248,8 +1248,8 @@ jobs:
           package-manager-cache: false
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.5.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.5.0/awf-linux-x64 -o awf
+          echo "Installing awf from release: v0.3.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.3.0/awf-linux-x64 -o awf
           chmod +x awf
           sudo mv awf /usr/local/bin/
           which awf
