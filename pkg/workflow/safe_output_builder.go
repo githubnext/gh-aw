@@ -3,11 +3,7 @@ package workflow
 import (
 	"fmt"
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var safeOutputBuilderLog = logger.New("workflow:safe_output_builder")
 
 // SafeOutputTargetConfig contains common target-related fields for safe output configurations.
 // Embed this in safe output config structs that support targeting specific items.
