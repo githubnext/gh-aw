@@ -5,7 +5,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 * * * *"
-  skip-if-match: 'is:pr is:open author:app/copilot-swe-agent'
+  skip-if-match:
+    query: "is:pr is:open is:draft author:app/copilot-swe-agent"
+    max: 5
 
 permissions:
   contents: read
