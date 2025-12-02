@@ -21,64 +21,74 @@ tools:
   github:
     toolsets: [default, pull_requests]
 
-steps:
-  - name: Search for candidate issues
-    id: search_issues
-    uses: actions/github-script@v8
-    with:
-      script: |
-        const { owner, repo } = context.repo;
-        const labels = ['task', 'issue monster', 'plan'];
-        let allIssues = [];
-        
-        for (const label of labels) {
-          try {
-            const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
-            core.info(`Searching: ${query}`);
-            const response = await github.rest.search.issuesAndPullRequests({
-              q: query,
-              per_page: 100,
-              sort: 'created',
-              order: 'desc'
+jobs:
+  search_issues:
+    needs: ["pre_activation"]
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      issue_count: ${{ steps.search.outputs.issue_count }}
+      issue_numbers: ${{ steps.search.outputs.issue_numbers }}
+      issue_list: ${{ steps.search.outputs.issue_list }}
+      has_issues: ${{ steps.search.outputs.has_issues }}
+    steps:
+      - name: Search for candidate issues
+        id: search
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const labels = ['task', 'issue monster', 'plan'];
+            let allIssues = [];
+            
+            for (const label of labels) {
+              try {
+                const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+                core.info(`Searching: ${query}`);
+                const response = await github.rest.search.issuesAndPullRequests({
+                  q: query,
+                  per_page: 100,
+                  sort: 'created',
+                  order: 'desc'
+                });
+                core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+                allIssues.push(...response.data.items);
+              } catch (error) {
+                core.warning(`Error searching for label "${label}": ${error.message}`);
+              }
+            }
+            
+            // Deduplicate by issue number
+            const seen = new Set();
+            const uniqueIssues = allIssues.filter(issue => {
+              if (seen.has(issue.number)) return false;
+              seen.add(issue.number);
+              return true;
             });
-            core.info(`Found ${response.data.total_count} issues with label "${label}"`);
-            allIssues.push(...response.data.items);
-          } catch (error) {
-            core.warning(`Error searching for label "${label}": ${error.message}`);
-          }
-        }
-        
-        // Deduplicate by issue number
-        const seen = new Set();
-        const uniqueIssues = allIssues.filter(issue => {
-          if (seen.has(issue.number)) return false;
-          seen.add(issue.number);
-          return true;
-        });
-        
-        // Sort by created date descending
-        uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
-        const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
-        const issueNumbers = uniqueIssues.map(i => i.number).join(',');
-        
-        core.info(`Total unique issues found: ${uniqueIssues.length}`);
-        if (uniqueIssues.length > 0) {
-          core.info(`Issues:\n${issueList}`);
-        }
-        
-        core.setOutput('issue_count', uniqueIssues.length);
-        core.setOutput('issue_numbers', issueNumbers);
-        core.setOutput('issue_list', issueList);
-        
-        // Stop workflow if no issues found
-        if (uniqueIssues.length === 0) {
-          core.info('🍽️ No issues available - the plate is empty!');
-          core.setOutput('has_issues', 'false');
-          core.setFailed('No issues found with task, issue monster, or plan labels. Workflow will stop.');
-        } else {
-          core.setOutput('has_issues', 'true');
-        }
+            
+            // Sort by created date descending
+            uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+            const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+            
+            core.info(`Total unique issues found: ${uniqueIssues.length}`);
+            if (uniqueIssues.length > 0) {
+              core.info(`Issues:\n${issueList}`);
+            }
+            
+            core.setOutput('issue_count', uniqueIssues.length);
+            core.setOutput('issue_numbers', issueNumbers);
+            core.setOutput('issue_list', issueList);
+            
+            if (uniqueIssues.length === 0) {
+              core.info('🍽️ No issues available - the plate is empty!');
+              core.setOutput('has_issues', 'false');
+            } else {
+              core.setOutput('has_issues', 'true');
+            }
+
+if: needs.search_issues.outputs.has_issues == 'true'
 
 safe-outputs:
   assign-to-agent:
@@ -109,14 +119,14 @@ Find one issue that needs work and assign it to the Copilot agent for resolution
 
 ### 1. Review Pre-Searched Issue List
 
-The issue search has already been performed in a previous step. The following issues with labels "task", "issue monster", or "plan" are available:
+The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
 
-**Issue Count**: ${{ steps.search_issues.outputs.issue_count }}
-**Issue Numbers**: ${{ steps.search_issues.outputs.issue_numbers }}
+**Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
+**Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
 
 **Available Issues:**
 ```
-${{ steps.search_issues.outputs.issue_list }}
+${{ needs.search_issues.outputs.issue_list }}
 ```
 
 Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.

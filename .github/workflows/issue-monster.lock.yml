@@ -44,64 +44,74 @@
 #   github:
 #     toolsets: [default, pull_requests]
 #
-# steps:
-#   - name: Search for candidate issues
-#     id: search_issues
-#     uses: actions/github-script@v8
-#     with:
-#       script: |
-#         const { owner, repo } = context.repo;
-#         const labels = ['task', 'issue monster', 'plan'];
-#         let allIssues = [];
+# jobs:
+#   search_issues:
+#     needs: ["pre_activation"]
+#     if: needs.pre_activation.outputs.activated == 'true'
+#     runs-on: ubuntu-latest
+#     outputs:
+#       issue_count: ${{ steps.search.outputs.issue_count }}
+#       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
+#       issue_list: ${{ steps.search.outputs.issue_list }}
+#       has_issues: ${{ steps.search.outputs.has_issues }}
+#     steps:
+#       - name: Search for candidate issues
+#         id: search
+#         uses: actions/github-script@v8
+#         with:
+#           script: |
+#             const { owner, repo } = context.repo;
+#             const labels = ['task', 'issue monster', 'plan'];
+#             let allIssues = [];
 #
-#         for (const label of labels) {
-#           try {
-#             const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
-#             core.info(`Searching: ${query}`);
-#             const response = await github.rest.search.issuesAndPullRequests({
-#               q: query,
-#               per_page: 100,
-#               sort: 'created',
-#               order: 'desc'
+#             for (const label of labels) {
+#               try {
+#                 const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+#                 core.info(`Searching: ${query}`);
+#                 const response = await github.rest.search.issuesAndPullRequests({
+#                   q: query,
+#                   per_page: 100,
+#                   sort: 'created',
+#                   order: 'desc'
+#                 });
+#                 core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+#                 allIssues.push(...response.data.items);
+#               } catch (error) {
+#                 core.warning(`Error searching for label "${label}": ${error.message}`);
+#               }
+#             }
+#
+#             // Deduplicate by issue number
+#             const seen = new Set();
+#             const uniqueIssues = allIssues.filter(issue => {
+#               if (seen.has(issue.number)) return false;
+#               seen.add(issue.number);
+#               return true;
 #             });
-#             core.info(`Found ${response.data.total_count} issues with label "${label}"`);
-#             allIssues.push(...response.data.items);
-#           } catch (error) {
-#             core.warning(`Error searching for label "${label}": ${error.message}`);
-#           }
-#         }
 #
-#         // Deduplicate by issue number
-#         const seen = new Set();
-#         const uniqueIssues = allIssues.filter(issue => {
-#           if (seen.has(issue.number)) return false;
-#           seen.add(issue.number);
-#           return true;
-#         });
+#             // Sort by created date descending
+#             uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 #
-#         // Sort by created date descending
-#         uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+#             const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+#             const issueNumbers = uniqueIssues.map(i => i.number).join(',');
 #
-#         const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
-#         const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+#             core.info(`Total unique issues found: ${uniqueIssues.length}`);
+#             if (uniqueIssues.length > 0) {
+#               core.info(`Issues:\n${issueList}`);
+#             }
 #
-#         core.info(`Total unique issues found: ${uniqueIssues.length}`);
-#         if (uniqueIssues.length > 0) {
-#           core.info(`Issues:\n${issueList}`);
-#         }
+#             core.setOutput('issue_count', uniqueIssues.length);
+#             core.setOutput('issue_numbers', issueNumbers);
+#             core.setOutput('issue_list', issueList);
 #
-#         core.setOutput('issue_count', uniqueIssues.length);
-#         core.setOutput('issue_numbers', issueNumbers);
-#         core.setOutput('issue_list', issueList);
+#             if (uniqueIssues.length === 0) {
+#               core.info('🍽️ No issues available - the plate is empty!');
+#               core.setOutput('has_issues', 'false');
+#             } else {
+#               core.setOutput('has_issues', 'true');
+#             }
 #
-#         // Stop workflow if no issues found
-#         if (uniqueIssues.length === 0) {
-#           core.info('🍽️ No issues available - the plate is empty!');
-#           core.setOutput('has_issues', 'false');
-#           core.setFailed('No issues found with task, issue monster, or plan labels. Workflow will stop.');
-#         } else {
-#           core.setOutput('has_issues', 'true');
-#         }
+# if: needs.search_issues.outputs.has_issues == 'true'
 #
 # safe-outputs:
 #   assign-to-agent:
@@ -125,7 +135,9 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
+#   search_issues["search_issues"]
 #   pre_activation --> activation
+#   search_issues --> activation
 #   agent --> add_comment
 #   detection --> add_comment
 #   activation --> agent
@@ -136,6 +148,7 @@
 #   add_comment --> conclusion
 #   assign_to_agent --> conclusion
 #   agent --> detection
+#   pre_activation --> search_issues
 # ```
 #
 # Original Prompt:
@@ -157,14 +170,14 @@
 #
 # ### 1. Review Pre-Searched Issue List
 #
-# The issue search has already been performed in a previous step. The following issues with labels "task", "issue monster", or "plan" are available:
+# The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
 #
-# **Issue Count**: ${{ steps.search_issues.outputs.issue_count }}
-# **Issue Numbers**: ${{ steps.search_issues.outputs.issue_numbers }}
+# **Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
+# **Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
 #
 # **Available Issues:**
 # ```
-# ${{ steps.search_issues.outputs.issue_list }}
+# ${{ needs.search_issues.outputs.issue_list }}
 # ```
 #
 # Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
@@ -311,8 +324,10 @@ run-name: "Issue Monster"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs:
+      - pre_activation
+      - search_issues
+    if: (needs.pre_activation.outputs.activated == 'true') && (needs.search_issues.outputs.has_issues == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1035,12 +1050,6 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      - id: search_issues
-        name: Search for candidate issues
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: "const { owner, repo } = context.repo;\nconst labels = ['task', 'issue monster', 'plan'];\nlet allIssues = [];\n\nfor (const label of labels) {\n  try {\n    const query = `is:issue is:open label:\"${label}\" repo:${owner}/${repo}`;\n    core.info(`Searching: ${query}`);\n    const response = await github.rest.search.issuesAndPullRequests({\n      q: query,\n      per_page: 100,\n      sort: 'created',\n      order: 'desc'\n    });\n    core.info(`Found ${response.data.total_count} issues with label \"${label}\"`);\n    allIssues.push(...response.data.items);\n  } catch (error) {\n    core.warning(`Error searching for label \"${label}\": ${error.message}`);\n  }\n}\n\n// Deduplicate by issue number\nconst seen = new Set();\nconst uniqueIssues = allIssues.filter(issue => {\n  if (seen.has(issue.number)) return false;\n  seen.add(issue.number);\n  return true;\n});\n\n// Sort by created date descending\nuniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\nconst issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\\n');\nconst issueNumbers = uniqueIssues.map(i => i.number).join(',');\n\ncore.info(`Total unique issues found: ${uniqueIssues.length}`);\nif (uniqueIssues.length > 0) {\n  core.info(`Issues:\\n${issueList}`);\n}\n\ncore.setOutput('issue_count', uniqueIssues.length);\ncore.setOutput('issue_numbers', issueNumbers);\ncore.setOutput('issue_list', issueList);\n\n// Stop workflow if no issues found\nif (uniqueIssues.length === 0) {\n  core.info('🍽️ No issues available - the plate is empty!');\n  core.setOutput('has_issues', 'false');\n  core.setFailed('No issues found with task, issue monster, or plan labels. Workflow will stop.');\n} else {\n  core.setOutput('has_issues', 'true');\n}\n"
-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -2382,9 +2391,9 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ steps.search_issues.outputs.issue_count }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ steps.search_issues.outputs.issue_list }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ steps.search_issues.outputs.issue_numbers }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ needs.search_issues.outputs.issue_count }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ needs.search_issues.outputs.issue_list }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2406,14 +2415,14 @@ jobs:
           
           ### 1. Review Pre-Searched Issue List
           
-          The issue search has already been performed in a previous step. The following issues with labels "task", "issue monster", or "plan" are available:
+          The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
           
-          **Issue Count**: ${GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT}
-          **Issue Numbers**: ${GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS}
+          **Issue Count**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT}
+          **Issue Numbers**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS}
           
           **Available Issues:**
           ```
-          ${GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST}
+          ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST}
           ```
           
           Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
@@ -2623,9 +2632,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ steps.search_issues.outputs.issue_count }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ steps.search_issues.outputs.issue_list }}
-          GH_AW_STEPS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ steps.search_issues.outputs.issue_numbers }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ needs.search_issues.outputs.issue_count }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ needs.search_issues.outputs.issue_list }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
         with:
           script: |
             const fs = require("fs");
@@ -6729,4 +6738,70 @@ jobs:
               }
             }
             await main();
+
+  search_issues:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      has_issues: ${{ steps.search.outputs.has_issues }}
+      issue_count: ${{ steps.search.outputs.issue_count }}
+      issue_list: ${{ steps.search.outputs.issue_list }}
+      issue_numbers: ${{ steps.search.outputs.issue_numbers }}
+    steps:
+      - name: Search for candidate issues
+        id: search
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const labels = ['task', 'issue monster', 'plan'];
+            let allIssues = [];
+
+            for (const label of labels) {
+              try {
+                const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+                core.info(`Searching: ${query}`);
+                const response = await github.rest.search.issuesAndPullRequests({
+                  q: query,
+                  per_page: 100,
+                  sort: 'created',
+                  order: 'desc'
+                });
+                core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+                allIssues.push(...response.data.items);
+              } catch (error) {
+                core.warning(`Error searching for label "${label}": ${error.message}`);
+              }
+            }
+
+            // Deduplicate by issue number
+            const seen = new Set();
+            const uniqueIssues = allIssues.filter(issue => {
+              if (seen.has(issue.number)) return false;
+              seen.add(issue.number);
+              return true;
+            });
+
+            // Sort by created date descending
+            uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+            const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+
+            core.info(`Total unique issues found: ${uniqueIssues.length}`);
+            if (uniqueIssues.length > 0) {
+              core.info(`Issues:\n${issueList}`);
+            }
+
+            core.setOutput('issue_count', uniqueIssues.length);
+            core.setOutput('issue_numbers', issueNumbers);
+            core.setOutput('issue_list', issueList);
+
+            if (uniqueIssues.length === 0) {
+              core.info('🍽️ No issues available - the plate is empty!');
+              core.setOutput('has_issues', 'false');
+            } else {
+              core.setOutput('has_issues', 'true');
+            }
 
