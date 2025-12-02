@@ -26,6 +26,8 @@ jobs:
     needs: ["pre_activation"]
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      issues: read
     outputs:
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
