@@ -1804,7 +1804,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -3043,7 +3043,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=pull_requests,repos",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "tools": ["*"],
                 "env": {

@@ -28,7 +28,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.23.0",
+				"ghcr.io/github/github-mcp-server:v0.24.0",
 			},
 			expectStep: true,
 		},
@@ -61,7 +61,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.23.0",
+				"ghcr.io/github/github-mcp-server:v0.24.0",
 			},
 			expectStep: true,
 		},
@@ -95,7 +95,7 @@ mcp-servers:
 # Test
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.23.0",
+				"ghcr.io/github/github-mcp-server:v0.24.0",
 				"myorg/custom-mcp:v1.0.0",
 			},
 			expectStep: true,
