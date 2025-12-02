@@ -1,5 +1,6 @@
 ---
-description: Agentic Task Description Assistant
+name: agentic-chat
+description: AI assistant for creating clear, actionable task descriptions for GitHub Copilot agents
 ---
 
 # Agentic Task Description Assistant

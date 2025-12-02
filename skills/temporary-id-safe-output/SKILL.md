@@ -1,7 +1,8 @@
 ---
+name: temporary-id-safe-output
 description: Plan for adding temporary ID support to safe output jobs
-applyTo: "pkg/workflow/*_issue.go,pkg/workflow/*_issue.cjs,pkg/workflow/js/*_issue.cjs,pkg/workflow/link_sub_issue.go,pkg/workflow/js/link_sub_issue.cjs,pkg/workflow/js/temporary_id.cjs"
 ---
+
 
 # Adding Temporary ID Support to Safe Output Jobs
 

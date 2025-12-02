@@ -1,7 +1,9 @@
 ---
+name: documentation
 description: Documentation
-applyTo: docs/**.md
+Brief description for SEO and navigation
 ---
+
 ### Documentation
 
 The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
@@ -72,9 +74,7 @@ Documentation must be organized into four distinct types, each serving a specifi
 
 **Example workflow code block**:
 ```aw wrap
----
 on: push
----
 # Your workflow steps here
 ```
 
@@ -85,10 +85,8 @@ Documentation files use Astro Starlight with MDX support. Key syntax elements:
 ### Frontmatter
 Every documentation page must have frontmatter:
 ```markdown
----
 title: Page Title
 description: Brief description for SEO and navigation
----
 ```
 
 ### Callouts and Asides

@@ -1,7 +1,9 @@
 ---
+name: skills
 description: Using Skillz MCP Server with Docker
-applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
+Summarize documentation files
 ---
+
 
 # Skillz MCP Server Integration
 
@@ -18,7 +20,6 @@ Skillz is an MCP server that turns Claude-style skills (`SKILL.md` files plus op
 To use Skillz with GitHub Agentic Workflows, add it as an MCP server in your workflow frontmatter:
 
 ```aw
----
 on: issues
 engine: copilot
 mcp-servers:
@@ -28,7 +29,6 @@ mcp-servers:
       - "-v"
       - "/path/to/skills:/skillz"
       - "/skillz"
----
 
 # Your workflow with skills
 
@@ -67,10 +67,8 @@ Each skill folder must contain:
 Example `SKILL.md`:
 
 ```markdown
----
 name: summarize-docs
 description: Summarize documentation files
----
 
 # Document Summarization Skill
 

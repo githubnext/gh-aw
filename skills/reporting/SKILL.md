@@ -1,10 +1,13 @@
 ---
-description: Report Format Guidelines
+name: reporting
+description: Guidelines for formatting reports using HTML details/summary tags
 ---
 
-## Report Format
+# Report Format Guidelines
 
-### Use HTML Details/Summary Tags
+This skill provides guidelines for formatting reports with collapsible sections.
+
+## Use HTML Details/Summary Tags
 
 To prevent excessive scrolling and improve readability, **wrap your reports in HTML `<details>` and `<summary>` tags**. This allows users to expand and collapse sections as needed.
 

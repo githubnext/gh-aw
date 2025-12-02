@@ -1,7 +1,8 @@
 ---
+name: gh-agent-task
 description: GitHub CLI Agent Task Extension
-applyTo: "pkg/workflow/create_agent_task*.go,pkg/workflow/js/create_agent_task.cjs"
 ---
+
 
 # GitHub CLI Agent Task Extension
 
@@ -142,7 +143,6 @@ safe-outputs:
 ### Workflow Example
 
 ```yaml
----
 on:
   issues:
     types: [labeled]
@@ -153,7 +153,6 @@ engine: claude
 safe-outputs:
   create-agent-task:
     base: main
----
 
 # Code Task Delegator
 
@@ -266,14 +265,12 @@ Refactor authentication to use async/await pattern
 ### Issue-Triggered Agent Tasks
 
 ```yaml
----
 on:
   issues:
     types: [labeled]
 engine: claude
 safe-outputs:
   create-agent-task:
----
 
 When issue is labeled with "needs-implementation", create an agent task with implementation instructions.
 ```
@@ -281,7 +278,6 @@ When issue is labeled with "needs-implementation", create an agent task with imp
 ### Scheduled Code Improvements
 
 ```yaml
----
 on:
   schedule:
     - cron: "0 9 * * 1"  # Monday 9AM
@@ -289,7 +285,6 @@ engine: copilot
 safe-outputs:
   create-agent-task:
     base: develop
----
 
 Analyze codebase for improvement opportunities and create agent tasks for top 3 improvements.
 ```
@@ -297,14 +292,12 @@ Analyze codebase for improvement opportunities and create agent tasks for top 3 
 ### Cross-Repository Task Delegation
 
 ```yaml
----
 on: workflow_dispatch
 engine: claude
 safe-outputs:
   create-agent-task:
     target-repo: "organization/backend-repo"
     base: main
----
 
 Create agent task in backend repository to implement the API changes described in this issue.
 ```
