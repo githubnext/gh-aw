@@ -367,8 +367,8 @@ name: "/cloclo"
     - created
     - edited
   issues:
-    names:
-    - cloclo
+    # names: # Label filtering applied via job conditions
+    # - cloclo # Label filtering applied via job conditions
     types:
     - labeled
   pull_request:
