@@ -606,7 +606,7 @@ func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 	}
 
 	config := &MCPGatewayConfig{
-		Port: 8080, // Default port
+		Port: DefaultMCPGatewayPort,
 	}
 
 	if container, ok := configMap["container"].(string); ok {
