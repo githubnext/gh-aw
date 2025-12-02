@@ -42,8 +42,9 @@ type AgentSandboxConfig struct {
 // This matches the TypeScript SandboxRuntimeConfig interface
 // Note: Network configuration is controlled by the top-level 'network' field, not this struct
 type SandboxRuntimeConfig struct {
-	// Network is only used internally for generating SRT settings JSON
-	// It is NOT user-configurable from sandbox.agent.config
+	// Network is only used internally for generating SRT settings JSON output.
+	// It is NOT user-configurable from sandbox.agent.config (yaml:"-" prevents parsing).
+	// The json tag is needed for output serialization to .srt-settings.json.
 	Network                   *SRTNetworkConfig    `yaml:"-" json:"network,omitempty"`
 	Filesystem                *SRTFilesystemConfig `yaml:"filesystem,omitempty" json:"filesystem,omitempty"`
 	IgnoreViolations          map[string][]string  `yaml:"ignoreViolations,omitempty" json:"ignoreViolations,omitempty"`
@@ -177,7 +178,12 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 			srtConfig.IgnoreViolations = userConfig.IgnoreViolations
 		}
 
-		// Apply enableWeakerNestedSandbox (default is true, user can override to false)
+		// Note: EnableWeakerNestedSandbox defaults to true in srtConfig above.
+		// We only override it with the user's value if they provided a config.
+		// Since Go's bool zero value is false, if user doesn't specify this field,
+		// it will be false in userConfig. This means users must explicitly set it
+		// to true if they want it enabled when providing custom config.
+		// This is intentional: providing custom config opts into full control.
 		srtConfig.EnableWeakerNestedSandbox = userConfig.EnableWeakerNestedSandbox
 	}
 
