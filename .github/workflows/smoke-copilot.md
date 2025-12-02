@@ -110,19 +110,6 @@ post-steps:
 
 # Smoke Test: Copilot Engine Validation
 
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
-
-## Pre-flight Checks (MUST DO FIRST)
-
-Before running any tests, verify that both GitHub MCP and Playwright MCP are working:
-
-1. **Verify GitHub MCP**: Call `github-get_me` to verify the GitHub MCP is responding. This is a lightweight call that just returns user info. Only note if the call succeeded or failed - do NOT include the response data in your reasoning.
-2. **Verify Playwright MCP**: Navigate to https://github.com using Playwright and verify the page loads. Only note success/failure.
-
-**IMPORTANT**: These checks should be minimal. Do NOT process or reason about the full response data - just verify the tools respond without errors. This prevents context overflow.
-
-**CRITICAL: If either GitHub MCP or Playwright MCP fails to respond or returns an error, IMMEDIATELY exit with a failure message. Do NOT proceed with the rest of the tests. Report which tool failed and stop.**
-
 ## Test Requirements
 
 1. **GitHub MCP Testing**: List the last 2 merged pull requests in ${{ github.repository }} using `github-list_pull_requests` with `state: "closed"` and `perPage: 2`. Extract ONLY the PR numbers and titles - ignore all other metadata to avoid context overflow.
