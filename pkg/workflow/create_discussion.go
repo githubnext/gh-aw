@@ -15,6 +15,7 @@ type CreateDiscussionsConfig struct {
 	Category              string   `yaml:"category,omitempty"`                // Discussion category ID or name
 	Labels                []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
+	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
 }
 
@@ -63,6 +64,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			}
 			discussionsConfig.TargetRepoSlug = targetRepoSlug
 
+			// Parse allowed-repos using shared helper
+			discussionsConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+			if len(discussionsConfig.AllowedRepos) > 0 {
+				discussionLog.Printf("Allowed repos configured: %v", discussionsConfig.AllowedRepos)
+			}
+
 			// Parse close-older-discussions
 			if closeOlder, exists := configMap["close-older-discussions"]; exists {
 				if val, ok := closeOlder.(bool); ok {
@@ -100,6 +107,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", data.SafeOutputs.CreateDiscussions.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", data.SafeOutputs.CreateDiscussions.Category)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_LABELS", data.SafeOutputs.CreateDiscussions.Labels)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateDiscussions.AllowedRepos)...)
 
 	// Add close-older-discussions flag if enabled
 	if data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions {

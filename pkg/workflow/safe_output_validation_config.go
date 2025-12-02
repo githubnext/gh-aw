@@ -47,6 +47,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"parent":       {IssueOrPRNumber: true},
 			"temporary_id": {Type: "string"},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"create_agent_task": {
@@ -144,6 +145,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"title":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
 			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"category": {Type: "string", Sanitize: true, MaxLength: 128},
+			"repo":     {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"close_discussion": {

@@ -2680,6 +2680,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that issues can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the issue in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -2696,6 +2703,10 @@
                   "title-prefix": "[duplicate-code] ",
                   "labels": ["code-quality", "automated-analysis"],
                   "assignees": "copilot"
+                },
+                {
+                  "allowed-repos": ["org/other-repo", "org/another-repo"],
+                  "title-prefix": "[cross-repo] "
                 }
               ]
             },
@@ -2804,6 +2815,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository discussion creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that discussions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the discussion in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -2836,6 +2854,10 @@
                   "labels": ["weekly-report", "automation"],
                   "category": "reports",
                   "close-older-discussions": true
+                },
+                {
+                  "allowed-repos": ["org/other-repo"],
+                  "category": "General"
                 }
               ]
             },

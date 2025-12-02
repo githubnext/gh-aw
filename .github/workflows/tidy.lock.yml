@@ -2843,7 +2843,19 @@ jobs:
             function normalizeTemporaryId(tempId) {
               return String(tempId).toLowerCase();
             }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
               return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
                 const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
@@ -2859,7 +2871,17 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
               } catch (error) {
                 if (typeof core !== "undefined") {
                   core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -2873,9 +2895,9 @@ jobs:
               }
               const valueStr = String(value);
               if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
                 }
                 return {
                   resolved: null,
@@ -2887,7 +2909,12 @@ jobs:
               if (isNaN(issueNumber) || issueNumber <= 0) {
                 return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
               }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
             }
             const MAX_BODY_LENGTH = 65000;
             const MAX_GITHUB_USERNAME_LENGTH = 39;

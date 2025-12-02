@@ -106,3 +106,27 @@ func parseParticipantsFromConfig(configMap map[string]any, participantKey string
 	}
 	return nil
 }
+
+// parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
+// Returns a slice of repository slugs (owner/repo format), or nil if not present or invalid.
+func parseAllowedReposFromConfig(configMap map[string]any) []string {
+	if allowedRepos, exists := configMap["allowed-repos"]; exists {
+		configHelpersLog.Print("Parsing allowed-repos from config")
+		if reposArray, ok := allowedRepos.([]any); ok {
+			var repoStrings []string
+			for _, repo := range reposArray {
+				if repoStr, ok := repo.(string); ok {
+					repoStrings = append(repoStrings, repoStr)
+				}
+			}
+			// Return the slice even if empty (to distinguish from not provided)
+			if repoStrings == nil {
+				configHelpersLog.Print("No valid allowed-repos strings found, returning empty array")
+				return []string{}
+			}
+			configHelpersLog.Printf("Parsed %d allowed-repos from config", len(repoStrings))
+			return repoStrings
+		}
+	}
+	return nil
+}
