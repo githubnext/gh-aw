@@ -21,6 +21,7 @@ safe-outputs:
   create-discussion:
     category: "dev"
     max: 1
+    close-older-discussions: true
 
 timeout-minutes: 5
 imports:

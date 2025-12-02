@@ -30,6 +30,7 @@ safe-outputs:
   create-discussion:
     category: "daily-news"
     max: 1
+    close-older-discussions: true
 
 tools:
   cache-memory:

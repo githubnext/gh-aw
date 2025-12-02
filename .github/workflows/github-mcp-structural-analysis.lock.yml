@@ -50,6 +50,7 @@
 #     category: "audits"
 #     title-prefix: "[mcp-analysis] "
 #     max: 1
+#     close-older-discussions: true
 # imports:
 #   - shared/python-dataviz.md
 #   - shared/reporting.md
@@ -6022,6 +6023,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "[mcp-analysis] "
           GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "GitHub MCP Structural Analysis"
           GH_AW_ENGINE_ID: "claude"
         with:

@@ -35,6 +35,7 @@ safe-outputs:
     title-prefix: "[audit] "
     category: "Audits"
     max: 1
+    close-older-discussions: true
 timeout-minutes: 10
 imports:
   - shared/reporting.md

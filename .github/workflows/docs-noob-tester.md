@@ -23,6 +23,7 @@ safe-outputs:
   upload-assets:
   create-discussion:
     category: "General"
+    close-older-discussions: true
 
 network:
   allowed:

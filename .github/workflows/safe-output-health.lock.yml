@@ -45,6 +45,7 @@
 #   create-discussion:
 #     category: "audits"
 #     max: 1
+#     close-older-discussions: true
 # timeout-minutes: 30
 # strict: true
 # imports:
@@ -5673,6 +5674,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Safe Output Health Monitor"
           GH_AW_ENGINE_ID: "claude"
         with:

@@ -30,6 +30,7 @@ safe-outputs:
     title-prefix: "[go-fan] "
     category: "General"
     max: 1
+    close-older-discussions: true
 
 tools:
   serena: ["go"]

@@ -25,6 +25,7 @@ safe-outputs:
   create-discussion:
     category: "General"
     max: 1
+    close-older-discussions: true
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]

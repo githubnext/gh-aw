@@ -28,6 +28,7 @@ safe-outputs:
   create-discussion:
     title-prefix: "[Weekly Summary] "
     category: "Audits"
+    close-older-discussions: true
 imports:
   - shared/reporting.md
   - shared/trends.md

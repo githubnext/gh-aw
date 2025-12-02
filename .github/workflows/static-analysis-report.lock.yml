@@ -44,6 +44,7 @@
 #   create-discussion:
 #     category: "security"
 #     max: 1
+#     close-older-discussions: true
 # timeout-minutes: 30
 # strict: true
 # imports:
@@ -5477,6 +5478,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "security"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Static Analysis Report"
           GH_AW_ENGINE_ID: "claude"
         with:
