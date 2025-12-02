@@ -884,22 +884,92 @@ network:
     # (optional)
     log-level: "debug"
 
-# Sandbox runtime configuration for AI engines. Controls the execution sandbox
-# (AWF or Sandbox Runtime). Only supported for Copilot engine.
+# Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
+# Runtime) and MCP gateway.
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Sandbox type: 'default' uses AWF (Agent Workflow Firewall),
-# 'sandbox-runtime' uses Anthropic Sandbox Runtime with auto-generated config
+# Option 1: Legacy string format for sandbox type: 'default' for no sandbox,
+# 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent
+# Workflow Firewall
 sandbox: "default"
 
-# Option 2: Custom sandbox runtime configuration
+# Option 2: Object format for full sandbox configuration with agent and mcp
+# options
 sandbox:
-  # Sandbox type to use
+  # Legacy sandbox type field (use agent instead)
+  # (optional)
   type: "default"
 
-  # Custom Sandbox Runtime configuration (only applies when type is
-  # 'sandbox-runtime')
+  # Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses
+  # Anthropic Sandbox Runtime
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
+  # Runtime
+  agent: "awf"
+
+  # Option 2: Custom sandbox runtime configuration
+  agent:
+    # Sandbox type to use
+    type: "awf"
+
+    # Custom Sandbox Runtime configuration (only applies when type is 'srt')
+    # (optional)
+    config:
+      # (optional)
+      network:
+        # List of allowed domains (supports wildcards like '*.github.com')
+        # (optional)
+        allowedDomains: []
+          # Array of strings
+
+        # List of explicitly denied domains
+        # (optional)
+        deniedDomains: []
+          # Array of strings
+
+        # List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])
+        # (optional)
+        allowUnixSockets: []
+          # Array of strings
+
+        # Allow binding to local ports (default: false)
+        # (optional)
+        allowLocalBinding: true
+
+        # Allow access to all Unix sockets (default: false)
+        # (optional)
+        allowAllUnixSockets: true
+
+      # (optional)
+      filesystem:
+        # List of paths to deny read access
+        # (optional)
+        denyRead: []
+          # Array of strings
+
+        # List of paths to allow write access
+        # (optional)
+        allowWrite: []
+          # Array of strings
+
+        # List of paths to deny write access
+        # (optional)
+        denyWrite: []
+          # Array of strings
+
+      # Map of command patterns to paths that should ignore violations
+      # (optional)
+      ignoreViolations:
+        {}
+
+      # Enable weaker nested sandbox mode (recommended: true for Docker access)
+      # (optional)
+      enableWeakerNestedSandbox: true
+
+  # Legacy custom Sandbox Runtime configuration (use agent.config instead)
   # (optional)
   config:
     # (optional)
@@ -914,44 +984,74 @@ sandbox:
       deniedDomains: []
         # Array of strings
 
-      # List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])
+      # List of allowed Unix socket paths
       # (optional)
       allowUnixSockets: []
         # Array of strings
 
-      # Allow binding to local ports (default: false)
+      # Allow binding to local ports
       # (optional)
       allowLocalBinding: true
 
-      # Allow access to all Unix sockets (default: false)
+      # Allow access to all Unix sockets
       # (optional)
       allowAllUnixSockets: true
 
     # (optional)
     filesystem:
-      # List of paths to deny read access
       # (optional)
       denyRead: []
         # Array of strings
 
-      # List of paths to allow write access
       # (optional)
       allowWrite: []
         # Array of strings
 
-      # List of paths to deny write access
       # (optional)
       denyWrite: []
         # Array of strings
 
-    # Map of command patterns to paths that should ignore violations
     # (optional)
     ignoreViolations:
       {}
 
-    # Enable weaker nested sandbox mode (recommended: true for Docker access)
     # (optional)
     enableWeakerNestedSandbox: true
+
+  # MCP Gateway configuration for routing MCP server calls through a unified HTTP
+  # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
+  # (optional)
+  mcp:
+    # Container image for the MCP gateway executable
+    container: "example-value"
+
+    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
+    # (optional)
+    version: null
+
+    # Arguments for container execution
+    # (optional)
+    args: []
+      # Array of strings
+
+    # Arguments to add after the container image (container entrypoint arguments)
+    # (optional)
+    entrypointArgs: []
+      # Array of strings
+
+    # Environment variables for MCP gateway
+    # (optional)
+    env:
+      {}
+
+    # Port number for the MCP gateway HTTP server (default: 8080)
+    # (optional)
+    port: 1
+
+    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
+    # syntax)
+    # (optional)
+    api-key: "example-value"
 
 # Conditional execution expression
 # (optional)
@@ -1287,41 +1387,6 @@ tools:
   # Option 4: Array of cache-memory configurations for multiple caches
   cache-memory: []
     # Array items: object
-
-  # MCP Gateway configuration for routing MCP server calls through a unified HTTP
-  # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
-  # (optional)
-  mcp-gateway:
-    # Container image for the MCP gateway executable
-    container: "example-value"
-
-    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
-    # (optional)
-    version: null
-
-    # Arguments for container execution
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Arguments to add after the container image (container entrypoint arguments)
-    # (optional)
-    entrypointArgs: []
-      # Array of strings
-
-    # Environment variables for MCP gateway
-    # (optional)
-    env:
-      {}
-
-    # Port number for the MCP gateway HTTP server (default: 8080)
-    # (optional)
-    port: 1
-
-    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
-    # syntax)
-    # (optional)
-    api-key: "example-value"
 
   # Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the
   # prompt. Defaults to true (enabled). Set to false to disable security warnings.
