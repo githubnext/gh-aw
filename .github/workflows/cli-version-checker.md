@@ -8,7 +8,8 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-engine: copilot
+strict: false
+engine: claude
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
