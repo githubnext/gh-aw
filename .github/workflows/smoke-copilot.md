@@ -15,7 +15,7 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5
 network:
   firewall:
     log-level: debug  # Enable debug-level firewall logs
@@ -44,14 +44,15 @@ strict: true
 
 ## Test Requirements
 
-1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
+0. **List of tools**: List all tools available to this workflow.
+1. **GitHub MCP Testing**: List the last 2 issues in ${{ github.repository }}. Make sure to only ask for 2.
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
 ## Output
 
 Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
+- Issues titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
