@@ -40,8 +40,11 @@ type AgentSandboxConfig struct {
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
 // This matches the TypeScript SandboxRuntimeConfig interface
+// Note: Network configuration is controlled by the top-level 'network' field, not this struct
 type SandboxRuntimeConfig struct {
-	Network                   *SRTNetworkConfig    `yaml:"network,omitempty" json:"network,omitempty"`
+	// Network is only used internally for generating SRT settings JSON
+	// It is NOT user-configurable from sandbox.agent.config
+	Network                   *SRTNetworkConfig    `yaml:"-" json:"network,omitempty"`
 	Filesystem                *SRTFilesystemConfig `yaml:"filesystem,omitempty" json:"filesystem,omitempty"`
 	IgnoreViolations          map[string][]string  `yaml:"ignoreViolations,omitempty" json:"ignoreViolations,omitempty"`
 	EnableWeakerNestedSandbox bool                 `yaml:"enableWeakerNestedSandbox" json:"enableWeakerNestedSandbox"`
@@ -86,7 +89,8 @@ func isSRTEnabled(workflowData *WorkflowData) bool {
 }
 
 // generateSRTConfigJSON generates the .srt-settings.json content
-// If custom config is provided, uses that; otherwise auto-generates based on network permissions
+// Network configuration is always derived from the top-level 'network' field.
+// User-provided sandbox config can override filesystem, ignoreViolations, and enableWeakerNestedSandbox.
 func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	if workflowData == nil {
 		return "", fmt.Errorf("workflowData is nil")
@@ -97,34 +101,66 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 		return "", fmt.Errorf("sandbox config is nil")
 	}
 
-	var srtConfig *SandboxRuntimeConfig
+	// Start with base SRT config
+	sandboxLog.Print("Generating SRT config from network permissions")
 
-	// Check new format first: sandbox.agent.config
-	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil {
-		sandboxLog.Print("Using user-provided custom SRT config (new format)")
-		srtConfig = sandboxConfig.Agent.Config
-	} else if sandboxConfig.Config != nil {
-		// Legacy format: sandbox.config
-		sandboxLog.Print("Using user-provided custom SRT config (legacy format)")
-		srtConfig = sandboxConfig.Config
+	// Generate network config from top-level network field (always)
+	// Network config is NOT user-configurable from sandbox.agent.config
+	domainMap := make(map[string]bool)
+
+	// Add Copilot default domains
+	for _, domain := range CopilotDefaultDomains {
+		domainMap[domain] = true
 	}
 
-	// If user provided custom config, normalize and use it
-	if srtConfig != nil {
-		// Normalize nil slices to empty slices to ensure proper JSON serialization
-		// (YAML parsing creates nil slices for [], but JSON marshals nil as null)
-		if srtConfig.Network != nil {
-			if srtConfig.Network.AllowedDomains == nil {
-				srtConfig.Network.AllowedDomains = []string{}
-			}
-			if srtConfig.Network.DeniedDomains == nil {
-				srtConfig.Network.DeniedDomains = []string{}
-			}
-			if srtConfig.Network.AllowUnixSockets == nil {
-				srtConfig.Network.AllowUnixSockets = []string{}
-			}
+	// Add NetworkPermissions domains (if specified)
+	if workflowData.NetworkPermissions != nil && len(workflowData.NetworkPermissions.Allowed) > 0 {
+		// Expand ecosystem identifiers and add individual domains
+		expandedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
+		for _, domain := range expandedDomains {
+			domainMap[domain] = true
 		}
-		if srtConfig.Filesystem != nil {
+	}
+
+	// Convert to slice
+	allowedDomains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		allowedDomains = append(allowedDomains, domain)
+	}
+	SortStrings(allowedDomains)
+
+	srtConfig := &SandboxRuntimeConfig{
+		Network: &SRTNetworkConfig{
+			AllowedDomains:      allowedDomains,
+			DeniedDomains:       []string{},
+			AllowUnixSockets:    []string{"/var/run/docker.sock"},
+			AllowLocalBinding:   false,
+			AllowAllUnixSockets: true,
+		},
+		Filesystem: &SRTFilesystemConfig{
+			DenyRead:   []string{},
+			AllowWrite: []string{".", "/home/runner/.copilot", "/tmp"},
+			DenyWrite:  []string{},
+		},
+		IgnoreViolations:          map[string][]string{},
+		EnableWeakerNestedSandbox: true,
+	}
+
+	// Apply user-provided non-network config (filesystem, ignoreViolations, enableWeakerNestedSandbox)
+	var userConfig *SandboxRuntimeConfig
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil {
+		userConfig = sandboxConfig.Agent.Config
+	} else if sandboxConfig.Config != nil {
+		userConfig = sandboxConfig.Config
+	}
+
+	if userConfig != nil {
+		sandboxLog.Print("Applying user-provided SRT config (filesystem, ignoreViolations, enableWeakerNestedSandbox)")
+
+		// Apply filesystem config if provided
+		if userConfig.Filesystem != nil {
+			srtConfig.Filesystem = userConfig.Filesystem
+			// Normalize nil slices
 			if srtConfig.Filesystem.DenyRead == nil {
 				srtConfig.Filesystem.DenyRead = []string{}
 			}
@@ -135,51 +171,14 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 				srtConfig.Filesystem.DenyWrite = []string{}
 			}
 		}
-	} else {
-		// Auto-generate config based on network permissions
-		sandboxLog.Print("Auto-generating SRT config from network permissions")
 
-		// Merge Copilot default domains with network permissions
-		// Similar logic to GetCopilotAllowedDomains but returns []string instead of comma-separated string
-		domainMap := make(map[string]bool)
-
-		// Add Copilot default domains
-		for _, domain := range CopilotDefaultDomains {
-			domainMap[domain] = true
+		// Apply ignoreViolations if provided
+		if userConfig.IgnoreViolations != nil {
+			srtConfig.IgnoreViolations = userConfig.IgnoreViolations
 		}
 
-		// Add NetworkPermissions domains (if specified)
-		if workflowData.NetworkPermissions != nil && len(workflowData.NetworkPermissions.Allowed) > 0 {
-			// Expand ecosystem identifiers and add individual domains
-			expandedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
-			for _, domain := range expandedDomains {
-				domainMap[domain] = true
-			}
-		}
-
-		// Convert to slice
-		allowedDomains := make([]string, 0, len(domainMap))
-		for domain := range domainMap {
-			allowedDomains = append(allowedDomains, domain)
-		}
-		SortStrings(allowedDomains)
-
-		srtConfig = &SandboxRuntimeConfig{
-			Network: &SRTNetworkConfig{
-				AllowedDomains:      allowedDomains,
-				DeniedDomains:       []string{},
-				AllowUnixSockets:    []string{"/var/run/docker.sock"},
-				AllowLocalBinding:   false,
-				AllowAllUnixSockets: true,
-			},
-			Filesystem: &SRTFilesystemConfig{
-				DenyRead:   []string{},
-				AllowWrite: []string{".", "/home/runner/.copilot", "/tmp"},
-				DenyWrite:  []string{},
-			},
-			IgnoreViolations:          map[string][]string{},
-			EnableWeakerNestedSandbox: true,
-		}
+		// Apply enableWeakerNestedSandbox (default is true, user can override to false)
+		srtConfig.EnableWeakerNestedSandbox = userConfig.EnableWeakerNestedSandbox
 	}
 
 	// Marshal to JSON with indentation

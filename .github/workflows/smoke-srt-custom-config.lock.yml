@@ -35,84 +35,17 @@
 #   allowed:
 #     - defaults
 #     - github
+#     - node
+#     - python
+#     - java
+#     - go
+#     - ruby
+#     - rust
 #     - "*.githubcopilot.com"
 #     - "example.com"
 # sandbox:
 #   type: sandbox-runtime
 #   config:
-#     network:
-#       allowedDomains:
-#         - "*.githubusercontent.com"
-#         - "*.github.com"
-#         - "*.githubcopilot.com"
-#         - "api.enterprise.githubcopilot.com"
-#         - "api.github.com"
-#         - "github.com"
-#         - "example.com"
-#         - "*.npmjs.org"
-#         - "npmjs.org"
-#         - "registry.npmjs.org"
-#         - "*.npmmirror.com"
-#         - "registry.npmmirror.com"
-#         - "*.yarnpkg.com"
-#         - "registry.yarnpkg.com"
-#         - "*.cloudflare.com"
-#         - "*.cloudfront.net"
-#         - "*.fastly.net"
-#         - "*.akamaized.net"
-#         - "*.edgekey.net"
-#         - "*.edgesuite.net"
-#         - "*.azureedge.net"
-#         - "*.azure.com"
-#         - "*.windows.net"
-#         - "*.live.com"
-#         - "*.microsoft.com"
-#         - "*.visualstudio.com"
-#         - "*.vscode-cdn.net"
-#         - "*.vscode.dev"
-#         - "*.anaconda.org"
-#         - "*.anaconda.com"
-#         - "*.conda.io"
-#         - "*.pypi.org"
-#         - "pypi.org"
-#         - "files.pythonhosted.org"
-#         - "*.python.org"
-#         - "python.org"
-#         - "*.rubygems.org"
-#         - "rubygems.org"
-#         - "*.crates.io"
-#         - "crates.io"
-#         - "static.crates.io"
-#         - "index.crates.io"
-#         - "*.rust-lang.org"
-#         - "rust-lang.org"
-#         - "*.golang.org"
-#         - "golang.org"
-#         - "proxy.golang.org"
-#         - "sum.golang.org"
-#         - "*.go.dev"
-#         - "go.dev"
-#         - "pkg.go.dev"
-#         - "*.maven.org"
-#         - "maven.org"
-#         - "repo.maven.apache.org"
-#         - "repo1.maven.org"
-#         - "*.gradle.org"
-#         - "gradle.org"
-#         - "services.gradle.org"
-#         - "*.jitpack.io"
-#         - "jitpack.io"
-#         - "*.sonatype.org"
-#         - "oss.sonatype.org"
-#         - "*.digicert.com"
-#         - "digicert.com"
-#         - "*.letsencrypt.org"
-#         - "letsencrypt.org"
-#         - "acme-v02.api.letsencrypt.org"
-#       deniedDomains: []
-#       allowUnixSockets:
-#         - "/var/run/docker.sock"
-#       allowLocalBinding: true
 #     filesystem:
 #       denyRead: []
 #       allowWrite:
@@ -448,7 +381,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","*.githubcopilot.com","example.com"],
+              allowed_domains: ["defaults","github","node","python","java","go","ruby","rust","*.githubcopilot.com","example.com"],
               firewall_enabled: false,
               firewall_version: "",
               steps: {
@@ -725,80 +658,127 @@ jobs:
           {
             "network": {
               "allowedDomains": [
-                "*.githubusercontent.com",
-                "*.github.com",
                 "*.githubcopilot.com",
+                "*.githubusercontent.com",
+                "*.pythonhosted.org",
+                "*.rvm.io",
+                "adoptium.net",
+                "anaconda.org",
+                "api.adoptium.net",
                 "api.enterprise.githubcopilot.com",
                 "api.github.com",
-                "github.com",
-                "example.com",
-                "*.npmjs.org",
-                "npmjs.org",
-                "registry.npmjs.org",
-                "*.npmmirror.com",
-                "registry.npmmirror.com",
-                "*.yarnpkg.com",
-                "registry.yarnpkg.com",
-                "*.cloudflare.com",
-                "*.cloudfront.net",
-                "*.fastly.net",
-                "*.akamaized.net",
-                "*.edgekey.net",
-                "*.edgesuite.net",
-                "*.azureedge.net",
-                "*.azure.com",
-                "*.windows.net",
-                "*.live.com",
-                "*.microsoft.com",
-                "*.visualstudio.com",
-                "*.vscode-cdn.net",
-                "*.vscode.dev",
-                "*.anaconda.org",
-                "*.anaconda.com",
-                "*.conda.io",
-                "*.pypi.org",
-                "pypi.org",
-                "files.pythonhosted.org",
-                "*.python.org",
-                "python.org",
-                "*.rubygems.org",
-                "rubygems.org",
-                "*.crates.io",
+                "api.npms.io",
+                "api.rubygems.org",
+                "api.snapcraft.io",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "binstar.org",
+                "bootstrap.pypa.io",
+                "bun.sh",
+                "bundler.rubygems.org",
+                "cache.ruby-lang.org",
+                "codeload.github.com",
+                "conda.anaconda.org",
+                "conda.binstar.org",
                 "crates.io",
-                "static.crates.io",
-                "index.crates.io",
-                "*.rust-lang.org",
-                "rust-lang.org",
-                "*.golang.org",
-                "golang.org",
-                "proxy.golang.org",
-                "sum.golang.org",
-                "*.go.dev",
+                "crl.geotrust.com",
+                "crl.globalsign.com",
+                "crl.identrust.com",
+                "crl.sectigo.com",
+                "crl.thawte.com",
+                "crl.usertrust.com",
+                "crl.verisign.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "crls.ssl.com",
+                "deb.nodesource.com",
+                "deno.land",
+                "download.eclipse.org",
+                "download.oracle.com",
+                "example.com",
+                "files.pythonhosted.org",
+                "gems.rubyforge.org",
+                "gems.rubyonrails.org",
+                "get.pnpm.io",
+                "github-cloud.githubusercontent.com",
+                "github-cloud.s3.amazonaws.com",
+                "github.com",
                 "go.dev",
-                "pkg.go.dev",
-                "*.maven.org",
-                "maven.org",
-                "repo.maven.apache.org",
-                "repo1.maven.org",
-                "*.gradle.org",
+                "golang.org",
+                "goproxy.io",
                 "gradle.org",
+                "index.crates.io",
+                "index.rubygems.org",
+                "jcenter.bintray.com",
+                "jdk.java.net",
+                "json-schema.org",
+                "json.schemastore.org",
+                "keyserver.ubuntu.com",
+                "lfs.github.com",
+                "maven.apache.org",
+                "maven.oracle.com",
+                "maven.pkg.github.com",
+                "nodejs.org",
+                "npm.pkg.github.com",
+                "npmjs.com",
+                "npmjs.org",
+                "objects.githubusercontent.com",
+                "ocsp.digicert.com",
+                "ocsp.geotrust.com",
+                "ocsp.globalsign.com",
+                "ocsp.identrust.com",
+                "ocsp.sectigo.com",
+                "ocsp.ssl.com",
+                "ocsp.thawte.com",
+                "ocsp.usertrust.com",
+                "ocsp.verisign.com",
+                "packagecloud.io",
+                "packages.cloud.google.com",
+                "packages.microsoft.com",
+                "pip.pypa.io",
+                "pkg.go.dev",
+                "plugins-artifacts.gradle.org",
+                "plugins.gradle.org",
+                "ppa.launchpad.net",
+                "proxy.golang.org",
+                "pypi.org",
+                "pypi.python.org",
+                "raw.githubusercontent.com",
+                "registry.bower.io",
+                "registry.npmjs.com",
+                "registry.npmjs.org",
+                "registry.yarnpkg.com",
+                "repo.anaconda.com",
+                "repo.continuum.io",
+                "repo.grails.org",
+                "repo.maven.apache.org",
+                "repo.spring.io",
+                "repo.yarnpkg.com",
+                "repo1.maven.org",
+                "rubygems.org",
+                "rubygems.pkg.github.com",
+                "s.symcb.com",
+                "s.symcd.com",
+                "security.ubuntu.com",
                 "services.gradle.org",
-                "*.jitpack.io",
-                "jitpack.io",
-                "*.sonatype.org",
-                "oss.sonatype.org",
-                "*.digicert.com",
-                "digicert.com",
-                "*.letsencrypt.org",
-                "letsencrypt.org",
-                "acme-v02.api.letsencrypt.org"
+                "sh.rustup.rs",
+                "skimdb.npmjs.com",
+                "static.crates.io",
+                "static.rust-lang.org",
+                "sum.golang.org",
+                "ts-crl.ws.symantec.com",
+                "ts-ocsp.ws.symantec.com",
+                "www.java.com",
+                "www.npmjs.com",
+                "www.npmjs.org",
+                "yarnpkg.com"
               ],
               "deniedDomains": [],
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": true,
-              "allowAllUnixSockets": false
+              "allowLocalBinding": false,
+              "allowAllUnixSockets": true
             },
             "filesystem": {
               "denyRead": [],

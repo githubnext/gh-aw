@@ -1755,43 +1755,8 @@
                     },
                     "config": {
                       "type": "object",
-                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt')",
+                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
                       "properties": {
-                        "network": {
-                          "type": "object",
-                          "properties": {
-                            "allowedDomains": {
-                              "type": "array",
-                              "description": "List of allowed domains (supports wildcards like '*.github.com')",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "deniedDomains": {
-                              "type": "array",
-                              "description": "List of explicitly denied domains",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "allowUnixSockets": {
-                              "type": "array",
-                              "description": "List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "allowLocalBinding": {
-                              "type": "boolean",
-                              "description": "Allow binding to local ports (default: false)"
-                            },
-                            "allowAllUnixSockets": {
-                              "type": "boolean",
-                              "description": "Allow access to all Unix sockets (default: false)"
-                            }
-                          },
-                          "additionalProperties": false
-                        },
                         "filesystem": {
                           "type": "object",
                           "properties": {
@@ -1844,43 +1809,8 @@
             },
             "config": {
               "type": "object",
-              "description": "Legacy custom Sandbox Runtime configuration (use agent.config instead)",
+              "description": "Legacy custom Sandbox Runtime configuration (use agent.config instead). Note: Network configuration is controlled by the top-level 'network' field, not here.",
               "properties": {
-                "network": {
-                  "type": "object",
-                  "properties": {
-                    "allowedDomains": {
-                      "type": "array",
-                      "description": "List of allowed domains (supports wildcards like '*.github.com')",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "deniedDomains": {
-                      "type": "array",
-                      "description": "List of explicitly denied domains",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "allowUnixSockets": {
-                      "type": "array",
-                      "description": "List of allowed Unix socket paths",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "allowLocalBinding": {
-                      "type": "boolean",
-                      "description": "Allow binding to local ports"
-                    },
-                    "allowAllUnixSockets": {
-                      "type": "boolean",
-                      "description": "Allow access to all Unix sockets"
-                    }
-                  },
-                  "additionalProperties": false
-                },
                 "filesystem": {
                   "type": "object",
                   "properties": {
@@ -1990,8 +1920,8 @@
           "agent": {
             "type": "srt",
             "config": {
-              "network": {
-                "allowedDomains": ["github.com", "*.npmjs.org"]
+              "filesystem": {
+                "allowWrite": [".", "/tmp"]
               }
             }
           }

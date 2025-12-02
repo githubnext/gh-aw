@@ -915,34 +915,10 @@ sandbox:
     # Sandbox type to use
     type: "awf"
 
-    # Custom Sandbox Runtime configuration (only applies when type is 'srt')
+    # Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note:
+    # Network configuration is controlled by the top-level 'network' field, not here.
     # (optional)
     config:
-      # (optional)
-      network:
-        # List of allowed domains (supports wildcards like '*.github.com')
-        # (optional)
-        allowedDomains: []
-          # Array of strings
-
-        # List of explicitly denied domains
-        # (optional)
-        deniedDomains: []
-          # Array of strings
-
-        # List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])
-        # (optional)
-        allowUnixSockets: []
-          # Array of strings
-
-        # Allow binding to local ports (default: false)
-        # (optional)
-        allowLocalBinding: true
-
-        # Allow access to all Unix sockets (default: false)
-        # (optional)
-        allowAllUnixSockets: true
-
       # (optional)
       filesystem:
         # List of paths to deny read access
@@ -969,34 +945,10 @@ sandbox:
       # (optional)
       enableWeakerNestedSandbox: true
 
-  # Legacy custom Sandbox Runtime configuration (use agent.config instead)
+  # Legacy custom Sandbox Runtime configuration (use agent.config instead). Note:
+  # Network configuration is controlled by the top-level 'network' field, not here.
   # (optional)
   config:
-    # (optional)
-    network:
-      # List of allowed domains (supports wildcards like '*.github.com')
-      # (optional)
-      allowedDomains: []
-        # Array of strings
-
-      # List of explicitly denied domains
-      # (optional)
-      deniedDomains: []
-        # Array of strings
-
-      # List of allowed Unix socket paths
-      # (optional)
-      allowUnixSockets: []
-        # Array of strings
-
-      # Allow binding to local ports
-      # (optional)
-      allowLocalBinding: true
-
-      # Allow access to all Unix sockets
-      # (optional)
-      allowAllUnixSockets: true
-
     # (optional)
     filesystem:
       # (optional)
