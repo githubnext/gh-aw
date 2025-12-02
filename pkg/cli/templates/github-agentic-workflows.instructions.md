@@ -943,8 +943,9 @@ imports:
 
 ### Import File Structure
 Import files are in `.github/workflows/shared/` and can contain:
-- Tool configurations (frontmatter only)
-- Text content 
+- Tool configurations
+- Safe-outputs configurations
+- Text content
 - Mixed frontmatter + content
 
 Example import file with tools:
@@ -953,6 +954,9 @@ Example import file with tools:
 tools:
   github:
     allowed: [get_repository, list_commits]
+safe-outputs:
+  create-issue:
+    labels: [automation]
 ---
 
 Additional instructions for the coding agent.
