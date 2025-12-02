@@ -25,8 +25,12 @@ global.core = mockCore;
 describe("messages.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear environment variable before each test
+    // Clear environment variables before each test
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+    delete process.env.GH_AW_ENGINE_ID;
+    delete process.env.GH_AW_ENGINE_VERSION;
+    delete process.env.GH_AW_ENGINE_MODEL;
+    delete process.env.GH_AW_TRACKER_ID;
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -332,6 +336,130 @@ describe("messages.cjs", () => {
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
     });
+
+    it("should include XML comment marker for traceability", async () => {
+      const { generateFooterWithMessages } = await import("./messages.cjs");
+
+      const result = generateFooterWithMessages(
+        "Test Workflow",
+        "https://github.com/test/repo/actions/runs/123",
+        "",
+        "",
+        undefined,
+        undefined,
+        undefined
+      );
+
+      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include engine metadata in XML marker when env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+
+      const { generateFooterWithMessages } = await import("./messages.cjs");
+
+      const result = generateFooterWithMessages(
+        "Test Workflow",
+        "https://github.com/test/repo/actions/runs/123",
+        "",
+        "",
+        undefined,
+        undefined,
+        undefined
+      );
+
+      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("engine: copilot");
+      expect(result).toContain("version: 1.0.0");
+      expect(result).toContain("model: gpt-5");
+      expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
+
+      // Clean up env vars
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
+    });
+  });
+
+  describe("generateXMLMarker", () => {
+    it("should generate basic XML marker with workflow name and run URL", async () => {
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include engine ID when env var is set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
+
+      delete process.env.GH_AW_ENGINE_ID;
+    });
+
+    it("should include all engine metadata when all env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
+    });
+
+    it("should include tracker-id when env var is set", async () => {
+      process.env.GH_AW_TRACKER_ID = "my-tracker-12345";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_TRACKER_ID;
+    });
+
+    it("should include tracker-id with engine metadata when all env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_VERSION = "1.0.0";
+      process.env.GH_AW_ENGINE_MODEL = "gpt-5";
+      process.env.GH_AW_TRACKER_ID = "workflow-2024-q1";
+
+      vi.resetModules();
+      const { generateXMLMarker } = await import("./messages.cjs");
+
+      const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe(
+        "<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
+      );
+
+      delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_ENGINE_VERSION;
+      delete process.env.GH_AW_ENGINE_MODEL;
+      delete process.env.GH_AW_TRACKER_ID;
+    });
   });
 
   describe("getStagedTitle", () => {
@@ -481,6 +609,57 @@ describe("messages.cjs", () => {
       expect(result).toBe(
         "💀 Blimey! [Test Workflow](https://github.com/test/repo/actions/runs/123) was cancelled and walked the plank! No treasure today, matey! ☠️"
       );
+    });
+  });
+
+  describe("getCloseOlderDiscussionMessage", () => {
+    it("should return default close older discussion message", async () => {
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/10",
+        newDiscussionNumber: 10,
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toContain("This discussion be marked as **outdated**");
+      expect(result).toContain("[Test Workflow](https://github.com/test/repo/actions/runs/123)");
+      expect(result).toContain("[Discussion #10](https://github.com/test/repo/discussions/10)");
+    });
+
+    it("should use custom close older discussion template", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        closeOlderDiscussion: "This is outdated. See [{new_discussion_number}]({new_discussion_url}).",
+      });
+
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/15",
+        newDiscussionNumber: 15,
+        workflowName: "Custom Bot",
+        runUrl: "https://example.com/run/456",
+      });
+
+      expect(result).toBe("This is outdated. See [15](https://github.com/test/repo/discussions/15).");
+    });
+
+    it("should support snake_case placeholders", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        closeOlderDiscussion: "Outdated by {workflow_name}. New: #{new_discussion_number}",
+      });
+
+      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+
+      const result = getCloseOlderDiscussionMessage({
+        newDiscussionUrl: "https://github.com/test/repo/discussions/20",
+        newDiscussionNumber: 20,
+        workflowName: "Weekly Report",
+        runUrl: "https://example.com/run/789",
+      });
+
+      expect(result).toBe("Outdated by Weekly Report. New: #20");
     });
   });
 });

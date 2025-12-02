@@ -3,7 +3,10 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestParseRedactedDomainsLog(t *testing.T) {
@@ -219,5 +222,64 @@ func TestAnalyzeRedactedDomains_RecursiveSearch(t *testing.T) {
 
 	if len(analysis.Domains) == 0 || analysis.Domains[0] != "found-via-recursive.com" {
 		t.Errorf("expected domain 'found-via-recursive.com', got %v", analysis.Domains)
+	}
+}
+
+func TestRedactedDomainsAnalysis_ConsoleRendering(t *testing.T) {
+	// Test that the Domains field is rendered in console output
+	analysis := &RedactedDomainsAnalysis{
+		TotalDomains: 3,
+		Domains:      []string{"evil.com", "malicious.org", "phishing.net"},
+	}
+
+	// Import the console package to render the struct
+	// We use RenderStruct to verify the domains are included
+	output := console.RenderStruct(analysis)
+
+	// Verify the output contains the domains
+	expectedDomains := []string{"evil.com", "malicious.org", "phishing.net"}
+	for _, domain := range expectedDomains {
+		if !strings.Contains(output, domain) {
+			t.Errorf("expected output to contain domain %q, got:\n%s", domain, output)
+		}
+	}
+
+	// Verify the total count is shown
+	if !strings.Contains(output, "Total Domains") {
+		t.Errorf("expected output to contain 'Total Domains', got:\n%s", output)
+	}
+}
+
+func TestRedactedDomainsLogSummary_ConsoleRendering(t *testing.T) {
+	// Test that the Domains field in RedactedDomainsLogSummary is rendered in console output
+	summary := &RedactedDomainsLogSummary{
+		TotalDomains: 2,
+		Domains:      []string{"blocked.com", "denied.org"},
+	}
+
+	output := console.RenderStruct(summary)
+
+	// Verify the output contains the domains
+	expectedDomains := []string{"blocked.com", "denied.org"}
+	for _, domain := range expectedDomains {
+		if !strings.Contains(output, domain) {
+			t.Errorf("expected output to contain domain %q, got:\n%s", domain, output)
+		}
+	}
+}
+
+func TestRedactedDomainsAnalysis_EmptyDomains(t *testing.T) {
+	// Test that empty domains list is handled correctly (omitempty)
+	analysis := &RedactedDomainsAnalysis{
+		TotalDomains: 0,
+		Domains:      []string{},
+	}
+
+	output := console.RenderStruct(analysis)
+
+	// Verify the output does not contain "Redacted Domains" section header for empty list
+	// The omitempty tag should hide this when the slice is empty
+	if strings.Contains(output, "Redacted Domains") {
+		t.Errorf("expected empty domains list to be omitted, but found 'Redacted Domains' in output:\n%s", output)
 	}
 }

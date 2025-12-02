@@ -1,13 +1,15 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { generatePlainTextSummary } = require("./log_parser_shared.cjs");
+
 /**
  * Bootstrap helper for log parser entry points.
  * Handles common logic for environment variable lookup, file existence checks,
  * content reading (file or directory), and summary emission.
  *
  * @param {Object} options - Configuration options
- * @param {function(string): string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean}} options.parseLog - Parser function that takes log content and returns markdown or result object
+ * @param {function(string): string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array}} options.parseLog - Parser function that takes log content and returns markdown or result object
  * @param {string} options.parserName - Name of the parser (e.g., "Codex", "Claude", "Copilot")
  * @param {boolean} [options.supportsDirectories=false] - Whether the parser supports reading from directories
  * @returns {void}
@@ -74,6 +76,7 @@ function runLogParser(options) {
     let markdown = "";
     let mcpFailures = [];
     let maxTurnsHit = false;
+    let logEntries = null;
 
     if (typeof result === "string") {
       markdown = result;
@@ -81,12 +84,28 @@ function runLogParser(options) {
       markdown = result.markdown || "";
       mcpFailures = result.mcpFailures || [];
       maxTurnsHit = result.maxTurnsHit || false;
+      logEntries = result.logEntries || null;
     }
 
     if (markdown) {
-      core.info(markdown);
+      // Generate lightweight plain text summary for core.info instead of full markdown
+      if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
+        // Extract model from init entry if available
+        const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+        const model = initEntry?.model || null;
+
+        const plainTextSummary = generatePlainTextSummary(logEntries, {
+          model,
+          parserName,
+        });
+        core.info(plainTextSummary);
+      } else {
+        // Fallback: just log success message for parsers without log entries
+        core.info(`${parserName} log parsed successfully`);
+      }
+
+      // Write full markdown to step summary
       core.summary.addRaw(markdown).write();
-      core.info(`${parserName} log parsed successfully`);
     } else {
       core.error(`Failed to parse ${parserName} log`);
     }

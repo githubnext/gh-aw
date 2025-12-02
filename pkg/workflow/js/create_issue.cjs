@@ -6,7 +6,14 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const {
+  generateTemporaryId,
+  isTemporaryId,
+  normalizeTemporaryId,
+  replaceTemporaryIdReferences,
+  serializeTemporaryIdMap,
+} = require("./temporary_id.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -27,6 +34,15 @@ async function main() {
     return;
   }
   core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+
+  // Parse allowed repos and default target
+  const allowedRepos = parseAllowedRepos();
+  const defaultTargetRepo = getDefaultTargetRepo();
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
+
   if (isStaged) {
     await generateStagedPreview({
       title: "Create Issues",
@@ -37,6 +53,9 @@ async function main() {
         content += `**Title:** ${item.title || "No title provided"}\n\n`;
         if (item.temporary_id) {
           content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+        }
+        if (item.repo) {
+          content += `**Repository:** ${item.repo}\n\n`;
         }
         if (item.body) {
           content += `**Body:**\n${item.body}\n\n`;
@@ -54,8 +73,8 @@ async function main() {
   }
   const parentIssueNumber = context.payload?.issue?.number;
 
-  // Map to track temporary_id -> issue_number relationships
-  /** @type {Map<string, number>} */
+  // Map to track temporary_id -> {repo, number} relationships
+  /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
 
   // Extract triggering context for footer generation
@@ -76,10 +95,27 @@ async function main() {
   for (let i = 0; i < createIssueItems.length; i++) {
     const createIssueItem = createIssueItems[i];
 
+    // Determine target repository for this issue
+    const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
+
+    // Validate the repository is allowed
+    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      core.warning(`Skipping issue: ${repoValidation.error}`);
+      continue;
+    }
+
+    // Parse the repository slug
+    const repoParts = parseRepoSlug(itemRepo);
+    if (!repoParts) {
+      core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+      continue;
+    }
+
     // Get or generate the temporary ID for this issue
     const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
     core.info(
-      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}`
+      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
     );
 
     // Debug logging for parent field
@@ -88,13 +124,15 @@ async function main() {
 
     // Resolve parent: check if it's a temporary ID reference
     let effectiveParentIssueNumber;
+    let effectiveParentRepo = itemRepo; // Default to same repo
     if (createIssueItem.parent !== undefined) {
       if (isTemporaryId(createIssueItem.parent)) {
         // It's a temporary ID, look it up in the map
         const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
         if (resolvedParent !== undefined) {
-          effectiveParentIssueNumber = resolvedParent;
-          core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to issue #${effectiveParentIssueNumber}`);
+          effectiveParentIssueNumber = resolvedParent.number;
+          effectiveParentRepo = resolvedParent.repo;
+          core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
         } else {
           core.warning(
             `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
@@ -110,12 +148,18 @@ async function main() {
         }
       }
     } else {
-      effectiveParentIssueNumber = parentIssueNumber;
+      // Only use context parent if we're in the same repo as context
+      const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+      if (itemRepo === contextRepo) {
+        effectiveParentIssueNumber = parentIssueNumber;
+      }
     }
-    core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
+    core.info(
+      `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
+    );
 
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-      core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+      core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
     }
     let labels = [...envLabels];
     if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
@@ -132,7 +176,7 @@ async function main() {
     let title = createIssueItem.title ? createIssueItem.title.trim() : "";
 
     // Replace temporary ID references in the body using already-created issues
-    let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap);
+    let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
     let bodyLines = processedBody.split("\n");
 
     if (!title) {
@@ -143,8 +187,13 @@ async function main() {
       title = titlePrefix + title;
     }
     if (effectiveParentIssueNumber) {
-      core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-      bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+      core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
+      // Use full repo reference if cross-repo, short reference if same repo
+      if (effectiveParentRepo === itemRepo) {
+        bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+      } else {
+        bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+      }
     }
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -176,28 +225,29 @@ async function main() {
       ""
     );
     const body = bodyLines.join("\n").trim();
-    core.info(`Creating issue with title: ${title}`);
+    core.info(`Creating issue in ${itemRepo} with title: ${title}`);
     core.info(`Labels: ${labels}`);
     core.info(`Body length: ${body.length}`);
     try {
       const { data: issue } = await github.rest.issues.create({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+        owner: repoParts.owner,
+        repo: repoParts.repo,
         title: title,
         body: body,
         labels: labels,
       });
-      core.info("Created issue #" + issue.number + ": " + issue.html_url);
-      createdIssues.push(issue);
+      core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+      createdIssues.push({ ...issue, _repo: itemRepo });
 
-      // Store the mapping of temporary_id -> issue_number
-      temporaryIdMap.set(normalizeTemporaryId(temporaryId), issue.number);
-      core.info(`Stored temporary ID mapping: ${temporaryId} -> #${issue.number}`);
+      // Store the mapping of temporary_id -> {repo, number}
+      temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
+      core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
 
       // Debug logging for sub-issue linking
       core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
 
-      if (effectiveParentIssueNumber) {
+      // Sub-issue linking only works within the same repository
+      if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
         core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
         try {
           // First, get the node IDs for both parent and child issues
@@ -214,8 +264,8 @@ async function main() {
 
           // Get parent issue node ID
           const parentResult = await github.graphql(getIssueNodeIdQuery, {
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
             issueNumber: effectiveParentIssueNumber,
           });
           const parentNodeId = parentResult.repository.issue.id;
@@ -224,8 +274,8 @@ async function main() {
           // Get child issue node ID
           core.info(`Fetching node ID for child issue #${issue.number}...`);
           const childResult = await github.graphql(getIssueNodeIdQuery, {
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
             issueNumber: issue.number,
           });
           const childNodeId = childResult.repository.issue.id;
@@ -260,8 +310,8 @@ async function main() {
           try {
             core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
               issue_number: effectiveParentIssueNumber,
               body: `Created related issue: #${issue.number}`,
             });
@@ -272,6 +322,8 @@ async function main() {
             );
           }
         }
+      } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+        core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
       } else {
         core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
       }
@@ -282,26 +334,27 @@ async function main() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("Issues has been disabled in this repository")) {
-        core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+        core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
         core.info("Consider enabling issues in repository settings if you want to create issues automatically");
         continue;
       }
-      core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+      core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
       throw error;
     }
   }
   if (createdIssues.length > 0) {
     let summaryContent = "\n\n## GitHub Issues\n";
     for (const issue of createdIssues) {
-      summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+      const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+      summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
     }
     await core.summary.addRaw(summaryContent).write();
   }
 
   // Output the temporary ID map as JSON for use by downstream jobs
-  const tempIdMapObject = Object.fromEntries(temporaryIdMap);
-  core.setOutput("temporary_id_map", JSON.stringify(tempIdMapObject));
-  core.info(`Temporary ID map: ${JSON.stringify(tempIdMapObject)}`);
+  const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+  core.setOutput("temporary_id_map", tempIdMapOutput);
+  core.info(`Temporary ID map: ${tempIdMapOutput}`);
 
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }

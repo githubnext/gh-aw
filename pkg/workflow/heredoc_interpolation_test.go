@@ -16,7 +16,8 @@ func TestHeredocInterpolation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "heredoc-interpolation-test")
 
 	// Workflow with markdown content containing GitHub expressions
-	// These should be extracted and replaced with ${GH_AW_EXPR_...} references
+	// These should be extracted and replaced with ${GH_AW_...} references
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
 	testContent := `---
 on: issues
 permissions:
@@ -65,10 +66,11 @@ Actor: ${{ github.actor }}
 		}
 	}
 
-	// Verify that the prompt content contains ${GH_AW_EXPR_...} references
+	// Verify that the prompt content contains ${GH_AW_...} references
 	// These will be interpolated by the github-script step, not by bash
-	if !strings.Contains(compiledStr, "${GH_AW_EXPR_") {
-		t.Error("Prompt content should contain ${GH_AW_EXPR_...} references for JavaScript interpolation")
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "${GH_AW_") {
+		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
 	}
 
 	// Verify the original expressions appear in the comment header (Original Prompt section)
@@ -86,7 +88,7 @@ Actor: ${{ github.actor }}
 			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
 			// Verify original expressions are NOT in the heredoc content
 			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
-				t.Error("Original GitHub expressions should be replaced with ${GH_AW_EXPR_...} references in prompt heredoc")
+				t.Error("Original GitHub expressions should be replaced with ${GH_AW_...} references in prompt heredoc")
 			}
 		}
 	}
@@ -111,8 +113,9 @@ Actor: ${{ github.actor }}
 	}
 
 	// Verify environment variables are defined in the step
-	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
-		t.Error("Interpolation and template rendering step should contain GH_AW_EXPR_ environment variables")
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "GH_AW_GITHUB_") {
+		t.Error("Interpolation and template rendering step should contain GH_AW_* environment variables")
 	}
 }
 

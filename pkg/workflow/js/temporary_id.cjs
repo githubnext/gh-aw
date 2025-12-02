@@ -10,6 +10,12 @@ const crypto = require("crypto");
 const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
 
 /**
+ * @typedef {Object} RepoIssuePair
+ * @property {string} repo - Repository slug in "owner/repo" format
+ * @property {number} number - Issue or discussion number
+ */
+
+/**
  * Generate a temporary ID with aw_ prefix for temporary issue IDs
  * @returns {string} A temporary ID in format aw_XXXXXXXXXXXX (12 hex characters)
  */
@@ -40,12 +46,37 @@ function normalizeTemporaryId(tempId) {
 
 /**
  * Replace temporary ID references in text with actual issue numbers
+ * Format: #aw_XXXXXXXXXXXX -> #123 (same repo) or owner/repo#123 (cross-repo)
+ * @param {string} text - The text to process
+ * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
+ * @param {string} [currentRepo] - Current repository slug for same-repo references
+ * @returns {string} Text with temporary IDs replaced with issue numbers
+ */
+function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+  return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+    const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+    if (resolved !== undefined) {
+      // If we have a currentRepo and the issue is in the same repo, use short format
+      if (currentRepo && resolved.repo === currentRepo) {
+        return `#${resolved.number}`;
+      }
+      // Otherwise use full repo#number format for cross-repo references
+      return `${resolved.repo}#${resolved.number}`;
+    }
+    // Return original if not found (it may be created later)
+    return match;
+  });
+}
+
+/**
+ * Replace temporary ID references in text with actual issue numbers (legacy format)
+ * This is a compatibility function that works with Map<string, number>
  * Format: #aw_XXXXXXXXXXXX -> #123
  * @param {string} text - The text to process
  * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
  * @returns {string} Text with temporary IDs replaced with issue numbers
  */
-function replaceTemporaryIdReferences(text, tempIdMap) {
+function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
   return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
     const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
     if (issueNumber !== undefined) {
@@ -58,7 +89,8 @@ function replaceTemporaryIdReferences(text, tempIdMap) {
 
 /**
  * Load the temporary ID map from environment variable
- * @returns {Map<string, number>} Map of temporary_id to issue number
+ * Supports both old format (temporary_id -> number) and new format (temporary_id -> {repo, number})
+ * @returns {Map<string, RepoIssuePair>} Map of temporary_id to {repo, number}
  */
 function loadTemporaryIdMap() {
   const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
@@ -67,7 +99,21 @@ function loadTemporaryIdMap() {
   }
   try {
     const mapObject = JSON.parse(mapJson);
-    return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+    /** @type {Map<string, RepoIssuePair>} */
+    const result = new Map();
+
+    for (const [key, value] of Object.entries(mapObject)) {
+      const normalizedKey = normalizeTemporaryId(key);
+      if (typeof value === "number") {
+        // Legacy format: number only, use context repo
+        const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+        result.set(normalizedKey, { repo: contextRepo, number: value });
+      } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+        // New format: {repo, number}
+        result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+      }
+    }
+    return result;
   } catch (error) {
     if (typeof core !== "undefined") {
       core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -76,11 +122,60 @@ function loadTemporaryIdMap() {
   }
 }
 
+/**
+ * Resolve an issue number that may be a temporary ID or an actual issue number
+ * Returns structured result with the resolved number, repo, and metadata
+ * @param {any} value - The value to resolve (can be temporary ID, number, or string)
+ * @param {Map<string, RepoIssuePair>} temporaryIdMap - Map of temporary ID to {repo, number}
+ * @returns {{resolved: RepoIssuePair|null, wasTemporaryId: boolean, errorMessage: string|null}}
+ */
+function resolveIssueNumber(value, temporaryIdMap) {
+  if (value === undefined || value === null) {
+    return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+  }
+
+  // Check if it's a temporary ID
+  const valueStr = String(value);
+  if (isTemporaryId(valueStr)) {
+    const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+    if (resolvedPair !== undefined) {
+      return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+    }
+    return {
+      resolved: null,
+      wasTemporaryId: true,
+      errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+    };
+  }
+
+  // It's a real issue number - use context repo as default
+  const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+  if (isNaN(issueNumber) || issueNumber <= 0) {
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+  }
+
+  const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+  return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+}
+
+/**
+ * Serialize the temporary ID map to JSON for output
+ * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
+ * @returns {string} JSON string of the map
+ */
+function serializeTemporaryIdMap(tempIdMap) {
+  const obj = Object.fromEntries(tempIdMap);
+  return JSON.stringify(obj);
+}
+
 module.exports = {
   TEMPORARY_ID_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
   replaceTemporaryIdReferences,
+  replaceTemporaryIdReferencesLegacy,
   loadTemporaryIdMap,
+  resolveIssueNumber,
+  serializeTemporaryIdMap,
 };

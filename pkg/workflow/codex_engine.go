@@ -167,6 +167,17 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 		}
 	}
 
+	// Add safe-inputs secrets to env for passthrough to MCP servers
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName, secretExpr := range safeInputsSecrets {
+			// Only add if not already in env
+			if _, exists := env[varName]; !exists {
+				env[varName] = secretExpr
+			}
+		}
+	}
+
 	// Generate the step for Codex execution
 	stepName := "Run Codex"
 	var stepLines []string
@@ -375,6 +386,12 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 			if hasSafeOutputs {
 				renderer.RenderSafeOutputsMCP(yaml)
+			}
+		case "safe-inputs":
+			// Add safe-inputs MCP server if safe-inputs are configured and feature flag is enabled
+			hasSafeInputs := workflowData != nil && IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
+			if hasSafeInputs {
+				renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs)
 			}
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)

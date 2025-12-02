@@ -648,12 +648,17 @@ type GitHubScriptStepConfig struct {
 	// This should be true for Copilot-related operations like creating agent tasks,
 	// assigning copilot to issues, or adding copilot as PR reviewer
 	UseCopilotToken bool
+
+	// UseAgentToken indicates whether to use the agent token preference chain
+	// (config token > GH_AW_AGENT_TOKEN)
+	// This should be true for agent assignment operations (assign-to-agent)
+	UseAgentToken bool
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
 // This extracts the repeated pattern found across safe output job builders
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
-	safeOutputsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v)", config.StepName, config.UseCopilotToken)
+	safeOutputsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v, useAgentToken=%v)", config.StepName, config.UseCopilotToken, config.UseAgentToken)
 
 	var steps []string
 
@@ -680,7 +685,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseCopilotToken {
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
@@ -723,7 +730,9 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseCopilotToken {
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
@@ -774,6 +783,7 @@ type SafeOutputJobConfig struct {
 	PostSteps       []string          // Optional steps to run after the GitHub Script step
 	Token           string            // GitHub token for this output type
 	UseCopilotToken bool              // Whether to use Copilot token preference chain
+	UseAgentToken   bool              // Whether to use agent token preference chain (config token > GH_AW_AGENT_TOKEN)
 	TargetRepoSlug  string            // Target repository for cross-repo operations
 }
 
@@ -808,6 +818,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		Script:          config.Script,
 		Token:           config.Token,
 		UseCopilotToken: config.UseCopilotToken,
+		UseAgentToken:   config.UseAgentToken,
 	})
 	steps = append(steps, scriptSteps...)
 
@@ -1242,7 +1253,7 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 		enabledTools["link_sub_issue"] = true
 	}
 
-	// Filter tools to only include enabled ones
+	// Filter tools to only include enabled ones and enhance descriptions
 	var filteredTools []map[string]any
 	for _, tool := range allTools {
 		toolName, ok := tool["name"].(string)
@@ -1250,7 +1261,19 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 			continue
 		}
 		if enabledTools[toolName] {
-			filteredTools = append(filteredTools, tool)
+			// Create a copy of the tool to avoid modifying the original
+			enhancedTool := make(map[string]any)
+			for k, v := range tool {
+				enhancedTool[k] = v
+			}
+
+			// Enhance the description with configuration details
+			if description, ok := enhancedTool["description"].(string); ok {
+				enhancedDescription := enhanceToolDescription(toolName, description, data.SafeOutputs)
+				enhancedTool["description"] = enhancedDescription
+			}
+
+			filteredTools = append(filteredTools, enhancedTool)
 		}
 	}
 
@@ -1258,8 +1281,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 		safeOutputsLog.Printf("Filtered %d tools from %d total tools", len(filteredTools), len(allTools))
 	}
 
-	// Marshal the filtered tools back to JSON
-	filteredJSON, err := json.Marshal(filteredTools)
+	// Marshal the filtered tools back to JSON with indentation for better readability
+	// and to reduce merge conflicts in generated lockfiles
+	filteredJSON, err := json.MarshalIndent(filteredTools, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal filtered tools: %w", err)
 	}
@@ -1378,6 +1402,9 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 	// Add workflow metadata (name, source, and tracker-id)
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
+	// Add engine metadata (id, version, model) for XML comment marker
+	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig)...)
+
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
 		c.trialMode,
@@ -1394,6 +1421,33 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 		} else if messagesJSON != "" {
 			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
 		}
+	}
+
+	return customEnvVars
+}
+
+// buildEngineMetadataEnvVars builds engine metadata environment variables (id, version, model)
+// These are used by the JavaScript footer generation to create XML comment markers for traceability
+func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
+	var customEnvVars []string
+
+	if engineConfig == nil {
+		return customEnvVars
+	}
+
+	// Add engine ID if present
+	if engineConfig.ID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_ID: %q\n", engineConfig.ID))
+	}
+
+	// Add engine version if present
+	if engineConfig.Version != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_VERSION: %q\n", engineConfig.Version))
+	}
+
+	// Add engine model if present
+	if engineConfig.Model != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", engineConfig.Model))
 	}
 
 	return customEnvVars

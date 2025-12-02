@@ -24,6 +24,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
+    close-older-discussions: true
 timeout-minutes: 30
 imports:
   - shared/mcp/gh-aw.md

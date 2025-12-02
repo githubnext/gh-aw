@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -18,6 +19,12 @@ async function main() {
 
   core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
 
+  // Load the temporary ID map from create_issue job
+  const temporaryIdMap = loadTemporaryIdMap();
+  if (temporaryIdMap.size > 0) {
+    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+  }
+
   // Check if we're in staged mode
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     await generateStagedPreview({
@@ -25,8 +32,26 @@ async function main() {
       description: "The following sub-issue links would be created if staged mode was disabled:",
       items: linkItems,
       renderItem: item => {
-        let content = `**Parent Issue:** #${item.parent_issue_number}\n`;
-        content += `**Sub-Issue:** #${item.sub_issue_number}\n\n`;
+        // Resolve temporary IDs for display
+        const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+        const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
+
+        let parentDisplay = parentResolved.resolved
+          ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}`
+          : `${item.parent_issue_number} (unresolved)`;
+        let subDisplay = subResolved.resolved
+          ? `${subResolved.resolved.repo}#${subResolved.resolved.number}`
+          : `${item.sub_issue_number} (unresolved)`;
+
+        if (parentResolved.wasTemporaryId && parentResolved.resolved) {
+          parentDisplay += ` (from ${item.parent_issue_number})`;
+        }
+        if (subResolved.wasTemporaryId && subResolved.resolved) {
+          subDisplay += ` (from ${item.sub_issue_number})`;
+        }
+
+        let content = `**Parent Issue:** ${parentDisplay}\n`;
+        content += `**Sub-Issue:** ${subDisplay}\n\n`;
         return content;
       },
     });
@@ -85,18 +110,41 @@ async function main() {
   // Process each link request
   const results = [];
   for (const item of itemsToProcess) {
-    const parentIssueNumber =
-      typeof item.parent_issue_number === "number" ? item.parent_issue_number : parseInt(String(item.parent_issue_number), 10);
-    const subIssueNumber = typeof item.sub_issue_number === "number" ? item.sub_issue_number : parseInt(String(item.sub_issue_number), 10);
+    // Resolve issue numbers, supporting temporary IDs from create_issue job
+    const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+    const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
 
-    if (isNaN(parentIssueNumber) || parentIssueNumber <= 0) {
-      core.error(`Invalid parent_issue_number: ${item.parent_issue_number}`);
+    // Check for resolution errors
+    if (parentResolved.errorMessage) {
+      core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
+      results.push({
+        parent_issue_number: item.parent_issue_number,
+        sub_issue_number: item.sub_issue_number,
+        success: false,
+        error: parentResolved.errorMessage,
+      });
       continue;
     }
 
-    if (isNaN(subIssueNumber) || subIssueNumber <= 0) {
-      core.error(`Invalid sub_issue_number: ${item.sub_issue_number}`);
+    if (subResolved.errorMessage) {
+      core.warning(`Failed to resolve sub-issue: ${subResolved.errorMessage}`);
+      results.push({
+        parent_issue_number: item.parent_issue_number,
+        sub_issue_number: item.sub_issue_number,
+        success: false,
+        error: subResolved.errorMessage,
+      });
       continue;
+    }
+
+    const parentIssueNumber = parentResolved.resolved.number;
+    const subIssueNumber = subResolved.resolved.number;
+
+    if (parentResolved.wasTemporaryId) {
+      core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
+    }
+    if (subResolved.wasTemporaryId) {
+      core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
     }
 
     // Fetch parent issue to validate filters
@@ -110,7 +158,7 @@ async function main() {
       parentIssue = parentResponse.data;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      core.error(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
+      core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
       results.push({
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
@@ -270,7 +318,7 @@ async function main() {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      core.error(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
+      core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
       results.push({
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
@@ -295,7 +343,7 @@ async function main() {
   }
 
   if (failureCount > 0) {
-    summaryContent += `❌ Failed to link ${failureCount} sub-issue(s):\n\n`;
+    summaryContent += `⚠️ Failed to link ${failureCount} sub-issue(s):\n\n`;
     for (const result of results.filter(r => !r.success)) {
       summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
     }
@@ -310,9 +358,9 @@ async function main() {
     .join("\n");
   core.setOutput("linked_issues", linkedIssues);
 
-  // Fail if any linking failed
-  if (failureCount > 0 && successCount === 0) {
-    core.setFailed(`Failed to link ${failureCount} sub-issue(s)`);
+  // Warn if any linking failed (do not fail the job)
+  if (failureCount > 0) {
+    core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
   }
 }
 

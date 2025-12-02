@@ -38,26 +38,11 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxCount))
 
-	// Pass the GitHub token for GraphQL agent assignment mutation
-	// Prioritize GH_AW_AGENT_TOKEN since it needs specific permissions (actions, contents, issues, pull-requests write)
-	var tokenValue string
-	if data.SafeOutputs.AssignToAgent.GitHubToken != "" {
-		tokenValue = data.SafeOutputs.AssignToAgent.GitHubToken
-	} else if data.SafeOutputs.GitHubToken != "" {
-		tokenValue = data.SafeOutputs.GitHubToken
-	} else if data.GitHubToken != "" {
-		tokenValue = data.GitHubToken
-	} else {
-		tokenValue = "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}"
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_TOKEN: %s\n", tokenValue))
-
-	// Pass the target configuration
-
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AssignToAgent.TargetRepoSlug)...)
 
-	// Get token from config
+	// Get token from config for step-level github-token
+	// The token is set at the step level via UseAgentToken which defaults to GH_AW_AGENT_TOKEN
 	var token string
 	if data.SafeOutputs.AssignToAgent != nil {
 		token = data.SafeOutputs.AssignToAgent.GitHubToken
@@ -70,18 +55,19 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 
 	// Use the shared builder function to create the job
 	// Note: replaceActorsForAssignable GraphQL mutation requires all four write permissions
+	// UseAgentToken ensures the step's github-token is set to config token or GH_AW_AGENT_TOKEN
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:         "assign_to_agent",
-		StepName:        "Assign to Agent",
-		StepID:          "assign_to_agent",
-		MainJobName:     mainJobName,
-		CustomEnvVars:   customEnvVars,
-		Script:          getAssignToAgentScript(),
-		Permissions:     NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
-		Outputs:         outputs,
-		Token:           token,
-		UseCopilotToken: true,
-		Condition:       BuildSafeOutputType("assign_to_agent"),
-		TargetRepoSlug:  data.SafeOutputs.AssignToAgent.TargetRepoSlug,
+		JobName:        "assign_to_agent",
+		StepName:       "Assign to Agent",
+		StepID:         "assign_to_agent",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getAssignToAgentScript(),
+		Permissions:    NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
+		Outputs:        outputs,
+		Token:          token,
+		UseAgentToken:  true,
+		Condition:      BuildSafeOutputType("assign_to_agent"),
+		TargetRepoSlug: data.SafeOutputs.AssignToAgent.TargetRepoSlug,
 	})
 }

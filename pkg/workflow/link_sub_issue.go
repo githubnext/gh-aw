@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var linkSubIssueLog = logger.New("workflow:link_sub_issue")
 
 // LinkSubIssueConfig holds configuration for linking issues as sub-issues from agent output
 type LinkSubIssueConfig struct {
@@ -17,11 +21,13 @@ type LinkSubIssueConfig struct {
 
 // parseLinkSubIssueConfig handles link-sub-issue configuration
 func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIssueConfig {
+	linkSubIssueLog.Print("Parsing link-sub-issue configuration")
 	if configData, exists := outputMap["link-sub-issue"]; exists {
 		linkSubIssueConfig := &LinkSubIssueConfig{}
 		linkSubIssueConfig.Max = 5 // Default max is 5
 
 		if configMap, ok := configData.(map[string]any); ok {
+			linkSubIssueLog.Print("Found link-sub-issue config map")
 			// Parse common base fields with default max of 5
 			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5)
 
@@ -64,6 +70,9 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 			// Parse target-repo using shared helper
 			targetRepoSlug := parseTargetRepoFromConfig(configMap)
 			linkSubIssueConfig.TargetRepoSlug = targetRepoSlug
+			linkSubIssueLog.Printf("Parsed link-sub-issue config: max=%d, parent_labels=%d, sub_labels=%d, target_repo=%s",
+				linkSubIssueConfig.Max, len(linkSubIssueConfig.ParentRequiredLabels),
+				len(linkSubIssueConfig.SubRequiredLabels), targetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
 			linkSubIssueConfig.Max = 5
@@ -76,7 +85,8 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 }
 
 // buildLinkSubIssueJob creates the link_sub_issue job
-func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, createIssueJobName string) (*Job, error) {
+	linkSubIssueLog.Printf("Building link_sub_issue job: main_job=%s, create_issue_job=%s", mainJobName, createIssueJobName)
 	if data.SafeOutputs == nil || data.SafeOutputs.LinkSubIssue == nil {
 		return nil, fmt.Errorf("safe-outputs.link-sub-issue configuration is required")
 	}
@@ -114,6 +124,11 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX: %q\n", data.SafeOutputs.LinkSubIssue.SubTitlePrefix))
 	}
 
+	// Add environment variable for temporary ID map from create_issue job
+	if createIssueJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
+	}
+
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.LinkSubIssue.TargetRepoSlug)...)
 
@@ -128,6 +143,12 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		"linked_issues": "${{ steps.link_sub_issue.outputs.linked_issues }}",
 	}
 
+	// Build the needs list - always depend on mainJobName, and conditionally on create_issue
+	needs := []string{mainJobName}
+	if createIssueJobName != "" {
+		needs = append(needs, createIssueJobName)
+	}
+
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:        "link_sub_issue",
@@ -138,6 +159,7 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string) 
 		Script:         getLinkSubIssueScript(),
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
+		Needs:          needs,
 		Token:          token,
 		Condition:      BuildSafeOutputType("link_sub_issue"),
 		TargetRepoSlug: data.SafeOutputs.LinkSubIssue.TargetRepoSlug,

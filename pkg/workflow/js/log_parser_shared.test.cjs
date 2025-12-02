@@ -195,6 +195,57 @@ describe("log_parser_shared.cjs", () => {
     });
   });
 
+  describe("isLikelyCustomAgent", () => {
+    it("should identify custom agent names with kebab-case", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("add-safe-output-type")).toBe(true);
+      expect(isLikelyCustomAgent("cli-consistency-checker")).toBe(true);
+      expect(isLikelyCustomAgent("create-agentic-workflow")).toBe(true);
+      expect(isLikelyCustomAgent("debug-agentic-workflow")).toBe(true);
+      expect(isLikelyCustomAgent("technical-doc-writer")).toBe(true);
+      expect(isLikelyCustomAgent("shell-2-script")).toBe(true);
+    });
+
+    it("should reject single word names without hyphens", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("bash")).toBe(false);
+      expect(isLikelyCustomAgent("CustomTool")).toBe(false);
+      expect(isLikelyCustomAgent("read")).toBe(false);
+    });
+
+    it("should reject MCP tool names", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("mcp__github__search_issues")).toBe(false);
+      expect(isLikelyCustomAgent("mcp__playwright__navigate")).toBe(false);
+    });
+
+    it("should reject safe output/input prefixed names", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("safeoutputs-create_discussion")).toBe(false);
+      expect(isLikelyCustomAgent("safeinputs-get_data")).toBe(false);
+      expect(isLikelyCustomAgent("safe-outputs")).toBe(false);
+    });
+
+    it("should reject names with uppercase letters", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent("Add-Safe-Output-Type")).toBe(false);
+      expect(isLikelyCustomAgent("CLI-Consistency-Checker")).toBe(false);
+    });
+
+    it("should handle null and undefined", async () => {
+      const { isLikelyCustomAgent } = await import("./log_parser_shared.cjs");
+
+      expect(isLikelyCustomAgent(null)).toBe(false);
+      expect(isLikelyCustomAgent(undefined)).toBe(false);
+      expect(isLikelyCustomAgent("")).toBe(false);
+    });
+  });
+
   describe("generateConversationMarkdown", () => {
     it("should generate markdown from log entries", async () => {
       const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
@@ -489,6 +540,124 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("playwright::navigate");
       expect(result.markdown).toContain("**Other:**");
       expect(result.markdown).toContain("CustomTool");
+    });
+
+    it("should categorize safe output tools", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          "safeoutputs-create_discussion",
+          "safeoutputs-close_discussion",
+          "safeoutputs-upload_asset",
+          "safeoutputs-missing_tool",
+          "safeoutputs-noop",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_discussion");
+      expect(result.markdown).toContain("close_discussion");
+      expect(result.markdown).toContain("upload_asset");
+      expect(result.markdown).toContain("missing_tool");
+      expect(result.markdown).toContain("noop");
+      // Should NOT contain the prefix in output
+      expect(result.markdown).not.toContain("safeoutputs-");
+    });
+
+    it("should categorize builtin tools", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Builtin:**");
+      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("write_bash");
+      expect(result.markdown).toContain("read_bash");
+      expect(result.markdown).toContain("stop_bash");
+      expect(result.markdown).toContain("list_bash");
+      expect(result.markdown).toContain("grep");
+      expect(result.markdown).toContain("glob");
+      expect(result.markdown).toContain("view");
+      expect(result.markdown).toContain("create");
+      expect(result.markdown).toContain("edit");
+    });
+
+    it("should categorize custom agents", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          "add-safe-output-type",
+          "cli-consistency-checker",
+          "create-agentic-workflow",
+          "debug-agentic-workflow",
+          "technical-doc-writer",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Custom Agents:**");
+      expect(result.markdown).toContain("add-safe-output-type");
+      expect(result.markdown).toContain("cli-consistency-checker");
+      expect(result.markdown).toContain("create-agentic-workflow");
+      expect(result.markdown).toContain("debug-agentic-workflow");
+      expect(result.markdown).toContain("technical-doc-writer");
+    });
+
+    it("should categorize mixed tool set correctly", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: [
+          // Core
+          "Bash",
+          // File Operations
+          "Read",
+          "Edit",
+          // Builtin
+          "bash",
+          "write_bash",
+          "grep",
+          "report_intent",
+          // Safe Outputs
+          "safeoutputs-create_discussion",
+          "safeoutputs-noop",
+          // Git/GitHub
+          "mcp__github__search_issues",
+          // MCP
+          "mcp__playwright__navigate",
+          // Custom Agents
+          "add-safe-output-type",
+          "technical-doc-writer",
+          // Other
+          "CustomTool",
+        ],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      // Verify all categories are present
+      expect(result.markdown).toContain("**Core:**");
+      expect(result.markdown).toContain("**File Operations:**");
+      expect(result.markdown).toContain("**Builtin:**");
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("**Git/GitHub:**");
+      expect(result.markdown).toContain("**MCP:**");
+      expect(result.markdown).toContain("**Custom Agents:**");
+      expect(result.markdown).toContain("**Other:**");
+
+      // Verify specific tools are in correct categories
+      expect(result.markdown).toContain("Bash");
+      expect(result.markdown).toContain("github::search_issues");
+      expect(result.markdown).toContain("playwright::navigate");
     });
 
     it("should format MCP servers status", async () => {
@@ -989,6 +1158,316 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("**Parameters:**");
       expect(result).not.toContain("**Response:**");
       expect(result).not.toContain("**Error:**");
+    });
+
+    it("should truncate content exceeding maxContentLength", async () => {
+      const { formatToolCallAsDetails, MAX_TOOL_OUTPUT_LENGTH } = await import("./log_parser_shared.cjs");
+
+      const longContent = "a".repeat(1000);
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: longContent }],
+      });
+
+      // Should contain truncated content (256 chars) plus "... (truncated)"
+      expect(result).toContain("... (truncated)");
+      expect(result.length).toBeLessThan(longContent.length + 200);
+
+      // Verify truncation happens at MAX_TOOL_OUTPUT_LENGTH (256)
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(256);
+    });
+
+    it("should allow custom maxContentLength", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const longContent = "a".repeat(200);
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: longContent }],
+        maxContentLength: 100,
+      });
+
+      // Should contain truncated content (100 chars) plus "... (truncated)"
+      expect(result).toContain("... (truncated)");
+      expect(result).toContain("a".repeat(100));
+      expect(result).not.toContain("a".repeat(101));
+    });
+
+    it("should not truncate content within maxContentLength", async () => {
+      const { formatToolCallAsDetails } = await import("./log_parser_shared.cjs");
+
+      const shortContent = "short content";
+      const result = formatToolCallAsDetails({
+        summary: "Tool call",
+        statusIcon: "✅",
+        sections: [{ label: "Response", content: shortContent }],
+      });
+
+      expect(result).toContain(shortContent);
+      expect(result).not.toContain("truncated");
+    });
+  });
+
+  describe("StepSummaryTracker", () => {
+    it("should track content size", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(1000);
+
+      expect(tracker.add("hello")).toBe(true);
+      expect(tracker.getSize()).toBe(5);
+      expect(tracker.isLimitReached()).toBe(false);
+
+      expect(tracker.add(" world")).toBe(true);
+      expect(tracker.getSize()).toBe(11);
+    });
+
+    it("should detect when limit is reached", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(10);
+
+      expect(tracker.add("12345")).toBe(true);
+      expect(tracker.isLimitReached()).toBe(false);
+
+      // This should fail because it would exceed the limit
+      expect(tracker.add("123456")).toBe(false);
+      expect(tracker.isLimitReached()).toBe(true);
+    });
+
+    it("should reject all content after limit is reached", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(5);
+
+      expect(tracker.add("123456")).toBe(false);
+      expect(tracker.isLimitReached()).toBe(true);
+
+      // Any subsequent add should fail
+      expect(tracker.add("a")).toBe(false);
+      expect(tracker.add("")).toBe(false);
+    });
+
+    it("should reset properly", async () => {
+      const { StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker(10);
+
+      tracker.add("12345678901"); // Exceeds limit
+      expect(tracker.isLimitReached()).toBe(true);
+
+      tracker.reset();
+      expect(tracker.isLimitReached()).toBe(false);
+      expect(tracker.getSize()).toBe(0);
+
+      expect(tracker.add("hello")).toBe(true);
+    });
+
+    it("should use MAX_STEP_SUMMARY_SIZE as default", async () => {
+      const { StepSummaryTracker, MAX_STEP_SUMMARY_SIZE } = await import("./log_parser_shared.cjs");
+
+      const tracker = new StepSummaryTracker();
+
+      // Default is 1000KB
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(1000 * 1024);
+      expect(tracker.maxSize).toBe(1000 * 1024);
+    });
+  });
+
+  describe("generateConversationMarkdown with size tracking", () => {
+    it("should return sizeLimitReached when tracker is not provided", async () => {
+      const { generateConversationMarkdown } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Hello" }],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+      });
+
+      expect(result.sizeLimitReached).toBe(false);
+    });
+
+    it("should stop rendering when size limit is reached", async () => {
+      const { generateConversationMarkdown, StepSummaryTracker } = await import("./log_parser_shared.cjs");
+
+      // Use a very small limit to trigger truncation
+      const tracker = new StepSummaryTracker(50);
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "This is a longer message that should trigger the size limit" },
+              { type: "text", text: "This should not be included" },
+            ],
+          },
+        },
+      ];
+
+      const result = generateConversationMarkdown(logEntries, {
+        formatToolCallback: () => "",
+        formatInitCallback: () => "",
+        summaryTracker: tracker,
+      });
+
+      expect(result.sizeLimitReached).toBe(true);
+      expect(result.markdown).toContain("size limit reached");
+    });
+  });
+
+  describe("constants", () => {
+    it("should export MAX_TOOL_OUTPUT_LENGTH as 256", async () => {
+      const { MAX_TOOL_OUTPUT_LENGTH } = await import("./log_parser_shared.cjs");
+      expect(MAX_TOOL_OUTPUT_LENGTH).toBe(256);
+    });
+
+    it("should export MAX_STEP_SUMMARY_SIZE as 1000KB", async () => {
+      const { MAX_STEP_SUMMARY_SIZE } = await import("./log_parser_shared.cjs");
+      expect(MAX_STEP_SUMMARY_SIZE).toBe(1000 * 1024);
+    });
+  });
+
+  describe("generatePlainTextSummary", () => {
+    it("should generate plain text summary with model info", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "gpt-5" },
+        { type: "result", num_turns: 3, duration_ms: 60000 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, {
+        model: "gpt-5",
+        parserName: "TestParser",
+      });
+
+      expect(result).toContain("=== TestParser Execution Summary ===");
+      expect(result).toContain("Model: gpt-5");
+      expect(result).toContain("Turns: 3");
+      expect(result).toContain("Duration: 1m");
+    });
+
+    it("should include tool usage statistics", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "test-model" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "1", name: "Bash", input: { command: "echo test" } },
+              { type: "tool_use", id: "2", name: "mcp__github__create_issue", input: {} },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "1", is_error: false },
+              { type: "tool_result", tool_use_id: "2", is_error: true },
+            ],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Tools/Commands:");
+      expect(result).toContain("[✓] bash: echo test");
+      expect(result).toContain("[✗] github::create_issue");
+      expect(result).toContain("Tools: 1/2 succeeded");
+    });
+
+    it("should limit tool summaries to 20 items", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      // Create 25 tool uses
+      const toolUses = [];
+      const toolResults = [];
+      for (let i = 0; i < 25; i++) {
+        toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
+        toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
+      }
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        { type: "assistant", message: { content: toolUses } },
+        { type: "user", message: { content: toolResults } },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("... and 5 more");
+    });
+
+    it("should include token usage and cost", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "result",
+          num_turns: 2,
+          usage: { input_tokens: 1000, output_tokens: 500 },
+          total_cost_usd: 0.0025,
+        },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Tokens: 1,000 in / 500 out");
+      expect(result).toContain("Cost: $0.0025");
+    });
+
+    it("should skip internal tools in summary", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "1", name: "Read", input: {} },
+              { type: "tool_use", id: "2", name: "Write", input: {} },
+              { type: "tool_use", id: "3", name: "Bash", input: { command: "test" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "1", is_error: false },
+              { type: "tool_result", tool_use_id: "2", is_error: false },
+              { type: "tool_result", tool_use_id: "3", is_error: false },
+            ],
+          },
+        },
+        { type: "result" },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      // Should only show Bash, not Read or Write
+      expect(result).toContain("bash: test");
+      expect(result).not.toContain("Read");
+      expect(result).not.toContain("Write");
     });
   });
 });

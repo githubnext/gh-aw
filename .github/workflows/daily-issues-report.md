@@ -22,6 +22,7 @@ safe-outputs:
     category: "General"
     title-prefix: "[daily issues] "
     max: 1
+    close-older-discussions: true
   close-discussion:
     max: 10
 timeout-minutes: 30

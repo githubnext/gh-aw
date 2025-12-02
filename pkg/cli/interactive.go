@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -14,6 +16,34 @@ import (
 )
 
 var interactiveLog = logger.New("cli:interactive")
+
+// workflowNameRegex validates workflow names contain only alphanumeric characters, hyphens, and underscores
+var workflowNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// commonWorkflowNames contains common workflow name patterns for autocomplete suggestions
+var commonWorkflowNames = []string{
+	"issue-triage",
+	"pr-review-helper",
+	"code-quality-check",
+	"security-scan",
+	"daily-report",
+	"weekly-summary",
+	"release-notes",
+	"bug-reporter",
+	"dependency-update",
+	"documentation-check",
+}
+
+// isValidWorkflowName checks if the provided workflow name contains only valid characters.
+// Returns false for empty strings (which should be checked separately for a more specific error message).
+func isValidWorkflowName(name string) bool {
+	return workflowNameRegex.MatchString(name)
+}
+
+// isAccessibleMode detects if accessibility mode should be enabled based on environment variables
+func isAccessibleMode() bool {
+	return os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != ""
+}
 
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
@@ -96,9 +126,19 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 			huh.NewInput().
 				Title("What should we call this workflow?").
 				Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
-				Value(&b.WorkflowName),
+				Suggestions(commonWorkflowNames).
+				Value(&b.WorkflowName).
+				Validate(func(s string) error {
+					if s == "" {
+						return errors.New("workflow name cannot be empty")
+					}
+					if !isValidWorkflowName(s) {
+						return errors.New("workflow name must contain only alphanumeric characters, hyphens, and underscores")
+					}
+					return nil
+				}),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	return form.Run()
 }
@@ -122,9 +162,10 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 				Title("When should this workflow run?").
 				Description("Select the event that should trigger your agentic workflow").
 				Options(triggerOptions...).
+				Height(8).
 				Value(&b.Trigger),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	return form.Run()
 }
@@ -146,7 +187,7 @@ func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 				Options(engineOptions...).
 				Value(&b.Engine),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	return form.Run()
 }
@@ -169,9 +210,10 @@ func (b *InteractiveWorkflowBuilder) promptForTools() error {
 				Title("Which tools should the AI have access to?").
 				Description("Select all tools that your workflow might need. You can always modify these later.").
 				Options(toolOptions...).
+				Height(8).
 				Value(&selected),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
@@ -203,9 +245,10 @@ func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 				Title("What outputs should the AI be able to create?").
 				Description("Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.").
 				Options(outputOptions...).
+				Height(8).
 				Value(&selected),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
@@ -231,7 +274,7 @@ func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
 				Options(networkOptions...).
 				Value(&b.NetworkAccess),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	return form.Run()
 }
@@ -245,7 +288,7 @@ func (b *InteractiveWorkflowBuilder) promptForIntent() error {
 				Description("Provide a clear description of the workflow's purpose and what the AI should accomplish. This will be the main prompt for the AI.").
 				Value(&b.Intent),
 		),
-	)
+	).WithAccessible(isAccessibleMode())
 
 	return form.Run()
 }

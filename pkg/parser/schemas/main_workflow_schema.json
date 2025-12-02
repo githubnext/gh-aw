@@ -31,16 +31,40 @@
     },
     "imports": {
       "type": "array",
-      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
+      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
       "items": {
-        "type": "string",
-        "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+          },
+          {
+            "type": "object",
+            "description": "Import specification with path and optional inputs",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+              },
+              "inputs": {
+                "type": "object",
+                "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
+                "additionalProperties": {
+                  "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                }
+              }
+            }
+          }
+        ]
       },
       "examples": [
         ["shared/jqschema.md", "shared/reporting.md"],
         ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
-        [".github/agents/my-agent.md"]
+        [".github/agents/my-agent.md"],
+        [{ "path": "shared/discussions-data-fetch.md", "inputs": { "count": 50 } }]
       ]
     },
     "on": {
@@ -1936,6 +1960,10 @@
               "description": "Empty GitHub tool configuration (enables all read-only GitHub API functions)"
             },
             {
+              "type": "boolean",
+              "description": "Boolean to explicitly enable (true) or disable (false) the GitHub MCP server. When set to false, the GitHub MCP server is not mounted."
+            },
+            {
               "type": "string",
               "description": "Simple GitHub tool configuration (enables all GitHub API functions)"
             },
@@ -2046,7 +2074,8 @@
             {
               "read-only": true,
               "toolsets": ["repos", "issues"]
-            }
+            },
+            false
           ]
         },
         "bash": {
@@ -2655,6 +2684,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that issues can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the issue in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -2671,6 +2707,10 @@
                   "title-prefix": "[duplicate-code] ",
                   "labels": ["code-quality", "automated-analysis"],
                   "assignees": "copilot"
+                },
+                {
+                  "allowed-repos": ["org/other-repo", "org/another-repo"],
+                  "title-prefix": "[cross-repo] "
                 }
               ]
             },
@@ -2762,6 +2802,13 @@
                   "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
                   "examples": ["General", "audits", 123456789]
                 },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of labels to attach to created discussions. Also used for matching when close-older-discussions is enabled - discussions must have ALL specified labels (AND logic)."
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of discussions to create (default: 1)",
@@ -2772,9 +2819,21 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository discussion creation. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that discussions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the discussion in. The target repository (current or target-repo) is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "close-older-discussions": {
+                  "type": "boolean",
+                  "description": "When true, automatically close older discussions matching the same title prefix or labels as 'outdated' with a comment linking to the new discussion. Requires title-prefix or labels to be set. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -2788,6 +2847,20 @@
                   "max": 1
                 },
                 {
+                  "category": "General"
+                },
+                {
+                  "title-prefix": "[weekly-report] ",
+                  "category": "reports",
+                  "close-older-discussions": true
+                },
+                {
+                  "labels": ["weekly-report", "automation"],
+                  "category": "reports",
+                  "close-older-discussions": true
+                },
+                {
+                  "allowed-repos": ["org/other-repo"],
                   "category": "General"
                 }
               ]
@@ -4015,6 +4088,123 @@
       "default": true,
       "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no wildcard '*' in allowed domains, (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
       "examples": [true, false]
+    },
+    "safe-inputs": {
+      "type": "object",
+      "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript) or 'run' (shell) must be specified per tool.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "type": "object",
+          "description": "Custom tool definition. The key is the tool name (lowercase alphanumeric with dashes/underscores).",
+          "required": ["description"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Tool description that explains what the tool does. This is required and will be shown to the AI agent."
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Optional input parameters for the tool using workflow syntax. Each property defines an input with its type and description.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "array", "object"],
+                    "default": "string",
+                    "description": "The JSON schema type of the input parameter."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the input parameter."
+                  },
+                  "required": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether this input is required."
+                  },
+                  "default": {
+                    "description": "Default value for the input parameter."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "script": {
+              "type": "string",
+              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run'."
+            },
+            "run": {
+              "type": "string",
+              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script'."
+            },
+            "env": {
+              "type": "object",
+              "description": "Environment variables to pass to the tool, typically for secrets. Use ${{ secrets.NAME }} syntax.",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "examples": [
+                {
+                  "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+                  "API_KEY": "${{ secrets.MY_API_KEY }}"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": ["script"],
+              "not": { "required": ["run"] }
+            },
+            {
+              "required": ["run"],
+              "not": { "required": ["script"] }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "search-issues": {
+            "description": "Search GitHub issues using the GitHub API",
+            "inputs": {
+              "query": {
+                "type": "string",
+                "description": "Search query for issues",
+                "required": true
+              },
+              "limit": {
+                "type": "number",
+                "description": "Maximum number of results",
+                "default": 10
+              }
+            },
+            "script": "const { Octokit } = require('@octokit/rest');\nconst octokit = new Octokit({ auth: process.env.GH_TOKEN });\nconst result = await octokit.search.issuesAndPullRequests({ q: inputs.query, per_page: inputs.limit });\nreturn result.data.items;",
+            "env": {
+              "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+            }
+          }
+        },
+        {
+          "run-linter": {
+            "description": "Run a custom linter on the codebase",
+            "inputs": {
+              "path": {
+                "type": "string",
+                "description": "Path to lint",
+                "default": "."
+              }
+            },
+            "run": "eslint $INPUT_PATH --format json",
+            "env": {
+              "INPUT_PATH": "${{ inputs.path }}"
+            }
+          }
+        }
+      ]
     },
     "runtimes": {
       "type": "object",

@@ -60,6 +60,26 @@ func jobDependsOnPreActivation(jobConfig map[string]any) bool {
 	return false
 }
 
+// jobDependsOnAgent checks if a job config has agent as a dependency.
+// Jobs that depend on agent should run AFTER the agent job, not before it.
+// The jobConfig parameter is expected to be a map representing the job's YAML configuration,
+// where "needs" can be either a string (single dependency) or []any (multiple dependencies).
+// Returns false if "needs" is missing, malformed, or doesn't contain the agent job.
+func jobDependsOnAgent(jobConfig map[string]any) bool {
+	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
+		if needsList, ok := needs.([]any); ok {
+			for _, need := range needsList {
+				if needStr, ok := need.(string); ok && needStr == constants.AgentJobName {
+					return true
+				}
+			}
+		} else if needStr, ok := needs.(string); ok && needStr == constants.AgentJobName {
+			return true
+		}
+	}
+	return false
+}
+
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
 // These jobs run after pre_activation but before activation, and activation should depend on them.
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
@@ -234,7 +254,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build create_discussion job if output.create_discussion is configured
 	if data.SafeOutputs.CreateDiscussions != nil {
-		createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName)
+		createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName, createIssueJobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_discussion job: %w", err)
 		}
@@ -549,7 +569,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build link_sub_issue job if safe-outputs.link-sub-issue is configured
 	if data.SafeOutputs.LinkSubIssue != nil {
-		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName)
+		linkSubIssueJob, err := c.buildLinkSubIssueJob(data, jobName, createIssueJobName)
 		if err != nil {
 			return fmt.Errorf("failed to build link_sub_issue job: %w", err)
 		}
@@ -1000,15 +1020,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
-	// Add custom jobs as dependencies only if they don't depend on pre_activation
+	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
+	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
-			// Only add as direct dependency if it doesn't depend on pre_activation
+			// Only add as direct dependency if it doesn't depend on pre_activation or agent
 			// (jobs that depend on pre_activation are handled through activation)
+			// (jobs that depend on agent are post-execution jobs like failure handlers)
 			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if !jobDependsOnPreActivation(configMap) {
+				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
 					depends = append(depends, jobName)
 				}
 			}

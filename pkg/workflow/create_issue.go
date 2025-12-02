@@ -13,8 +13,9 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
-	Assignees            []string `yaml:"assignees,omitempty"`   // List of users/bots to assign the issue to
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issues
+	Assignees            []string `yaml:"assignees,omitempty"`     // List of users/bots to assign the issue to
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository issues
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that issues can be created in
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -39,6 +40,9 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			issuesConfig.TargetRepoSlug = targetRepoSlug
+
+			// Parse allowed-repos using shared helper
+			issuesConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig, 1)
@@ -69,6 +73,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", data.SafeOutputs.CreateIssues.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", data.SafeOutputs.CreateIssues.Labels)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateIssues.AllowedRepos)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)

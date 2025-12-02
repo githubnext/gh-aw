@@ -681,3 +681,56 @@ func compilePattern(t *testing.T, pattern string) *regexp.Regexp {
 	}
 	return re
 }
+
+// TestCodexEngineSafeInputsSecrets verifies that safe-inputs secrets are passed to the execution step
+func TestCodexEngineSafeInputsSecrets(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Create workflow data with safe-inputs that have env secrets
+	// Note: safe-inputs requires the feature flag to be enabled
+	workflowData := &WorkflowData{
+		Name: "test-workflow-with-safe-inputs",
+		Features: map[string]bool{
+			"safe-inputs": true,
+		},
+		SafeInputs: &SafeInputsConfig{
+			Tools: map[string]*SafeInputToolConfig{
+				"gh": {
+					Name:        "gh",
+					Description: "Execute gh CLI command",
+					Run:         "gh $INPUT_ARGS",
+					Env: map[string]string{
+						"GH_TOKEN": "${{ github.token }}",
+					},
+				},
+				"api-call": {
+					Name:        "api-call",
+					Description: "Call an API",
+					Script:      "return fetch(url);",
+					Env: map[string]string{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	// Get execution steps
+	execSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	if len(execSteps) == 0 {
+		t.Fatal("Expected at least one execution step")
+	}
+
+	// Join all step lines to check content
+	stepContent := strings.Join(execSteps[0], "\n")
+
+	// Verify GH_TOKEN is in the env section
+	if !strings.Contains(stepContent, "GH_TOKEN: ${{ github.token }}") {
+		t.Errorf("Expected GH_TOKEN environment variable in step content:\n%s", stepContent)
+	}
+
+	// Verify API_KEY is in the env section
+	if !strings.Contains(stepContent, "API_KEY: ${{ secrets.API_KEY }}") {
+		t.Errorf("Expected API_KEY environment variable in step content:\n%s", stepContent)
+	}
+}

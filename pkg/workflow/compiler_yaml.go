@@ -674,6 +674,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
+	// Substitute import inputs before expression extraction
+	// This replaces ${{ github.aw.inputs.<key> }} with actual values from imports
+	if len(data.ImportInputs) > 0 {
+		cleanedMarkdownContent = SubstituteImportInputs(cleanedMarkdownContent, data.ImportInputs)
+	}
+
 	// Extract expressions and create environment variable mappings for security
 	extractor := NewExpressionExtractor()
 	expressionMappings, err := extractor.ExtractExpressions(cleanedMarkdownContent)
@@ -702,6 +708,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
+	// Add environment variables for extracted expressions
+	// These are used by envsubst to substitute values in the heredoc
+	for _, mapping := range expressionMappings {
+		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
 
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
@@ -728,6 +739,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString(fmt.Sprintf("      - name: Append prompt (part %d)\n", stepNum))
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+		// Add environment variables for extracted expressions
+		for _, mapping := range expressionMappings {
+			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+		}
 		yaml.WriteString("        run: |\n")
 		// Use quoted heredoc marker to prevent shell variable expansion
 		// Pipe through envsubst to substitute environment variables

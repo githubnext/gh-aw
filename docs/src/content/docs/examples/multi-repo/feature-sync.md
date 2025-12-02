@@ -9,10 +9,7 @@ Feature synchronization workflows propagate changes from a main repository to re
 
 ## When to Use
 
-- **Monorepo alternatives** - Maintain related projects in separate repos while sharing common code
-- **Library updates** - Sync shared utilities or components to dependent projects
-- **Multi-platform deployment** - Update platform-specific repos when core logic changes
-- **Fork maintenance** - Keep downstream forks synchronized with upstream changes
+Use feature sync when maintaining related projects in separate repositories (monorepo alternative), propagating library updates to dependent projects, updating platform-specific repos after core changes, or keeping downstream forks synchronized with upstream.
 
 ## How It Works
 
@@ -50,22 +47,7 @@ safe-outputs:
 
 # Sync Shared Components to Downstream Service
 
-When shared components change in this repository, synchronize them to
-`myorg/downstream-service`.
-
-**Changed files:** Review the git diff to identify modified files in `shared/**`
-
-**Synchronization steps:**
-1. Read current versions of these files from `myorg/downstream-service`
-2. Adapt changes if needed (check for path differences)
-3. Create descriptive commit messages referencing original commits
-4. Include migration notes if breaking changes detected
-
-**PR Description should include:**
-- List of synchronized files
-- Links to original commits in main repo
-- Any structural adaptations made
-- Required follow-up actions (if any)
+When shared components change, synchronize them to `myorg/downstream-service`. Review the git diff, read current versions from the target repo, adapt paths if needed, and create a PR with descriptive commit messages linking to original commits. Include structural adaptations and migration notes for breaking changes.
 ```
 
 ## Multi-Target Sync
@@ -99,23 +81,7 @@ safe-outputs:
 
 # Sync Core Library to All Services
 
-When core library files change, create PRs in all dependent services.
-
-**Target repositories:**
-- `myorg/api-service`
-- `myorg/web-frontend`
-- `myorg/mobile-backend`
-
-For each target repository:
-1. Check if they use the changed core modules
-2. Adapt imports/paths for target's structure
-3. Create PR with synchronized changes
-4. Include compatibility notes
-
-**Requirements:**
-- Maintain backward compatibility when possible
-- Document any breaking changes clearly
-- Link to main repo commits
+When core library files change, create PRs in dependent services (`myorg/api-service`, `myorg/web-frontend`, `myorg/mobile-backend`). For each target, check if they use the changed modules, adapt imports/paths, and create a PR with compatibility notes and links to source commits.
 ```
 
 ## Release-Based Sync
@@ -148,24 +114,7 @@ safe-outputs:
 
 # Upgrade Production Service to New Release
 
-When a new release is published, create an upgrade PR in the production service.
-
-**Release information:**
-- Version: ${{ github.event.release.tag_name }}
-- Release notes: ${{ github.event.release.body }}
-
-**Upgrade steps:**
-1. Update version references in production service
-2. Apply any necessary API changes from release notes
-3. Update configuration if breaking changes exist
-4. Include migration guide in PR description
-
-**PR should contain:**
-- Updated dependency version
-- Code adaptations for API changes
-- Configuration updates
-- Link to release notes
-- Testing recommendations
+When a new release is published (version ${{ github.event.release.tag_name }}), create an upgrade PR that updates version references, applies API changes from release notes, updates configuration for breaking changes, and includes a migration guide with testing recommendations.
 ```
 
 ## Selective File Sync
@@ -200,19 +149,7 @@ safe-outputs:
 
 # Sync TypeScript Type Definitions
 
-Synchronize TypeScript type definitions and interfaces to client SDK.
-
-**Process:**
-1. Identify changed `.ts` files in `types/` and `interfaces/` directories
-2. Read corresponding files in `myorg/client-sdk`
-3. Update type definitions maintaining existing structure
-4. Preserve client-specific type extensions
-5. Validate no breaking changes to public interfaces
-
-**Include in PR:**
-- List of updated type files
-- Breaking changes (if any)
-- Compatibility notes
+Synchronize TypeScript type definitions to client SDK. Identify changed `.ts` files in `types/` and `interfaces/`, update them in `myorg/client-sdk` while preserving client-specific extensions, validate no breaking changes, and document any compatibility concerns.
 ```
 
 ## Bidirectional Sync with Conflict Detection
@@ -246,24 +183,7 @@ safe-outputs:
 
 # Bidirectional Config Sync
 
-Synchronize shared configuration files while detecting conflicts.
-
-**Important:** This project and `myorg/sister-project` share configuration
-that may be modified independently.
-
-**Sync process:**
-1. Get current state of shared-config in both repos
-2. Compare timestamps and change history
-3. Identify if sister-project has newer changes
-4. If conflict detected:
-   - Create PR with this repo's changes
-   - Add comment noting the conflict
-   - Mark for manual review
-5. If no conflict:
-   - Apply changes automatically
-   - Note last sync timestamp
-
-**Conflict resolution notes in PR if needed**
+Synchronize shared configuration between this project and `myorg/sister-project`, which may be modified independently. Compare timestamps and change history; if conflicts are detected, create a PR marked for manual review with conflict notes. If no conflict, apply changes automatically and record sync timestamp.
 ```
 
 ## Feature Branch Sync
@@ -298,22 +218,7 @@ safe-outputs:
 
 # Sync Feature Branch for Integration Testing
 
-When a feature branch is updated, synchronize to integration test repository.
-
-**Source PR:** #${{ github.event.pull_request.number }}
-**Branch:** ${{ github.event.pull_request.head.ref }}
-
-**Process:**
-1. Create matching feature branch in integration test repo
-2. Sync relevant changes from this PR
-3. Update test configurations for new feature
-4. Create PR for integration test updates
-
-**PR description should include:**
-- Link to source PR
-- Feature description
-- Test scenarios to cover
-- Expected integration points
+When feature branch ${{ github.event.pull_request.head.ref }} (PR #${{ github.event.pull_request.number }}) is updated, create a matching branch in the integration test repo, sync relevant changes, update test configurations, and create a PR linking to the source with test scenarios and integration points.
 ```
 
 ## Scheduled Sync Check
@@ -345,45 +250,20 @@ safe-outputs:
 
 # Weekly Sync Check
 
-Check for accumulated changes that need synchronization to downstream fork.
-
-**Comparison:**
-- Last sync commit in downstream: Check PR history for last `[sync]` PR
-- Current HEAD in main repo
-- Identify all commits since last sync
-
-**Sync process:**
-1. List all commits since last sync
-2. Categorize changes (features, fixes, docs)
-3. Identify changes relevant to downstream
-4. Create comprehensive PR with all updates
-5. Group commits by category in description
-
-**PR should include:**
-- Summary of all synced commits
-- Breaking changes highlighted
-- Migration guide if needed
-- Testing recommendations
+Check for accumulated changes needing synchronization to downstream fork. Find the last sync PR, identify all commits since then, categorize changes (features, fixes, docs), and create a comprehensive PR grouping commits by category with breaking changes highlighted and migration guidance.
 ```
 
 ## Authentication Setup
 
-All cross-repo sync workflows require proper authentication:
+Cross-repo sync workflows require authentication via PAT or GitHub App.
 
 ### PAT Configuration
 
-```bash
-# Create PAT with required permissions
-gh auth token
+Create a PAT with `repo`, `contents: write`, and `pull-requests: write` permissions, then store it as a repository secret:
 
-# Store as repository secret
+```bash
 gh secret set CROSS_REPO_PAT --body "ghp_your_token_here"
 ```
-
-**Required PAT Permissions:**
-- `repo` (full control for private repos)
-- `contents: write` (for creating commits)
-- `pull-requests: write` (for creating PRs)
 
 ### GitHub App Configuration
 
@@ -401,33 +281,13 @@ safe-outputs:
 
 ## Best Practices
 
-### Change Detection
+**Change Detection**: Use path filters to avoid unnecessary runs, check for meaningful changes (not just whitespace), group related changes into single PRs, and track sync history to avoid duplicates.
 
-1. **Use path filters** in trigger configuration to avoid unnecessary runs
-2. **Check for meaningful changes** before creating PRs (not just whitespace)
-3. **Group related changes** into single PRs when appropriate
-4. **Track sync history** to avoid duplicate PRs
+**PR Management**: Create draft PRs for syncs requiring review, use consistent labels, add appropriate reviewers, and include comprehensive descriptions linking to source commits.
 
-### PR Management
+**Error Handling**: Handle merge conflicts with clear documentation, validate target repo structure before creating PRs, provide rollback instructions, and monitor for failed syncs.
 
-1. **Create draft PRs** for automatic syncs requiring review
-2. **Use consistent labels** for tracking automated syncs
-3. **Add reviewers** appropriate to the changes
-4. **Include comprehensive descriptions** linking back to source commits
-
-### Error Handling
-
-1. **Handle merge conflicts** gracefully with clear documentation
-2. **Validate target repo structure** before creating PRs
-3. **Provide rollback instructions** in PR descriptions
-4. **Monitor for failed syncs** and alert maintainers
-
-### Testing
-
-1. **Test sync workflows** on public repos first
-2. **Verify path mappings** between source and target
-3. **Check for breaking changes** before applying
-4. **Validate in staging** before production deployment
+**Testing**: Test sync workflows on public repos first, verify path mappings, check for breaking changes, and validate in staging before production.
 
 ## Related Documentation
 

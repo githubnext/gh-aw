@@ -98,3 +98,33 @@ Analyze new issues and add appropriate labels based on content:
 Maximum of 2 labels per issue from the allowed list.
 ```
 
+## Organizing Work with Sub-Issues
+
+Sub-issues break large work items into agent-ready tasks. Create parent-child issue hierarchies using the `parent` field with temporary IDs, or link existing issues with `link-sub-issue`.
+
+```aw wrap
+---
+on:
+  command:
+    name: plan
+safe-outputs:
+  create-issue:
+    title-prefix: "[task] "
+    max: 6
+---
+
+# Planning Assistant
+
+1. Create a parent tracking issue with a temporary_id
+2. Create sub-issues linked via the parent field:
+
+{"type": "create_issue", "temporary_id": "aw_abc123def456", "title": "Feature X", "body": "Tracking issue"}
+{"type": "create_issue", "parent": "aw_abc123def456", "title": "Task 1", "body": "First task"}
+```
+
+:::tip[Hide sub-issues from your issues list]
+Use `no:parent-issue` in your repository's `/issues` page to filter out sub-issues and focus on top-level work items: `/issues?q=no:parent-issue`
+:::
+
+Use `link-sub-issue` to connect existing issues. Assign sub-issues directly to Copilot with `assignees: copilot` for parallel execution.
+

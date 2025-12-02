@@ -72,6 +72,127 @@ describe("collect_ndjson_output.cjs", () => {
 
     // Make fs available globally for the evaluated script
     global.fs = fs;
+
+    // Set up validation config file for the collect_ndjson_output script
+    const safeOutputsDir = "/tmp/gh-aw/safeoutputs";
+    if (!fs.existsSync(safeOutputsDir)) {
+      fs.mkdirSync(safeOutputsDir, { recursive: true });
+    }
+
+    // Write validation config from safe_output_validation_config.go (Go source of truth)
+    // This is a minimal set that covers the types used in tests
+    const validationConfig = {
+      create_issue: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
+          parent: { issueOrPRNumber: true },
+          temporary_id: { type: "string" },
+        },
+      },
+      add_comment: {
+        defaultMax: 1,
+        fields: {
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          item_number: { issueOrPRNumber: true },
+        },
+      },
+      create_pull_request: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          branch: { required: true, type: "string", sanitize: true, maxLength: 256 },
+          labels: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 128 },
+        },
+      },
+      update_issue: {
+        defaultMax: 1,
+        customValidation: "requiresOneOf:status,title,body",
+        fields: {
+          status: { type: "string", enum: ["open", "closed"] },
+          title: { type: "string", sanitize: true, maxLength: 128 },
+          body: { type: "string", sanitize: true, maxLength: 65000 },
+          issue_number: { issueOrPRNumber: true },
+        },
+      },
+      create_pull_request_review_comment: {
+        defaultMax: 1,
+        customValidation: "startLineLessOrEqualLine",
+        fields: {
+          path: { required: true, type: "string" },
+          line: { required: true, positiveInteger: true },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          start_line: { optionalPositiveInteger: true },
+          side: { type: "string", enum: ["LEFT", "RIGHT"] },
+        },
+      },
+      link_sub_issue: {
+        defaultMax: 5,
+        customValidation: "parentAndSubDifferent",
+        fields: {
+          parent_issue_number: { required: true, issueNumberOrTemporaryId: true },
+          sub_issue_number: { required: true, issueNumberOrTemporaryId: true },
+        },
+      },
+      noop: {
+        defaultMax: 1,
+        fields: {
+          message: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+        },
+      },
+      missing_tool: {
+        defaultMax: 20,
+        fields: {
+          tool: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          reason: { required: true, type: "string", sanitize: true, maxLength: 256 },
+          alternatives: { type: "string", sanitize: true, maxLength: 512 },
+        },
+      },
+      create_code_scanning_alert: {
+        defaultMax: 40,
+        fields: {
+          file: { required: true, type: "string", sanitize: true, maxLength: 512 },
+          line: { required: true, positiveInteger: true },
+          severity: { required: true, type: "string", enum: ["error", "warning", "info", "note"] },
+          message: { required: true, type: "string", sanitize: true, maxLength: 2048 },
+          column: { optionalPositiveInteger: true },
+          ruleIdSuffix: {
+            type: "string",
+            pattern: "^[a-zA-Z0-9_-]+$",
+            patternError: "must contain only alphanumeric characters, hyphens, and underscores",
+            sanitize: true,
+            maxLength: 128,
+          },
+        },
+      },
+      assign_to_agent: {
+        defaultMax: 1,
+        fields: {
+          issue_number: { required: true, positiveInteger: true },
+          agent: { type: "string", sanitize: true, maxLength: 128 },
+        },
+      },
+      create_discussion: {
+        defaultMax: 1,
+        fields: {
+          title: { required: true, type: "string", sanitize: true, maxLength: 128 },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          category: { type: "string", sanitize: true, maxLength: 128 },
+        },
+      },
+      update_release: {
+        defaultMax: 1,
+        fields: {
+          tag: { type: "string", sanitize: true, maxLength: 256 },
+          operation: { required: true, type: "string", enum: ["replace", "append", "prepend"] },
+          body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+        },
+      },
+    };
+    fs.writeFileSync(path.join(safeOutputsDir, "validation.json"), JSON.stringify(validationConfig));
   });
 
   afterEach(() => {
@@ -218,8 +339,8 @@ describe("collect_ndjson_output.cjs", () => {
     // Since there are errors and no valid items, setFailed should be called
     expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
     const failedMessage = mockCore.setFailed.mock.calls[0][0];
-    expect(failedMessage).toContain("requires a 'body' string field");
-    expect(failedMessage).toContain("requires a 'title' string field");
+    expect(failedMessage).toContain("requires a 'body' field (string)");
+    expect(failedMessage).toContain("requires a 'title' field (string)");
 
     // setOutput should not be called because of early return
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -278,9 +399,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].body).toBe("Test body");
     expect(parsedOutput.items[0].branch).toBe("feature-branch");
     expect(parsedOutput.errors).toHaveLength(3); // Three incomplete PRs should cause errors
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
-    expect(parsedOutput.errors[2]).toContain("requires a 'title' string field");
+    expect(parsedOutput.errors[0]).toContain("requires a 'body' field (string)");
+    expect(parsedOutput.errors[1]).toContain("requires a 'title' field (string)");
+    expect(parsedOutput.errors[2]).toContain("requires a 'title' field (string)");
   });
 
   it("should handle invalid JSON lines", async () => {
@@ -383,8 +504,8 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].title).toBe("Valid Discussion");
     expect(parsedOutput.items[0].body).toBe("Valid body");
     expect(parsedOutput.errors).toHaveLength(2);
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
+    expect(parsedOutput.errors[0]).toContain("requires a 'body' field (string)");
+    expect(parsedOutput.errors[1]).toContain("requires a 'title' field (string)");
   });
 
   it("should skip empty lines", async () => {
@@ -439,9 +560,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].line).toBe(10);
     expect(parsedOutput.items[0].body).toBeDefined();
     expect(parsedOutput.errors).toHaveLength(4); // 4 invalid items
-    expect(parsedOutput.errors.some(e => e.includes("line' must be a positive integer"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'line' number"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'path' string"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("line' must be a valid positive integer"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("'line' is required"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'path' field (string)"))).toBe(true);
     expect(parsedOutput.errors.some(e => e.includes("start_line' must be less than or equal to 'line'"))).toBe(true);
   });
 
@@ -502,9 +623,9 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[2].operation).toBe("replace");
     expect(parsedOutput.items[0].body).toBeDefined();
     expect(parsedOutput.errors).toHaveLength(3); // 3 invalid items
-    expect(parsedOutput.errors.some(e => e.includes("operation' must be 'replace', 'append', or 'prepend'"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires an 'operation' string field"))).toBe(true);
-    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' string field"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("operation' must be one of:"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'operation' field (string)"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' field (string)"))).toBe(true);
   });
 
   it("should respect max limits for create-pull-request-review-comment from config", async () => {
@@ -1634,10 +1755,10 @@ Line 3"}
       expect(parsedOutput.items[2]).toEqual({
         type: "create_code_scanning_alert",
         file: "src/complete.js",
-        line: "30",
+        line: 30, // String "30" is normalized to integer 30
         severity: "note", // Should be normalized to lowercase
         message: "Complete example",
-        column: "5",
+        column: 5, // String "5" is normalized to integer 5
         ruleIdSuffix: "complete-rule",
       });
     });
@@ -1662,7 +1783,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
@@ -1692,7 +1813,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
       expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
@@ -1782,7 +1903,7 @@ Line 3"}
 
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
-      expect(parsedOutput.errors).toContain("Line 2: create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(parsedOutput.errors).toContain("Line 2: create_code_scanning_alert 'line' is required");
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
@@ -2376,7 +2497,7 @@ Line 3"}
       // When there are only errors and no valid items, setFailed is called instead of setOutput
       expect(mockCore.setFailed).toHaveBeenCalled();
       const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' string field");
+      expect(failedCall).toContain("noop requires a 'message' field (string)");
     });
 
     it("should reject noop with non-string message", async () => {
@@ -2397,7 +2518,7 @@ Line 3"}
       // When there are only errors and no valid items, setFailed is called instead of setOutput
       expect(mockCore.setFailed).toHaveBeenCalled();
       const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' string field");
+      expect(failedCall).toContain("noop requires a 'message' field (string)");
     });
 
     it("should sanitize noop message content", async () => {
@@ -2553,6 +2674,143 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeUndefined();
+    });
+  });
+
+  describe("link_sub_issue temporary ID validation", () => {
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+
+    beforeEach(() => {
+      // Create config directory and file for each test
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({ link_sub_issue: {} }));
+    });
+
+    it("should accept valid positive integer for parent_issue_number", async () => {
+      // Create test input with regular issue numbers
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-integers.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for valid integers
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary ID (aw_ prefix) for parent_issue_number", async () => {
+      // Create test input with temporary ID for parent
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: "aw_abc123def456", sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-temp-id.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary ID
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary ID (aw_ prefix) for sub_issue_number", async () => {
+      // Create test input with temporary ID for sub
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: "aw_123456abcdef" });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-temp-id-sub.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary ID
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should accept temporary IDs for both parent and sub issue numbers", async () => {
+      // Create test input with temporary IDs for both
+      const testInput = JSON.stringify({
+        type: "link_sub_issue",
+        parent_issue_number: "aw_abc123def456",
+        sub_issue_number: "aw_fedcba654321",
+      });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-both-temp-ids.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // Should not have validation errors for temporary IDs
+      const failedCalls = mockCore.setFailed.mock.calls;
+      expect(failedCalls.length).toBe(0);
+
+      // Check the output was processed
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("link_sub_issue");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should reject invalid temporary ID format (wrong length)", async () => {
+      // Create test input with invalid temporary ID format
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: "aw_short", sub_issue_number: 50 });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-invalid-temp-id.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When all items fail validation, setFailed is called and output is not set
+      const setFailedCalls = mockCore.setFailed.mock.calls;
+      expect(setFailedCalls.length).toBeGreaterThan(0);
+      expect(setFailedCalls[0][0]).toContain("must be a positive integer or temporary ID");
+    });
+
+    it("should reject same temporary ID for parent and sub", async () => {
+      // Create test input with same temporary ID for both
+      const sameId = "aw_abc123def456";
+      const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: sameId, sub_issue_number: sameId });
+      const outputPath = "/tmp/gh-aw/test-link-sub-issue-same-temp-ids.txt";
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      // When all items fail validation, setFailed is called and output is not set
+      const setFailedCalls = mockCore.setFailed.mock.calls;
+      expect(setFailedCalls.length).toBeGreaterThan(0);
+      expect(setFailedCalls[0][0]).toContain("must be different");
     });
   });
 });

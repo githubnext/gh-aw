@@ -41,13 +41,12 @@ tracker-id: "example-value"
 
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
-# githubnext/agentics/workflows/shared/common.md@v1.0.0). Any markdown files under
-# .github/agents directory are treated as custom agent files and only one agent
-# file is allowed per workflow.
+# githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
+# objects with path and inputs. Any markdown files under .github/agents directory
+# are treated as custom agent files and only one agent file is allowed per
+# workflow.
 # (optional)
 imports: []
-  # Array of Workflow specification in format owner/repo/path@ref. Markdown files
-  # under .github/agents/ are treated as agent configuration files.
 
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
@@ -1592,6 +1591,13 @@ safe-outputs:
     # (optional)
     category: null
 
+    # Optional list of labels to attach to created discussions. Also used for matching
+    # when close-older-discussions is enabled - discussions must have ALL specified
+    # labels (AND logic).
+    # (optional)
+    labels: []
+      # Array of strings
+
     # Maximum number of discussions to create (default: 1)
     # (optional)
     max: 1
@@ -1605,6 +1611,13 @@ safe-outputs:
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # When true, automatically close older discussions matching the same title prefix
+    # or labels as 'outdated' with a comment linking to the new discussion. Requires
+    # title-prefix or labels to be set. Maximum 10 discussions will be closed. Only
+    # runs if discussion creation succeeds.
+    # (optional)
+    close-older-discussions: true
 
   # Option 2: Enable discussion creation with default configuration
   create-discussion: null
@@ -2435,6 +2448,14 @@ roles: []
 # https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict
 # (optional)
 strict: true
+
+# Safe inputs configuration for defining custom lightweight MCP tools as
+# JavaScript or shell scripts. Tools are mounted in an MCP server and have access
+# to secrets specified by the user. Only one of 'script' (JavaScript) or 'run'
+# (shell) must be specified per tool.
+# (optional)
+safe-inputs:
+  {}
 
 # Runtime environment version overrides. Allows customizing runtime versions
 # (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared

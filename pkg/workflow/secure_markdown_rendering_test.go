@@ -66,8 +66,9 @@ Run ID: ${{ github.run_id }}
 	}
 
 	// Verify that environment variables are defined for GitHub expressions
-	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
-		t.Error("Compiled workflow should contain GH_AW_EXPR_ environment variables")
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "GH_AW_GITHUB_") {
+		t.Error("Compiled workflow should contain GH_AW_* environment variables")
 	}
 
 	// Verify the original expressions appear in the comment header (Original Prompt section)
@@ -100,12 +101,12 @@ Run ID: ${{ github.run_id }}
 	}
 
 	// Verify that environment variable references ARE in the heredoc content
-	if !strings.Contains(compiledStr, "${GH_AW_EXPR_") {
+	if !strings.Contains(compiledStr, "${GH_AW_GITHUB_") {
 		t.Error("Environment variable references should be in the prompt content")
 	}
 
 	// Verify environment variables are set with GitHub expressions
-	if !strings.Contains(compiledStr, "GH_AW_EXPR_") || !strings.Contains(compiledStr, ": ${{ github.repository }}") {
+	if !strings.Contains(compiledStr, "GH_AW_GITHUB_REPOSITORY") || !strings.Contains(compiledStr, ": ${{ github.repository }}") {
 		t.Error("Environment variables should be set to GitHub expression values")
 	}
 }

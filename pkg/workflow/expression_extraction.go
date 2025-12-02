@@ -92,9 +92,24 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 	return result, nil
 }
 
+// simpleIdentifierRegex matches simple JavaScript property access chains like
+// "github.event.issue.number" or "needs.activation.outputs.text"
+// Each identifier must start with a letter or underscore, followed by alphanumeric or underscore
+var simpleIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$`)
+
 // generateEnvVarName generates a unique environment variable name for an expression
-// Uses a hash of the content to create a stable, collision-free name
+// For simple JavaScript property access chains (e.g., "github.event.issue.number"),
+// it generates a pretty name like "GH_AW_GITHUB_EVENT_ISSUE_NUMBER".
+// For complex expressions, it falls back to a hash-based name.
 func (e *ExpressionExtractor) generateEnvVarName(content string) string {
+	// Check if the expression is a simple JavaScript property access chain
+	if simpleIdentifierRegex.MatchString(content) {
+		// Convert dots to underscores and uppercase
+		prettyName := strings.ToUpper(strings.ReplaceAll(content, ".", "_"))
+		return fmt.Sprintf("GH_AW_%s", prettyName)
+	}
+
+	// Fall back to hash-based name for complex expressions
 	// Use SHA256 hash to generate a unique identifier
 	hash := sha256.Sum256([]byte(content))
 	hashStr := hex.EncodeToString(hash[:])
@@ -144,6 +159,42 @@ func (e *ExpressionExtractor) GetMappings() []*ExpressionMapping {
 	// Sort by environment variable name for consistent ordering
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].EnvVar < result[j].EnvVar
+	})
+
+	return result
+}
+
+// awInputsExprRegex matches ${{ github.aw.inputs.<key> }} expressions
+var awInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
+
+// SubstituteImportInputs replaces ${{ github.aw.inputs.<key> }} expressions
+// with the corresponding values from the importInputs map.
+// This is called before expression extraction to inject import input values.
+func SubstituteImportInputs(content string, importInputs map[string]any) string {
+	if len(importInputs) == 0 {
+		return content
+	}
+
+	expressionExtractionLog.Printf("Substituting import inputs: %d inputs available", len(importInputs))
+
+	result := awInputsExprRegex.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the key name from the expression
+		matches := awInputsExprRegex.FindStringSubmatch(match)
+		if len(matches) < 2 {
+			return match
+		}
+
+		key := matches[1]
+		if value, exists := importInputs[key]; exists {
+			// Convert value to string
+			strValue := fmt.Sprintf("%v", value)
+			expressionExtractionLog.Printf("Substituting github.aw.inputs.%s with value: %s", key, strValue)
+			return strValue
+		}
+
+		// If the key doesn't exist in importInputs, keep the original expression
+		expressionExtractionLog.Printf("Import input key not found: %s", key)
+		return match
 	})
 
 	return result

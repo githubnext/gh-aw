@@ -94,6 +94,8 @@ describe("create_issue.cjs", () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_ISSUE_LABELS;
     delete process.env.GH_AW_ISSUE_TITLE_PREFIX;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete process.env.GH_AW_ALLOWED_REPOS;
 
     // Reset context
     delete global.context.payload.issue;
@@ -391,7 +393,9 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should log warning message instead of error
-    expect(mockCore.info).toHaveBeenCalledWith('⚠ Cannot create issue "Test issue": Issues are disabled for this repository');
+    expect(mockCore.info).toHaveBeenCalledWith(
+      '⚠ Cannot create issue "Test issue" in testowner/testrepo: Issues are disabled for this repository'
+    );
     expect(mockCore.info).toHaveBeenCalledWith(
       "Consider enabling issues in repository settings if you want to create issues automatically"
     );
@@ -438,7 +442,9 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should log warning for first issue
-    expect(mockCore.info).toHaveBeenCalledWith('⚠ Cannot create issue "First issue": Issues are disabled for this repository');
+    expect(mockCore.info).toHaveBeenCalledWith(
+      '⚠ Cannot create issue "First issue" in testowner/testrepo: Issues are disabled for this repository'
+    );
 
     // Both API calls should have been made
     expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
@@ -802,8 +808,8 @@ describe("create_issue.cjs", () => {
     // Get the last call (the one with actual data)
     const lastTempIdMapCall = tempIdMapCalls[tempIdMapCalls.length - 1];
     expect(lastTempIdMapCall).toBeDefined();
-    expect(JSON.parse(lastTempIdMapCall[1])).toEqual({ aw_abc123def456: 100 });
-    expect(mockCore.info).toHaveBeenCalledWith("Stored temporary ID mapping: aw_abc123def456 -> #100");
+    expect(JSON.parse(lastTempIdMapCall[1])).toEqual({ aw_abc123def456: { repo: "testowner/testrepo", number: 100 } });
+    expect(mockCore.info).toHaveBeenCalledWith("Stored temporary ID mapping: aw_abc123def456 -> testowner/testrepo#100");
   });
 
   it("should resolve parent temporary_id to issue number when creating sub-issues", async () => {
@@ -851,7 +857,7 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should have resolved parent temporary_id to issue #100
-    expect(mockCore.info).toHaveBeenCalledWith("Resolved parent temporary ID 'aw_aabbccdd1122' to issue #100");
+    expect(mockCore.info).toHaveBeenCalledWith("Resolved parent temporary ID 'aw_aabbccdd1122' to testowner/testrepo#100");
 
     // Both issues should be created
     expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
@@ -931,7 +937,7 @@ describe("create_issue.cjs", () => {
     expect(keys.length).toBe(1);
     // Auto-generated ID should be aw_ prefix + 12 hex characters
     expect(keys[0]).toMatch(/^aw_[0-9a-f]{12}$/);
-    expect(tempIdMap[keys[0]]).toBe(300);
+    expect(tempIdMap[keys[0]]).toEqual({ repo: "testowner/testrepo", number: 300 });
   });
 
   it("should show temporary_id in staged mode preview", async () => {

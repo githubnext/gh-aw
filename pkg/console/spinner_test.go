@@ -39,3 +39,15 @@ func TestSpinnerIsEnabled(t *testing.T) {
 	// but the method should not panic
 	_ = enabled
 }
+
+func TestSpinnerStopWithMessage(t *testing.T) {
+	spinner := NewSpinner("Processing...")
+
+	// This should not panic even if spinner is disabled
+	spinner.Start()
+	spinner.StopWithMessage("✓ Done successfully")
+
+	// Test calling StopWithMessage on a spinner that was never started
+	spinner2 := NewSpinner("Another test")
+	spinner2.StopWithMessage("✓ Completed")
+}

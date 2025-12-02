@@ -22,6 +22,7 @@ safe-outputs:
   create-discussion:
     category: "artifacts"
     max: 1
+    close-older-discussions: true
 timeout-minutes: 15
 strict: true
 imports:

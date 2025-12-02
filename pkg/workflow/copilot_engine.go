@@ -196,7 +196,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add tool permission arguments based on configuration
-	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
+	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData)
 	if len(toolArgs) > 0 {
 		copilotLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
@@ -423,6 +423,17 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		}
 	}
 
+	// Add safe-inputs secrets to env for passthrough to MCP servers
+	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		for varName, secretExpr := range safeInputsSecrets {
+			// Only add if not already in env
+			if _, exists := env[varName]; !exists {
+				env[varName] = secretExpr
+			}
+		}
+	}
+
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
@@ -431,7 +442,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
-	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, "        ")
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData, "        ")
 	if toolArgsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")
@@ -528,6 +539,10 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
 				renderer := createRenderer(isLast)
 				renderer.RenderSafeOutputsMCP(yaml)
+			},
+			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
+				renderer := createRenderer(isLast)
+				renderer.RenderSafeInputsMCP(yaml, safeInputs)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
@@ -679,7 +694,7 @@ func (e *CopilotEngine) GetLogFileForParsing() string {
 }
 
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
-func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData) []string {
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -726,6 +741,11 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID)
+	}
+
+	// Handle safe_inputs MCP server - allow the server if safe inputs are configured and feature flag is enabled
+	if IsSafeInputsEnabled(safeInputs, workflowData) {
+		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID)
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
@@ -821,8 +841,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 }
 
 // generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument
-func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, indent string) string {
-	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs)
+func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData, indent string) string {
+	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, safeInputs, workflowData)
 	if len(toolArgs) == 0 {
 		return ""
 	}

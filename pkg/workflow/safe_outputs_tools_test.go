@@ -317,3 +317,197 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestEnhanceToolDescription(t *testing.T) {
+	tests := []struct {
+		name            string
+		toolName        string
+		baseDescription string
+		safeOutputs     *SafeOutputsConfig
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "nil safe outputs returns base description",
+			toolName:        "create_issue",
+			baseDescription: "Create a new GitHub issue.",
+			safeOutputs:     nil,
+			wantContains:    []string{"Create a new GitHub issue."},
+			wantNotContains: []string{"CONSTRAINTS:"},
+		},
+		{
+			name:            "create_issue with max",
+			toolName:        "create_issue",
+			baseDescription: "Create a new GitHub issue.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+				},
+			},
+			wantContains:    []string{"CONSTRAINTS:", "Maximum 5 issue(s)"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "create_issue with title prefix",
+			toolName:        "create_issue",
+			baseDescription: "Create a new GitHub issue.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					TitlePrefix: "[ai] ",
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `Title will be prefixed with "[ai] "`},
+		},
+		{
+			name:            "create_issue with labels",
+			toolName:        "create_issue",
+			baseDescription: "Create a new GitHub issue.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					Labels: []string{"bug", "enhancement"},
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", "Labels [bug enhancement] will be automatically added"},
+		},
+		{
+			name:            "create_issue with multiple constraints",
+			toolName:        "create_issue",
+			baseDescription: "Create a new GitHub issue.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					TitlePrefix:          "[bot] ",
+					Labels:               []string{"automated"},
+					TargetRepoSlug:       "owner/repo",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 3 issue(s)",
+				`Title will be prefixed with "[bot] "`,
+				"Labels [automated]",
+				`Issues will be created in repository "owner/repo"`,
+			},
+		},
+		{
+			name:            "add_labels with allowed labels",
+			toolName:        "add_labels",
+			baseDescription: "Add labels to an issue.",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					Allowed: []string{"bug", "enhancement", "question"},
+					Max:     5,
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 5 label(s)",
+				"Only these labels are allowed: [bug enhancement question]",
+			},
+		},
+		{
+			name:            "create_discussion with category",
+			toolName:        "create_discussion",
+			baseDescription: "Create a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateDiscussions: &CreateDiscussionsConfig{
+					Category: "General",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				`Discussions will be created in category "General"`,
+			},
+		},
+		{
+			name:            "noop has no constraints",
+			toolName:        "noop",
+			baseDescription: "Log a message.",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			wantContains:    []string{"Log a message."},
+			wantNotContains: []string{"CONSTRAINTS:"},
+		},
+		{
+			name:            "unknown tool returns base description",
+			toolName:        "unknown_tool",
+			baseDescription: "Unknown tool.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
+			},
+			wantContains:    []string{"Unknown tool."},
+			wantNotContains: []string{"CONSTRAINTS:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := enhanceToolDescription(tt.toolName, tt.baseDescription, tt.safeOutputs)
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, result, want, "Result should contain %q", want)
+			}
+
+			for _, notWant := range tt.wantNotContains {
+				assert.NotContains(t, result, notWant, "Result should not contain %q", notWant)
+			}
+		})
+	}
+}
+
+func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+				TitlePrefix:          "[automated] ",
+				Labels:               []string{"bot", "enhancement"},
+			},
+			AddLabels: &AddLabelsConfig{
+				Allowed: []string{"bug", "enhancement"},
+				Max:     3,
+			},
+		},
+	}
+
+	result, err := generateFilteredToolsJSON(workflowData)
+	require.NoError(t, err)
+
+	// Parse the JSON result
+	var tools []map[string]any
+	err = json.Unmarshal([]byte(result), &tools)
+	require.NoError(t, err)
+
+	// Find and verify create_issue tool has enhanced description
+	var createIssueTool map[string]any
+	for _, tool := range tools {
+		if tool["name"] == "create_issue" {
+			createIssueTool = tool
+			break
+		}
+	}
+	require.NotNil(t, createIssueTool, "create_issue tool should be present")
+
+	description, ok := createIssueTool["description"].(string)
+	require.True(t, ok, "description should be a string")
+	assert.Contains(t, description, "CONSTRAINTS:", "Description should contain constraints")
+	assert.Contains(t, description, "Maximum 5 issue(s)", "Description should include max constraint")
+	assert.Contains(t, description, `Title will be prefixed with "[automated] "`, "Description should include title prefix")
+	assert.Contains(t, description, "Labels [bot enhancement]", "Description should include labels")
+
+	// Find and verify add_labels tool has enhanced description
+	var addLabelsTool map[string]any
+	for _, tool := range tools {
+		if tool["name"] == "add_labels" {
+			addLabelsTool = tool
+			break
+		}
+	}
+	require.NotNil(t, addLabelsTool, "add_labels tool should be present")
+
+	labelsDescription, ok := addLabelsTool["description"].(string)
+	require.True(t, ok, "description should be a string")
+	assert.Contains(t, labelsDescription, "CONSTRAINTS:", "Description should contain constraints")
+	assert.Contains(t, labelsDescription, "Only these labels are allowed: [bug enhancement]", "Description should include allowed labels")
+}

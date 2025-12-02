@@ -1,10 +1,11 @@
 package console
 
 import (
+	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/mattn/go-isatty"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 // SpinnerWrapper wraps the spinner functionality with TTY detection
@@ -16,14 +17,14 @@ type SpinnerWrapper struct {
 // NewSpinner creates a new spinner with the given message
 // The spinner is automatically disabled when not running in a TTY
 func NewSpinner(message string) *SpinnerWrapper {
-	enabled := isatty.IsTerminal(1) // Check if stdout is a terminal
+	enabled := tty.IsStderrTerminal() // Check if stderr is a terminal (spinner writes to stderr)
 
 	s := &SpinnerWrapper{
 		enabled: enabled,
 	}
 
 	if enabled {
-		s.spinner = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.spinner = spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
 		s.spinner.Suffix = " " + message
 		_ = s.spinner.Color("cyan") // Ignore error as fallback is fine
 	}
@@ -41,6 +42,15 @@ func (s *SpinnerWrapper) Start() {
 // Stop stops the spinner animation
 func (s *SpinnerWrapper) Stop() {
 	if s.enabled && s.spinner != nil {
+		s.spinner.Stop()
+	}
+}
+
+// StopWithMessage stops the spinner and displays a final message
+// The message will only be displayed if the spinner is enabled (TTY check)
+func (s *SpinnerWrapper) StopWithMessage(msg string) {
+	if s.enabled && s.spinner != nil {
+		s.spinner.FinalMSG = msg + "\n"
 		s.spinner.Stop()
 	}
 }

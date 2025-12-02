@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -39,13 +40,20 @@ func cancelWorkflowRuns(workflowID int64) error {
 	cancelLog.Printf("Found %d in-progress workflow runs to cancel", len(runs))
 
 	// Cancel each running workflow
-	for _, run := range runs {
+	totalRuns := len(runs)
+	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
 		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
+		// Update spinner with progress after cancellation completes
+		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
 	}
 
-	spinner.Stop()
+	if len(runs) > 0 {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Cancelled %d workflow runs", len(runs)))
+	} else {
+		spinner.StopWithMessage("✓ No in-progress workflow runs to cancel")
+	}
 	cancelLog.Print("Workflow run cancellation completed")
 	return nil
 }
@@ -79,13 +87,20 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	cancelLog.Printf("Found %d in-progress workflow runs to cancel", len(runs))
 
 	// Cancel each running workflow
-	for _, run := range runs {
+	totalRuns := len(runs)
+	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
 		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
+		// Update spinner with progress after cancellation completes
+		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
 	}
 
-	spinner.Stop()
+	if len(runs) > 0 {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Cancelled %d workflow runs", len(runs)))
+	} else {
+		spinner.StopWithMessage("✓ No in-progress workflow runs to cancel")
+	}
 	cancelLog.Print("Workflow run cancellation completed")
 	return nil
 }

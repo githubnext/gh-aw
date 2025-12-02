@@ -21,13 +21,13 @@ type RedactedDomainsAnalysis struct {
 	// TotalDomains is the total number of unique domains found in the redacted log
 	TotalDomains int `json:"total_domains" console:"header:Total Domains"`
 	// Domains is a sorted list of unique domain names that were redacted
-	Domains []string `json:"domains" console:"-"`
+	Domains []string `json:"domains" console:"title:Redacted Domains,omitempty"`
 }
 
 // RedactedDomainsLogSummary contains aggregated redacted domains data across all runs
 type RedactedDomainsLogSummary struct {
 	TotalDomains int                                 `json:"total_domains" console:"header:Total Domains"`
-	Domains      []string                            `json:"domains" console:"-"`
+	Domains      []string                            `json:"domains" console:"title:Redacted Domains,omitempty"`
 	ByWorkflow   map[string]*RedactedDomainsAnalysis `json:"by_workflow,omitempty" console:"-"`
 }
 

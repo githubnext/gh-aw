@@ -282,28 +282,62 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       create-issue:
-        title-prefix: "[ai] "           # Optional: prefix for issue titles  
+        title-prefix: "[ai] "           # Optional: prefix for issue titles
         labels: [automation, agentic]    # Optional: labels to attach to issues
+        assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+
+    **Temporary IDs and Sub-Issues:**
+    When creating multiple issues, use `temporary_id` (format: `aw_` + 12 hex chars) to reference parent issues before creation. References like `#aw_abc123def456` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
+    ```json
+    {"type": "create_issue", "temporary_id": "aw_abc123def456", "title": "Parent", "body": "Parent issue"}
+    {"type": "create_issue", "parent": "aw_abc123def456", "title": "Sub-task", "body": "References #aw_abc123def456"}
+    ```
+  - `close-issue:` - Close issues with comment
+    ```yaml
+    safe-outputs:
+      close-issue:
+        target: "triggering"              # Optional: "triggering" (default), "*", or number
+        required-labels: [automated]      # Optional: only close with any of these labels
+        required-title-prefix: "[bot]"    # Optional: only close matching prefix
+        max: 20                           # Optional: max closures (default: 1)
+        target-repo: "owner/repo"         # Optional: cross-repository
+    ```
   - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
     ```yaml
     safe-outputs:
       create-discussion:
-        title-prefix: "[ai] "           # Optional: prefix for discussion titles  
+        title-prefix: "[ai] "           # Optional: prefix for discussion titles
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
-    
+
     When using `safe-outputs.create-discussion`, the main job does **not** need `discussions: write` permission since discussion creation is handled by a separate job with appropriate permissions.
-  - `add-comment:` - Safe comment creation on issues/PRs
+  - `close-discussion:` - Close discussions with comment and resolution
+    ```yaml
+    safe-outputs:
+      close-discussion:
+        target: "triggering"              # Optional: "triggering" (default), "*", or number
+        required-category: "Ideas"        # Optional: only close in category
+        required-labels: [resolved]       # Optional: only close with labels
+        required-title-prefix: "[ai]"     # Optional: only close matching prefix
+        max: 1                            # Optional: max closures (default: 1)
+        target-repo: "owner/repo"         # Optional: cross-repository
+    ```
+    Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
+  - `add-comment:` - Safe comment creation on issues/PRs/discussions
     ```yaml
     safe-outputs:
       add-comment:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
+        discussion: true                # Optional: target discussions
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
@@ -312,7 +346,10 @@ The YAML frontmatter supports these fields:
       create-pull-request:
         title-prefix: "[ai] "           # Optional: prefix for PR titles
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+        reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
         draft: true                     # Optional: create as draft PR (defaults to true)
+        if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
   - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
@@ -321,6 +358,8 @@ The YAML frontmatter supports these fields:
       create-pull-request-review-comment:
         max: 3                          # Optional: maximum number of review comments (default: 1)
         side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
   - `update-issue:` - Safe issue updates
@@ -332,8 +371,20 @@ The YAML frontmatter supports these fields:
         title: true                     # Optional: allow updating issue title
         body: true                      # Optional: allow updating issue body
         max: 3                          # Optional: maximum number of issues to update (default: 1)
+        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+  - `update-pull-request:` - Update PR title or body
+    ```yaml
+    safe-outputs:
+      update-pull-request:
+        title: true                     # Optional: enable title updates (default: true)
+        body: true                      # Optional: enable body updates (default: true)
+        max: 1                          # Optional: max updates (default: 1)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Operation types: `append` (default), `prepend`, `replace`.
   - `close-pull-request:` - Safe pull request closing with filtering
     ```yaml
     safe-outputs:
@@ -341,9 +392,100 @@ The YAML frontmatter supports these fields:
         required-labels: [test, automated]  # Optional: only close PRs with these labels
         required-title-prefix: "[bot]"      # Optional: only close PRs with this title prefix
         target: "triggering"                # Optional: "triggering" (default), "*" (any PR), or explicit PR number
-        max: 3                              # Optional: maximum number of PRs to close (default: 1)
+        max: 10                             # Optional: maximum number of PRs to close (default: 1)
+        target-repo: "owner/repo"           # Optional: cross-repository
     ```
     When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
+  - `add-labels:` - Safe label addition to issues or PRs
+    ```yaml
+    safe-outputs:
+      add-labels:
+        allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
+        max: 3                                      # Optional: maximum number of labels (default: 3)
+        target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
+        target-repo: "owner/repo"                   # Optional: cross-repository
+    ```
+    When using `safe-outputs.add-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label addition is handled by a separate job with appropriate permissions.
+  - `add-reviewer:` - Add reviewers to pull requests
+    ```yaml
+    safe-outputs:
+      add-reviewer:
+        reviewers: [user1, copilot]     # Optional: restrict to specific reviewers
+        max: 3                          # Optional: max reviewers (default: 3)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Use `reviewers: copilot` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`.
+  - `assign-milestone:` - Assign issues to milestones
+    ```yaml
+    safe-outputs:
+      assign-milestone:
+        allowed: [v1.0, v2.0]           # Optional: restrict to specific milestone titles
+        max: 1                          # Optional: max assignments (default: 1)
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+  - `link-sub-issue:` - Safe sub-issue linking
+    ```yaml
+    safe-outputs:
+      link-sub-issue:
+        parent-required-labels: [epic]     # Optional: parent must have these labels
+        parent-title-prefix: "[Epic]"      # Optional: parent must match this prefix
+        sub-required-labels: [task]        # Optional: sub-issue must have these labels
+        sub-title-prefix: "[Task]"         # Optional: sub-issue must match this prefix
+        max: 1                             # Optional: maximum number of links (default: 1)
+        target-repo: "owner/repo"          # Optional: cross-repository
+    ```
+    Links issues as sub-issues using GitHub's parent-child relationships. Agent output includes `parent_issue_number` and `sub_issue_number`. Use with `create-issue` temporary IDs or existing issue numbers.
+  - `update-project:` - Manage GitHub Projects boards
+    ```yaml
+    safe-outputs:
+      update-project:
+        max: 20                         # Optional: max project operations (default: 10)
+        github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: token with projects:write
+    ```
+    Not supported for cross-repository operations.
+  - `push-to-pull-request-branch:` - Push changes to PR branch
+    ```yaml
+    safe-outputs:
+      push-to-pull-request-branch:
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        title-prefix: "[bot] "          # Optional: require title prefix
+        labels: [automated]             # Optional: require all labels
+        if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+    ```
+    Not supported for cross-repository operations.
+  - `update-release:` - Update GitHub release descriptions
+    ```yaml
+    safe-outputs:
+      update-release:
+        max: 1                          # Optional: max releases (default: 1, max: 10)
+        target-repo: "owner/repo"       # Optional: cross-repository
+        github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
+    ```
+    Operation types: `replace`, `append`, `prepend`.
+  - `create-code-scanning-alert:` - Generate SARIF security advisories
+    ```yaml
+    safe-outputs:
+      create-code-scanning-alert:
+        max: 50                         # Optional: max findings (default: unlimited)
+    ```
+    Severity levels: error, warning, info, note.
+  - `create-agent-task:` - Create GitHub Copilot agent tasks
+    ```yaml
+    safe-outputs:
+      create-agent-task:
+        base: main                      # Optional: base branch (defaults to current)
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Requires PAT as `COPILOT_GITHUB_TOKEN`.
+  - `assign-to-agent:` - Assign Copilot agents to issues
+    ```yaml
+    safe-outputs:
+      assign-to-agent:
+        name: "copilot"                 # Optional: agent name
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
@@ -966,10 +1108,12 @@ on:
   issues:
     types: [opened, reopened]
 permissions:
-  issues: write
-tools:
-  github:
-    allowed: [issue_read, add_issue_comment, update_issue]
+  contents: read
+  actions: read
+safe-outputs:
+  add-labels:
+    allowed: [bug, enhancement, question, documentation]
+  add-comment:
 timeout-minutes: 5
 ---
 
@@ -977,7 +1121,7 @@ timeout-minutes: 5
 
 Analyze issue #${{ github.event.issue.number }} and:
 1. Categorize the issue type
-2. Add appropriate labels  
+2. Add appropriate labels from the allowed list
 3. Post helpful triage comment
 ```
 
@@ -988,8 +1132,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"  # Monday 9AM
 permissions:
-  issues: write
   contents: read
+  actions: read
 tools:
   web-fetch:
   web-search:
@@ -1017,7 +1161,8 @@ on:
   command:
     name: helper-bot
 permissions:
-  issues: write
+  contents: read
+  actions: read
 safe-outputs:
   add-comment:
 ---

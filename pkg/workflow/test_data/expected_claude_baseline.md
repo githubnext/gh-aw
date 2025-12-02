@@ -44,13 +44,7 @@ I'll help you try to call the `draw_pelican` tool. Let me first check if there's
      5→
      6→## Steps to Complete
      7→1. ✓ Check for existing plan (found previous attempt)
-     8→2. ✓ Read existing plan
-     9→3. ✓ Confirm tool is missing
-    10→4. ✓ Report missing tool using safe-outputs
-    11→
-    12→## Discoveries
-    13→- Previous attempt confirmed `draw_pelican` tool does not exist
-    14→- Need to report missing functionali...
+     8→2. ✓ Read e... (truncated)
 ``````
 </details>
 
@@ -80,13 +74,7 @@ The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of 
      1→# Execution Plan: Draw Pelican Tool
      2→
      3→## Objective
-     4→Try to call a tool called `draw_pelican` that draws a pelican.
-     5→
-     6→## Steps to Complete
-     7→1. ✓ Check for existing plan (found previous attempt)
-     8→2. ✓ Read existing plan
-     9→3. ✓ Confirm tool is missing (attempted call - tool does not exist)
-    10→4. ✓ Report missing...
+     4→Try to call a tool called `draw_pelican` that dr... (truncated)
 ``````
 </details>
 

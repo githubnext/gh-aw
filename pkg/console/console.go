@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/mattn/go-isatty"
+	"github.com/githubnext/gh-aw/pkg/styles"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var consoleLog = logger.New("console:console")
@@ -30,41 +32,12 @@ type CompilerError struct {
 	Hint     string   // Optional hint for fixing the error
 }
 
-// Styles for different error types
-var (
-	errorStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FF5555"))
-
-	warningStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FFB86C"))
-
-	infoStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#8BE9FD"))
-
-	filePathStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#BD93F9"))
-
-	lineNumberStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#6272A4"))
-
-	contextLineStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#F8F8F2"))
-
-	highlightStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#FF5555")).
-			Foreground(lipgloss.Color("#282A36"))
-
-	// ANSI escape sequences for terminal control
-	clearScreenSequence = "\033[2J\033[H" // Clear screen and move cursor to home position
-)
+// ANSI escape sequences for terminal control
+var clearScreenSequence = "\033[2J\033[H" // Clear screen and move cursor to home position
 
 // isTTY checks if stdout is a terminal
 func isTTY() bool {
-	return isatty.IsTerminal(os.Stdout.Fd())
+	return tty.IsStdoutTerminal()
 }
 
 // applyStyle conditionally applies styling based on TTY status
@@ -106,13 +79,13 @@ func FormatError(err CompilerError) string {
 	var prefix string
 	switch err.Type {
 	case "warning":
-		typeStyle = warningStyle
+		typeStyle = styles.Warning
 		prefix = "warning"
 	case "info":
-		typeStyle = infoStyle
+		typeStyle = styles.Info
 		prefix = "info"
 	default:
-		typeStyle = errorStyle
+		typeStyle = styles.Error
 		prefix = "error"
 	}
 
@@ -123,7 +96,7 @@ func FormatError(err CompilerError) string {
 			relativePath,
 			err.Position.Line,
 			err.Position.Column)
-		output.WriteString(applyStyle(filePathStyle, location))
+		output.WriteString(applyStyle(styles.FilePath, location))
 		output.WriteString(" ")
 	}
 
@@ -180,7 +153,7 @@ func renderContext(err CompilerError) string {
 
 		// Format line number with proper padding
 		lineNumStr := fmt.Sprintf("%*d", lineNumWidth, lineNum)
-		output.WriteString(applyStyle(lineNumberStyle, lineNumStr))
+		output.WriteString(applyStyle(styles.LineNumber, lineNumStr))
 		output.WriteString(" | ")
 
 		// Highlight the error line
@@ -197,15 +170,15 @@ func renderContext(err CompilerError) string {
 					after = line[wordEnd:]
 				}
 
-				output.WriteString(applyStyle(contextLineStyle, before))
-				output.WriteString(applyStyle(highlightStyle, highlightedPart))
-				output.WriteString(applyStyle(contextLineStyle, after))
+				output.WriteString(applyStyle(styles.ContextLine, before))
+				output.WriteString(applyStyle(styles.Highlight, highlightedPart))
+				output.WriteString(applyStyle(styles.ContextLine, after))
 			} else {
 				// Highlight entire line if no specific column or invalid column
-				output.WriteString(applyStyle(highlightStyle, line))
+				output.WriteString(applyStyle(styles.Highlight, line))
 			}
 		} else {
-			output.WriteString(applyStyle(contextLineStyle, line))
+			output.WriteString(applyStyle(styles.ContextLine, line))
 		}
 		output.WriteString("\n")
 
@@ -216,7 +189,7 @@ func renderContext(err CompilerError) string {
 			wordLength := wordEnd - (err.Position.Column - 1)
 
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
-			pointer := applyStyle(errorStyle, strings.Repeat("^", wordLength))
+			pointer := applyStyle(styles.Error, strings.Repeat("^", wordLength))
 			output.WriteString(padding)
 			output.WriteString(pointer)
 			output.WriteString("\n")
@@ -228,38 +201,18 @@ func renderContext(err CompilerError) string {
 
 // FormatSuccessMessage formats a success message with styling
 func FormatSuccessMessage(message string) string {
-	successStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#50FA7B"))
-
-	return applyStyle(successStyle, "✓ ") + message
+	return applyStyle(styles.Success, "✓ ") + message
 }
 
 // FormatInfoMessage formats an informational message
 func FormatInfoMessage(message string) string {
-	return applyStyle(infoStyle, "ℹ ") + message
+	return applyStyle(styles.Info, "ℹ ") + message
 }
 
 // FormatWarningMessage formats a warning message
 func FormatWarningMessage(message string) string {
-	return applyStyle(warningStyle, "⚠ ") + message
+	return applyStyle(styles.Warning, "⚠ ") + message
 }
-
-// Table rendering styles
-var (
-	tableHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#6272A4"))
-
-	tableCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#F8F8F2"))
-
-	tableBorderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#6272A4"))
-
-	tableSeparatorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#44475A"))
-)
 
 // TableConfig represents configuration for table rendering
 type TableConfig struct {
@@ -270,7 +223,7 @@ type TableConfig struct {
 	TotalRow  []string
 }
 
-// RenderTable renders a formatted table using lipgloss
+// RenderTable renders a formatted table using lipgloss/table package
 func RenderTable(config TableConfig) string {
 	if len(config.Headers) == 0 {
 		consoleLog.Print("No headers provided for table rendering")
@@ -282,163 +235,91 @@ func RenderTable(config TableConfig) string {
 
 	// Title
 	if config.Title != "" {
-		titleStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B"))
-		output.WriteString(applyStyle(titleStyle, config.Title))
+		output.WriteString(applyStyle(styles.TableTitle, config.Title))
 		output.WriteString("\n")
 	}
 
-	// Calculate column widths
-	colWidths := make([]int, len(config.Headers))
-	for i, header := range config.Headers {
-		colWidths[i] = len(header)
-	}
-
-	// Check row data for max widths
+	// Build rows including total row if specified
 	allRows := config.Rows
 	if config.ShowTotal && len(config.TotalRow) > 0 {
 		allRows = append(allRows, config.TotalRow)
 	}
 
-	for _, row := range allRows {
-		for i, cell := range row {
-			if i < len(colWidths) && len(cell) > colWidths[i] {
-				colWidths[i] = len(cell)
-			}
+	// Determine row count for styling purposes
+	dataRowCount := len(config.Rows)
+
+	// Create style function that applies different styles based on row type
+	styleFunc := func(row, col int) lipgloss.Style {
+		if !isTTY() {
+			return lipgloss.NewStyle()
 		}
+		if row == table.HeaderRow {
+			return styles.TableHeader
+		}
+		// If we have a total row and this is the last row
+		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
+			return styles.TableTotal
+		}
+		return styles.TableCell
 	}
 
-	// Render header
-	output.WriteString(renderTableRow(config.Headers, colWidths, tableHeaderStyle))
-	output.WriteString("\n")
+	// Create table with lipgloss/table package
+	t := table.New().
+		Headers(config.Headers...).
+		Rows(allRows...).
+		Border(styles.NormalBorder).
+		BorderStyle(styles.TableBorder).
+		StyleFunc(styleFunc)
 
-	// Header separator
-	separatorChars := make([]string, len(config.Headers))
-	for i, width := range colWidths {
-		separatorChars[i] = strings.Repeat("-", width)
-	}
-	output.WriteString(applyStyle(tableSeparatorStyle, renderTableRow(separatorChars, colWidths, tableSeparatorStyle)))
-	output.WriteString("\n")
-
-	// Render data rows
-	for _, row := range config.Rows {
-		output.WriteString(renderTableRow(row, colWidths, tableCellStyle))
-		output.WriteString("\n")
-	}
-
-	// Total row if specified
-	if config.ShowTotal && len(config.TotalRow) > 0 {
-		// Total separator
-		output.WriteString(applyStyle(tableSeparatorStyle, renderTableRow(separatorChars, colWidths, tableSeparatorStyle)))
-		output.WriteString("\n")
-
-		// Total row with bold styling
-		totalStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B"))
-		output.WriteString(renderTableRow(config.TotalRow, colWidths, totalStyle))
-		output.WriteString("\n")
-	}
+	output.WriteString(t.String())
 	output.WriteString("\n")
 
 	return output.String()
 }
 
-// renderTableRow renders a single table row with proper spacing
-func renderTableRow(cells []string, colWidths []int, style lipgloss.Style) string {
-	var row strings.Builder
-
-	for i, cell := range cells {
-		if i < len(colWidths) {
-			// Pad cell to column width
-			paddedCell := fmt.Sprintf("%-*s", colWidths[i], cell)
-			row.WriteString(applyStyle(style, paddedCell))
-
-			// Add separator between columns (except last)
-			if i < len(cells)-1 {
-				row.WriteString(applyStyle(tableBorderStyle, " | "))
-			}
-		}
-	}
-
-	return row.String()
-}
-
 // FormatLocationMessage formats a file/directory location message
 func FormatLocationMessage(message string) string {
-	locationStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FFB86C"))
-
-	return applyStyle(locationStyle, "📁 ") + message
+	return applyStyle(styles.Location, "📁 ") + message
 }
 
 // FormatCommandMessage formats a command execution message
 func FormatCommandMessage(command string) string {
-	commandStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#BD93F9"))
-
-	return applyStyle(commandStyle, "⚡ ") + command
+	return applyStyle(styles.Command, "⚡ ") + command
 }
 
 // FormatProgressMessage formats a progress/activity message
 func FormatProgressMessage(message string) string {
-	progressStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#F1FA8C"))
-
-	return applyStyle(progressStyle, "🔨 ") + message
+	return applyStyle(styles.Progress, "🔨 ") + message
 }
 
 // FormatPromptMessage formats a user prompt message
 func FormatPromptMessage(message string) string {
-	promptStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#50FA7B"))
-
-	return applyStyle(promptStyle, "❓ ") + message
+	return applyStyle(styles.Prompt, "❓ ") + message
 }
 
 // FormatCountMessage formats a count/numeric status message
 func FormatCountMessage(message string) string {
-	countStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#8BE9FD"))
-
-	return applyStyle(countStyle, "📊 ") + message
+	return applyStyle(styles.Count, "📊 ") + message
 }
 
 // FormatVerboseMessage formats verbose debugging output
 func FormatVerboseMessage(message string) string {
-	verboseStyle := lipgloss.NewStyle().
-		Italic(true).
-		Foreground(lipgloss.Color("#6272A4"))
-
-	return applyStyle(verboseStyle, "🔍 ") + message
+	return applyStyle(styles.Verbose, "🔍 ") + message
 }
 
 // FormatListHeader formats a section header for lists
 func FormatListHeader(header string) string {
-	headerStyle := lipgloss.NewStyle().
-		Bold(true).
-		Underline(true).
-		Foreground(lipgloss.Color("#50FA7B"))
-
-	return applyStyle(headerStyle, header)
+	return applyStyle(styles.ListHeader, header)
 }
 
 // FormatListItem formats an item in a list
 func FormatListItem(item string) string {
-	itemStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#F8F8F2"))
-
-	return applyStyle(itemStyle, "  • "+item)
+	return applyStyle(styles.ListItem, "  • "+item)
 }
 
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
-	return applyStyle(errorStyle, "✗ ") + message
+	return applyStyle(styles.Error, "✗ ") + message
 }
 
 // FormatErrorWithSuggestions formats an error message with actionable suggestions

@@ -15,6 +15,7 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
+  model: gpt-5-mini
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 network:
@@ -23,6 +24,10 @@ network:
     - node
     - github
     - playwright
+    - clients2.google.com        # Chrome time sync
+    - www.google.com             # Chrome services
+    - accounts.google.com        # Chrome account checks
+    - android.clients.google.com # Chrome internal
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
@@ -94,7 +99,7 @@ post-steps:
       docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null || true
   - name: Upload Playwright Debug Logs
     if: always()
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v5
     with:
       name: playwright-debug-logs-${{ github.run_id }}
       path: /tmp/gh-aw/playwright-debug-logs/
@@ -109,7 +114,7 @@ post-steps:
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **File Writing Testing**: Create a test file `/tmp/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)"
+2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 

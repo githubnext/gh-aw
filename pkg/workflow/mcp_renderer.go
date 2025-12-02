@@ -205,6 +205,39 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\"]\n")
 }
 
+// RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
+func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+	mcpRendererLog.Printf("Rendering Safe Inputs MCP: format=%s", r.options.Format)
+
+	if r.options.Format == "toml" {
+		r.renderSafeInputsTOML(yaml, safeInputs)
+		return
+	}
+
+	// JSON format
+	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, r.options.IsLast, r.options.IncludeCopilotFields)
+}
+
+// renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
+func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
+	yaml.WriteString("          command = \"node\"\n")
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"/tmp/gh-aw/safe-inputs/mcp-server.cjs\",\n")
+	yaml.WriteString("          ]\n")
+	// Add environment variables from safe-inputs config
+	envVars := getSafeInputsEnvVars(safeInputs)
+	yaml.WriteString("          env_vars = [")
+	for i, envVar := range envVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
+	}
+	yaml.WriteString("]\n")
+}
+
 // RenderAgenticWorkflowsMCP generates the Agentic Workflows MCP server configuration
 func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Builder) {
 	mcpRendererLog.Printf("Rendering Agentic Workflows MCP: format=%s", r.options.Format)
@@ -361,6 +394,7 @@ type MCPToolRenderers struct {
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
+	RenderSafeInputs       func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool)
 	RenderWebFetch         func(yaml *strings.Builder, isLast bool)
 	RenderCustomMCPConfig  RenderCustomMCPToolConfigHandler
 }
@@ -617,6 +651,10 @@ func RenderJSONMCPConfig(
 			options.Renderers.RenderAgenticWorkflows(yaml, isLast)
 		case "safe-outputs":
 			options.Renderers.RenderSafeOutputs(yaml, isLast)
+		case "safe-inputs":
+			if options.Renderers.RenderSafeInputs != nil {
+				options.Renderers.RenderSafeInputs(yaml, workflowData.SafeInputs, isLast)
+			}
 		case "web-fetch":
 			options.Renderers.RenderWebFetch(yaml, isLast)
 		default:

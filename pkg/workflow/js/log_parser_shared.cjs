@@ -7,6 +7,96 @@
  */
 
 /**
+ * Maximum length for tool output content in characters.
+ * Tool output/response sections are truncated to this length to keep step summaries readable.
+ * Reduced from 500 to 256 for more compact output.
+ */
+const MAX_TOOL_OUTPUT_LENGTH = 256;
+
+/**
+ * Maximum step summary size in bytes (1000KB).
+ * GitHub Actions step summaries have a limit of 1024KB. We use 1000KB to leave buffer space.
+ * We stop rendering additional content when approaching this limit to prevent workflow failures.
+ */
+const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
+
+/**
+ * Maximum length for bash command display in plain text summaries.
+ * Commands are truncated to this length for compact display.
+ */
+const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
+
+/**
+ * Warning message shown when step summary size limit is reached.
+ * This message is added directly to markdown (not tracked) to ensure it's always visible.
+ * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
+ */
+const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
+
+/**
+ * Tracks the size of content being added to a step summary.
+ * Used to prevent exceeding GitHub Actions step summary size limits.
+ */
+class StepSummaryTracker {
+  /**
+   * Creates a new step summary size tracker.
+   * @param {number} [maxSize=MAX_STEP_SUMMARY_SIZE] - Maximum allowed size in bytes
+   */
+  constructor(maxSize = MAX_STEP_SUMMARY_SIZE) {
+    /** @type {number} */
+    this.currentSize = 0;
+    /** @type {number} */
+    this.maxSize = maxSize;
+    /** @type {boolean} */
+    this.limitReached = false;
+  }
+
+  /**
+   * Adds content to the tracker and returns whether the limit has been reached.
+   * @param {string} content - Content to add
+   * @returns {boolean} True if the content was added, false if the limit was reached
+   */
+  add(content) {
+    if (this.limitReached) {
+      return false;
+    }
+
+    const contentSize = Buffer.byteLength(content, "utf8");
+    if (this.currentSize + contentSize > this.maxSize) {
+      this.limitReached = true;
+      return false;
+    }
+
+    this.currentSize += contentSize;
+    return true;
+  }
+
+  /**
+   * Checks if the limit has been reached.
+   * @returns {boolean} True if the limit has been reached
+   */
+  isLimitReached() {
+    return this.limitReached;
+  }
+
+  /**
+   * Gets the current accumulated size.
+   * @returns {number} Current size in bytes
+   */
+  getSize() {
+    return this.currentSize;
+  }
+
+  /**
+   * Resets the tracker.
+   */
+  reset() {
+    this.currentSize = 0;
+    this.limitReached = false;
+  }
+}
+
+/**
  * Formats duration in milliseconds to human-readable string
  * @param {number} ms - Duration in milliseconds
  * @returns {string} Formatted duration string (e.g., "1s", "1m 30s")
@@ -97,17 +187,58 @@ function formatMcpName(toolName) {
 }
 
 /**
+ * Checks if a tool name looks like a custom agent (kebab-case with multiple words)
+ * Custom agents have names like: add-safe-output-type, cli-consistency-checker, etc.
+ * @param {string} toolName - The tool name to check
+ * @returns {boolean} True if the tool name appears to be a custom agent
+ */
+function isLikelyCustomAgent(toolName) {
+  // Custom agents are kebab-case with at least one hyphen and multiple word segments
+  // They should not start with common prefixes like 'mcp__', 'safe', etc.
+  if (!toolName || typeof toolName !== "string") {
+    return false;
+  }
+
+  // Must contain at least one hyphen
+  if (!toolName.includes("-")) {
+    return false;
+  }
+
+  // Should not contain double underscores (MCP tools)
+  if (toolName.includes("__")) {
+    return false;
+  }
+
+  // Should not start with safe (safeoutputs, safeinputs handled separately)
+  if (toolName.toLowerCase().startsWith("safe")) {
+    return false;
+  }
+
+  // Should be all lowercase with hyphens (kebab-case)
+  // Allow letters, numbers, and hyphens only
+  if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(toolName)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Generates markdown summary from conversation log entries
  * This is the core shared logic between Claude and Copilot log parsers
+ *
+ * When a summaryTracker is provided, the function tracks the accumulated size
+ * and stops rendering additional content when approaching the step summary limit.
  *
  * @param {Array} logEntries - Array of log entries with type, message, etc.
  * @param {Object} options - Configuration options
  * @param {Function} options.formatToolCallback - Callback function to format tool use (content, toolResult) => string
  * @param {Function} options.formatInitCallback - Callback function to format initialization (initEntry) => string or {markdown: string, mcpFailures: string[]}
- * @returns {{markdown: string, commandSummary: Array<string>}} Generated markdown and command summary
+ * @param {StepSummaryTracker} [options.summaryTracker] - Optional tracker for step summary size limits
+ * @returns {{markdown: string, commandSummary: Array<string>, sizeLimitReached: boolean}} Generated markdown, command summary, and size limit status
  */
 function generateConversationMarkdown(logEntries, options) {
-  const { formatToolCallback, formatInitCallback } = options;
+  const { formatToolCallback, formatInitCallback, summaryTracker } = options;
 
   const toolUsePairs = new Map(); // Map tool_use_id to tool_result
 
@@ -123,47 +254,90 @@ function generateConversationMarkdown(logEntries, options) {
   }
 
   let markdown = "";
+  let sizeLimitReached = false;
+
+  /**
+   * Helper to add content with size tracking
+   * @param {string} content - Content to add
+   * @returns {boolean} True if content was added, false if limit reached
+   */
+  function addContent(content) {
+    if (summaryTracker && !summaryTracker.add(content)) {
+      sizeLimitReached = true;
+      return false;
+    }
+    markdown += content;
+    return true;
+  }
 
   // Check for initialization data first
   const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
   if (initEntry && formatInitCallback) {
-    markdown += "## 🚀 Initialization\n\n";
+    if (!addContent("## 🚀 Initialization\n\n")) {
+      return { markdown, commandSummary: [], sizeLimitReached };
+    }
     const initResult = formatInitCallback(initEntry);
     // Handle both string and object returns (for backward compatibility)
     if (typeof initResult === "string") {
-      markdown += initResult;
+      if (!addContent(initResult)) {
+        return { markdown, commandSummary: [], sizeLimitReached };
+      }
     } else if (initResult && initResult.markdown) {
-      markdown += initResult.markdown;
+      if (!addContent(initResult.markdown)) {
+        return { markdown, commandSummary: [], sizeLimitReached };
+      }
     }
-    markdown += "\n";
+    if (!addContent("\n")) {
+      return { markdown, commandSummary: [], sizeLimitReached };
+    }
   }
 
-  markdown += "\n## 🤖 Reasoning\n\n";
+  if (!addContent("\n## 🤖 Reasoning\n\n")) {
+    return { markdown, commandSummary: [], sizeLimitReached };
+  }
 
   // Second pass: process assistant messages in sequence
   for (const entry of logEntries) {
+    if (sizeLimitReached) break;
+
     if (entry.type === "assistant" && entry.message?.content) {
       for (const content of entry.message.content) {
+        if (sizeLimitReached) break;
+
         if (content.type === "text" && content.text) {
           // Add reasoning text directly
           const text = content.text.trim();
           if (text && text.length > 0) {
-            markdown += text + "\n\n";
+            if (!addContent(text + "\n\n")) {
+              break;
+            }
           }
         } else if (content.type === "tool_use") {
           // Process tool use with its result
           const toolResult = toolUsePairs.get(content.id);
           const toolMarkdown = formatToolCallback(content, toolResult);
           if (toolMarkdown) {
-            markdown += toolMarkdown;
+            if (!addContent(toolMarkdown)) {
+              break;
+            }
           }
         }
       }
     }
   }
 
-  markdown += "## 🤖 Commands and Tools\n\n";
+  // Add size limit notice if limit was reached
+  if (sizeLimitReached) {
+    markdown += SIZE_LIMIT_WARNING;
+    return { markdown, commandSummary: [], sizeLimitReached };
+  }
+
+  if (!addContent("## 🤖 Commands and Tools\n\n")) {
+    markdown += SIZE_LIMIT_WARNING;
+    return { markdown, commandSummary: [], sizeLimitReached: true };
+  }
+
   const commandSummary = []; // For the succinct summary
 
   // Collect all tool uses for summary
@@ -205,13 +379,19 @@ function generateConversationMarkdown(logEntries, options) {
   // Add command summary
   if (commandSummary.length > 0) {
     for (const cmd of commandSummary) {
-      markdown += `${cmd}\n`;
+      if (!addContent(`${cmd}\n`)) {
+        markdown += SIZE_LIMIT_WARNING;
+        return { markdown, commandSummary, sizeLimitReached: true };
+      }
     }
   } else {
-    markdown += "No commands or tools used.\n";
+    if (!addContent("No commands or tools used.\n")) {
+      markdown += SIZE_LIMIT_WARNING;
+      return { markdown, commandSummary, sizeLimitReached: true };
+    }
   }
 
-  return { markdown, commandSummary };
+  return { markdown, commandSummary, sizeLimitReached };
 }
 
 /**
@@ -359,25 +539,67 @@ function formatInitializationSummary(initEntry, options = {}) {
   if (initEntry.tools && Array.isArray(initEntry.tools)) {
     markdown += "**Available Tools:**\n";
 
-    // Categorize tools
+    // Categorize tools with improved groupings
     /** @type {{ [key: string]: string[] }} */
     const categories = {
       Core: [],
       "File Operations": [],
+      Builtin: [],
+      "Safe Outputs": [],
+      "Safe Inputs": [],
       "Git/GitHub": [],
       MCP: [],
+      "Custom Agents": [],
       Other: [],
     };
 
+    // Builtin tools that come with gh-aw / Copilot
+    const builtinTools = [
+      "bash",
+      "write_bash",
+      "read_bash",
+      "stop_bash",
+      "list_bash",
+      "grep",
+      "glob",
+      "view",
+      "create",
+      "edit",
+      "store_memory",
+      "code_review",
+      "codeql_checker",
+      "report_progress",
+      "report_intent",
+      "gh-advisory-database",
+    ];
+
+    // Internal tools that are specific to Copilot CLI
+    const internalTools = ["fetch_copilot_cli_documentation"];
+
     for (const tool of initEntry.tools) {
+      const toolLower = tool.toLowerCase();
+
       if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
         categories["Core"].push(tool);
       } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
         categories["File Operations"].push(tool);
+      } else if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+        categories["Builtin"].push(tool);
+      } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+        categories["Safe Outputs"].push(toolName);
+      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+        categories["Safe Inputs"].push(toolName);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));
       } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
         categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+      } else if (isLikelyCustomAgent(tool)) {
+        // Custom agents typically have hyphenated names (kebab-case)
+        categories["Custom Agents"].push(tool);
       } else {
         categories["Other"].push(tool);
       }
@@ -552,22 +774,12 @@ function formatToolUse(toolUse, toolResult, options = {}) {
   }
 
   // Add response section if we have details
+  // Note: formatToolCallAsDetails will truncate content to MAX_TOOL_OUTPUT_LENGTH
   if (details && details.trim()) {
-    if (includeDetailedParameters) {
-      // For Copilot: full response
-      sections.push({
-        label: "Response",
-        content: details,
-      });
-    } else {
-      // For Claude: simpler details format, truncate if too long
-      const maxDetailsLength = 500;
-      const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-      sections.push({
-        label: "Output",
-        content: truncatedDetails,
-      });
-    }
+    sections.push({
+      label: includeDetailedParameters ? "Response" : "Output",
+      content: details,
+    });
   }
 
   // Use the shared formatToolCallAsDetails helper
@@ -649,11 +861,15 @@ function parseLogEntries(logContent) {
  * Generic helper to format a tool call as an HTML details section.
  * This is a reusable helper for all code engines (Claude, Copilot, Codex).
  *
+ * Tool output/response content is automatically truncated to MAX_TOOL_OUTPUT_LENGTH (256 chars)
+ * to keep step summaries readable and prevent size limit issues.
+ *
  * @param {Object} options - Configuration options
  * @param {string} options.summary - The summary text to show in the collapsed state (e.g., "✅ github::list_issues")
  * @param {string} [options.statusIcon] - Status icon (✅, ❌, or ❓). If not provided, should be included in summary.
  * @param {Array<{label: string, content: string, language?: string}>} [options.sections] - Array of content sections to show in expanded state
  * @param {string} [options.metadata] - Optional metadata to append to summary (e.g., "~100t", "5s")
+ * @param {number} [options.maxContentLength=MAX_TOOL_OUTPUT_LENGTH] - Maximum length for section content before truncation
  * @returns {string} Formatted HTML details string or plain summary if no sections provided
  *
  * @example
@@ -678,7 +894,7 @@ function parseLogEntries(logContent) {
  * });
  */
 function formatToolCallAsDetails(options) {
-  const { summary, statusIcon, sections, metadata } = options;
+  const { summary, statusIcon, sections, metadata, maxContentLength = MAX_TOOL_OUTPUT_LENGTH } = options;
 
   // Build the full summary line
   let fullSummary = summary;
@@ -704,13 +920,19 @@ function formatToolCallAsDetails(options) {
 
     detailsContent += `**${section.label}:**\n\n`;
 
+    // Truncate content if it exceeds maxContentLength
+    let content = section.content;
+    if (content.length > maxContentLength) {
+      content = content.substring(0, maxContentLength) + "... (truncated)";
+    }
+
     // Use 6 backticks to avoid conflicts with content that may contain 3 or 5 backticks
     if (section.language) {
       detailsContent += `\`\`\`\`\`\`${section.language}\n`;
     } else {
       detailsContent += "``````\n";
     }
-    detailsContent += section.content;
+    detailsContent += content;
     detailsContent += "\n``````\n\n";
   }
 
@@ -720,13 +942,144 @@ function formatToolCallAsDetails(options) {
   return `<details>\n<summary>${fullSummary}</summary>\n\n${detailsContent}\n</details>\n\n`;
 }
 
-// Export functions
+/**
+ * Generates a lightweight plain text summary optimized for raw text rendering.
+ * This is designed for console output (core.info) instead of markdown step summaries.
+ *
+ * The output includes:
+ * - A compact header with model info
+ * - Tool/command summary list (status icon + name only)
+ * - Basic execution statistics
+ *
+ * @param {Array} logEntries - Array of log entries with type, message, etc.
+ * @param {Object} options - Configuration options
+ * @param {string} [options.model] - Model name to include in the header
+ * @param {string} [options.parserName] - Name of the parser (e.g., "Copilot", "Claude")
+ * @returns {string} Plain text summary for console output
+ */
+function generatePlainTextSummary(logEntries, options = {}) {
+  const { model, parserName = "Agent" } = options;
+  const lines = [];
+
+  // Header
+  lines.push(`=== ${parserName} Execution Summary ===`);
+  if (model) {
+    lines.push(`Model: ${model}`);
+  }
+  lines.push("");
+
+  // Collect tool usage summary
+  const toolUsePairs = new Map();
+  for (const entry of logEntries) {
+    if (entry.type === "user" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_result" && content.tool_use_id) {
+          toolUsePairs.set(content.tool_use_id, content);
+        }
+      }
+    }
+  }
+
+  // Count tools and gather summary
+  const toolCounts = { total: 0, success: 0, error: 0 };
+  const toolSummary = [];
+
+  for (const entry of logEntries) {
+    if (entry.type === "assistant" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_use") {
+          const toolName = content.name;
+          const input = content.input || {};
+
+          // Skip internal tools
+          if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+            continue;
+          }
+
+          toolCounts.total++;
+          const toolResult = toolUsePairs.get(content.id);
+          const isError = toolResult?.is_error === true;
+
+          if (isError) {
+            toolCounts.error++;
+          } else {
+            toolCounts.success++;
+          }
+
+          const statusIcon = isError ? "✗" : "✓";
+
+          // Format tool name compactly
+          let displayName;
+          if (toolName === "Bash") {
+            const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
+            displayName = `bash: ${cmd}`;
+          } else if (toolName.startsWith("mcp__")) {
+            displayName = formatMcpName(toolName);
+          } else {
+            displayName = toolName;
+          }
+
+          // Limit to 20 tool summaries
+          if (toolSummary.length < 20) {
+            toolSummary.push(`  [${statusIcon}] ${displayName}`);
+          }
+        }
+      }
+    }
+  }
+
+  // Tool summary section
+  if (toolSummary.length > 0) {
+    lines.push("Tools/Commands:");
+    lines.push(...toolSummary);
+    if (toolCounts.total > 20) {
+      lines.push(`  ... and ${toolCounts.total - 20} more`);
+    }
+    lines.push("");
+  }
+
+  // Statistics
+  const lastEntry = logEntries[logEntries.length - 1];
+  lines.push("Statistics:");
+  if (lastEntry?.num_turns) {
+    lines.push(`  Turns: ${lastEntry.num_turns}`);
+  }
+  if (lastEntry?.duration_ms) {
+    const duration = formatDuration(lastEntry.duration_ms);
+    if (duration) {
+      lines.push(`  Duration: ${duration}`);
+    }
+  }
+  if (toolCounts.total > 0) {
+    lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
+  }
+  if (lastEntry?.usage) {
+    const usage = lastEntry.usage;
+    if (usage.input_tokens && usage.output_tokens) {
+      lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+    }
+  }
+  if (lastEntry?.total_cost_usd) {
+    lines.push(`  Cost: $${lastEntry.total_cost_usd.toFixed(4)}`);
+  }
+
+  return lines.join("\n");
+}
+
+// Export functions and constants
 module.exports = {
+  // Constants
+  MAX_TOOL_OUTPUT_LENGTH,
+  MAX_STEP_SUMMARY_SIZE,
+  // Classes
+  StepSummaryTracker,
+  // Functions
   formatDuration,
   formatBashCommand,
   truncateString,
   estimateTokens,
   formatMcpName,
+  isLikelyCustomAgent,
   generateConversationMarkdown,
   generateInformationSection,
   formatMcpParameters,
@@ -734,4 +1087,5 @@ module.exports = {
   formatToolUse,
   parseLogEntries,
   formatToolCallAsDetails,
+  generatePlainTextSummary,
 };

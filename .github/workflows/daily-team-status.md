@@ -18,6 +18,7 @@ safe-outputs:
   create-discussion:
     category: announcements
     title-prefix: "[team-status] "
+    close-older-discussions: true
 description: |
   This workflow created daily team status reporter creating upbeat activity summaries.
   Gathers recent repository activity (issues, PRs, discussions, releases, code changes)

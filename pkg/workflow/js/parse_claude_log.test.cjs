@@ -571,11 +571,11 @@ npm warn exec The following package was not found
       expect(markdownCall[0]).toContain("🚀 Initialization");
       expect(markdownCall[0]).toContain("integration-test");
 
-      // Verify that core.info was also called with the same content (via write helper)
+      // Verify that core.info was called with plain text summary (contains parser name and model info)
       expect(mockCore.info).toHaveBeenCalled();
-      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🚀 Initialization"));
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== Claude Execution Summary ==="));
       expect(infoCall).toBeDefined();
-      expect(infoCall[0]).toContain("integration-test");
+      expect(infoCall[0]).toContain("Model: claude-sonnet-4-20250514");
     });
 
     it("should handle log with MCP failures", async () => {
@@ -995,9 +995,10 @@ npm warn exec The following package was not found
       expect(result.markdown).toContain("github::create_discussion");
       expect(result.markdown).toContain("github::list_discussions");
 
-      // Verify safe_outputs tools are shown
-      expect(result.markdown).toContain("safe_outputs-create_issue");
-      expect(result.markdown).toContain("safe_outputs-add-comment");
+      // Verify safe_outputs tools are shown (without prefix, in Safe Outputs category)
+      expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("create_issue");
+      expect(result.markdown).toContain("add-comment");
 
       // Verify file operations are shown
       expect(result.markdown).toContain("Read");

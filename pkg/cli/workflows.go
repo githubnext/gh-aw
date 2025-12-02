@@ -77,28 +77,41 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 	cmd := exec.Command("gh", args...)
 	output, err := cmd.Output()
 
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
-
 	if err != nil {
+		// Stop spinner on error
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("failed to execute gh workflow list command: %w", err)
 	}
 
 	// Check if output is empty
 	if len(output) == 0 {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("gh workflow list returned empty output - check if repository has workflows and gh CLI is authenticated")
 	}
 
 	// Validate JSON before unmarshaling
 	if !json.Valid(output) {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("gh workflow list returned invalid JSON - this may be due to network issues or authentication problems")
 	}
 
 	var workflows []GitHubWorkflow
 	if err := json.Unmarshal(output, &workflows); err != nil {
+		if !verbose {
+			spinner.Stop()
+		}
 		return nil, fmt.Errorf("failed to parse workflow data: %w", err)
+	}
+
+	// Stop spinner with success message
+	if !verbose {
+		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflows", len(workflows)))
 	}
 
 	workflowMap := make(map[string]*GitHubWorkflow)

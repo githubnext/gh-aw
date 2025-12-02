@@ -97,9 +97,14 @@ Test workflow with neutral tools format.
 		}
 	}
 
-	// Verify that the old format is not present in the compiled output (excluding comments)
-	if strings.Contains(yamlContentNoComments, "bash:") || strings.Contains(yamlContentNoComments, "web-fetch:") {
-		t.Error("Compiled YAML should not contain neutral tool names directly")
+	// Verify that the old format is not present as YAML keys in the compiled output (excluding comments)
+	// The check is for YAML keys specifically, not string literals in bundled JavaScript code
+	// YAML keys will have format like "  bash:" or "\nbash:" at the start of a line
+	if strings.Contains(yamlContentNoComments, "\n  bash:") ||
+		strings.Contains(yamlContentNoComments, "\nbash:") ||
+		strings.Contains(yamlContentNoComments, "\n  web-fetch:") ||
+		strings.Contains(yamlContentNoComments, "\nweb-fetch:") {
+		t.Error("Compiled YAML should not contain neutral tool names as YAML keys")
 	}
 }
 

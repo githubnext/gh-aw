@@ -15,9 +15,18 @@
 // For detailed documentation, see specs/validation-architecture.md
 package workflow
 
+import (
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var npmLog = logger.New("workflow:npm")
+
 // extractNpxPackages extracts npx package names from workflow data
 func extractNpxPackages(workflowData *WorkflowData) []string {
-	return collectPackagesFromWorkflow(workflowData, extractNpxFromCommands, "npx")
+	npmLog.Print("Extracting npx packages from workflow data")
+	packages := collectPackagesFromWorkflow(workflowData, extractNpxFromCommands, "npx")
+	npmLog.Printf("Extracted %d npx packages", len(packages))
+	return packages
 }
 
 // extractNpxFromCommands extracts npx package names from command strings

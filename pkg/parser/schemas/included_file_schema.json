@@ -7,6 +7,49 @@
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
       "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
     },
+    "inputs": {
+      "type": "object",
+      "description": "Input parameters for the shared workflow. Uses the same schema as workflow_dispatch inputs. Values can be referenced in the workflow using ${{ github.aw.inputs.<key> }} expressions.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Input description"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether input is required"
+          },
+          "default": {
+            "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }],
+            "description": "Default value for the input"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["string", "choice", "boolean", "number"],
+            "description": "Input type"
+          },
+          "options": {
+            "type": "array",
+            "description": "Options for choice type",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "count": {
+            "description": "Number of items to fetch",
+            "type": "number",
+            "default": 100
+          }
+        }
+      ]
+    },
     "applyTo": {
       "oneOf": [
         {
@@ -217,8 +260,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex", "custom"],
-          "description": "Simple engine name (claude, codex, or custom)"
+          "enum": ["claude", "codex", "copilot", "custom"],
+          "description": "Simple engine name (claude, codex, copilot, or custom)"
         },
         {
           "type": "object",
@@ -226,8 +269,8 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex", "custom"],
-              "description": "Agent CLI identifier (claude, codex, or custom)"
+              "enum": ["claude", "codex", "copilot", "custom"],
+              "description": "Agent CLI identifier (claude, codex, copilot, or custom)"
             },
             "version": {
               "type": "string",
@@ -278,6 +321,63 @@
         }
       },
       "additionalProperties": false
+    },
+    "safe-inputs": {
+      "type": "object",
+      "description": "Safe inputs configuration for custom MCP tools defined as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified in the env field.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Tool definition for a safe-input custom tool",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Required description of what the tool does. This is shown to the AI agent."
+          },
+          "inputs": {
+            "type": "object",
+            "description": "Input parameters for the tool, using workflow_dispatch input syntax",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "number", "boolean", "array", "object"],
+                  "description": "JSON schema type for the input parameter"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of the input parameter"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether the input is required"
+                },
+                "default": {
+                  "description": "Default value for the input"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "script": {
+            "type": "string",
+            "description": "JavaScript implementation (CommonJS). The script should export an execute function. Mutually exclusive with 'run'."
+          },
+          "run": {
+            "type": "string",
+            "description": "Shell script implementation. Input parameters are available as INPUT_<NAME> environment variables. Mutually exclusive with 'script'."
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for the tool, typically used for passing secrets",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["description"],
+        "additionalProperties": false
+      }
     },
     "secret-masking": {
       "type": "object",
@@ -487,21 +587,6 @@
             "type": "string"
           },
           "description": "Arguments to add after the container image (container entrypoint arguments)"
-        },
-        "url": {
-          "type": "string",
-          "minLength": 1,
-          "description": "URL for HTTP MCP connections"
-        },
-        "headers": {
-          "type": "object",
-          "patternProperties": {
-            "^[A-Za-z0-9_-]+$": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "description": "HTTP headers for HTTP MCP connections"
         },
         "env": {
           "type": "object",

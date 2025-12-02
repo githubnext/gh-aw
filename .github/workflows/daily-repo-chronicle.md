@@ -32,6 +32,7 @@ safe-outputs:
   upload-assets:
   create-discussion:
     title-prefix: "📰 "
+    close-older-discussions: true
 imports:
   - shared/reporting.md
   - shared/trends.md

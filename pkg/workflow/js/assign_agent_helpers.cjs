@@ -6,6 +6,8 @@
  * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
  */
 
+const { getOctokitClient, setGetOctokitFactory } = require("./get_octokit_client.cjs");
+
 /**
  * Map agent names to their GitHub bot login names
  * @type {Record<string, string>}
@@ -36,9 +38,10 @@ function getAgentName(assignee) {
  * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
  * @param {string} owner
  * @param {string} repo
+ * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string[]>}
  */
-async function getAvailableAgentLogins(owner, repo) {
+async function getAvailableAgentLogins(owner, repo, ghToken) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -49,7 +52,9 @@ async function getAvailableAgentLogins(owner, repo) {
     }
   `;
   try {
-    const response = await github.graphql(query, { owner, repo });
+    // Use Octokit client with custom token if provided, otherwise use default github object
+    const client = ghToken ? getOctokitClient(ghToken) : github;
+    const response = await client.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = [];
@@ -71,9 +76,10 @@ async function getAvailableAgentLogins(owner, repo) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
+ * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
-async function findAgent(owner, repo, agentName) {
+async function findAgent(owner, repo, agentName, ghToken) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -91,7 +97,9 @@ async function findAgent(owner, repo, agentName) {
   `;
 
   try {
-    const response = await github.graphql(query, { owner, repo });
+    // Use Octokit client with custom token if provided, otherwise use default github object
+    const client = ghToken ? getOctokitClient(ghToken) : github;
+    const response = await client.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -178,12 +186,11 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
- * @param {string} ghToken - GitHub token for the mutation. Must have:
+ * @param {string} [ghToken] - GitHub token for the mutation (optional, uses built-in github object if not provided).
+ *   Token must have:
  *   - Write actions/contents/issues/pull-requests permissions
  *   - A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions
- *   - Note: The token source varies by caller:
- *     - assign_to_agent.cjs uses GH_AW_AGENT_TOKEN (agent-specific token)
- *     - assign_issue.cjs uses GH_TOKEN (general issue assignment token)
+ *   - Note: assign_to_agent.cjs uses the built-in github object authenticated via step-level github-token (GH_AW_AGENT_TOKEN by default)
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
@@ -207,36 +214,18 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
   `;
 
   try {
-    // SECURITY: Use provided token for the mutation
+    // Use Octokit client with custom token if provided, otherwise use default github object
     // The mutation requires: Write actions/contents/issues/pull-requests
-    if (!ghToken) {
-      core.error("GitHub token is not set. Cannot perform assignment mutation.");
-      return false;
-    }
-    core.info("Using provided GitHub token for mutation");
+    core.info(ghToken ? "Using provided GitHub token for mutation" : "Using built-in github object for mutation");
+    const client = ghToken ? getOctokitClient(ghToken) : github;
 
-    // Make raw GraphQL request with custom token using variables
     core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-    const response = await fetch("https://api.github.com/graphql", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ghToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          assignableId: issueId,
-          actorIds: actorIds,
-        },
-      }),
-    }).then(res => res.json());
+    const response = await client.graphql(mutation, {
+      assignableId: issueId,
+      actorIds: actorIds,
+    });
 
-    if (response.errors && response.errors.length > 0) {
-      throw new Error(response.errors[0].message);
-    }
-
-    if (response.data && response.data.replaceActorsForAssignable && response.data.replaceActorsForAssignable.__typename) {
+    if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
       return true;
     } else {
       core.error("Unexpected response from GitHub API");
@@ -410,13 +399,13 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghT
   }
 
   try {
-    // Find agent
+    // Find agent - use the provided token for the GraphQL query
     core.info(`Looking for ${agentName} coding agent...`);
-    const agentId = await findAgent(owner, repo, agentName);
+    const agentId = await findAgent(owner, repo, agentName, ghToken);
     if (!agentId) {
       const error = `${agentName} coding agent is not available for this repository`;
-      // Enrich with available agent logins
-      const available = await getAvailableAgentLogins(owner, repo);
+      // Enrich with available agent logins - also use the provided token
+      const available = await getAvailableAgentLogins(owner, repo, ghToken);
       const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
       return { success: false, error: enrichedError };
     }
@@ -463,4 +452,5 @@ module.exports = {
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
+  setGetOctokitFactory, // Exposed for testing (re-exported from get_octokit_client.cjs)
 };

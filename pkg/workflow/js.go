@@ -103,6 +103,9 @@ var loadAgentOutputScript string
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
 
+//go:embed js/get_octokit_client.cjs
+var getOctokitClientScript string
+
 //go:embed js/assign_agent_helpers.cjs
 var assignAgentHelpersScript string
 
@@ -111,6 +114,9 @@ var safeOutputHelpersScript string
 
 //go:embed js/safe_output_validator.cjs
 var safeOutputValidatorScript string
+
+//go:embed js/safe_output_processor.cjs
+var safeOutputProcessorScript string
 
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
@@ -137,6 +143,24 @@ var getTrackerIDScript string
 
 //go:embed js/messages.cjs
 var messagesScript string
+
+//go:embed js/messages_core.cjs
+var messagesCoreScript string
+
+//go:embed js/messages_footer.cjs
+var messagesFooterScript string
+
+//go:embed js/messages_staged.cjs
+var messagesStagedScript string
+
+//go:embed js/messages_run_status.cjs
+var messagesRunStatusScript string
+
+//go:embed js/messages_close_discussion.cjs
+var messagesCloseDiscussionScript string
+
+//go:embed js/close_older_discussions.cjs
+var closeOlderDiscussionsScript string
 
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
@@ -168,6 +192,24 @@ var generateGitPatchJSScript string
 //go:embed js/temporary_id.cjs
 var temporaryIdScript string
 
+//go:embed js/update_runner.cjs
+var updateRunnerScript string
+
+//go:embed js/read_buffer.cjs
+var readBufferScript string
+
+//go:embed js/mcp_server_core.cjs
+var mcpServerCoreScript string
+
+//go:embed js/safe_inputs_mcp_server.cjs
+var safeInputsMCPServerScript string
+
+//go:embed js/safe_output_type_validator.cjs
+var safeOutputTypeValidatorScript string
+
+//go:embed js/repo_helpers.cjs
+var repoHelpersScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -177,9 +219,11 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_workflow_name.cjs":      sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":           loadAgentOutputScript,
 		"staged_preview.cjs":              stagedPreviewScript,
+		"get_octokit_client.cjs":          getOctokitClientScript,
 		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
 		"safe_output_helpers.cjs":         safeOutputHelpersScript,
 		"safe_output_validator.cjs":       safeOutputValidatorScript,
+		"safe_output_processor.cjs":       safeOutputProcessorScript,
 		"temporary_id.cjs":                temporaryIdScript,
 		"is_truthy.cjs":                   isTruthyScript,
 		"log_parser_bootstrap.cjs":        logParserBootstrapScript,
@@ -188,6 +232,12 @@ func GetJavaScriptSources() map[string]string {
 		"generate_footer.cjs":             generateFooterScript,
 		"get_tracker_id.cjs":              getTrackerIDScript,
 		"messages.cjs":                    messagesScript,
+		"messages_core.cjs":               messagesCoreScript,
+		"messages_footer.cjs":             messagesFooterScript,
+		"messages_staged.cjs":             messagesStagedScript,
+		"messages_run_status.cjs":         messagesRunStatusScript,
+		"messages_close_discussion.cjs":   messagesCloseDiscussionScript,
+		"close_older_discussions.cjs":     closeOlderDiscussionsScript,
 		"get_repository_url.cjs":          getRepositoryUrlScript,
 		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,
 		"normalize_branch_name.cjs":       normalizeBranchNameScript,
@@ -197,6 +247,12 @@ func GetJavaScriptSources() map[string]string {
 		"get_current_branch.cjs":          getCurrentBranchScript,
 		"get_base_branch.cjs":             getBaseBranchScript,
 		"generate_git_patch.cjs":          generateGitPatchJSScript,
+		"update_runner.cjs":               updateRunnerScript,
+		"read_buffer.cjs":                 readBufferScript,
+		"mcp_server_core.cjs":             mcpServerCoreScript,
+		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
+		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
+		"repo_helpers.cjs":                repoHelpersScript,
 	}
 }
 
@@ -649,4 +705,19 @@ func GetSafeOutputsMCPServerScript() string {
 // GetSafeOutputsToolsJSON returns the JSON content for the safe outputs tools definitions
 func GetSafeOutputsToolsJSON() string {
 	return safeOutputsToolsJSON
+}
+
+// GetReadBufferScript returns the embedded read_buffer.cjs script
+func GetReadBufferScript() string {
+	return readBufferScript
+}
+
+// GetMCPServerCoreScript returns the embedded mcp_server_core.cjs script
+func GetMCPServerCoreScript() string {
+	return mcpServerCoreScript
+}
+
+// GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
+func GetSafeInputsMCPServerScript() string {
+	return safeInputsMCPServerScript
 }

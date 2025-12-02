@@ -61,7 +61,7 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildCreateOutputDiscussionJob(workflowData, "main_job")
+	job, err := c.buildCreateOutputDiscussionJob(workflowData, "main_job", "")
 	if err != nil {
 		t.Fatalf("Unexpected error building discussion job: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestTrialModeWithoutTargetRepo(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildCreateOutputDiscussionJob(workflowData, "main_job")
+	job, err := c.buildCreateOutputDiscussionJob(workflowData, "main_job", "")
 	if err != nil {
 		t.Fatalf("Unexpected error building discussion job: %v", err)
 	}

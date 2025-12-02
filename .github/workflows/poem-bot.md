@@ -58,6 +58,14 @@ safe-outputs:
     labels: [poetry, automation, ai-generated]
     max: 2
 
+  # Discussion creation for poem summaries and logs
+  create-discussion:
+    title-prefix: "[📜 POETRY] "
+    category: "General"
+    labels: [poetry, automation, ai-generated]
+    max: 2
+    close-older-discussions: true
+
   # Comment creation on issues/PRs
   add-comment:
     max: 3
@@ -83,6 +91,13 @@ safe-outputs:
     reviewers: copilot
     draft: false
 
+  # Close pull requests with poetry filtering
+  close-pull-request:
+    required-labels: [poetry, automation]
+    required-title-prefix: "[🎨 POETRY]"
+    target: "*"
+    max: 2
+
   # PR review comments
   create-pull-request-review-comment:
     max: 2
@@ -91,11 +106,26 @@ safe-outputs:
   # Push to PR branch
   push-to-pull-request-branch:
 
+  # Link sub-issues for organizing poetry collections
+  link-sub-issue:
+    parent-required-labels: [poetry, epic]
+    parent-title-prefix: "[🎭 POEM-BOT]"
+    sub-required-labels: [poetry]
+    sub-title-prefix: "[🎭 POEM-BOT]"
+    max: 3
+
+  # Create agent tasks for delegating poetry work
+  create-agent-task:
+    base: main
+
   # Upload assets
   upload-assets:
 
   # Missing tool reporting
   missing-tool:
+
+  # No-op for explicit completion messages
+  noop:
 
   # Custom messages in poetic style
   messages:
