@@ -24,6 +24,8 @@ tools:
   bash:
     - "*"
   github:
+    toolsets: 
+      - issues
 safe-outputs:
     add-comment:
     create-issue:

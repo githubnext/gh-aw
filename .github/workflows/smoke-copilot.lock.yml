@@ -47,6 +47,8 @@
 #   bash:
 #     - "*"
 #   github:
+#     toolsets: 
+#       - issues
 # safe-outputs:
 #     add-comment:
 #     create-issue:
@@ -3146,7 +3148,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=issues",
                   "ghcr.io/github/github-mcp-server:v0.23.0"
                 ],
                 "tools": ["*"],
