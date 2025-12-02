@@ -112,16 +112,6 @@ post-steps:
 
 ## Test Requirements
 
-1. **GitHub MCP Testing**: List the last 2 merged pull requests in ${{ github.repository }} using `github-list_pull_requests` with `state: "closed"` and `perPage: 2`. Extract ONLY the PR numbers and titles - ignore all other metadata to avoid context overflow.
-2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+1. **GitHub MCP Testing**: List the last 2 merged pull requests in ${{ github.repository }} using `github-list_pull_requests` with `state: "closed"` and `perPage: 2`. Extract ONLY the PR numbers and titles - ignore all other metadata to avoid context overflow
 
-## Output
-
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
-
-If all tests pass, add the label `smoke-copilot` to the pull request.
+and summarize the titles in the output.
