@@ -342,7 +342,7 @@ sudo -E awf %s \
 
 # Move preserved agent logs to expected location
 # Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
-AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
 if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
   echo "Moving agent logs from $AGENT_LOGS_DIR to %s"
   sudo mkdir -p %s
@@ -467,15 +467,29 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
-// GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
+// GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)
+func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Only add collection step if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		copilotLog.Printf("Adding firewall logs collection step for workflow: %s", workflowData.Name)
+		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
+		steps = append(steps, squidLogsCollection)
+	} else {
+		copilotLog.Print("Firewall disabled, skipping firewall logs collection")
+	}
+
+	return steps
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Only add Squid logs collection and upload steps if firewall is enabled
+	// Only add upload and parsing steps if firewall is enabled
 	if isFirewallEnabled(workflowData) {
-		copilotLog.Printf("Adding Squid logs collection steps for workflow: %s", workflowData.Name)
-		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
-		steps = append(steps, squidLogsCollection)
+		copilotLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
 
 		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 		steps = append(steps, squidLogsUpload)
@@ -484,7 +498,7 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
 		steps = append(steps, firewallLogParsing)
 	} else {
-		copilotLog.Print("Firewall disabled, skipping Squid logs collection")
+		copilotLog.Print("Firewall disabled, skipping Squid logs upload")
 	}
 
 	return steps
@@ -1132,7 +1146,7 @@ SRT_WRAPPER_EOF
 node ./.srt-wrapper.js 2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   mkdir -p %s
@@ -1149,11 +1163,15 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
 	stepLines := []string{
-		"      - name: Agent Firewall logs",
+		"      - name: Collect firewall logs",
 		"        if: always()",
 		"        run: |",
-		"          # Squid logs are preserved in timestamped directories",
-		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)\"",
+		"          # First try preserved logs (from normal AWF cleanup)",
+		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
+		"          # Fallback: try original AWF location (for timeout/crash cases where cleanup didn't run)",
+		"          if [ -z \"$SQUID_LOGS_DIR\" ]; then",
+		"            SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 2 -type d -path '/tmp/awf-*/squid-logs' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
+		"          fi",
 		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
 		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
 		fmt.Sprintf("            mkdir -p %s", squidLogsDir),

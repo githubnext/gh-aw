@@ -377,6 +377,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Mark that we've completed agent execution - step order validation starts from here
 	c.stepOrderTracker.MarkAgentExecutionComplete()
 
+	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		collectionSteps := copilotEngine.GetFirewallLogsCollectionStep(data)
+		for _, step := range collectionSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
@@ -401,7 +411,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
-	// Add Squid logs collection and upload steps for Copilot engine
+	// Add Squid logs upload and parsing steps for Copilot engine (collection happens before secret redaction)
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		squidSteps := copilotEngine.GetSquidLogsSteps(data)
 		for _, step := range squidSteps {
