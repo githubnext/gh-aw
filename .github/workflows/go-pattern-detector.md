@@ -24,7 +24,7 @@ jobs:
         run: |
           # Install ast-grep using cargo for better version control and security
           cargo install ast-grep --locked
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - name: Detect Go patterns
         id: detect
         run: |
