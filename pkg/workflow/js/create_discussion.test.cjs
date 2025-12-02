@@ -94,6 +94,8 @@ describe("create_discussion.cjs", () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
     delete process.env.GH_AW_DISCUSSION_CATEGORY;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete process.env.GH_AW_ALLOWED_REPOS;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
@@ -326,11 +328,8 @@ describe("create_discussion.cjs", () => {
     // Execute the script - should exit gracefully without throwing
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    // Should log appropriate warning message
-    expect(mockCore.info).toHaveBeenCalledWith("⚠ Cannot create discussions: Discussions are not enabled for this repository");
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Consider enabling discussions in repository settings if you want to create discussions automatically"
-    );
+    // Should log appropriate warning message (now includes repo name in per-item warning)
+    expect(mockCore.warning).toHaveBeenCalledWith("Skipping discussion: Discussions are not enabled for repository 'testowner/testrepo'");
 
     // Should only attempt the GraphQL query once and not attempt to create discussions
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);

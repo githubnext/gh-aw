@@ -95,7 +95,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 
 			// Get results from both engines
 			claudeResult := claudeEngine.computeAllowedClaudeToolsString(claudeTools, tt.safeOutputs, cacheMemoryConfig)
-			copilotResult := copilotEngine.computeCopilotToolArguments(copilotTools, tt.safeOutputs, nil)
+			copilotResult := copilotEngine.computeCopilotToolArguments(copilotTools, tt.safeOutputs, nil, nil)
 
 			t.Logf("Claude tools after defaults: %+v", claudeTools)
 			t.Logf("Copilot tools after defaults: %+v", copilotTools)

@@ -54,9 +54,23 @@ type SafeInputParam struct {
 	Default     any    // Default value
 }
 
+// SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
+const SafeInputsFeatureFlag = "safe-inputs"
+
 // HasSafeInputs checks if safe-inputs are configured
 func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
+}
+
+// IsSafeInputsEnabled checks if safe-inputs are both configured AND the feature is enabled.
+// The safe-inputs feature requires the feature flag to be enabled via:
+// - Frontmatter: features: { safe-inputs: true }
+// - Environment variable: GH_AW_FEATURES=safe-inputs
+func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowData) bool {
+	if !HasSafeInputs(safeInputs) {
+		return false
+	}
+	return isFeatureEnabled(SafeInputsFeatureFlag, workflowData)
 }
 
 // ParseSafeInputs parses safe-inputs configuration from frontmatter (standalone function for testing)

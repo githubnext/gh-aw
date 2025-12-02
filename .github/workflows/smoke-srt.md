@@ -1,5 +1,7 @@
 ---
 description: Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
+features:
+  sandbox-runtime: true
 on:
   workflow_dispatch:
   pull_request:

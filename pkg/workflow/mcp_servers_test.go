@@ -38,6 +38,9 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeInputs: safeInputsConfig,
 		Tools:      make(map[string]any),
+		Features: map[string]bool{
+			"safe-inputs": true, // Enable feature flag for safe-inputs
+		},
 	}
 
 	// Generate MCP setup code multiple times using the actual compiler method

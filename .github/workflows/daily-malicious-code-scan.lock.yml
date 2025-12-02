@@ -361,8 +361,8 @@
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/codeql-action/upload-sarif@v3 (5ad83d3202da6e473f763d732b591299ae4e380c)
-#     https://github.com/github/codeql-action/commit/5ad83d3202da6e473f763d732b591299ae4e380c
+#   - github/codeql-action/upload-sarif@v3 (4248455a6f2335bc3b7a8a62932f000050ec8f13)
+#     https://github.com/github/codeql-action/commit/4248455a6f2335bc3b7a8a62932f000050ec8f13
 
 name: "Daily Malicious Code Scan Agent"
 "on":
@@ -2731,7 +2731,19 @@ jobs:
             function normalizeTemporaryId(tempId) {
               return String(tempId).toLowerCase();
             }
-            function replaceTemporaryIdReferences(text, tempIdMap) {
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
               return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
                 const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
                 if (issueNumber !== undefined) {
@@ -2747,7 +2759,17 @@ jobs:
               }
               try {
                 const mapObject = JSON.parse(mapJson);
-                return new Map(Object.entries(mapObject).map(([k, v]) => [normalizeTemporaryId(k), Number(v)]));
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
               } catch (error) {
                 if (typeof core !== "undefined") {
                   core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
@@ -2761,9 +2783,9 @@ jobs:
               }
               const valueStr = String(value);
               if (isTemporaryId(valueStr)) {
-                const resolvedNumber = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-                if (resolvedNumber !== undefined) {
-                  return { resolved: resolvedNumber, wasTemporaryId: true, errorMessage: null };
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
                 }
                 return {
                   resolved: null,
@@ -2775,7 +2797,12 @@ jobs:
               if (isNaN(issueNumber) || issueNumber <= 0) {
                 return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
               }
-              return { resolved: issueNumber, wasTemporaryId: false, errorMessage: null };
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
             }
             const MAX_BODY_LENGTH = 65000;
             const MAX_GITHUB_USERNAME_LENGTH = 39;
@@ -5666,7 +5693,7 @@ jobs:
           path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
         if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@5ad83d3202da6e473f763d732b591299ae4e380c # v3
+        uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
         with:
           sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
 

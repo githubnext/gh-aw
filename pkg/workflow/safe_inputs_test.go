@@ -153,6 +153,100 @@ func TestHasSafeInputs(t *testing.T) {
 	}
 }
 
+func TestIsSafeInputsEnabled(t *testing.T) {
+	// Test config with tools
+	configWithTools := &SafeInputsConfig{
+		Tools: map[string]*SafeInputToolConfig{
+			"test": {Name: "test", Description: "Test tool"},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		config       *SafeInputsConfig
+		workflowData *WorkflowData
+		expected     bool
+	}{
+		{
+			name:         "nil config - not enabled",
+			config:       nil,
+			workflowData: nil,
+			expected:     false,
+		},
+		{
+			name:         "empty tools - not enabled",
+			config:       &SafeInputsConfig{Tools: map[string]*SafeInputToolConfig{}},
+			workflowData: nil,
+			expected:     false,
+		},
+		{
+			name:         "with tools but no feature flag - not enabled",
+			config:       configWithTools,
+			workflowData: nil,
+			expected:     false,
+		},
+		{
+			name:   "with tools and feature flag enabled - enabled",
+			config: configWithTools,
+			workflowData: &WorkflowData{
+				Features: map[string]bool{"safe-inputs": true},
+			},
+			expected: true,
+		},
+		{
+			name:   "with tools and feature flag disabled - not enabled",
+			config: configWithTools,
+			workflowData: &WorkflowData{
+				Features: map[string]bool{"safe-inputs": false},
+			},
+			expected: false,
+		},
+		{
+			name:   "with tools and other features but not safe-inputs - not enabled",
+			config: configWithTools,
+			workflowData: &WorkflowData{
+				Features: map[string]bool{"other-feature": true},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsSafeInputsEnabled(tt.config, tt.workflowData)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestIsSafeInputsEnabledWithEnv(t *testing.T) {
+	// Test config with tools
+	configWithTools := &SafeInputsConfig{
+		Tools: map[string]*SafeInputToolConfig{
+			"test": {Name: "test", Description: "Test tool"},
+		},
+	}
+
+	// Test with environment variable (reusing the same testing pattern as features_test.go)
+	t.Run("with tools and GH_AW_FEATURES=safe-inputs - enabled", func(t *testing.T) {
+		t.Setenv("GH_AW_FEATURES", "safe-inputs")
+		result := IsSafeInputsEnabled(configWithTools, nil)
+		if !result {
+			t.Errorf("Expected true when GH_AW_FEATURES=safe-inputs, got false")
+		}
+	})
+
+	t.Run("with tools and GH_AW_FEATURES=other - not enabled", func(t *testing.T) {
+		t.Setenv("GH_AW_FEATURES", "other")
+		result := IsSafeInputsEnabled(configWithTools, nil)
+		if result {
+			t.Errorf("Expected false when GH_AW_FEATURES=other, got true")
+		}
+	})
+}
+
 func TestGetSafeInputsEnvVars(t *testing.T) {
 	tests := []struct {
 		name        string

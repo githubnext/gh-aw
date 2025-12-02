@@ -193,3 +193,51 @@ func TestJobDependencyTopologicalOrder(t *testing.T) {
 
 	t.Logf("Topological order: %v", order)
 }
+
+func TestJobDependsOnAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]any
+		expected bool
+	}{
+		{
+			name:     "no needs field",
+			config:   map[string]any{"runs-on": "ubuntu-latest"},
+			expected: false,
+		},
+		{
+			name:     "depends on agent as string",
+			config:   map[string]any{"needs": "agent"},
+			expected: true,
+		},
+		{
+			name:     "depends on agent in array",
+			config:   map[string]any{"needs": []any{"agent"}},
+			expected: true,
+		},
+		{
+			name:     "depends on agent and others",
+			config:   map[string]any{"needs": []any{"activation", "agent"}},
+			expected: true,
+		},
+		{
+			name:     "depends on activation only",
+			config:   map[string]any{"needs": []any{"activation"}},
+			expected: false,
+		},
+		{
+			name:     "depends on pre_activation only",
+			config:   map[string]any{"needs": "pre_activation"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := jobDependsOnAgent(tt.config)
+			if result != tt.expected {
+				t.Errorf("jobDependsOnAgent(%v) = %v, expected %v", tt.config, result, tt.expected)
+			}
+		})
+	}
+}

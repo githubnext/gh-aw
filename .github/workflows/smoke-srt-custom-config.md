@@ -1,5 +1,7 @@
 ---
 description: Smoke test workflow for Sandbox Runtime (SRT) with custom configuration
+features:
+  sandbox-runtime: true
 on:
   workflow_dispatch:
 permissions:
