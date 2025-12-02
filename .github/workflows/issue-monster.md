@@ -71,15 +71,14 @@ steps:
         core.setOutput('issue_numbers', issueNumbers);
         core.setOutput('issue_list', issueList);
         
-        // Fail if no issues found to prevent agent from running
+        // Stop workflow if no issues found
         if (uniqueIssues.length === 0) {
           core.info('🍽️ No issues available - the plate is empty!');
           core.setOutput('has_issues', 'false');
+          core.setFailed('No issues found with task, issue monster, or plan labels. Workflow will stop.');
         } else {
           core.setOutput('has_issues', 'true');
         }
-
-if: ${{ steps.search_issues.outputs.has_issues == 'true' }}
 
 safe-outputs:
   assign-to-agent:
