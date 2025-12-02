@@ -1288,6 +1288,41 @@ tools:
   cache-memory: []
     # Array items: object
 
+  # MCP Gateway configuration for routing MCP server calls through a unified HTTP
+  # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
+  # (optional)
+  mcp-gateway:
+    # Container image for the MCP gateway executable
+    container: "example-value"
+
+    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
+    # (optional)
+    version: null
+
+    # Arguments for container execution
+    # (optional)
+    args: []
+      # Array of strings
+
+    # Arguments to add after the container image (container entrypoint arguments)
+    # (optional)
+    entrypointArgs: []
+      # Array of strings
+
+    # Environment variables for MCP gateway
+    # (optional)
+    env:
+      {}
+
+    # Port number for the MCP gateway HTTP server (default: 8080)
+    # (optional)
+    port: 1
+
+    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
+    # syntax)
+    # (optional)
+    api-key: "example-value"
+
   # Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the
   # prompt. Defaults to true (enabled). Set to false to disable security warnings.
   # (optional)

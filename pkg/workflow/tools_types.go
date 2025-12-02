@@ -75,6 +75,7 @@ type ToolsConfig struct {
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
+	MCPGateway       *MCPGatewayConfig           `yaml:"mcp-gateway,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
@@ -145,6 +146,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
+	}
+	if t.MCPGateway != nil {
+		result["mcp-gateway"] = t.MCPGateway
 	}
 	if t.SafetyPrompt != nil {
 		result["safety-prompt"] = *t.SafetyPrompt
@@ -234,6 +238,18 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// MCPGatewayConfig represents the configuration for the MCP gateway
+// The gateway routes MCP server calls through a unified HTTP endpoint
+type MCPGatewayConfig struct {
+	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway
+	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
+	Args           []string          `yaml:"args,omitempty"`           // Arguments for container execution
+	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments after the container image
+	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
+	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
+	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
+}
+
 // NewTools creates a new Tools instance from a map
 func NewTools(toolsMap map[string]any) *Tools {
 	toolsTypesLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
@@ -282,6 +298,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
 	}
+	if val, exists := toolsMap["mcp-gateway"]; exists {
+		tools.MCPGateway = parseMCPGatewayTool(val)
+	}
 	if val, exists := toolsMap["safety-prompt"]; exists {
 		tools.SafetyPrompt = parseSafetyPromptTool(val)
 	}
@@ -303,6 +322,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"mcp-gateway":       true,
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
@@ -574,6 +594,65 @@ func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	return &CacheMemoryToolConfig{Raw: val}
 }
 
+// parseMCPGatewayTool converts raw mcp-gateway tool configuration
+func parseMCPGatewayTool(val any) *MCPGatewayConfig {
+	if val == nil {
+		return nil
+	}
+
+	configMap, ok := val.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	config := &MCPGatewayConfig{
+		Port: 8080, // Default port
+	}
+
+	if container, ok := configMap["container"].(string); ok {
+		config.Container = container
+	}
+	if version, ok := configMap["version"].(string); ok {
+		config.Version = version
+	} else if versionNum, ok := configMap["version"].(float64); ok {
+		config.Version = fmt.Sprintf("%.0f", versionNum)
+	}
+	if args, ok := configMap["args"].([]any); ok {
+		config.Args = make([]string, 0, len(args))
+		for _, arg := range args {
+			if str, ok := arg.(string); ok {
+				config.Args = append(config.Args, str)
+			}
+		}
+	}
+	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
+		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
+		for _, arg := range entrypointArgs {
+			if str, ok := arg.(string); ok {
+				config.EntrypointArgs = append(config.EntrypointArgs, str)
+			}
+		}
+	}
+	if env, ok := configMap["env"].(map[string]any); ok {
+		config.Env = make(map[string]string)
+		for k, v := range env {
+			if str, ok := v.(string); ok {
+				config.Env[k] = str
+			}
+		}
+	}
+	if port, ok := configMap["port"].(int); ok {
+		config.Port = port
+	} else if portFloat, ok := configMap["port"].(float64); ok {
+		config.Port = int(portFloat)
+	}
+	if apiKey, ok := configMap["api-key"].(string); ok {
+		config.APIKey = apiKey
+	}
+
+	return config
+}
+
 // parseSafetyPromptTool converts raw safety-prompt tool configuration
 func parseSafetyPromptTool(val any) *bool {
 	if boolVal, ok := val.(bool); ok {
@@ -633,6 +712,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
+	case "mcp-gateway":
+		return t.MCPGateway != nil
 	case "safety-prompt":
 		return t.SafetyPrompt != nil
 	case "timeout":
@@ -679,6 +760,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
+	}
+	if t.MCPGateway != nil {
+		names = append(names, "mcp-gateway")
 	}
 	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")
