@@ -2,12 +2,9 @@
 name: Go Pattern Detector
 description: Detects common Go code patterns and anti-patterns to maintain code quality and consistency
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**/*.go'
+  schedule:
+    - cron: "0 14 * * 1-5"  # Weekdays at 14:00 UTC
   workflow_dispatch:
-
 permissions:
   contents: read
   issues: read
@@ -15,7 +12,6 @@ permissions:
 
 jobs:
   ast_grep:
-    needs: pre_activation
     runs-on: ubuntu-latest
     outputs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
