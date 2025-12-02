@@ -102,12 +102,12 @@
 #
 # **Search 1 - "task" label:**
 # ```
-# is:open label:task repo:${{ github.repository }}
+# is:issue is:open label:task repo:${{ github.repository }}
 # ```
 #
 # **Search 2 - "issue monster" label:**
 # ```
-# is:open label:"issue monster" repo:${{ github.repository }}
+# is:issue is:open label:"issue monster" repo:${{ github.repository }}
 # ```
 #
 # Combine results from both searches, removing duplicates if any issue has both labels.
@@ -2350,12 +2350,12 @@ jobs:
           
           **Search 1 - "task" label:**
           ```
-          is:open label:task repo:${GH_AW_GITHUB_REPOSITORY}
+          is:issue is:open label:task repo:${GH_AW_GITHUB_REPOSITORY}
           ```
           
           **Search 2 - "issue monster" label:**
           ```
-          is:open label:"issue monster" repo:${GH_AW_GITHUB_REPOSITORY}
+          is:issue is:open label:"issue monster" repo:${GH_AW_GITHUB_REPOSITORY}
           ```
           
           Combine results from both searches, removing duplicates if any issue has both labels.

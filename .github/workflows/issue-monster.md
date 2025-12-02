@@ -54,12 +54,12 @@ Search for issues with either the "issue monster" label or the "task" label. Sin
 
 **Search 1 - "task" label:**
 ```
-is:open label:task repo:${{ github.repository }}
+is:issue is:open label:task repo:${{ github.repository }}
 ```
 
 **Search 2 - "issue monster" label:**
 ```
-is:open label:"issue monster" repo:${{ github.repository }}
+is:issue is:open label:"issue monster" repo:${{ github.repository }}
 ```
 
 Combine results from both searches, removing duplicates if any issue has both labels.
