@@ -734,3 +734,59 @@ func TestCodexEngineSafeInputsSecrets(t *testing.T) {
 		t.Errorf("Expected API_KEY environment variable in step content:\n%s", stepContent)
 	}
 }
+
+// TestCodexEngineHttpMCPServerSkipped verifies that HTTP MCP servers
+// do not generate empty TOML sections in the Codex config
+func TestCodexEngineHttpMCPServerSkipped(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name             string
+		tools            map[string]any
+		mcpTools         []string
+		shouldNotContain []string
+	}{
+		{
+			name: "HTTP MCP server should be skipped",
+			tools: map[string]any{
+				"gh-aw": map[string]any{
+					"type": "http",
+					"url":  "http://localhost:8765",
+				},
+				"github": map[string]any{},
+			},
+			mcpTools: []string{"gh-aw", "github"},
+			shouldNotContain: []string{
+				"[mcp_servers.gh-aw]",
+			},
+		},
+		{
+			name: "HTTP MCP server inferred from url field",
+			tools: map[string]any{
+				"my-http-server": map[string]any{
+					"url": "https://api.example.com/mcp",
+				},
+			},
+			mcpTools: []string{"my-http-server"},
+			shouldNotContain: []string{
+				"[mcp_servers.my-http-server]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: "test-workflow"}
+			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+
+			result := yaml.String()
+
+			for _, notExpected := range tt.shouldNotContain {
+				if strings.Contains(result, notExpected) {
+					t.Errorf("Expected MCP config NOT to contain %q (HTTP MCP servers should be skipped in TOML format), got:\n%s", notExpected, result)
+				}
+			}
+		})
+	}
+}

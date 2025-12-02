@@ -2,12 +2,14 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -604,6 +606,14 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
 func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
+	// Check if the MCP type is HTTP - Codex/TOML format doesn't support HTTP MCP servers
+	// We need to check this BEFORE writing the section header to avoid empty sections
+	// that cause Codex to fail with "invalid transport" error
+	if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type 'http', but Codex (TOML format) only supports 'stdio'. Skipping this server.", toolName)))
+		return nil
+	}
+
 	yaml.WriteString("          \n")
 	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
 
