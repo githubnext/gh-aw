@@ -68,14 +68,19 @@ Create a pull request with reviewers.
 		t.Error("Expected reviewer step for copilot in compiled workflow")
 	}
 
-	// Verify copilot uses GitHub API with copilot-pull-request-reviewer[bot]
+	// Verify copilot uses actions/github-script with copilot-pull-request-reviewer[bot]
 	if !strings.Contains(compiledContent, "copilot-pull-request-reviewer[bot]") {
-		t.Error("Expected copilot to use copilot-pull-request-reviewer[bot] via GitHub API")
+		t.Error("Expected copilot to use copilot-pull-request-reviewer[bot] via actions/github-script")
 	}
 
-	// Verify gh api command for copilot
-	if !strings.Contains(compiledContent, "gh api --method POST") {
-		t.Error("Expected GitHub API call for copilot reviewer")
+	// Verify actions/github-script for copilot
+	if !strings.Contains(compiledContent, "actions/github-script") {
+		t.Error("Expected actions/github-script for copilot reviewer")
+	}
+
+	// Verify JavaScript API call for copilot
+	if !strings.Contains(compiledContent, "github.rest.pulls.requestReviewers") {
+		t.Error("Expected JavaScript github.rest.pulls.requestReviewers API for copilot reviewer")
 	}
 
 	// Verify gh pr edit command is used for regular users

@@ -221,7 +221,7 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as reviewer (should use GitHub API with copilot-pull-request-reviewer[bot])
+	// Test with "copilot" as reviewer (should use actions/github-script with copilot-pull-request-reviewer[bot])
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -244,18 +244,19 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 		t.Error("Expected reviewer step name to show 'copilot'")
 	}
 
-	// Check that it uses the GitHub API (not gh pr edit)
-	if !strings.Contains(stepsContent, "gh api --method POST") {
-		t.Error("Expected GitHub API call for copilot reviewer")
+	// Check that it uses actions/github-script (not gh api)
+	if !strings.Contains(stepsContent, "actions/github-script") {
+		t.Error("Expected actions/github-script for copilot reviewer")
 	}
 
-	// Check that it uses the correct API endpoint and bot name
-	if !strings.Contains(stepsContent, "/requested_reviewers") {
-		t.Error("Expected /requested_reviewers API endpoint")
-	}
-
+	// Check that it uses the correct bot name in the JavaScript
 	if !strings.Contains(stepsContent, "copilot-pull-request-reviewer[bot]") {
 		t.Error("Expected copilot-pull-request-reviewer[bot] as the reviewer")
+	}
+
+	// Check that the JavaScript uses github.rest.pulls.requestReviewers
+	if !strings.Contains(stepsContent, "github.rest.pulls.requestReviewers") {
+		t.Error("Expected JavaScript to use github.rest.pulls.requestReviewers")
 	}
 
 	// Check that PR_NUMBER environment variable is used (not PR_URL)
@@ -281,9 +282,9 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 		reviewerStepContent = reviewerStepContent[:len("Add copilot as reviewer")+nextStepIndex]
 	}
 
-	// Verify that GH_TOKEN uses Copilot token precedence with legacy fallback in reviewer step
-	if !strings.Contains(reviewerStepContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected GH_TOKEN in reviewer step to use Copilot token precedence with legacy fallback")
+	// Verify that github-token uses Copilot token precedence with legacy fallback in reviewer step
+	if !strings.Contains(reviewerStepContent, "github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected github-token in reviewer step to use Copilot token precedence with legacy fallback")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot reviewers in reviewer step

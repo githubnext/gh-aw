@@ -16,6 +16,9 @@ var createAgentTaskScript string
 //go:embed js/assign_issue.cjs
 var assignIssueScriptSource string
 
+//go:embed js/add_copilot_reviewer.cjs
+var addCopilotReviewerScriptSource string
+
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScriptSource string
 
@@ -29,6 +32,7 @@ func init() {
 	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
 	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
 	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
+	DefaultScriptRegistry.Register("add_copilot_reviewer", addCopilotReviewerScriptSource)
 	DefaultScriptRegistry.Register("add_reaction_and_edit_comment", addReactionAndEditCommentScriptSource)
 }
 
@@ -40,6 +44,11 @@ func getAddReactionAndEditCommentScript() string {
 // getAssignIssueScript returns the bundled assign_issue script
 func getAssignIssueScript() string {
 	return DefaultScriptRegistry.Get("assign_issue")
+}
+
+// getAddCopilotReviewerScript returns the bundled add_copilot_reviewer script
+func getAddCopilotReviewerScript() string {
+	return DefaultScriptRegistry.Get("add_copilot_reviewer")
 }
 
 // getCheckMembershipScript returns the bundled check_membership script

@@ -145,12 +145,12 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 	steps := buildCopilotParticipantSteps(config)
 	stepsContent := strings.Join(steps, "")
 
-	// Check that it uses the GitHub API (not gh pr edit)
-	if !strings.Contains(stepsContent, "gh api --method POST") {
-		t.Error("Expected GitHub API call for copilot reviewer")
+	// Check that it uses actions/github-script (not gh api)
+	if !strings.Contains(stepsContent, "actions/github-script") {
+		t.Error("Expected actions/github-script for copilot reviewer")
 	}
 
-	// Check that it uses the correct bot name
+	// Check that it uses the correct bot name in the JavaScript
 	if !strings.Contains(stepsContent, "copilot-pull-request-reviewer[bot]") {
 		t.Error("Expected copilot-pull-request-reviewer[bot] as the reviewer")
 	}
@@ -160,9 +160,14 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 		t.Error("Should not use gh pr edit for copilot reviewer")
 	}
 
-	// Check that Copilot token precedence is used with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence with legacy fallback")
+	// Check that github-token uses Copilot token precedence with legacy fallback
+	if !strings.Contains(stepsContent, "github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected github-token to use Copilot token precedence with legacy fallback")
+	}
+
+	// Check that the JavaScript uses github.rest.pulls.requestReviewers
+	if !strings.Contains(stepsContent, "github.rest.pulls.requestReviewers") {
+		t.Error("Expected JavaScript to use github.rest.pulls.requestReviewers")
 	}
 }
 

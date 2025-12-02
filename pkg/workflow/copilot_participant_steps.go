@@ -117,12 +117,13 @@ func buildPRReviewerSteps(config CopilotParticipantConfig, effectiveToken string
 		if reviewer == "copilot" {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
 			steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_number != ''\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 			steps = append(steps, "          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}\n")
-			steps = append(steps, "        run: |\n")
-			steps = append(steps, "          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \\\n")
-			steps = append(steps, "            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'\n")
+			steps = append(steps, "        with:\n")
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+			steps = append(steps, "          script: |\n")
+			steps = append(steps, FormatJavaScriptForYAML(getAddCopilotReviewerScript())...)
 		} else {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
 			steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
