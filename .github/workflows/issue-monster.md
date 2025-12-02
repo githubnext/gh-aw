@@ -48,11 +48,11 @@ Find one issue that needs work and assign it to the Copilot agent for resolution
 
 ## Step-by-Step Process
 
-### 1. Search for Issues with "issue monster" Label
+### 1. Search for Issues with "issue monster" or "task" Label
 
-Use GitHub search to find issues labeled with "issue monster":
+Use GitHub search to find issues labeled with "issue monster" OR "task":
 ```
-is:issue is:open label:"issue monster" repo:${{ github.repository }}
+is:issue is:open (label:"issue monster" OR label:"task") repo:${{ github.repository }}
 ```
 
 **Sort by**: `created` (descending) - prioritize the freshest/most recent issues first
@@ -61,11 +61,31 @@ is:issue is:open label:"issue monster" repo:${{ github.repository }}
 - Output a message: "🍽️ No issues available - the plate is empty!"
 - **STOP** and do not proceed further
 
+### 1a. Handle Parent-Child Issue Relationships (for "task" labeled issues)
+
+For issues with the "task" label, check if they are sub-issues linked to a parent issue:
+
+1. **Identify if the issue is a sub-issue**: Check if the issue has a parent issue link (via GitHub's sub-issue feature or by parsing the issue body for parent references like "Parent: #123" or "Part of #123")
+
+2. **If the issue has a parent issue**:
+   - Fetch the parent issue to understand the full context
+   - List all sibling sub-issues (other sub-issues of the same parent)
+   - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+   - Process sub-issues in order of their creation date (oldest first)
+
+3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+
+**Example**: If parent issue #100 has sub-issues #101, #102, #103:
+- If #101 has an open PR, skip #102 and #103
+- Only after #101's PR is merged/closed, process #102
+- This ensures orderly, sequential processing of related tasks
+
 ### 2. Filter Out Issues Already Assigned to Copilot
 
 For each issue found, check if it's already assigned to Copilot:
 - Look for issues that have Copilot as an assignee
 - Check if there's already an open pull request linked to it
+- **For "task" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
 
 **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 
@@ -76,7 +96,8 @@ From the remaining issues (without Copilot assignments or open PRs):
 - **Priority**: Prefer issues that are:
   - Quick wins (small, well-defined fixes)
   - Have clear acceptance criteria
-  - Most recently created
+  - For "task" sub-issues: Process in order (oldest first among siblings)
+  - For standalone issues: Most recently created
 
 **If all issues are already being worked on:**
 - Output a message: "🍽️ All issues are already being worked on!"
@@ -124,17 +145,20 @@ Om nom nom! 🍪
 - ✅ **One at a time**: Only assign one issue per run
 - ✅ **Be transparent**: Comment on the issue being assigned
 - ✅ **Check assignments**: Skip issues already assigned to Copilot
+- ✅ **Sibling awareness**: For "task" sub-issues, skip if any sibling already has an open Copilot PR
+- ✅ **Process in order**: For sub-issues of the same parent, process oldest first
 - ❌ **Don't batch**: Never assign more than one issue per run
 
 ## Success Criteria
 
 A successful run means:
-1. You found an available issue with the "issue monster" label
-2. You filtered out issues that are already assigned or have PRs
-3. You selected one appropriate issue
-4. You read and understood the issue
-5. You assigned the issue to the Copilot agent using `assign_to_agent`
-6. You commented on the issue being assigned
+1. You found an available issue with the "issue monster" or "task" label
+2. For "task" issues: You checked for parent issues and sibling sub-issue PRs
+3. You filtered out issues that are already assigned or have PRs
+4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
+5. You read and understood the issue
+6. You assigned the issue to the Copilot agent using `assign_to_agent`
+7. You commented on the issue being assigned
 
 ## Error Handling
 
