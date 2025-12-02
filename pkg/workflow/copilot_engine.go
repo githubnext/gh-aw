@@ -46,16 +46,27 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	var steps []GitHubActionStep
 
-	// Add secret validation step with fallback to old secret name for backward compatibility
+	// Define engine configuration for shared validation
+	config := EngineInstallConfig{
+		Secrets:         []string{"COPILOT_GITHUB_TOKEN", "COPILOT_CLI_TOKEN"},
+		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+		NpmPackage:      "@github/copilot",
+		Version:         string(constants.DefaultCopilotVersion),
+		Name:            "GitHub Copilot CLI",
+		CliName:         "copilot",
+		InstallStepName: "Install GitHub Copilot CLI",
+	}
+
+	// Add secret validation step
 	secretValidation := GenerateMultiSecretValidationStep(
-		[]string{"COPILOT_GITHUB_TOKEN", "COPILOT_CLI_TOKEN"},
-		"GitHub Copilot CLI",
-		"https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+		config.Secrets,
+		config.Name,
+		config.DocsURL,
 	)
 	steps = append(steps, secretValidation)
 
 	// Determine Copilot version
-	copilotVersion := string(constants.DefaultCopilotVersion)
+	copilotVersion := config.Version
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		copilotVersion = workflowData.EngineConfig.Version
 	}
@@ -68,20 +79,20 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	var npmSteps []GitHubActionStep
 	if installGlobally {
 		npmSteps = BuildStandardNpmEngineInstallSteps(
-			"@github/copilot",
+			config.NpmPackage,
 			copilotVersion,
-			"Install GitHub Copilot CLI",
-			"copilot",
+			config.InstallStepName,
+			config.CliName,
 			workflowData,
 		)
 	} else {
 		// For SRT: install locally without -g flag
 		copilotLog.Print("Using local Copilot installation for SRT compatibility")
 		npmSteps = GenerateNpmInstallStepsWithScope(
-			"@github/copilot",
+			config.NpmPackage,
 			copilotVersion,
-			"Install GitHub Copilot CLI",
-			"copilot",
+			config.InstallStepName,
+			config.CliName,
 			true,  // Include Node.js setup
 			false, // Install locally, not globally
 		)

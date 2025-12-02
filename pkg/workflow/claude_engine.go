@@ -35,25 +35,16 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
-	var steps []GitHubActionStep
-
-	// Add secret validation step - Claude supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY as fallback
-	secretValidation := GenerateMultiSecretValidationStep(
-		[]string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
-		"Claude Code",
-		"https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
-	)
-	steps = append(steps, secretValidation)
-
-	// Use shared helper for standard npm installation
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@anthropic-ai/claude-code",
-		string(constants.DefaultClaudeCodeVersion),
-		"Install Claude Code CLI",
-		"claude",
-		workflowData,
-	)
-	steps = append(steps, npmSteps...)
+	// Use base installation steps (secret validation + npm install)
+	steps := GetBaseInstallationSteps(EngineInstallConfig{
+		Secrets:         []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+		NpmPackage:      "@anthropic-ai/claude-code",
+		Version:         string(constants.DefaultClaudeCodeVersion),
+		Name:            "Claude Code",
+		CliName:         "claude",
+		InstallStepName: "Install Claude Code CLI",
+	}, workflowData)
 
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
