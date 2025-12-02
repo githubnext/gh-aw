@@ -1,7 +1,8 @@
 ---
+name: http_mcp_headers
 description: HTTP MCP Header Secret Support - Implementation Summary
-applyTo: "pkg/workflow/mcp-config.go,pkg/workflow/copilot_engine.go,pkg/workflow/mcp_servers.go"
 ---
+
 
 # HTTP MCP Header Secret Support - Implementation Summary
 
@@ -19,7 +20,6 @@ When using HTTP MCP tools with headers containing GitHub Actions secrets, the ge
 ## Example Workflow
 
 ```markdown
----
 on:
   workflow_dispatch:
 permissions:
@@ -38,7 +38,6 @@ mcp-servers:
       - search_datadog_slos
       - search_datadog_metrics
       - get_datadog_metric
----
 
 # Datadog Dashboard Search
 

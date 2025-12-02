@@ -1,7 +1,8 @@
 ---
+name: copilot-cli
 description: GitHub Copilot CLI Integration
-applyTo: "pkg/workflow/copilot_*.go,pkg/workflow/js/parse_copilot_log.cjs"
 ---
+
 
 # GitHub Copilot CLI Integration
 
