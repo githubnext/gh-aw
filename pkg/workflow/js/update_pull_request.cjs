@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow } = require("./update_runner.cjs");
+const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
 
 /**
  * Check if the current context is a valid pull request context
@@ -38,30 +38,14 @@ function getPRNumber(payload) {
   return undefined;
 }
 
-/**
- * Render a staged preview item for PR updates
- * @param {any} item - Update item
- * @param {number} index - Item index (0-based)
- * @returns {string} Markdown content for the preview
- */
-function renderStagedItem(item, index) {
-  let content = `### Pull Request Update ${index + 1}\n`;
-  if (item.pull_request_number) {
-    content += `**Target PR:** #${item.pull_request_number}\n\n`;
-  } else {
-    content += `**Target:** Current pull request\n\n`;
-  }
-
-  if (item.title !== undefined) {
-    content += `**New Title:** ${item.title}\n\n`;
-  }
-  if (item.body !== undefined) {
-    const operation = item.operation || "append";
-    content += `**Operation:** ${operation}\n`;
-    content += `**Body Content:**\n${item.body}\n\n`;
-  }
-  return content;
-}
+// Use shared helper for staged preview rendering
+const renderStagedItem = createRenderStagedItem({
+  entityName: "Pull Request",
+  numberField: "pull_request_number",
+  targetLabel: "Target PR:",
+  currentTargetText: "Current pull request",
+  includeOperation: true,
+});
 
 /**
  * Execute the pull request update API call
@@ -123,14 +107,10 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   return pr;
 }
 
-/**
- * Generate summary line for an updated PR
- * @param {any} pr - Updated pull request
- * @returns {string} Markdown summary line
- */
-function getSummaryLine(pr) {
-  return `- PR #${pr.number}: [${pr.title}](${pr.html_url})\n`;
-}
+// Use shared helper for summary line generation
+const getSummaryLine = createGetSummaryLine({
+  entityPrefix: "PR",
+});
 
 async function main() {
   return await runUpdateWorkflow({
