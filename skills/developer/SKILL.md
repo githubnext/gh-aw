@@ -1,7 +1,8 @@
 ---
+name: developer
 description: Developer Instructions for GitHub Agentic Workflows
-applyTo: "**/*"
 ---
+
 
 # Developer Instructions
 
@@ -22,7 +23,6 @@ This document consolidates technical specifications and development guidelines f
 - [Breaking CLI Rules](#breaking-cli-rules)
 - [Go Module Summaries](#go-module-summaries)
 
----
 
 ## Capitalization Guidelines
 
@@ -42,7 +42,6 @@ This convention distinguishes between the product name (GitHub Agentic Workflows
 
 The capitalization rules are enforced through automated tests in `cmd/gh-aw/capitalization_test.go` that run as part of the standard test suite.
 
----
 
 ## Code Organization
 
@@ -441,7 +440,6 @@ normalized := normalizeWorkflowName(userInput) // Wrong tool!
 // normalized = "My Workflow: Test/Build" (unchanged - invalid chars remain)
 ```
 
----
 
 ## Validation Architecture
 
@@ -623,7 +621,6 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 }
 ```
 
----
 
 ## Security Best Practices
 
@@ -952,7 +949,6 @@ gh aw compile --strict --actionlint --zizmor --poutine
 - [ ] zizmor passes (High/Critical addressed)
 - [ ] poutine passes (supply chain secure)
 
----
 
 ## Safe Output Messages
 
@@ -1085,7 +1081,6 @@ Limits: Max 500 lines or 2000 characters (truncated with "... (truncated)" if ex
 - Staged mode allows testing without side effects
 - Graceful fallbacks when primary operations fail
 
----
 
 ## Schema Validation
 
@@ -1153,7 +1148,6 @@ When adding new fields to schemas:
 3. Add test cases to verify the new field works
 4. Update documentation if the field is user-facing
 
----
 
 ## YAML Compatibility
 
@@ -1262,7 +1256,6 @@ YAML 1.2 treats all of the above as strings. Only these are booleans: `true`, `f
 
 3. **Consider adding compatibility mode** to switch between YAML 1.1 and 1.2 parsing
 
----
 
 ## MCP Logs Guardrail
 
@@ -1378,7 +1371,6 @@ Filter output using jq syntax:
 4. Preserves functionality with jq filtering
 5. Transparent messaging about why guardrail triggered
 
----
 
 ## Release Management
 
@@ -1443,9 +1435,7 @@ graph TD
 Changeset files are markdown files in `.changeset/` directory with YAML frontmatter:
 
 ```markdown
----
 "gh-aw": patch
----
 
 Brief description of the change
 ```
@@ -1484,7 +1474,6 @@ The script will:
 - Create a git tag
 - Push the tag to remote
 
----
 
 ## Firewall Log Parsing
 
@@ -1607,7 +1596,6 @@ make test-unit
 go test ./pkg/cli -run TestFirewallLogIntegration
 ```
 
----
 
 ## Breaking CLI Rules
 
@@ -1776,9 +1764,7 @@ graph TD
 **Changeset Format for Breaking Changes:**
 
 ```markdown
----
 "gh-aw": major
----
 
 Remove deprecated `--old-flag` option
 
@@ -1795,18 +1781,14 @@ Remove deprecated `--old-flag` option
 
 For new features:
 ```markdown
----
 "gh-aw": minor
----
 
 Add --json flag to logs command for structured output
 ```
 
 For bug fixes:
 ```markdown
----
 "gh-aw": patch
----
 
 Fix incorrect exit code when workflow file not found
 ```
@@ -1859,7 +1841,6 @@ Special consideration for strict mode changes:
 - **CHANGELOG**: See `CHANGELOG.md` for examples of breaking changes
 - **Semantic Versioning**: https://semver.org/
 
----
 
 ## Go Module Summaries
 
@@ -1924,7 +1905,6 @@ Each module summary includes the following sections:
 - **Improvement Opportunities**: Suggestions for better module usage
 - **References**: Links to documentation, changelog, and GitHub repository
 
----
 
 **Last Updated:** 2025-12-01
 **Maintainers:** GitHub Next Team

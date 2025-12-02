@@ -1,7 +1,8 @@
 ---
+name: messages
 description: Instructions for adding new message types to the safe-output messages system
-applyTo: "pkg/workflow/js/messages*.cjs,pkg/workflow/*.go"
 ---
+
 
 # Adding New Message Types Guide
 

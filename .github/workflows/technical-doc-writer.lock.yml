@@ -46,7 +46,7 @@
 #     - github
 #
 # imports:
-#   - ../instructions/documentation.instructions.md
+#   - ../../skills/documentation/SKILL.md
 #   - ../agents/technical-doc-writer.md
 #
 # safe-outputs:
@@ -95,7 +95,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../instructions/documentation.instructions.md
+#     - ../../skills/documentation/SKILL.md
 #     - ../agents/technical-doc-writer.md
 #
 # Job Dependency Graph:
@@ -197,9 +197,7 @@
 #
 # **Example workflow code block**:
 # ```aw wrap
-# ---
 # on: push
-# ---
 # # Your workflow steps here
 # ```
 #
@@ -210,10 +208,8 @@
 # ### Frontmatter
 # Every documentation page must have frontmatter:
 # ```markdown
-# ---
 # title: Page Title
 # description: Brief description for SEO and navigation
-# ---
 # ```
 #
 # ### Callouts and Asides
@@ -2803,9 +2799,7 @@ jobs:
           
           **Example workflow code block**:
           ```aw wrap
-          ---
           on: push
-          ---
           # Your workflow steps here
           ```
           
@@ -2816,10 +2810,8 @@ jobs:
           ### Frontmatter
           Every documentation page must have frontmatter:
           ```markdown
-          ---
           title: Page Title
           description: Brief description for SEO and navigation
-          ---
           ```
           
           ### Callouts and Asides

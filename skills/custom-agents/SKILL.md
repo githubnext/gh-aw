@@ -1,6 +1,15 @@
 ---
+name: custom-agents
 description: GitHub Custom Agent File Format
+Brief description of agent's purpose
+>                      # Multi-line description of agent's purpose
+Repository-wide coding standards
+Frontend development guidelines
+Agent specializing in creating and improving README files
+Specialized agent for writing comprehensive test suites
+Agent specialized in performing code reviews
 ---
+
 
 # GitHub Custom Agent File Format
 
@@ -43,11 +52,9 @@ Custom agent files can be placed in several locations, each serving a different 
 ### Basic Structure
 
 ```markdown
----
 # YAML frontmatter (configuration)
 name: agent-name
 description: Brief description of agent's purpose
----
 
 # Markdown body (instructions)
 
@@ -57,7 +64,6 @@ Your natural language instructions for the agent go here.
 ### Complete YAML Frontmatter Schema
 
 ```yaml
----
 # Required fields
 name: agent-identifier              # Unique identifier for the agent
 
@@ -89,7 +95,6 @@ mcp-server:                       # External MCP server configuration
 # Optional settings
 settings:                         # Custom runtime or connection settings
   key: value
----
 ```
 
 ## Field Descriptions
@@ -223,9 +228,7 @@ mcp-server:
 **File:** `.github/copilot-instructions.md`
 
 ```markdown
----
 description: Repository-wide coding standards
----
 
 # Coding Standards
 
@@ -250,12 +253,10 @@ description: Repository-wide coding standards
 **File:** `.github/instructions/frontend.instructions.md`
 
 ```markdown
----
 description: Frontend development guidelines
 applyTo:
   - "src/frontend/**"
   - "components/**"
----
 
 # Frontend Development Guidelines
 
@@ -280,14 +281,12 @@ applyTo:
 **File:** `.github/agents/readme-creator.md`
 
 ```markdown
----
 name: readme-creator
 description: Agent specializing in creating and improving README files
 tools:
   - read
   - edit
   - search
----
 
 # README Creator Agent
 
@@ -318,14 +317,12 @@ You are a documentation specialist focused on creating clear, comprehensive READ
 **File:** `.github/agents/test-writer.md`
 
 ```markdown
----
 name: test-writer
 description: Specialized agent for writing comprehensive test suites
 tools:
   - read
   - edit
   - search
----
 
 # Test Writer Agent
 
@@ -360,7 +357,6 @@ You specialize in creating comprehensive, well-structured test suites.
 **File:** `.github/workflows/code-review.md`
 
 ```markdown
----
 on:
   pull_request:
     types: [opened, synchronize]
@@ -370,7 +366,6 @@ permissions:
 engine:
   id: copilot
   custom-agent: .github/agents/code-reviewer.md
----
 
 # Automated Code Review
 
@@ -380,13 +375,11 @@ Review the pull request changes and provide constructive feedback.
 **File:** `.github/agents/code-reviewer.md`
 
 ```markdown
----
 name: code-reviewer
 description: Agent specialized in performing code reviews
 tools:
   - read
   - search
----
 
 # Code Review Agent
 
@@ -415,13 +408,11 @@ The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through th
 ### Configuration
 
 ```markdown
----
 on: issues
 engine:
   id: copilot
 imports:
   - .github/agents/my-agent.md
----
 
 # My Workflow
 
@@ -447,7 +438,6 @@ Custom agent files are supported by the following engines:
 ### Example Workflow with Custom Agent
 
 ```markdown
----
 on:
   issues:
     types: [opened]
@@ -463,7 +453,6 @@ tools:
     allowed:
       - add_labels_to_issue
       - create_issue_comment
----
 
 # Issue Triage Workflow
 

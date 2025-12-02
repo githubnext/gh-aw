@@ -1,7 +1,8 @@
 ---
+name: javascript-refactoring
 description: Instructions for refactoring JavaScript code into separate files
-applyTo: "pkg/workflow/js/*.cjs"
 ---
+
 
 # JavaScript Code Refactoring Guide
 

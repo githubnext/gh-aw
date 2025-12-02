@@ -1,11 +1,11 @@
 ---
-description: Console Rendering System Usage
-applyTo: "pkg/console/*.go,pkg/cli/*_report.go,pkg/cli/logs.go,pkg/cli/audit_report.go,pkg/cli/status_command.go"
+name: console-rendering
+description: Instructions for using the struct tag-based console rendering system in Go
 ---
 
 # Console Rendering System Usage
 
-This file contains instructions for using the struct tag-based console rendering system.
+This skill provides instructions for using the struct tag-based console rendering system.
 
 ## Struct Tag Support
 
