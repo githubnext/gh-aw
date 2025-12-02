@@ -28,7 +28,9 @@
 #   workflow_dispatch:
 #   schedule:
 #     - cron: "0 * * * *"
-#   skip-if-match: 'is:pr is:open author:app/copilot-swe-agent'
+#   skip-if-match:
+#     query: "is:pr is:open is:draft author:app/copilot-swe-agent"
+#     max: 5
 #
 # permissions:
 #   contents: read
@@ -211,7 +213,9 @@ name: "Issue Monster"
 "on":
   schedule:
   - cron: "0 * * * *"
-  # skip-if-match: is:pr is:open author:app/copilot-swe-agent # Skip-if-match processed as search check in pre-activation job
+  # skip-if-match: # Skip-if-match processed as search check in pre-activation job
+    # max: 5
+    # query: is:pr is:open is:draft author:app/copilot-swe-agent
   workflow_dispatch: null
 
 permissions:
@@ -6589,9 +6593,9 @@ jobs:
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_QUERY: "is:pr is:open author:app/copilot-swe-agent"
+          GH_AW_SKIP_QUERY: "is:pr is:open is:draft author:app/copilot-swe-agent"
           GH_AW_WORKFLOW_NAME: "Issue Monster"
-          GH_AW_SKIP_MAX_MATCHES: "1"
+          GH_AW_SKIP_MAX_MATCHES: "5"
         with:
           script: |
             async function main() {

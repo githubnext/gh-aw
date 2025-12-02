@@ -43,6 +43,7 @@
 #   create-discussion:
 #     category: "General"
 #     max: 1
+#     close-older-discussions: true
 #
 # tools:
 #   serena: ["go"]
@@ -5738,6 +5739,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "General"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Typist - Go Type Analysis"
           GH_AW_ENGINE_ID: "claude"
         with:

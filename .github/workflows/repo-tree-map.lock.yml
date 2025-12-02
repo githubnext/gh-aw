@@ -44,6 +44,7 @@
 #   create-discussion:
 #     category: "dev"
 #     max: 1
+#     close-older-discussions: true
 #
 # timeout-minutes: 5
 # imports:
@@ -5223,6 +5224,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "dev"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Repository Tree Map Generator"
           GH_AW_ENGINE_ID: "copilot"
         with:

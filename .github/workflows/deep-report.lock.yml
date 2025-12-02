@@ -54,6 +54,7 @@
 #   create-discussion:
 #     category: "reports"
 #     max: 1
+#     close-older-discussions: true
 #
 # tools:
 #   cache-memory:
@@ -5739,6 +5740,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "reports"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_TRACKER_ID: "deep-report-intel-agent"
           GH_AW_ENGINE_ID: "codex"

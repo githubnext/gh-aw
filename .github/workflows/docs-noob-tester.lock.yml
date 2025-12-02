@@ -46,6 +46,7 @@
 #   upload-assets:
 #   create-discussion:
 #     category: "General"
+#     close-older-discussions: true
 #
 # network:
 #   allowed:
@@ -5571,6 +5572,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "General"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Documentation Noob Tester"
           GH_AW_ENGINE_ID: "copilot"
         with:

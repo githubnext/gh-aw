@@ -45,6 +45,7 @@
 #   create-discussion:
 #     category: "artifacts"
 #     max: 1
+#     close-older-discussions: true
 # timeout-minutes: 15
 # strict: true
 # imports:
@@ -5508,6 +5509,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "artifacts"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Artifacts Summary"
           GH_AW_ENGINE_ID: "copilot"
         with:

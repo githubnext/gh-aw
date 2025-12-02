@@ -48,6 +48,7 @@
 #   create-discussion:
 #     category: "General"
 #     max: 1
+#     close-older-discussions: true
 #   create-pull-request:
 #     title-prefix: "[docs] "
 #     labels: [documentation, automation]
@@ -6095,6 +6096,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "General"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
           GH_AW_ENGINE_ID: "claude"
         with:

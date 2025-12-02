@@ -27,6 +27,7 @@ safe-outputs:
     category: "audits"
     title-prefix: "[mcp-analysis] "
     max: 1
+    close-older-discussions: true
 imports:
   - shared/python-dataviz.md
   - shared/reporting.md

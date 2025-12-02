@@ -20,6 +20,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
+    close-older-discussions: true
 
 tools:
   github:
