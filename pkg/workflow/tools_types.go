@@ -75,7 +75,6 @@ type ToolsConfig struct {
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
-	MCPGateway       *MCPGatewayConfig           `yaml:"mcp-gateway,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
@@ -146,9 +145,6 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
-	}
-	if t.MCPGateway != nil {
-		result["mcp-gateway"] = t.MCPGateway
 	}
 	if t.SafetyPrompt != nil {
 		result["safety-prompt"] = *t.SafetyPrompt
@@ -298,9 +294,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
 	}
-	if val, exists := toolsMap["mcp-gateway"]; exists {
-		tools.MCPGateway = parseMCPGatewayTool(val)
-	}
 	if val, exists := toolsMap["safety-prompt"]; exists {
 		tools.SafetyPrompt = parseSafetyPromptTool(val)
 	}
@@ -322,7 +315,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
-		"mcp-gateway":       true,
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
@@ -712,8 +704,6 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
-	case "mcp-gateway":
-		return t.MCPGateway != nil
 	case "safety-prompt":
 		return t.SafetyPrompt != nil
 	case "timeout":
@@ -760,9 +750,6 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
-	}
-	if t.MCPGateway != nil {
-		names = append(names, "mcp-gateway")
 	}
 	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")

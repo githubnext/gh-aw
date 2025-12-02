@@ -8,7 +8,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var mcpGatewayLog = logger.New("workflow:mcp_gateway")
+var gatewayLog = logger.New("workflow:gateway")
 
 const (
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
@@ -37,11 +37,11 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 		return false
 	}
 
-	// First check if mcp-gateway is configured in tools
-	if workflowData.Tools == nil {
+	// Check if sandbox.mcp is configured
+	if workflowData.SandboxConfig == nil {
 		return false
 	}
-	if _, ok := workflowData.Tools["mcp-gateway"]; !ok {
+	if workflowData.SandboxConfig.MCP == nil {
 		return false
 	}
 
@@ -49,23 +49,13 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 	return isFeatureEnabled(MCPGatewayFeatureFlag, workflowData)
 }
 
-// getMCPGatewayConfig extracts the MCPGatewayConfig from workflow tools
+// getMCPGatewayConfig extracts the MCPGatewayConfig from sandbox configuration
 func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayConfig {
-	if workflowData == nil || workflowData.Tools == nil {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
 		return nil
 	}
 
-	gatewayRaw, ok := workflowData.Tools["mcp-gateway"]
-	if !ok {
-		return nil
-	}
-
-	configMap, ok := gatewayRaw.(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	return parseMCPGatewayTool(configMap)
+	return workflowData.SandboxConfig.MCP
 }
 
 // generateMCPGatewaySteps generates the steps to start and verify the MCP gateway
@@ -79,7 +69,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 		return nil
 	}
 
-	mcpGatewayLog.Printf("Generating MCP gateway steps for container: %s", config.Container)
+	gatewayLog.Printf("Generating MCP gateway steps for container: %s", config.Container)
 
 	var steps []GitHubActionStep
 
@@ -96,7 +86,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
 func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[string]any) GitHubActionStep {
-	mcpGatewayLog.Print("Generating MCP gateway start step")
+	gatewayLog.Print("Generating MCP gateway start step")
 
 	port := config.Port
 	if port == 0 {
@@ -114,7 +104,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 
 	configJSON, err := json.Marshal(gatewayConfig)
 	if err != nil {
-		mcpGatewayLog.Printf("Failed to marshal gateway config: %v", err)
+		gatewayLog.Printf("Failed to marshal gateway config: %v", err)
 		configJSON = []byte("{}")
 	}
 
@@ -162,7 +152,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 
 // generateMCPGatewayHealthCheckStep generates the step that pings the gateway to verify it's running
 func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionStep {
-	mcpGatewayLog.Print("Generating MCP gateway health check step")
+	gatewayLog.Print("Generating MCP gateway health check step")
 
 	port := config.Port
 	if port == 0 {
@@ -211,7 +201,7 @@ func transformMCPConfigForGateway(mcpServers map[string]any, gatewayConfig *MCPG
 		return mcpServers
 	}
 
-	mcpGatewayLog.Print("Transforming MCP config for gateway")
+	gatewayLog.Print("Transforming MCP config for gateway")
 
 	gatewayURL := getMCPGatewayURL(gatewayConfig)
 

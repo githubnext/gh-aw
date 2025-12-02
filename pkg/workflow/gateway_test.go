@@ -113,38 +113,38 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "nil tools",
+			name: "nil sandbox config",
 			data: &WorkflowData{
-				Tools: nil,
+				SandboxConfig: nil,
 			},
 			expected: false,
 		},
 		{
-			name: "no mcp-gateway tool",
+			name: "no mcp in sandbox",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"github": true,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
 				},
 			},
 			expected: false,
 		},
 		{
-			name: "mcp-gateway without feature flag",
+			name: "sandbox.mcp without feature flag",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"mcp-gateway": map[string]any{
-						"container": "test",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayConfig{
+						Container: "test",
 					},
 				},
 			},
 			expected: false,
 		},
 		{
-			name: "mcp-gateway with feature flag",
+			name: "sandbox.mcp with feature flag",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"mcp-gateway": map[string]any{
-						"container": "test",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayConfig{
+						Container: "test",
 					},
 				},
 				Features: map[string]bool{
@@ -175,21 +175,21 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 			hasConfig: false,
 		},
 		{
-			name: "no mcp-gateway",
+			name: "no mcp in sandbox",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"github": true,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
 				},
 			},
 			hasConfig: false,
 		},
 		{
-			name: "valid mcp-gateway config",
+			name: "valid sandbox.mcp config",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"mcp-gateway": map[string]any{
-						"container": "test-image",
-						"port":      9090,
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayConfig{
+						Container: "test-image",
+						Port:      9090,
 					},
 				},
 			},
@@ -227,10 +227,10 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 		{
 			name: "gateway enabled returns two steps",
 			data: &WorkflowData{
-				Tools: map[string]any{
-					"mcp-gateway": map[string]any{
-						"container": "test-gateway",
-						"port":      8080,
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayConfig{
+						Container: "test-gateway",
+						Port:      8080,
 					},
 				},
 				Features: map[string]bool{
@@ -378,24 +378,21 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 	}
 }
 
-func TestToolsConfigMCPGateway(t *testing.T) {
-	toolsMap := map[string]any{
-		"mcp-gateway": map[string]any{
-			"container": "test-image",
-			"port":      9000,
+func TestSandboxConfigWithMCP(t *testing.T) {
+	sandboxConfig := &SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type: SandboxTypeAWF,
+		},
+		MCP: &MCPGatewayConfig{
+			Container: "test-image",
+			Port:      9000,
 		},
 	}
 
-	tools := NewTools(toolsMap)
-	require.NotNil(t, tools.MCPGateway)
-	assert.Equal(t, "test-image", tools.MCPGateway.Container)
-	assert.Equal(t, 9000, tools.MCPGateway.Port)
+	require.NotNil(t, sandboxConfig.MCP)
+	assert.Equal(t, "test-image", sandboxConfig.MCP.Container)
+	assert.Equal(t, 9000, sandboxConfig.MCP.Port)
 
-	// Test HasTool
-	assert.True(t, tools.HasTool("mcp-gateway"))
-	assert.False(t, tools.HasTool("nonexistent"))
-
-	// Test ToMap
-	result := tools.ToMap()
-	assert.Contains(t, result, "mcp-gateway")
+	require.NotNil(t, sandboxConfig.Agent)
+	assert.Equal(t, SandboxTypeAWF, sandboxConfig.Agent.Type)
 }

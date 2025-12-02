@@ -13,13 +13,28 @@ var sandboxLog = logger.New("workflow:sandbox")
 type SandboxType string
 
 const (
-	SandboxTypeDefault SandboxType = "default"         // Uses AWF (Agent Workflow Firewall)
-	SandboxTypeRuntime SandboxType = "sandbox-runtime" // Uses Anthropic Sandbox Runtime
+	SandboxTypeAWF     SandboxType = "awf"             // Uses AWF (Agent Workflow Firewall)
+	SandboxTypeSRT     SandboxType = "srt"             // Uses Anthropic Sandbox Runtime
+	SandboxTypeDefault SandboxType = "default"         // Alias for AWF (backward compat)
+	SandboxTypeRuntime SandboxType = "sandbox-runtime" // Alias for SRT (backward compat)
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
+// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...} }
+// Legacy format: "default"|"sandbox-runtime" or { type, config }
 type SandboxConfig struct {
+	// New fields
+	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
+	MCP   *MCPGatewayConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
+
+	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"
+	Config *SandboxRuntimeConfig `yaml:"config,omitempty"` // Custom SRT config (optional)
+}
+
+// AgentSandboxConfig represents the agent sandbox configuration
+type AgentSandboxConfig struct {
+	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "awf" or "srt"
 	Config *SandboxRuntimeConfig `yaml:"config,omitempty"` // Custom SRT config (optional)
 }
 
@@ -55,8 +70,18 @@ func isSRTEnabled(workflowData *WorkflowData) bool {
 		return false
 	}
 
-	enabled := workflowData.SandboxConfig.Type == SandboxTypeRuntime
-	sandboxLog.Printf("SRT enabled check: %v (type=%s)", enabled, workflowData.SandboxConfig.Type)
+	config := workflowData.SandboxConfig
+
+	// Check new format: sandbox.agent
+	if config.Agent != nil {
+		enabled := config.Agent.Type == SandboxTypeSRT || config.Agent.Type == SandboxTypeRuntime
+		sandboxLog.Printf("SRT enabled check (new format): %v (type=%s)", enabled, config.Agent.Type)
+		return enabled
+	}
+
+	// Check legacy format: sandbox.type
+	enabled := config.Type == SandboxTypeRuntime || config.Type == SandboxTypeSRT
+	sandboxLog.Printf("SRT enabled check (legacy format): %v (type=%s)", enabled, config.Type)
 	return enabled
 }
 
@@ -74,11 +99,18 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 
 	var srtConfig *SandboxRuntimeConfig
 
-	// If user provided custom config, use it
-	if sandboxConfig.Config != nil {
-		sandboxLog.Print("Using user-provided custom SRT config")
+	// Check new format first: sandbox.agent.config
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil {
+		sandboxLog.Print("Using user-provided custom SRT config (new format)")
+		srtConfig = sandboxConfig.Agent.Config
+	} else if sandboxConfig.Config != nil {
+		// Legacy format: sandbox.config
+		sandboxLog.Print("Using user-provided custom SRT config (legacy format)")
 		srtConfig = sandboxConfig.Config
+	}
 
+	// If user provided custom config, normalize and use it
+	if srtConfig != nil {
 		// Normalize nil slices to empty slices to ensure proper JSON serialization
 		// (YAML parsing creates nil slices for [], but JSON marshals nil as null)
 		if srtConfig.Network != nil {
