@@ -166,7 +166,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	sandboxEnabled := isFirewallEnabled(workflowData) || isSRTEnabled(workflowData)
 	if sandboxEnabled {
 		// Simplified args for sandbox mode (AWF or SRT)
-		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
 		// Always add workspace directory to --add-dir so Copilot CLI can access it
 		// This allows Copilot CLI to discover agent files and access the workspace
