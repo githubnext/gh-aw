@@ -4517,6 +4517,9 @@
       "additionalProperties": false,
       "anyOf": [
         {
+          "required": ["type"]
+        },
+        {
           "required": ["command"]
         },
         {
@@ -4540,6 +4543,18 @@
           },
           "then": {
             "required": ["container"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["stdio", "local"]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
           }
         }
       ]
