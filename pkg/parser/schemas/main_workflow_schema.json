@@ -1096,6 +1096,11 @@
               "enum": ["read", "none"],
               "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
+            "metadata": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no access)"
+            },
             "packages": {
               "type": "string",
               "enum": ["read", "write", "none"]

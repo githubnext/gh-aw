@@ -644,6 +644,11 @@ permissions:
   # (optional)
   models: "read"
 
+  # Permission for repository metadata (read: view repository information, write:
+  # update repository metadata, none: no access)
+  # (optional)
+  metadata: "read"
+
   # (optional)
   packages: "read"
 
