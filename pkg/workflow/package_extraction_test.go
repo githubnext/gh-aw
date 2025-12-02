@@ -205,6 +205,131 @@ func TestPackageExtractor_ExtractPackages_GoPattern(t *testing.T) {
 	}
 }
 
+func TestPackageExtractor_ExtractPackages_MultipleSubcommands(t *testing.T) {
+	// Test extraction with multiple required subcommands (e.g., "go install" and "go get")
+	extractor := PackageExtractor{
+		CommandNames:        []string{"go"},
+		RequiredSubcommands: []string{"install", "get"},
+		TrimSuffixes:        "&|;",
+	}
+
+	tests := []struct {
+		name     string
+		commands string
+		want     []string
+	}{
+		{
+			name:     "go install with multiple subcommands",
+			commands: "go install github.com/user/tool@v1.0.0",
+			want:     []string{"github.com/user/tool@v1.0.0"},
+		},
+		{
+			name:     "go get with multiple subcommands",
+			commands: "go get golang.org/x/tools@latest",
+			want:     []string{"golang.org/x/tools@latest"},
+		},
+		{
+			name: "mixed go install and go get",
+			commands: `go install github.com/user/tool@v1.0.0
+go get golang.org/x/lint@latest`,
+			want: []string{"github.com/user/tool@v1.0.0", "golang.org/x/lint@latest"},
+		},
+		{
+			name:     "go install with flags",
+			commands: "go install -v github.com/user/tool",
+			want:     []string{"github.com/user/tool"},
+		},
+		{
+			name:     "go without install or get",
+			commands: "go build main.go",
+			want:     nil,
+		},
+		{
+			name:     "go mod command (not extracted)",
+			commands: "go mod tidy",
+			want:     nil,
+		},
+		{
+			name:     "empty command",
+			commands: "",
+			want:     nil,
+		},
+		{
+			name:     "go get with flags",
+			commands: "go get -u github.com/user/tool@latest",
+			want:     []string{"github.com/user/tool@latest"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractor.ExtractPackages(tt.commands)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractPackages() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPackageExtractor_getRequiredSubcommands(t *testing.T) {
+	tests := []struct {
+		name      string
+		extractor PackageExtractor
+		want      []string
+	}{
+		{
+			name: "only RequiredSubcommand set",
+			extractor: PackageExtractor{
+				RequiredSubcommand: "install",
+			},
+			want: []string{"install"},
+		},
+		{
+			name: "only RequiredSubcommands set",
+			extractor: PackageExtractor{
+				RequiredSubcommands: []string{"install", "get"},
+			},
+			want: []string{"install", "get"},
+		},
+		{
+			name: "both fields set - RequiredSubcommands takes precedence",
+			extractor: PackageExtractor{
+				RequiredSubcommand:  "deprecated",
+				RequiredSubcommands: []string{"install", "get"},
+			},
+			want: []string{"install", "get"},
+		},
+		{
+			name:      "neither field set",
+			extractor: PackageExtractor{},
+			want:      nil,
+		},
+		{
+			name: "empty RequiredSubcommand",
+			extractor: PackageExtractor{
+				RequiredSubcommand: "",
+			},
+			want: nil,
+		},
+		{
+			name: "empty RequiredSubcommands slice",
+			extractor: PackageExtractor{
+				RequiredSubcommands: []string{},
+			},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.extractor.getRequiredSubcommands()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getRequiredSubcommands() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPackageExtractor_isCommandName(t *testing.T) {
 	extractor := PackageExtractor{
 		CommandNames: []string{"pip", "pip3"},

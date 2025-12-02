@@ -863,3 +863,91 @@ go install github.com/user/tool@v1.0.0
 		t.Error("dependabot.yml should be created")
 	}
 }
+
+// Tests for extractGoFromCommands function
+
+func TestExtractGoFromCommands(t *testing.T) {
+	tests := []struct {
+		name     string
+		commands string
+		want     []string
+	}{
+		{
+			name:     "simple go install",
+			commands: "go install github.com/user/tool@v1.0.0",
+			want:     []string{"github.com/user/tool@v1.0.0"},
+		},
+		{
+			name:     "go get",
+			commands: "go get golang.org/x/tools@latest",
+			want:     []string{"golang.org/x/tools@latest"},
+		},
+		{
+			name: "mixed go install and go get",
+			commands: `go install github.com/user/tool@v1.0.0
+go get golang.org/x/lint@latest`,
+			want: []string{"github.com/user/tool@v1.0.0", "golang.org/x/lint@latest"},
+		},
+		{
+			name:     "go install with flags",
+			commands: "go install -v github.com/user/tool",
+			want:     []string{"github.com/user/tool"},
+		},
+		{
+			name:     "go without install or get",
+			commands: "go build main.go",
+			want:     nil,
+		},
+		{
+			name:     "go mod command (not extracted)",
+			commands: "go mod tidy",
+			want:     nil,
+		},
+		{
+			name:     "empty command",
+			commands: "",
+			want:     nil,
+		},
+		{
+			name:     "go get with flags",
+			commands: "go get -u github.com/user/tool@latest",
+			want:     []string{"github.com/user/tool@latest"},
+		},
+		{
+			name: "multiple go install commands",
+			commands: `go install github.com/tool1/pkg@v1.0.0
+go install github.com/tool2/pkg@v2.0.0`,
+			want: []string{"github.com/tool1/pkg@v1.0.0", "github.com/tool2/pkg@v2.0.0"},
+		},
+		{
+			name:     "go install with trailing semicolon",
+			commands: "go install github.com/user/tool@v1.0.0;",
+			want:     []string{"github.com/user/tool@v1.0.0"},
+		},
+		{
+			name:     "go get with trailing ampersand",
+			commands: "go get github.com/user/tool@latest&",
+			want:     []string{"github.com/user/tool@latest"},
+		},
+		{
+			name:     "go install and go get on same line",
+			commands: "go install github.com/tool1/pkg@v1.0.0 && go get github.com/tool2/pkg@latest",
+			want:     []string{"github.com/tool1/pkg@v1.0.0", "github.com/tool2/pkg@latest"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractGoFromCommands(tt.commands)
+			if len(got) != len(tt.want) {
+				t.Errorf("extractGoFromCommands() = %v, want %v", got, tt.want)
+				return
+			}
+			for i, v := range got {
+				if v != tt.want[i] {
+					t.Errorf("extractGoFromCommands()[%d] = %v, want %v", i, v, tt.want[i])
+				}
+			}
+		})
+	}
+}

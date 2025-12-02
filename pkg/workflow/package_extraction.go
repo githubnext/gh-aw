@@ -50,14 +50,14 @@
 //	packages := extractor.ExtractPackages("pip install requests==2.28.0")
 //	// Returns: []string{"requests==2.28.0"}
 //
-// Go:
+// Go (with multiple subcommands):
 //
-//	installExtractor := PackageExtractor{
-//	    CommandNames:       []string{"go"},
-//	    RequiredSubcommand: "install",
-//	    TrimSuffixes:       "&|;",
+//	extractor := PackageExtractor{
+//	    CommandNames:        []string{"go"},
+//	    RequiredSubcommands: []string{"install", "get"},
+//	    TrimSuffixes:        "&|;",
 //	}
-//	packages := installExtractor.ExtractPackages("go install github.com/user/tool@v1.0.0")
+//	packages := extractor.ExtractPackages("go install github.com/user/tool@v1.0.0")
 //	// Returns: []string{"github.com/user/tool@v1.0.0"}
 //
 // Python (uv):
@@ -151,7 +151,23 @@ type PackageExtractor struct {
 	//   - "install" for pip (pip install <package>)
 	//   - "get" for go (go get <package>)
 	//   - "" for npx (npx <package>)
+	//
+	// Deprecated: Use RequiredSubcommands for multiple subcommand support.
+	// This field is maintained for backward compatibility.
 	RequiredSubcommand string
+
+	// RequiredSubcommands is a list of subcommands that can follow the command name
+	// before the package name appears. If any of these subcommands is found, the
+	// package name following it will be extracted. Set to empty slice if the package
+	// name comes directly after the command.
+	//
+	// This field takes precedence over RequiredSubcommand if both are set.
+	//
+	// Examples:
+	//   - ["install"] for pip (pip install <package>)
+	//   - ["install", "get"] for go (go install <pkg> or go get <pkg>)
+	//   - [] for npx (npx <package>)
+	RequiredSubcommands []string
 
 	// TrimSuffixes is a string of characters to trim from the end of package names.
 	// This is useful for removing shell operators that may appear after package names
@@ -218,9 +234,10 @@ type PackageExtractor struct {
 //	packages := extractor.ExtractPackages("npx @playwright/mcp@latest")
 //	// Returns: []string{"@playwright/mcp@latest"}
 func (pe *PackageExtractor) ExtractPackages(commands string) []string {
+	subcommands := pe.getRequiredSubcommands()
 	if pkgLog.Enabled() {
-		pkgLog.Printf("Extracting packages from commands using %v (subcommand: %q)",
-			pe.CommandNames, pe.RequiredSubcommand)
+		pkgLog.Printf("Extracting packages from commands using %v (subcommands: %v)",
+			pe.CommandNames, subcommands)
 	}
 
 	var packages []string
@@ -234,9 +251,9 @@ func (pe *PackageExtractor) ExtractPackages(commands string) []string {
 				continue
 			}
 
-			// If we have a required subcommand, find it first
-			if pe.RequiredSubcommand != "" {
-				pkg := pe.extractWithSubcommand(words, i)
+			// If we have required subcommands, find any of them first
+			if len(subcommands) > 0 {
+				pkg := pe.extractWithSubcommands(words, i, subcommands)
 				if pkg != "" {
 					pkgLog.Printf("Extracted package with subcommand: %s", pkg)
 					packages = append(packages, pkg)
@@ -256,6 +273,18 @@ func (pe *PackageExtractor) ExtractPackages(commands string) []string {
 	return packages
 }
 
+// getRequiredSubcommands returns the list of required subcommands.
+// It prefers RequiredSubcommands if set, otherwise falls back to RequiredSubcommand.
+func (pe *PackageExtractor) getRequiredSubcommands() []string {
+	if len(pe.RequiredSubcommands) > 0 {
+		return pe.RequiredSubcommands
+	}
+	if pe.RequiredSubcommand != "" {
+		return []string{pe.RequiredSubcommand}
+	}
+	return nil
+}
+
 // isCommandName checks if the given word matches any of the configured command names
 func (pe *PackageExtractor) isCommandName(word string) bool {
 	for _, cmdName := range pe.CommandNames {
@@ -266,14 +295,16 @@ func (pe *PackageExtractor) isCommandName(word string) bool {
 	return false
 }
 
-// extractWithSubcommand extracts a package name when a required subcommand must be present
-// (e.g., "pip install <package>")
-func (pe *PackageExtractor) extractWithSubcommand(words []string, commandIndex int) string {
-	// Look for the required subcommand after the command name
+// extractWithSubcommands extracts a package name when any of the required subcommands must be present
+// (e.g., "pip install <package>" or "go get <package>")
+func (pe *PackageExtractor) extractWithSubcommands(words []string, commandIndex int, subcommands []string) string {
+	// Look for any of the required subcommands after the command name
 	for j := commandIndex + 1; j < len(words); j++ {
-		if words[j] == pe.RequiredSubcommand {
-			// Found the subcommand - now find the package name
-			return pe.findPackageName(words, j+1)
+		for _, subcommand := range subcommands {
+			if words[j] == subcommand {
+				// Found a matching subcommand - now find the package name
+				return pe.findPackageName(words, j+1)
+			}
 		}
 	}
 	return ""
