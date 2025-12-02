@@ -9,35 +9,11 @@ Multi-repository operations enable coordinating work across multiple GitHub repo
 
 ### [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/)
 
-Synchronize code changes from a main repository to sub-repositories or downstream services. Ideal for maintaining shared components, library updates, or multi-platform deployments.
-
-**Key Features:**
-- Automated pull request creation in target repositories
-- Change detection with path filters
-- Release-based and scheduled synchronization
-- Bidirectional sync with conflict detection
-
-**Use Cases:**
-- Monorepo alternatives
-- Shared component libraries
-- Multi-platform deployment
-- Fork maintenance
+Automates code synchronization from main repositories to sub-repositories or downstream services through pull requests with change detection, path filters, and bidirectional sync support. Use for monorepo alternatives, shared component libraries, multi-platform deployments, or fork maintenance.
 
 ### [Cross-Repository Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/)
 
-Centralize issue tracking across multiple component repositories by creating tracking issues in a central repository when issues are opened in component repos.
-
-**Key Features:**
-- Automatic tracking issue creation
-- Status synchronization
-- Multi-component coordination
-- External dependency tracking
-
-**Use Cases:**
-- Component-based architecture visibility
-- Multi-team coordination
-- Cross-project initiatives
-- Upstream dependency tracking
+Centralizes issue tracking by automatically creating tracking issues in a central repository with status synchronization and multi-component coordination. Use for component-based architecture visibility, multi-team coordination, cross-project initiatives, or upstream dependency tracking.
 
 ## Getting Started
 
@@ -53,14 +29,7 @@ gh auth token
 gh secret set CROSS_REPO_PAT --body "ghp_your_token_here"
 ```
 
-**Required Permissions:**
-
-The PAT needs permissions **only on target repositories** where you want to create resources, not on the source repository where the workflow runs.
-
-- `repo` (for private target repositories)
-- `contents: write` (for creating commits in target repos)
-- `issues: write` (for creating issues in target repos)
-- `pull-requests: write` (for creating PRs in target repos)
+The PAT needs permissions **only on target repositories** (not the source repository where the workflow runs): `repo` for private repos, `contents: write` for commits, `issues: write` for issues, and `pull-requests: write` for PRs.
 
 :::tip
 **Security Best Practice**: If you only need to read from one repo and write to another, scope your PAT to have read access on the source and write access only on target repositories. Use separate tokens for different operations when possible.
@@ -81,9 +50,7 @@ safe-outputs:
     target-repo: "my-org/repo1"
 ```
 
-**Benefits**: GitHub App tokens are minted on-demand, automatically revoked after job completion, and provide better security than long-lived PATs.
-
-See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#github-app-token-app) for complete GitHub App configuration.
+GitHub App tokens are minted on-demand, automatically revoked after job completion, and provide better security than long-lived PATs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#github-app-token-app) for complete configuration.
 
 ## Common Patterns
 
@@ -157,51 +124,17 @@ tools:
     toolsets: [repos, issues, pull_requests, actions]
 ```
 
-**Available Operations:**
-- **repos**: Read files, search code, list commits, get releases
-- **issues**: List and search issues across repositories
-- **pull_requests**: List and search PRs across repositories
-- **actions**: Access workflow runs and artifacts
+Agents can access **repos** (read files, search code, list commits, get releases), **issues** (list and search across repositories), **pull_requests** (list and search PRs), and **actions** (workflow runs and artifacts).
 
 ## Best Practices
 
-### Authentication and Security
-
-1. Use GitHub Apps for automatic token revocation
-2. Scope PATs minimally to required repositories
-3. Rotate tokens regularly
-4. Store tokens as GitHub secrets (never in code)
-
-### Workflow Design
-
-1. Set appropriate `max` limits on safe outputs
-2. Use meaningful title prefixes for tracking
-3. Apply consistent labels across repositories
-4. Include clear documentation in created items
-
-### Error Handling
-
-1. Validate repository access before operations
-2. Handle rate limits appropriately
-3. Provide fallback for permission failures
-4. Monitor workflow execution across repositories
-
-### Testing
-
-1. Test with public repositories first
-2. Pilot with small repository subset
-3. Verify path mappings and configurations
-4. Monitor costs and rate limits
+Use GitHub Apps for automatic token revocation, scope PATs minimally, rotate tokens regularly, and store them as GitHub secrets. Set appropriate `max` limits on safe outputs, use meaningful title prefixes and consistent labels, and include clear documentation in created items. Validate repository access before operations, handle rate limits appropriately, and monitor workflow execution. Test with public repositories first, pilot with small subsets, verify configurations, and monitor costs.
 
 ## Advanced Topics
 
 ### Private Repository Access
 
-When working with private repositories:
-- Ensure PAT owner has repository access
-- Install GitHub Apps in target organizations
-- Configure repository lists explicitly
-- Test permissions before full rollout
+When working with private repositories, ensure the PAT owner has repository access, install GitHub Apps in target organizations, configure repository lists explicitly, and test permissions before full rollout.
 
 ### Deterministic Workflows
 
@@ -226,11 +159,7 @@ engine:
 
 ### Organization-Level Operations
 
-For organization-wide workflows:
-- Use organization-level secrets
-- Configure GitHub Apps at organization level
-- Plan phased rollouts
-- Provide clear communication
+For organization-wide workflows, use organization-level secrets, configure GitHub Apps at organization level, plan phased rollouts, and provide clear communication.
 
 ## Complete Guide
 
