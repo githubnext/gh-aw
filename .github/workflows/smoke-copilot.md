@@ -13,9 +13,7 @@ permissions:
   pull-requests: read
   issues: read
 name: Smoke Copilot
-engine:
-  id: copilot
-  model: gpt-5-mini
+engine: copilot
 network:
   allowed:
     - defaults
