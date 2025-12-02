@@ -57,7 +57,7 @@
 #       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
 #       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
 #       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
-# timeout-minutes: 10
+# timeout-minutes: 5
 # strict: true
 # ```
 #
@@ -3499,7 +3499,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level debug \
