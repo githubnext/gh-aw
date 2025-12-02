@@ -12,7 +12,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-name: Smoke Copilot
+name: Smoke Copilot Playwright
 engine:
   id: copilot
   model: gpt-5-mini

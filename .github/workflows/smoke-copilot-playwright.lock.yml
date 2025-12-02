@@ -35,7 +35,7 @@
 #   contents: read
 #   pull-requests: read
 #   issues: read
-# name: Smoke Copilot
+# name: Smoke Copilot Playwright
 # engine:
 #   id: copilot
 #   model: gpt-5-mini
@@ -195,7 +195,7 @@
 #   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Smoke Copilot"
+name: "Smoke Copilot Playwright"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
@@ -215,7 +215,7 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
-run-name: "Smoke Copilot"
+run-name: "Smoke Copilot Playwright"
 
 jobs:
   activation:
@@ -328,7 +328,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_REACTION: "eyes"
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
           script: |
@@ -763,7 +763,7 @@ jobs:
           GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -1358,7 +1358,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -3290,7 +3290,7 @@ jobs:
               model: "gpt-5-mini",
               version: "",
               agent_version: "0.0.365",
-              workflow_name: "Smoke Copilot",
+              workflow_name: "Smoke Copilot Playwright",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -5955,16 +5955,16 @@ jobs:
           SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
           if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
             echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-smoke-copilot/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-smoke-copilot/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-smoke-copilot/ || true
+            mkdir -p /tmp/gh-aw/squid-logs-smoke-copilot-playwright/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-smoke-copilot-playwright/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-smoke-copilot-playwright/ || true
           fi
       - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: squid-logs-smoke-copilot
-          path: /tmp/gh-aw/squid-logs-smoke-copilot/
+          name: squid-logs-smoke-copilot-playwright
+          path: /tmp/gh-aw/squid-logs-smoke-copilot-playwright/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
@@ -6577,7 +6577,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6669,7 +6669,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6782,7 +6782,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
@@ -7035,7 +7035,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot"
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -7629,7 +7629,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Smoke Copilot"
+          WORKFLOW_NAME: "Smoke Copilot Playwright"
           WORKFLOW_DESCRIPTION: "Smoke test workflow that validates Copilot engine functionality by reviewing recent PRs every 6 hours"
         with:
           script: |
