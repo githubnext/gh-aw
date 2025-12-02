@@ -17,7 +17,7 @@ func addRepoFlag(cmd *cobra.Command) {
 // addOutputFlag adds the --output/-o flag to a command.
 // This flag allows specifying an output directory for generated files.
 func addOutputFlag(cmd *cobra.Command, defaultValue string) {
-	cmd.Flags().StringP("output", "o", defaultValue, "Output directory for downloaded logs and artifacts")
+	cmd.Flags().StringP("output", "o", defaultValue, "Output directory for generated files")
 }
 
 // addJSONFlag adds the --json flag to a command.
