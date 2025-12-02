@@ -22,6 +22,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
+    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 imports:

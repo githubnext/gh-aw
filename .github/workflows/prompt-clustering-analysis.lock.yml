@@ -49,6 +49,7 @@
 #     title-prefix: "[prompt-clustering] "
 #     category: "audits"
 #     max: 1
+#     close-older-discussions: true
 #
 # imports:
 #   - shared/jqschema.md
@@ -6651,6 +6652,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "[prompt-clustering] "
           GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
           GH_AW_ENGINE_ID: "claude"
         with:

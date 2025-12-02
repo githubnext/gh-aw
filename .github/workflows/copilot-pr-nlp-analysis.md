@@ -27,6 +27,7 @@ safe-outputs:
     title-prefix: "[nlp-analysis] "
     category: "audit"
     max: 1
+    close-older-discussions: true
 
 imports:
   - shared/jqschema.md
