@@ -1,10 +1,4 @@
 ---
-inputs:
-  count:
-    description: Maximum number of discussions to fetch
-    type: number
-    default: 100
-
 tools:
   cache-memory:
     key: discussions-data
@@ -22,7 +16,6 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_AW_DISCUSSIONS_COUNT: ${{ github.aw.inputs.count }}
       REPO_OWNER: ${{ github.repository_owner }}
       REPO_NAME: ${{ github.event.repository.name }}
     run: |
