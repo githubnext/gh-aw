@@ -357,6 +357,11 @@ func init() {
 	// Set output to stderr for consistency with CLI logging guidelines
 	rootCmd.SetOut(os.Stderr)
 
+	// Silence usage output on errors - prevents cluttering terminal output with
+	// full usage text when application errors occur (e.g., compilation errors,
+	// network timeouts). Users can still run --help for usage information.
+	rootCmd.SilenceUsage = true
+
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
 		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),
