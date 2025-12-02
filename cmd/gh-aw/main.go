@@ -468,14 +468,14 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 
 	// Add flags to enable/disable commands
-	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
-	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
-	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
