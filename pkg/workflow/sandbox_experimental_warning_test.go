@@ -76,9 +76,10 @@ engine: copilot
 sandbox:
   type: sandbox-runtime
   config:
-    network:
-      allowedDomains:
-        - example.com
+    filesystem:
+      allowWrite:
+        - "."
+        - "/tmp"
 features:
   sandbox-runtime: true
 permissions:

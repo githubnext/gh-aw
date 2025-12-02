@@ -234,6 +234,18 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// MCPGatewayConfig represents the configuration for the MCP gateway
+// The gateway routes MCP server calls through a unified HTTP endpoint
+type MCPGatewayConfig struct {
+	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway
+	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
+	Args           []string          `yaml:"args,omitempty"`           // Arguments for container execution
+	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments after the container image
+	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
+	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
+	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
+}
+
 // NewTools creates a new Tools instance from a map
 func NewTools(toolsMap map[string]any) *Tools {
 	toolsTypesLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
@@ -572,6 +584,65 @@ func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	// cache-memory can be boolean, object, or array - store raw value
 	return &CacheMemoryToolConfig{Raw: val}
+}
+
+// parseMCPGatewayTool converts raw mcp-gateway tool configuration
+func parseMCPGatewayTool(val any) *MCPGatewayConfig {
+	if val == nil {
+		return nil
+	}
+
+	configMap, ok := val.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	config := &MCPGatewayConfig{
+		Port: DefaultMCPGatewayPort,
+	}
+
+	if container, ok := configMap["container"].(string); ok {
+		config.Container = container
+	}
+	if version, ok := configMap["version"].(string); ok {
+		config.Version = version
+	} else if versionNum, ok := configMap["version"].(float64); ok {
+		config.Version = fmt.Sprintf("%.0f", versionNum)
+	}
+	if args, ok := configMap["args"].([]any); ok {
+		config.Args = make([]string, 0, len(args))
+		for _, arg := range args {
+			if str, ok := arg.(string); ok {
+				config.Args = append(config.Args, str)
+			}
+		}
+	}
+	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
+		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
+		for _, arg := range entrypointArgs {
+			if str, ok := arg.(string); ok {
+				config.EntrypointArgs = append(config.EntrypointArgs, str)
+			}
+		}
+	}
+	if env, ok := configMap["env"].(map[string]any); ok {
+		config.Env = make(map[string]string)
+		for k, v := range env {
+			if str, ok := v.(string); ok {
+				config.Env[k] = str
+			}
+		}
+	}
+	if port, ok := configMap["port"].(int); ok {
+		config.Port = port
+	} else if portFloat, ok := configMap["port"].(float64); ok {
+		config.Port = int(portFloat)
+	}
+	if apiKey, ok := configMap["api-key"].(string); ok {
+		config.APIKey = apiKey
+	}
+
+	return config
 }
 
 // parseSafetyPromptTool converts raw safety-prompt tool configuration
