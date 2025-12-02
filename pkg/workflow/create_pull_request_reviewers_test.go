@@ -282,9 +282,9 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 		reviewerStepContent = reviewerStepContent[:len("Add copilot as reviewer")+nextStepIndex]
 	}
 
-	// Verify that github-token uses Copilot token precedence with legacy fallback in reviewer step
-	if !strings.Contains(reviewerStepContent, "github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected github-token in reviewer step to use Copilot token precedence with legacy fallback")
+	// Verify that github-token uses agent token in reviewer step
+	if !strings.Contains(reviewerStepContent, "github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}") {
+		t.Error("Expected github-token in reviewer step to use GH_AW_AGENT_TOKEN")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot reviewers in reviewer step

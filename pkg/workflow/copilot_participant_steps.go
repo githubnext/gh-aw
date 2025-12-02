@@ -54,11 +54,11 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 		}
 	}
 
-	// Use Copilot token preference if adding copilot as participant, otherwise use regular token
+	// Use agent token preference if adding copilot as participant, otherwise use regular token
 	var effectiveToken string
 	if hasCopilotParticipant {
-		copilotParticipantLog.Print("Using Copilot token preference")
-		effectiveToken = getEffectiveCopilotGitHubToken(config.CustomToken, getEffectiveCopilotGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
+		copilotParticipantLog.Print("Using agent token preference")
+		effectiveToken = getEffectiveAgentGitHubToken(config.CustomToken)
 	} else {
 		copilotParticipantLog.Print("Using regular GitHub token")
 		effectiveToken = getEffectiveGitHubToken(config.CustomToken, getEffectiveGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
