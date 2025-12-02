@@ -467,15 +467,29 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
-// GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
+// GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)
+func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Only add collection step if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		copilotLog.Printf("Adding firewall logs collection step for workflow: %s", workflowData.Name)
+		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
+		steps = append(steps, squidLogsCollection)
+	} else {
+		copilotLog.Print("Firewall disabled, skipping firewall logs collection")
+	}
+
+	return steps
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Only add Squid logs collection and upload steps if firewall is enabled
+	// Only add upload and parsing steps if firewall is enabled
 	if isFirewallEnabled(workflowData) {
-		copilotLog.Printf("Adding Squid logs collection steps for workflow: %s", workflowData.Name)
-		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
-		steps = append(steps, squidLogsCollection)
+		copilotLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
 
 		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 		steps = append(steps, squidLogsUpload)
@@ -484,7 +498,7 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
 		steps = append(steps, firewallLogParsing)
 	} else {
-		copilotLog.Print("Firewall disabled, skipping Squid logs collection")
+		copilotLog.Print("Firewall disabled, skipping Squid logs upload")
 	}
 
 	return steps
@@ -1149,7 +1163,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
 	stepLines := []string{
-		"      - name: Agent Firewall logs",
+		"      - name: Collect firewall logs",
 		"        if: always()",
 		"        run: |",
 		"          # Squid logs are preserved in timestamped directories",
