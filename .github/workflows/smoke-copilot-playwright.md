@@ -13,9 +13,8 @@ permissions:
   pull-requests: read
   issues: read
 name: Smoke Copilot Playwright
-engine:
+engine: 
   id: copilot
-  model: gpt-5-mini
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 network:
