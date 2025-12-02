@@ -1,8 +1,8 @@
 ---
-description: Smoke test workflow that validates Copilot engine functionality by reviewing recent PRs every 6 hours
+description: Smoke Copilot
 on: 
   schedule:
-    - cron: "0 0,6,12,18 * * *"  # Every 6 hours
+    - cron: "0 0,7,13,19 * * *"  # Every 6 hours
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -16,18 +16,7 @@ name: Smoke Copilot
 engine:
   id: copilot
   model: gpt-5-mini
-  env:
-    DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 network:
-  allowed:
-    - defaults
-    - node
-    - github
-    - playwright
-    - clients2.google.com        # Chrome time sync
-    - www.google.com             # Chrome services
-    - accounts.google.com        # Chrome account checks
-    - android.clients.google.com # Chrome internal
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
@@ -35,12 +24,6 @@ tools:
   bash:
     - "*"
   github:
-  playwright:
-    allowed_domains:
-      - github.com
-    args:
-      - "--save-trace"  # Enable trace capture for debugging
-  serena: ["go"]
 safe-outputs:
     add-comment:
     create-issue:
@@ -53,58 +36,6 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 10
 strict: true
-steps:
-  # Pre-flight Docker container test for Playwright MCP
-  - name: Pre-flight Playwright MCP Test
-    run: |
-      echo "🧪 Testing Playwright MCP Docker container startup..."
-      
-      # Pull the Playwright MCP Docker image
-      echo "Pulling Playwright MCP Docker image..."
-      docker pull mcr.microsoft.com/playwright/mcp
-      
-      # Test container startup with a simple healthcheck
-      echo "Testing container startup..."
-      timeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {
-        echo "❌ Playwright MCP container failed to start"
-        exit 1
-      }
-      
-      echo "✅ Playwright MCP container pre-flight check passed"
-post-steps:
-  # Collect Playwright MCP logs after execution
-  - name: Collect Playwright MCP Logs
-    if: always()
-    run: |
-      echo "📋 Collecting Playwright MCP logs..."
-      
-      # Create logs directory
-      mkdir -p /tmp/gh-aw/playwright-debug-logs
-      
-      # Copy any playwright logs from the MCP logs directory
-      if [ -d "/tmp/gh-aw/mcp-logs/playwright" ]; then
-        echo "Found Playwright MCP logs directory"
-        cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true
-        ls -la /tmp/gh-aw/playwright-debug-logs/
-      else
-        echo "No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright"
-      fi
-      
-      # List all trace files if any
-      echo "Looking for trace files..."
-      find /tmp -name "*.zip" -o -name "trace*" 2>/dev/null | head -20 || true
-      
-      # Show docker container logs if any containers are still running
-      echo "Checking for running Docker containers..."
-      docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null || true
-  - name: Upload Playwright Debug Logs
-    if: always()
-    uses: actions/upload-artifact@v5
-    with:
-      name: playwright-debug-logs-${{ github.run_id }}
-      path: /tmp/gh-aw/playwright-debug-logs/
-      if-no-files-found: ignore
-      retention-days: 7
 ---
 
 # Smoke Test: Copilot Engine Validation
@@ -116,7 +47,6 @@ post-steps:
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 
 ## Output
 

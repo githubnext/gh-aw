@@ -157,28 +157,39 @@ func TestMCPAddIntegration_AddAllServers(t *testing.T) {
 	}
 
 	// Parse server names from the output
-	// Look for lines in the table format after "MCP registry:" line
+	// The table uses box-drawing characters (│ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ─)
+	// Example row format: │io.github.example/test-server-1 │Test MCP server 1...│
 	lines := strings.Split(string(listOutput), "\n")
 	var serverNames []string
 	inTable := false
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
+		trimmedLine := strings.TrimSpace(line)
 
-		// Start collecting server names after we see the table header or registry title
-		if strings.Contains(line, "MCP registry:") || strings.Contains(line, "Name") && strings.Contains(line, "Description") {
+		// Detect when we enter the data section of the table
+		// The separator line after the header uses ├ and ┼
+		if strings.Contains(trimmedLine, "├") && strings.Contains(trimmedLine, "┼") {
 			inTable = true
 			continue
 		}
 
-		// Skip divider lines and empty lines
-		if inTable && line != "" && !strings.Contains(line, "---") && !strings.Contains(line, "Total:") && !strings.Contains(line, "Usage:") {
-			// Extract server name from table row (first column)
-			parts := strings.Fields(line)
-			if len(parts) >= 1 && !strings.Contains(parts[0], "│") && parts[0] != "" {
-				serverName := parts[0]
-				// Skip if it looks like a table border or formatting
-				if !strings.Contains(serverName, "─") && !strings.Contains(serverName, "│") {
+		// Detect end of data rows
+		if inTable && (strings.Contains(trimmedLine, "└") || strings.Contains(trimmedLine, "Total:") || strings.Contains(trimmedLine, "Usage:")) {
+			inTable = false
+			continue
+		}
+
+		// Parse data rows by splitting on │
+		if inTable && strings.Contains(trimmedLine, "│") {
+			// Split by │ to get columns
+			// Expected format: │column1│column2│ -> ["", "column1", "column2", ""]
+			columns := strings.Split(trimmedLine, "│")
+			// Need at least 3 elements: empty before first │, column1, and rest
+			if len(columns) >= 3 {
+				serverName := strings.TrimSpace(columns[1])
+				// Skip if empty, looks like a header row, or a border line
+				// Headers typically contain generic terms like "Name" or start with border chars
+				if serverName != "" && !strings.EqualFold(serverName, "Name") && !strings.HasPrefix(serverName, "─") {
 					serverNames = append(serverNames, serverName)
 				}
 			}

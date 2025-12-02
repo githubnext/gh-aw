@@ -18,14 +18,14 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Smoke test workflow that validates Copilot engine functionality by reviewing recent PRs every 6 hours
+# Smoke Copilot
 #
 # Original Frontmatter:
 # ```yaml
-# description: Smoke test workflow that validates Copilot engine functionality by reviewing recent PRs every 6 hours
+# description: Smoke Copilot
 # on: 
 #   schedule:
-#     - cron: "0 0,6,12,18 * * *"  # Every 6 hours
+#     - cron: "0 0,7,13,19 * * *"  # Every 6 hours
 #   workflow_dispatch:
 #   pull_request:
 #     types: [labeled]
@@ -39,18 +39,7 @@
 # engine:
 #   id: copilot
 #   model: gpt-5-mini
-#   env:
-#     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
 # network:
-#   allowed:
-#     - defaults
-#     - node
-#     - github
-#     - playwright
-#     - clients2.google.com        # Chrome time sync
-#     - www.google.com             # Chrome services
-#     - accounts.google.com        # Chrome account checks
-#     - android.clients.google.com # Chrome internal
 #   firewall:
 #     log-level: debug  # Enable debug-level firewall logs
 # tools:
@@ -58,12 +47,6 @@
 #   bash:
 #     - "*"
 #   github:
-#   playwright:
-#     allowed_domains:
-#       - github.com
-#     args:
-#       - "--save-trace"  # Enable trace capture for debugging
-#   serena: ["go"]
 # safe-outputs:
 #     add-comment:
 #     create-issue:
@@ -76,58 +59,6 @@
 #       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 # timeout-minutes: 10
 # strict: true
-# steps:
-#   # Pre-flight Docker container test for Playwright MCP
-#   - name: Pre-flight Playwright MCP Test
-#     run: |
-#       echo "🧪 Testing Playwright MCP Docker container startup..."
-#
-#       # Pull the Playwright MCP Docker image
-#       echo "Pulling Playwright MCP Docker image..."
-#       docker pull mcr.microsoft.com/playwright/mcp
-#
-#       # Test container startup with a simple healthcheck
-#       echo "Testing container startup..."
-#       timeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {
-#         echo "❌ Playwright MCP container failed to start"
-#         exit 1
-#       }
-#
-#       echo "✅ Playwright MCP container pre-flight check passed"
-# post-steps:
-#   # Collect Playwright MCP logs after execution
-#   - name: Collect Playwright MCP Logs
-#     if: always()
-#     run: |
-#       echo "📋 Collecting Playwright MCP logs..."
-#
-#       # Create logs directory
-#       mkdir -p /tmp/gh-aw/playwright-debug-logs
-#
-#       # Copy any playwright logs from the MCP logs directory
-#       if [ -d "/tmp/gh-aw/mcp-logs/playwright" ]; then
-#         echo "Found Playwright MCP logs directory"
-#         cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true
-#         ls -la /tmp/gh-aw/playwright-debug-logs/
-#       else
-#         echo "No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright"
-#       fi
-#
-#       # List all trace files if any
-#       echo "Looking for trace files..."
-#       find /tmp -name "*.zip" -o -name "trace*" 2>/dev/null | head -20 || true
-#
-#       # Show docker container logs if any containers are still running
-#       echo "Checking for running Docker containers..."
-#       docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null || true
-#   - name: Upload Playwright Debug Logs
-#     if: always()
-#     uses: actions/upload-artifact@v5
-#     with:
-#       name: playwright-debug-logs-${{ github.run_id }}
-#       path: /tmp/gh-aw/playwright-debug-logs/
-#       if-no-files-found: ignore
-#       retention-days: 7
 # ```
 #
 # Job Dependency Graph:
@@ -169,7 +100,6 @@
 # 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 # 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 # 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-# 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 #
 # ## Output
 #
@@ -188,16 +118,10 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
-#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
-#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Smoke Copilot"
 "on":
@@ -207,7 +131,7 @@ name: "Smoke Copilot"
     types:
     - labeled
   schedule:
-  - cron: "0 0,6,12,18 * * *"
+  - cron: "0 0,7,13,19 * * *"
   workflow_dispatch: null
 
 permissions:
@@ -1910,26 +1834,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Install Go language service (gopls)
-        run: go install golang.org/x/tools/gopls@latest
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      - name: Pre-flight Playwright MCP Test
-        run: "echo \"🧪 Testing Playwright MCP Docker container startup...\"\n\n# Pull the Playwright MCP Docker image\necho \"Pulling Playwright MCP Docker image...\"\ndocker pull mcr.microsoft.com/playwright/mcp\n\n# Test container startup with a simple healthcheck\necho \"Testing container startup...\"\ntimeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {\n  echo \"❌ Playwright MCP container failed to start\"\n  exit 1\n}\n\necho \"✅ Playwright MCP container pre-flight check passed\"\n"
-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -2015,7 +1923,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.23.0
-          docker pull mcr.microsoft.com/playwright/mcp
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -3246,12 +3153,6 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
-              "playwright": {
-                "type": "local",
-                "command": "docker",
-                "args": ["run", "-i", "--rm", "--init", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
-                "tools": ["*"]
-              },
               "safeoutputs": {
                 "type": "local",
                 "command": "node",
@@ -3265,12 +3166,6 @@ jobs:
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
-              },
-              "serena": {
-                "type": "local",
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
-                "tools": ["*"]
               }
             }
           }
@@ -3308,7 +3203,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","node","github","playwright","clients2.google.com","www.google.com","accounts.google.com","android.clients.google.com"],
+              allowed_domains: [],
               firewall_enabled: true,
               firewall_version: "",
               steps: {
@@ -3380,7 +3275,6 @@ jobs:
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${GH_AW_GITHUB_REPOSITORY}
           2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${GH_AW_GITHUB_RUN_ID}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
           
           ## Output
           
@@ -3423,17 +3317,6 @@ jobs:
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
           </temporary-files>
-          
-          PROMPT_EOF
-      - name: Append playwright output directory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <playwright-output>
-          <path>/tmp/gh-aw/mcp-logs/playwright/</path>
-          <description>When using Playwright tools to take screenshots or generate files, all output files are automatically saved to this directory. This is the Playwright --output-dir and you can find any screenshots, traces, or other files generated by Playwright in this directory.</description>
-          </playwright-output>
           
           PROMPT_EOF
       - name: Append edit tool accessibility instructions to prompt
@@ -3619,7 +3502,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains '*.githubusercontent.com,accounts.google.com,android.clients.google.com,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.playwright.dev,clients2.google.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.google.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level debug \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level debug \
             -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --model gpt-5-mini --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -3635,7 +3518,6 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
-          DEBUG: copilot:*
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -3773,7 +3655,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,accounts.google.com,android.clients.google.com,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.playwright.dev,clients2.google.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.google.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -6529,18 +6411,6 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - if: always()
-        name: Collect Playwright MCP Logs
-        run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  ls -la /tmp/gh-aw/playwright-debug-logs/\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
-      - if: always()
-        name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          if-no-files-found: ignore
-          name: playwright-debug-logs-${{ github.run_id }}
-          path: /tmp/gh-aw/playwright-debug-logs/
-          retention-days: 7
-
 
   conclusion:
     needs:
@@ -7635,7 +7505,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Smoke Copilot"
-          WORKFLOW_DESCRIPTION: "Smoke test workflow that validates Copilot engine functionality by reviewing recent PRs every 6 hours"
+          WORKFLOW_DESCRIPTION: "Smoke Copilot"
         with:
           script: |
             const fs = require('fs');
@@ -7787,7 +7657,6 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
-          DEBUG: copilot:*
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
