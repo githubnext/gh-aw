@@ -1,54 +1,58 @@
 ---
-title: Custom Agent Files
-description: Create specialized AI agents with custom instructions and behavior for GitHub Agentic Workflows
+title: Custom Prompt Files
+description: Create specialized AI prompts with custom instructions and behavior for GitHub Agentic Workflows
 sidebar:
   order: 650
 ---
 
-Custom agent files provide specialized instructions and behavior for AI engines. Agent files are markdown documents stored in the `.github/agents/` directory and imported via the `imports` field. Copilot supports agents natively, while other engines (Claude, Codex) inject the markdown body as a prompt.
+Custom prompt files provide specialized instructions and behavior for AI engines. Prompt files are markdown documents with `.prompt.md` extension stored in the `.github/prompts/` directory. They can be invoked as slash commands in GitHub Copilot Chat.
 
-## Creating a Custom Agent
+## Creating a Custom Prompt
 
-Create a markdown file in `.github/agents/` with agent-specific instructions:
+Create a markdown file with `.prompt.md` extension in `.github/prompts/` with prompt-specific instructions:
 
-```markdown title=".github/agents/my-agent.md"
+```markdown title=".github/prompts/my-prompt.prompt.md"
 ---
-name: My Custom Agent
-description: Specialized agent for code review tasks
+description: Specialized prompt for code review tasks
+name: my-custom-prompt
+agent: agent
 ---
 
-# Agent Instructions
+# Prompt Instructions
 
-You are a specialized code review agent. Focus on:
+You are a specialized code review assistant. Focus on:
 - Code quality and best practices
 - Security vulnerabilities
 - Performance optimization
 ```
 
-## Using Custom Agents
+## Using Custom Prompts
 
-Import the agent file in your workflow using the `imports` field:
+Invoke custom prompts directly in GitHub Copilot Chat using slash commands:
 
-```yaml wrap
----
-on: pull_request
-engine: copilot
-imports:
-  - .github/agents/my-agent.md
----
-
-Review the pull request and provide feedback.
+```
+/my-custom-prompt
 ```
 
-The agent instructions are merged with the workflow prompt, customizing the AI engine's behavior for specific tasks.
+The prompt instructions guide the AI engine's behavior for specific tasks.
 
-## Agent File Requirements
+## Prompt File Requirements
 
-- **Location**: Must be in `.github/agents/` directory
+- **Location**: Must be in `.github/prompts/` directory
+- **Extension**: Must use `.prompt.md` extension
 - **Format**: Markdown with YAML frontmatter
-- **Frontmatter**: Can include `name`, `description`, `tools`, and `mcp-servers`
-- **One per workflow**: Only one agent file can be imported per workflow
+- **Frontmatter**: Must include `description`, `name`, and `agent` fields
+  - `description`: Brief description of what the prompt does
+  - `name`: Command name for invoking the prompt (must match filename without extension)
+  - `agent`: Mode used for running the prompt (typically `agent`)
 
-## Built-in Custom Agents
+## Built-in Custom Prompts
 
-The `gh aw init` command sets up a `debug-agentic-workflow` custom agent that helps debug and refine workflows using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw run`, `gh aw compile`). The agent provides conversational workflow debugging and performance analysis.
+The `gh aw init` command sets up several custom prompts:
+
+- `/create-agentic-workflow` - Interactive workflow creation with guidance on triggers, tools, and security
+- `/setup-agentic-workflows` - Setup guide for configuring workflow engines and secrets
+- `/debug-agentic-workflow` - Debug and refine workflows using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw compile`)
+- `/create-shared-agentic-workflow` - Create reusable shared workflow components
+
+These prompts provide conversational workflow creation, debugging, and performance analysis.
