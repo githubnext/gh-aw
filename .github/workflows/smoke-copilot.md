@@ -15,7 +15,6 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
-  model: gpt-5
 network:
   firewall:
     log-level: debug  # Enable debug-level firewall logs
@@ -46,16 +45,21 @@ strict: true
 
 ## Test Requirements
 
-0. **List of tools**: List all tools available to this workflow.
 1. **GitHub MCP Testing**: List the last 2 issues in ${{ github.repository }}. Make sure to only ask for 2.
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
+## If you are entering a loop of tool calls
+
+- Detect that you are entering a loop of tool calls by always
+looking back into the tool call history to see if the same tool is being called repeatedly with the same parameters.
+- If you detect a loop, break out of it and explain why it is looping.
+
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+Add a **very brief** comment (max 5-10 lines) to the current pull request (if any) with:
 - Issues titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass, add the label `smoke-copilot` to the pull request.
+If all tests pass, add the label `smoke-copilot` to the pull request (if any).
