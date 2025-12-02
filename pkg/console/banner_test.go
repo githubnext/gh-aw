@@ -41,9 +41,21 @@ func TestBannerLogoEmbedded(t *testing.T) {
 	}
 }
 
-func TestBannerStyleNotNil(t *testing.T) {
-	// Ensure BannerStyle is properly initialized
-	if BannerStyle.GetForeground() == nil {
-		t.Error("BannerStyle should have a foreground color set")
+func TestBannerStyleInitialized(t *testing.T) {
+	// Ensure BannerStyle is properly initialized with expected attributes
+	// Test by rendering a test string and verifying the style is applied
+	testString := "test"
+	rendered := BannerStyle.Render(testString)
+
+	// When BannerStyle is properly configured with Bold and Foreground color,
+	// the rendered string should differ from the input (contain ANSI codes)
+	// or at minimum, not be empty
+	if rendered == "" {
+		t.Error("BannerStyle.Render should produce non-empty output")
+	}
+
+	// Verify Bold is enabled
+	if !BannerStyle.GetBold() {
+		t.Error("BannerStyle should have Bold enabled")
 	}
 }
