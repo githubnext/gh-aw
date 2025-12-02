@@ -594,7 +594,7 @@ Output as JSONL format.
 
 **File**: `pkg/workflow/your_new_type.go`
 
-Create the Go job builder using the refactored pattern with `buildSafeOutputJob()` helper:
+Create the Go job builder using the refactored pattern with `buildSafeOutputJob()` helper and shared config types from `safe_output_builder.go`:
 
 ```go
 package workflow
@@ -604,11 +604,12 @@ import (
 )
 
 // YourNewTypeConfig holds configuration for your new type from agent output
+// Embed shared config types for common fields to reduce duplication
 type YourNewTypeConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	CustomOption         string `yaml:"custom-option,omitempty"`      // Custom configuration option
-	AnotherOption        *bool  `yaml:"another-option,omitempty"`     // Another optional configuration
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"`        // Target repository for cross-repo operations
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"` // Provides Target and TargetRepoSlug fields
+	CustomOption           string           `yaml:"custom-option,omitempty"`  // Custom configuration option
+	AnotherOption          *bool            `yaml:"another-option,omitempty"` // Another optional configuration
 }
 
 // buildCreateOutputYourNewTypeJob creates the your_new_type job using the shared builder
@@ -617,31 +618,37 @@ func (c *Compiler) buildCreateOutputYourNewTypeJob(data *WorkflowData, mainJobNa
 		return nil, fmt.Errorf("safe-outputs.your-new-type configuration is required")
 	}
 
+	config := data.SafeOutputs.YourNewType
+
 	// Build custom environment variables specific to your-new-type
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	
 	// Add your custom configuration options as environment variables
-	if data.SafeOutputs.YourNewType.CustomOption != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", data.SafeOutputs.YourNewType.CustomOption))
+	if config.CustomOption != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", config.CustomOption))
 	}
 	
-	if data.SafeOutputs.YourNewType.AnotherOption != nil && *data.SafeOutputs.YourNewType.AnotherOption {
+	if config.AnotherOption != nil && *config.AnotherOption {
 		customEnvVars = append(customEnvVars, "          GH_AW_ANOTHER_OPTION: \"true\"\n")
 	}
+
+	// Use shared env var builders for common fields
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_YOUR_NEW_TYPE_TARGET", config.Target)...)
+	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_YOUR_NEW_TYPE_MAX_COUNT", config.Max)...)
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
 		c.trialMode,
 		c.trialLogicalRepoSlug,
 		data.SafeOutputs.Staged,
-		data.SafeOutputs.YourNewType.TargetRepoSlug,
+		config.TargetRepoSlug,
 	)...)
 
 	// Get token from config
 	var token string
-	if data.SafeOutputs.YourNewType != nil {
-		token = data.SafeOutputs.YourNewType.GitHubToken
+	if config.GitHubToken != "" {
+		token = config.GitHubToken
 	}
 
 	// Create outputs for the job
@@ -661,11 +668,11 @@ func (c *Compiler) buildCreateOutputYourNewTypeJob(data *WorkflowData, mainJobNa
 		Permissions:    NewPermissionsContentsReadYourPermissions(),  // Adjust permissions as needed
 		Outputs:        outputs,
 		Token:          token,
-		TargetRepoSlug: data.SafeOutputs.YourNewType.TargetRepoSlug,
+		TargetRepoSlug: config.TargetRepoSlug,
 	})
 }
 
-// parseYourNewTypeConfig handles your-new-type configuration
+// parseYourNewTypeConfig handles your-new-type configuration using shared parsers
 func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewTypeConfig {
 	if configData, exists := outputMap["your-new-type"]; exists {
 		yourNewTypeConfig := &YourNewTypeConfig{}
@@ -675,23 +682,23 @@ func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewType
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &yourNewTypeConfig.BaseSafeOutputConfig)
 
-			// Parse custom-option
-			if customOption, exists := configMap["custom-option"]; exists {
-				if customOptionStr, ok := customOption.(string); ok {
-					yourNewTypeConfig.CustomOption = customOptionStr
-				}
+			// Parse target config using shared helper (handles target and target-repo)
+			targetConfig, isInvalid := ParseTargetConfig(configMap)
+			if isInvalid {
+				// target-repo validation error (wildcard not allowed)
+				return nil
 			}
+			yourNewTypeConfig.SafeOutputTargetConfig = targetConfig
 
-			// Parse another-option
+			// Parse custom-option using generic string parser
+			yourNewTypeConfig.CustomOption = ParseStringFromConfig(configMap, "custom-option")
+
+			// Parse another-option (boolean example - no shared helper for booleans yet)
 			if anotherOption, exists := configMap["another-option"]; exists {
 				if anotherOptionBool, ok := anotherOption.(bool); ok {
 					yourNewTypeConfig.AnotherOption = &anotherOptionBool
 				}
 			}
-
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			yourNewTypeConfig.TargetRepoSlug = targetRepoSlug
 		}
 
 		return yourNewTypeConfig
@@ -714,7 +721,33 @@ func getYourNewTypeScript() string {
    - Post-steps execution (if provided)
    - Job creation with standard metadata (timeout, runs-on, permissions)
 
-2. **SafeOutputJobConfig struct**: Pass configuration via this struct:
+2. **Use shared config types from `safe_output_builder.go`**: Embed these structs to reduce duplication:
+   - `SafeOutputTargetConfig`: Provides `Target` and `TargetRepoSlug` fields for operations that target specific items
+   - `SafeOutputFilterConfig`: Provides `RequiredLabels` and `RequiredTitlePrefix` for filtering operations
+   - `SafeOutputDiscussionFilterConfig`: Extends `SafeOutputFilterConfig` with `RequiredCategory` for discussion operations
+   - `CloseJobConfig`: Combined config for close operations (embeds both `SafeOutputTargetConfig` and `SafeOutputFilterConfig`)
+   - `ListJobConfig`: Combined config for list-based operations (embeds `SafeOutputTargetConfig` with `Allowed` field)
+
+3. **Use shared parsing helpers**: These reduce boilerplate in config parsing:
+   - `ParseTargetConfig(configMap)`: Parses `target` and `target-repo` fields, returns validation error if wildcard target-repo
+   - `ParseFilterConfig(configMap)`: Parses `required-labels` and `required-title-prefix` fields
+   - `ParseDiscussionFilterConfig(configMap)`: Parses filter config plus `required-category`
+   - `ParseCloseJobConfig(configMap)`: Parses all close job fields (target + filter)
+   - `ParseListJobConfig(configMap, allowedKey)`: Parses target + allowed list fields
+   - `ParseStringFromConfig(configMap, key)`: Generic string field parser
+   - `ParseStringArrayFromConfig(configMap, key)`: Generic string array parser
+
+4. **Use shared env var builders**: These build consistent environment variable lines:
+   - `BuildTargetEnvVar(envVarName, target)`: Builds target env var
+   - `BuildRequiredLabelsEnvVar(envVarName, labels)`: Builds comma-separated labels env var
+   - `BuildRequiredTitlePrefixEnvVar(envVarName, prefix)`: Builds title prefix env var
+   - `BuildRequiredCategoryEnvVar(envVarName, category)`: Builds category env var (discussions)
+   - `BuildMaxCountEnvVar(envVarName, count)`: Builds max count env var
+   - `BuildAllowedListEnvVar(envVarName, allowed)`: Builds comma-separated allowed list env var
+   - `BuildCloseJobEnvVars(prefix, config)`: Builds all env vars for close operations
+   - `BuildListJobEnvVars(prefix, config, maxCount)`: Builds all env vars for list-based operations
+
+5. **SafeOutputJobConfig struct**: Pass configuration via this struct:
    - `JobName`: Job identifier (e.g., "your_new_type")
    - `StepName`: Human-readable step name
    - `StepID`: Step identifier for outputs
@@ -729,16 +762,56 @@ func getYourNewTypeScript() string {
    - `Condition`: Optional custom job condition
    - `Needs`: Optional custom job dependencies
 
-3. **No manual Job construction**: The helper creates the Job struct with:
+6. **No manual Job construction**: The helper creates the Job struct with:
    - Consistent 10-minute timeout
    - Standard runs-on configuration
    - Proper condition rendering
    - Automatic needs configuration
 
-4. **Integration Points**:
+7. **Integration Points**:
    - Add `YourNewType *YourNewTypeConfig` field to `SafeOutputsConfig` struct in `pkg/workflow/config.go`
    - Call `parseYourNewTypeConfig()` in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
    - Call `buildCreateOutputYourNewTypeJob()` in job creation logic in `pkg/workflow/compiler_jobs.go`
+
+**Example for Close Operations** (using shared CloseJobConfig):
+
+```go
+// CloseYourTypeConfig using shared config types
+type CloseYourTypeConfig struct {
+	BaseSafeOutputConfig `yaml:",inline"`
+	CloseJobConfig       `yaml:",inline"` // Provides Target, TargetRepoSlug, RequiredLabels, RequiredTitlePrefix
+}
+
+// In parsing function
+closeConfig, isInvalid := ParseCloseJobConfig(configMap)
+if isInvalid {
+	return nil // target-repo validation error
+}
+yourConfig.CloseJobConfig = closeConfig
+
+// In job builder - use shared env var builder
+customEnvVars = append(customEnvVars, BuildCloseJobEnvVars("GH_AW_CLOSE_YOUR_TYPE", config.CloseJobConfig)...)
+```
+
+**Example for List Operations** (using shared ListJobConfig):
+
+```go
+// AddYourTypeConfig using shared config types  
+type AddYourTypeConfig struct {
+	BaseSafeOutputConfig `yaml:",inline"`
+	ListJobConfig        `yaml:",inline"` // Provides Target, TargetRepoSlug, Allowed
+}
+
+// In parsing function
+listConfig, isInvalid := ParseListJobConfig(configMap, "allowed")
+if isInvalid {
+	return nil // target-repo validation error
+}
+yourConfig.ListJobConfig = listConfig
+
+// In job builder - use shared env var builder
+customEnvVars = append(customEnvVars, BuildListJobEnvVars("GH_AW_ADD_YOUR_TYPE", config.ListJobConfig, config.Max)...)
+```
 
 **Example with Pre/Post-Steps** (if needed):
 
