@@ -278,13 +278,13 @@ This workflow tests that /tmp/gh-aw/ files are excluded from cleanup.
 	lockStr := string(lockContent)
 
 	// Verify that the upload step includes the /tmp/gh-aw/ path (artifact should still be uploaded)
-	if !strings.Contains(lockStr, "/tmp/gh-aw/.agent/logs/") {
-		t.Error("Expected upload artifact path to include '/tmp/gh-aw/.agent/logs/' in generated workflow")
+	if !strings.Contains(lockStr, "/tmp/gh-aw/sandbox/agent/logs/") {
+		t.Error("Expected upload artifact path to include '/tmp/gh-aw/sandbox/agent/logs/' in generated workflow")
 	}
 
 	// Verify that the cleanup step does NOT include rm commands for /tmp/gh-aw/ paths
-	if strings.Contains(lockStr, "rm -fr /tmp/gh-aw/.agent/logs/") {
-		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/.agent/logs/' command")
+	if strings.Contains(lockStr, "rm -fr /tmp/gh-aw/sandbox/agent/logs/") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/sandbox/agent/logs/' command")
 	}
 
 	// Verify that cleanup step does NOT exist when all files are in /tmp/gh-aw/

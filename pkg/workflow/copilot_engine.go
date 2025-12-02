@@ -11,7 +11,7 @@ import (
 
 var copilotLog = logger.New("workflow:copilot_engine")
 
-const logsFolder = "/tmp/gh-aw/.agent/logs/"
+const logsFolder = "/tmp/gh-aw/sandbox/agent/logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -468,19 +468,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 }
 
 // GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)
+// No longer needed since we know where the logs are in the sandbox folder structure
 func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Only add collection step if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		copilotLog.Printf("Adding firewall logs collection step for workflow: %s", workflowData.Name)
-		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
-		steps = append(steps, squidLogsCollection)
-	} else {
-		copilotLog.Print("Firewall disabled, skipping firewall logs collection")
-	}
-
-	return steps
+	// Collection step removed - firewall logs are now at a known location
+	return []GitHubActionStep{}
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
@@ -1157,37 +1148,12 @@ fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEsc
 	return script
 }
 
-// generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
-func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
-	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
-	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
-
-	stepLines := []string{
-		"      - name: Collect firewall logs",
-		"        if: always()",
-		"        run: |",
-		"          # First try preserved logs (from normal AWF cleanup)",
-		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
-		"          # Fallback: try original AWF location (for timeout/crash cases where cleanup didn't run)",
-		"          if [ -z \"$SQUID_LOGS_DIR\" ]; then",
-		"            SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 2 -type d -path '/tmp/awf-*/squid-logs' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
-		"          fi",
-		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
-		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
-		fmt.Sprintf("            mkdir -p %s", squidLogsDir),
-		fmt.Sprintf("            sudo cp -r \"$SQUID_LOGS_DIR\"/* %s || true", squidLogsDir),
-		fmt.Sprintf("            sudo chmod -R a+r %s || true", squidLogsDir),
-		"          fi",
-	}
-
-	return GitHubActionStep(stepLines)
-}
-
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact
 func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
-	artifactName := fmt.Sprintf("squid-logs-%s", sanitizedName)
-	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
+	artifactName := fmt.Sprintf("firewall-logs-%s", sanitizedName)
+	// Firewall logs are now at a known location in the sandbox folder structure
+	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs/"
 
 	stepLines := []string{
 		"      - name: Upload Firewall Logs",
@@ -1195,7 +1161,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact")),
 		"        with:",
 		fmt.Sprintf("          name: %s", artifactName),
-		fmt.Sprintf("          path: %s", squidLogsDir),
+		fmt.Sprintf("          path: %s", firewallLogsDir),
 		"          if-no-files-found: ignore",
 	}
 

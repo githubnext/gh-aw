@@ -43,8 +43,8 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		}
 
 		// Verify that --log-dir is included in copilot args for log collection
-		if !strings.Contains(stepContent, "--log-dir /tmp/gh-aw/.agent/logs/") {
-			t.Error("Expected copilot command to contain '--log-dir /tmp/gh-aw/.agent/logs/' for log collection in firewall mode")
+		if !strings.Contains(stepContent, "--log-dir /tmp/gh-aw/sandbox/agent/logs/") {
+			t.Error("Expected copilot command to contain '--log-dir /tmp/gh-aw/sandbox/agent/logs/' for log collection in firewall mode")
 		}
 	})
 
