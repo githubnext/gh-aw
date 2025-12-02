@@ -69,16 +69,43 @@ func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool
 	)
 }
 
-// ensureCopilotInstructions ensures that .github/instructions/github-agentic-workflows.md contains the copilot instructions
+// ensureCopilotInstructions ensures that .github/aw/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
+	// First, clean up the old file location if it exists
+	if err := cleanupOldCopilotInstructions(verbose); err != nil {
+		return err
+	}
+
 	return ensureFileMatchesTemplate(
-		filepath.Join(".github", "instructions"),
-		"github-agentic-workflows.instructions.md",
+		filepath.Join(".github", "aw"),
+		"github-agentic-workflows.md",
 		copilotInstructionsTemplate,
 		"copilot instructions",
 		verbose,
 		skipInstructions,
 	)
+}
+
+// cleanupOldCopilotInstructions removes the old instructions file from .github/instructions/
+func cleanupOldCopilotInstructions(verbose bool) error {
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return nil // Not in a git repository, skip
+	}
+
+	oldPath := filepath.Join(gitRoot, ".github", "instructions", "github-agentic-workflows.instructions.md")
+
+	// Check if the old file exists and remove it
+	if _, err := os.Stat(oldPath); err == nil {
+		if err := os.Remove(oldPath); err != nil {
+			return fmt.Errorf("failed to remove old instructions file: %w", err)
+		}
+		if verbose {
+			fmt.Printf("Removed old instructions file: %s\n", oldPath)
+		}
+	}
+
+	return nil
 }
 
 // ensureAgenticWorkflowPrompt removes the old agentic workflow prompt file if it exists

@@ -20,8 +20,8 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
 - The `gh aw` CLI is already installed in this environment. If missing, try `./gh-aw`.
 - Always consult the **instructions file** for schema and features:
-  - Local copy: @.github/instructions/github-agentic-workflows.instructions.md
-  - Canonical upstream: https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md
+  - Local copy: @.github/aw/github-agentic-workflows.md
+  - Canonical upstream: https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/aw/github-agentic-workflows.md
 
 **Key Commands Available**
 

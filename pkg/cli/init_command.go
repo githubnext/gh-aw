@@ -21,7 +21,7 @@ func NewInitCommand() *cobra.Command {
 
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
-- Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
+- Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
 - Creates the custom agent for workflow creation at .github/agents/create-agentic-workflow.md
 - Creates the setup agentic workflows agent at .github/agents/setup-agentic-workflows.md
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.md

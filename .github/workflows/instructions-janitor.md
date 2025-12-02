@@ -32,8 +32,8 @@ tools:
     toolsets: [default]
   edit:
   bash:
-    - "cat .github/instructions/github-agentic-workflows.instructions.md"
-    - "wc -l .github/instructions/github-agentic-workflows.instructions.md"
+    - "cat .github/aw/github-agentic-workflows.md"
+    - "wc -l .github/aw/github-agentic-workflows.md"
     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
     - "git describe --tags --abbrev=0"
 
@@ -43,7 +43,7 @@ timeout-minutes: 15
 
 # Instructions Janitor
 
-You are an AI agent specialized in maintaining instruction files for other AI agents. Your mission is to keep the `github-agentic-workflows.instructions.md` file synchronized with documentation changes.
+You are an AI agent specialized in maintaining instruction files for other AI agents. Your mission is to keep the `github-agentic-workflows.md` file synchronized with documentation changes.
 
 ## Your Mission
 
@@ -80,7 +80,7 @@ For each commit affecting documentation:
 Load and analyze the current instructions:
 
 ```bash
-cat .github/instructions/github-agentic-workflows.instructions.md
+cat .github/aw/github-agentic-workflows.md
 ```
 
 Understand:
@@ -143,13 +143,13 @@ Apply surgical updates following these principles:
 
 If you made updates:
 
-**PR Title Format**: `[instructions] Sync github-agentic-workflows.instructions.md with release X.Y.Z`
+**PR Title Format**: `[instructions] Sync github-agentic-workflows.md with release X.Y.Z`
 
 **PR Description Template**:
 ```markdown
 ## Instructions Update - Synchronized with v[VERSION]
 
-This PR updates the github-agentic-workflows.instructions.md file based on documentation changes since the last release.
+This PR updates the github-agentic-workflows.md file based on documentation changes since the last release.
 
 ### Changes Made
 

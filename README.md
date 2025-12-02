@@ -7,7 +7,7 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 
 <!--
 > [!NOTE]
-> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md)
+> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/aw/github-agentic-workflows.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/aw/github-agentic-workflows.md)
 >
 > **Custom Agent**: Use the custom agent at `.github/agents/create-agentic-workflow.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/create-agentic-workflow.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/create-agentic-workflow.md)
 -->
