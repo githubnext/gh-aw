@@ -43,17 +43,13 @@ async function main() {
   }
   core.info(`Max count: ${maxCount}`);
 
-  // Get allowed users configuration
-  const allowedUsersEnv = process.env.GH_AW_ALLOWED_USERS;
+  // Get allowed users configuration (comma-separated list)
+  const allowedUsersEnv = process.env.GH_AW_ALLOWED_USERS?.trim();
   let allowedUsers = null;
   if (allowedUsersEnv) {
-    try {
-      allowedUsers = JSON.parse(allowedUsersEnv);
-      if (!Array.isArray(allowedUsers)) {
-        allowedUsers = null;
-      }
-    } catch {
-      core.warning(`Failed to parse allowed users: ${allowedUsersEnv}`);
+    allowedUsers = allowedUsersEnv.split(",").map(u => u.trim()).filter(u => u);
+    if (allowedUsers.length === 0) {
+      allowedUsers = null; // Empty string means "allow all"
     }
   }
   if (allowedUsers) {

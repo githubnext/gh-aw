@@ -229,63 +229,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if userMap, ok := assignToUser.(map[string]any); ok {
 					userConfig := &AssignToUserConfig{}
 
-					// Parse max (optional)
-					if maxCount, exists := userMap["max"]; exists {
-						// Handle different numeric types that YAML parsers might return
-						var maxCountInt int
-						var validMaxCount bool
-						switch v := maxCount.(type) {
-						case int:
-							maxCountInt = v
-							validMaxCount = true
-						case int64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case uint64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case float64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						}
-						if validMaxCount {
-							userConfig.Max = maxCountInt
-						}
-					}
+					// Parse target config (target, target-repo) - validation errors are handled gracefully
+					targetConfig, _ := ParseTargetConfig(userMap)
+					userConfig.SafeOutputTargetConfig = targetConfig
 
-					// Parse github-token
-					if githubToken, exists := userMap["github-token"]; exists {
-						if githubTokenStr, ok := githubToken.(string); ok {
-							userConfig.GitHubToken = githubTokenStr
-						}
-					}
-
-					// Parse target
-					if target, exists := userMap["target"]; exists {
-						if targetStr, ok := target.(string); ok {
-							userConfig.Target = targetStr
-						}
-					}
-
-					// Parse target-repo
-					if targetRepo, exists := userMap["target-repo"]; exists {
-						if targetRepoStr, ok := targetRepo.(string); ok {
-							userConfig.TargetRepoSlug = targetRepoStr
-						}
-					}
+					// Parse common base fields (github-token, max)
+					c.parseBaseSafeOutputConfig(userMap, &userConfig.BaseSafeOutputConfig, 0)
 
 					// Parse allowed users (optional)
-					if allowed, exists := userMap["allowed"]; exists {
-						if allowedArray, ok := allowed.([]any); ok {
-							var allowedStrings []string
-							for _, user := range allowedArray {
-								if userStr, ok := user.(string); ok {
-									allowedStrings = append(allowedStrings, userStr)
-								}
-							}
-							userConfig.Allowed = allowedStrings
-						}
-					}
+					userConfig.Allowed = ParseStringArrayFromConfig(userMap, "allowed")
 
 					config.AssignToUser = userConfig
 				} else if assignToUser == nil {
