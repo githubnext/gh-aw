@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -13,9 +13,6 @@ const mockGithub = {
   graphql: vi.fn(),
 };
 
-// Mock Octokit graphql function for custom token scenarios
-const mockOctokitGraphql = vi.fn();
-
 // Set up global mocks before importing the module
 globalThis.core = mockCore;
 globalThis.github = mockGithub;
@@ -29,24 +26,11 @@ const {
   assignAgentToIssue,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
-  setGetOctokitFactory,
 } = await import("./assign_agent_helpers.cjs");
-
-// Mock Octokit instance with graphql method
-const mockOctokitInstance = {
-  graphql: mockOctokitGraphql,
-};
 
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set up the mock getOctokit factory
-    setGetOctokitFactory(() => mockOctokitInstance);
-  });
-
-  afterEach(() => {
-    // Reset to null so real getOctokit is used if not mocked
-    setGetOctokitFactory(null);
   });
 
   describe("AGENT_LOGIN_NAMES", () => {
@@ -100,25 +84,6 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
     });
 
-    it("should return available agent logins using Octokit when token is provided", async () => {
-      mockOctokitGraphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [
-              { login: "copilot-swe-agent", __typename: "Bot" },
-              { login: "some-other-bot", __typename: "Bot" },
-            ],
-          },
-        },
-      });
-
-      const result = await getAvailableAgentLogins("owner", "repo", "test-token");
-
-      expect(result).toEqual(["copilot-swe-agent"]);
-      expect(mockOctokitGraphql).toHaveBeenCalledTimes(1);
-      expect(mockGithub.graphql).not.toHaveBeenCalled();
-    });
-
     it("should return empty array when no agents are available", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         repository: {
@@ -142,15 +107,6 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list available agent logins"));
     });
 
-    it("should handle Octokit errors gracefully when token is provided", async () => {
-      mockOctokitGraphql.mockRejectedValueOnce(new Error("Octokit error"));
-
-      const result = await getAvailableAgentLogins("owner", "repo", "test-token");
-
-      expect(result).toEqual([]);
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to list available agent logins"));
-    });
-
     it("should handle null suggestedActors", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         repository: {
@@ -165,7 +121,7 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("findAgent", () => {
-    it("should find copilot agent and return its ID using github.graphql when no token provided", async () => {
+    it("should find copilot agent and return its ID using github.graphql", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         repository: {
           suggestedActors: {
@@ -181,25 +137,6 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result).toBe("BOT_12345");
       expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
-    });
-
-    it("should find copilot agent and return its ID using Octokit when token is provided", async () => {
-      mockOctokitGraphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [
-              { id: "BOT_12345", login: "copilot-swe-agent", __typename: "Bot" },
-              { id: "BOT_67890", login: "other-bot", __typename: "Bot" },
-            ],
-          },
-        },
-      });
-
-      const result = await findAgent("owner", "repo", "copilot", "test-token");
-
-      expect(result).toBe("BOT_12345");
-      expect(mockOctokitGraphql).toHaveBeenCalledTimes(1);
-      expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
 
     it("should return null for unknown agent name", async () => {
@@ -237,16 +174,6 @@ describe("assign_agent_helpers.cjs", () => {
       mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
 
       const result = await findAgent("owner", "repo", "copilot");
-
-      expect(result).toBeNull();
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to find copilot agent"));
-    });
-
-    it("should handle fetch errors when token is provided", async () => {
-      const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
-      global.fetch = mockFetch;
-
-      const result = await findAgent("owner", "repo", "copilot", "test-token");
 
       expect(result).toBeNull();
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to find copilot agent"));
@@ -318,18 +245,18 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("assignAgentToIssue", () => {
-    it("should successfully assign agent using mutation with custom token", async () => {
-      // Mock getOctokitClient via factory - the factory returns an object with graphql method
-      mockOctokitGraphql.mockResolvedValueOnce({
+    it("should successfully assign agent using mutation", async () => {
+      // Mock the global github.graphql
+      mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
           __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
-      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot", "test-token");
+      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot");
 
       expect(result).toBe(true);
-      expect(mockOctokitGraphql).toHaveBeenCalledWith(
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("replaceActorsForAssignable"),
         expect.objectContaining({
           assignableId: "ISSUE_123",
@@ -338,42 +265,16 @@ describe("assign_agent_helpers.cjs", () => {
       );
     });
 
-    it("should use built-in github object when no token is provided", async () => {
-      // Mock the global github.graphql
-      mockGithub.graphql.mockResolvedValue({
-        replaceActorsForAssignable: {
-          __typename: "ReplaceActorsForAssignablePayload",
-        },
-      });
-
-      const result = await assignAgentToIssue(
-        "ISSUE_123",
-        "AGENT_456",
-        [],
-        "copilot",
-        "" // Empty token - should use built-in github object
-      );
-
-      expect(result).toBe(true);
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("replaceActorsForAssignable"),
-        expect.objectContaining({
-          assignableId: "ISSUE_123",
-          actorIds: ["AGENT_456"],
-        })
-      );
-    });
-
     it("should preserve existing assignees when adding agent", async () => {
-      mockOctokitGraphql.mockResolvedValueOnce({
+      mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
           __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
-      await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1", "USER_2"], "copilot", "test-token");
+      await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1", "USER_2"], "copilot");
 
-      expect(mockOctokitGraphql).toHaveBeenCalledWith(
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("replaceActorsForAssignable"),
         expect.objectContaining({
           assignableId: "ISSUE_123",
@@ -383,7 +284,7 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should not duplicate agent if already in assignees", async () => {
-      mockOctokitGraphql.mockResolvedValueOnce({
+      mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
           __typename: "ReplaceActorsForAssignablePayload",
         },
@@ -393,11 +294,10 @@ describe("assign_agent_helpers.cjs", () => {
         "ISSUE_123",
         "AGENT_456",
         ["AGENT_456", "USER_1"], // Agent already in list
-        "copilot",
-        "test-token"
+        "copilot"
       );
 
-      const calledArgs = mockOctokitGraphql.mock.calls[0][1];
+      const calledArgs = mockGithub.graphql.mock.calls[0][1];
       // Agent should only appear once in the actorIds array
       const agentMatches = calledArgs.actorIds.filter(id => id === "AGENT_456");
       expect(agentMatches.length).toBe(1);
@@ -419,8 +319,8 @@ describe("assign_agent_helpers.cjs", () => {
 
   describe("assignAgentToIssueByName", () => {
     it("should successfully assign copilot agent", async () => {
-      // Mock findAgent (uses Octokit because token is provided)
-      mockOctokitGraphql.mockResolvedValueOnce({
+      // Mock findAgent (uses github.graphql)
+      mockGithub.graphql.mockResolvedValueOnce({
         repository: {
           suggestedActors: {
             nodes: [{ id: "AGENT_456", login: "copilot-swe-agent", __typename: "Bot" }],
@@ -428,7 +328,7 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      // Mock getIssueDetails (uses github.graphql because no token parameter is passed to it)
+      // Mock getIssueDetails (uses github.graphql)
       mockGithub.graphql.mockResolvedValueOnce({
         repository: {
           issue: {
@@ -440,14 +340,14 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      // Mock assignAgentToIssue mutation (now uses Octokit with token)
-      mockOctokitGraphql.mockResolvedValueOnce({
+      // Mock assignAgentToIssue mutation (uses github.graphql)
+      mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
           __typename: "ReplaceActorsForAssignablePayload",
         },
       });
 
-      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot", "test-token");
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Looking for copilot coding agent...");
@@ -455,7 +355,7 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return error for unsupported agent", async () => {
-      const result = await assignAgentToIssueByName("owner", "repo", 123, "unknown", "test-token");
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "unknown");
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("not supported");
@@ -463,9 +363,9 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return error when agent is not available", async () => {
-      // Mock findAgent and getAvailableAgentLogins (both use Octokit with token)
+      // Mock findAgent and getAvailableAgentLogins (both use github.graphql)
       // Both calls return empty nodes
-      mockOctokitGraphql.mockResolvedValue({
+      mockGithub.graphql.mockResolvedValue({
         repository: {
           suggestedActors: {
             nodes: [], // No agents
@@ -473,7 +373,7 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot", "test-token");
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("not available");
@@ -482,8 +382,8 @@ describe("assign_agent_helpers.cjs", () => {
     it("should report already assigned when agent is in assignees", async () => {
       const agentId = "AGENT_456";
 
-      // Mock findAgent (uses Octokit with token)
-      mockOctokitGraphql.mockResolvedValueOnce({
+      // Mock findAgent (uses github.graphql)
+      mockGithub.graphql.mockResolvedValueOnce({
         repository: {
           suggestedActors: {
             nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
@@ -503,7 +403,7 @@ describe("assign_agent_helpers.cjs", () => {
         },
       });
 
-      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot", "test-token");
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");

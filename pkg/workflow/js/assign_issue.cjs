@@ -49,6 +49,7 @@ async function main() {
 
     if (agentName) {
       // Use GraphQL API for agent assignment
+      // The token is set at the step level via github-token parameter
       core.info(`Detected coding agent: ${agentName}. Using GraphQL API for assignment.`);
 
       // Get repository owner and repo from context
@@ -72,8 +73,8 @@ async function main() {
       if (issueDetails.currentAssignees.includes(agentId)) {
         core.info(`${agentName} is already assigned to issue #${trimmedIssueNumber}`);
       } else {
-        // Assign agent using GraphQL mutation
-        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+        // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
+        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
         if (!success) {
           throw new Error(`Failed to assign ${agentName} via GraphQL`);

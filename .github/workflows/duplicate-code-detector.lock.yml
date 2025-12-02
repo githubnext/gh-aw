@@ -5670,17 +5670,6 @@ jobs:
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         with:
           script: |
-            let getOctokitFactory = null;
-            function setGetOctokitFactory(factory) {
-              getOctokitFactory = factory;
-            }
-            function getOctokitClient(token) {
-              if (getOctokitFactory) {
-                return getOctokitFactory(token);
-              }
-              const { getOctokit } = __original_require__("@actions/github");
-              return getOctokit(token);
-            }
             const AGENT_LOGIN_NAMES = {
               copilot: "copilot-swe-agent",
             };
@@ -5691,7 +5680,7 @@ jobs:
               }
               return null;
             }
-            async function getAvailableAgentLogins(owner, repo, ghToken) {
+            async function getAvailableAgentLogins(owner, repo) {
               const query = `
                 query($owner: String!, $repo: String!) {
                   repository(owner: $owner, name: $repo) {
@@ -5702,8 +5691,7 @@ jobs:
                 }
               `;
               try {
-                const client = ghToken ? getOctokitClient(ghToken) : github;
-                const response = await client.graphql(query, { owner, repo });
+                const response = await github.graphql(query, { owner, repo });
                 const actors = response.repository?.suggestedActors?.nodes || [];
                 const knownValues = Object.values(AGENT_LOGIN_NAMES);
                 const available = [];
@@ -5719,7 +5707,7 @@ jobs:
                 return [];
               }
             }
-            async function findAgent(owner, repo, agentName, ghToken) {
+            async function findAgent(owner, repo, agentName) {
               const query = `
                 query($owner: String!, $repo: String!) {
                   repository(owner: $owner, name: $repo) {
@@ -5736,8 +5724,7 @@ jobs:
                 }
               `;
               try {
-                const client = ghToken ? getOctokitClient(ghToken) : github;
-                const response = await client.graphql(query, { owner, repo });
+                const response = await github.graphql(query, { owner, repo });
                 const actors = response.repository.suggestedActors.nodes;
                 const loginName = AGENT_LOGIN_NAMES[agentName];
                 if (!loginName) {
@@ -5801,7 +5788,7 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
@@ -5819,10 +5806,9 @@ jobs:
                 }
               `;
               try {
-                core.info(ghToken ? "Using provided GitHub token for mutation" : "Using built-in github object for mutation");
-                const client = ghToken ? getOctokitClient(ghToken) : github;
+                core.info("Using built-in github object for mutation");
                 core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await client.graphql(mutation, {
+                const response = await github.graphql(mutation, {
                   assignableId: issueId,
                   actorIds: actorIds,
                 });
@@ -5873,31 +5859,17 @@ jobs:
                         }
                       }
                     `;
-                    if (!ghToken) {
-                      core.error("GitHub token is not set. Cannot perform fallback mutation.");
+                    core.info("Using built-in github object for fallback mutation");
+                    core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+                    const fallbackResp = await github.graphql(fallbackMutation, {
+                      assignableId: issueId,
+                      assigneeIds: [agentId],
+                    });
+                    if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                      core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+                      return true;
                     } else {
-                      core.info("Using provided GitHub token for fallback mutation");
-                      core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
-                      const fallbackResp = await fetch("https://api.github.com/graphql", {
-                        method: "POST",
-                        headers: {
-                          Authorization: `Bearer ${ghToken}`,
-                          "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                          query: fallbackMutation,
-                          variables: {
-                            assignableId: issueId,
-                            assigneeIds: [agentId],
-                          },
-                        }),
-                      }).then(res => res.json());
-                      if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
-                        core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
-                        return true;
-                      } else {
-                        core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
-                      }
+                      core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
                     }
                   } catch (fallbackError) {
                     const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -5957,7 +5929,7 @@ jobs:
               content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
               return content;
             }
-            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghToken) {
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
               if (!AGENT_LOGIN_NAMES[agentName]) {
                 const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
                 core.warning(error);
@@ -5965,10 +5937,10 @@ jobs:
               }
               try {
                 core.info(`Looking for ${agentName} coding agent...`);
-                const agentId = await findAgent(owner, repo, agentName, ghToken);
+                const agentId = await findAgent(owner, repo, agentName);
                 if (!agentId) {
                   const error = `${agentName} coding agent is not available for this repository`;
-                  const available = await getAvailableAgentLogins(owner, repo, ghToken);
+                  const available = await getAvailableAgentLogins(owner, repo);
                   const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
                   return { success: false, error: enrichedError };
                 }
@@ -5984,7 +5956,7 @@ jobs:
                   return { success: true };
                 }
                 core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
                 if (!success) {
                   return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
                 }
@@ -6038,7 +6010,7 @@ jobs:
                   if (issueDetails.currentAssignees.includes(agentId)) {
                     core.info(`${agentName} is already assigned to issue #${trimmedIssueNumber}`);
                   } else {
-                    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+                    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
                     if (!success) {
                       throw new Error(`Failed to assign ${agentName} via GraphQL`);
                     }
