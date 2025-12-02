@@ -91,16 +91,13 @@ For the selected issue:
 
 ### 5. Assign Issue to Copilot Agent
 
-Use the `assign_to_agent` safe output to assign the Copilot agent:
+Use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
 
-**Agent Output Format:**
-```json
-{
-  "type": "assign_to_agent",
-  "issue_number": <issue_number>,
-  "agent": "copilot"
-}
 ```
+safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+```
+
+Do not use GitHub tools for this assignment. The `assign_to_agent` tool will handle the actual assignment.
 
 The Copilot agent will:
 1. Analyze the issue and related context
