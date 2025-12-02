@@ -1,7 +1,6 @@
 ---
 name: documentation
-description: Documentation
-Brief description for SEO and navigation
+description: Documentation Brief description for SEO and navigation
 ---
 
 ### Documentation

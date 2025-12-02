@@ -45,7 +45,7 @@
 #     - github
 #
 # imports:
-#   - ../instructions/documentation.instructions.md
+#   - ../../skills/documentation/SKILL.md
 #   - ../agents/technical-doc-writer.md
 #
 # safe-outputs:
@@ -72,7 +72,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../instructions/documentation.instructions.md
+#     - ../../skills/documentation/SKILL.md
 #     - ../agents/technical-doc-writer.md
 #
 # Job Dependency Graph:
@@ -165,9 +165,7 @@
 #
 # **Example workflow code block**:
 # ```aw wrap
-# ---
 # on: push
-# ---
 # # Your workflow steps here
 # ```
 #
@@ -178,10 +176,8 @@
 # ### Frontmatter
 # Every documentation page must have frontmatter:
 # ```markdown
-# ---
 # title: Page Title
 # description: Brief description for SEO and navigation
-# ---
 # ```
 #
 # ### Callouts and Asides
@@ -2309,9 +2305,7 @@ jobs:
           
           **Example workflow code block**:
           ```aw wrap
-          ---
           on: push
-          ---
           # Your workflow steps here
           ```
           
@@ -2322,10 +2316,8 @@ jobs:
           ### Frontmatter
           Every documentation page must have frontmatter:
           ```markdown
-          ---
           title: Page Title
           description: Brief description for SEO and navigation
-          ---
           ```
           
           ### Callouts and Asides
@@ -2757,6 +2749,7 @@ jobs:
              \`\`\`
              ```
           
+          5. **Update the file** using the edit tool
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
@@ -2764,7 +2757,6 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          5. **Update the file** using the edit tool
           
           ### 8. Save Cache State
           

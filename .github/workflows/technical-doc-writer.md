@@ -23,7 +23,7 @@ network:
     - github
 
 imports:
-  - ../instructions/documentation.instructions.md
+  - ../../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.md
 
 safe-outputs:
