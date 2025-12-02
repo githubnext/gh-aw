@@ -77,7 +77,8 @@ func CompleteMCPServerNames(workflowFile string) func(cmd *cobra.Command, args [
 		}
 
 		// Load MCP configs from the workflow
-		_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "")
+		// The second parameter is the server filter - empty string means no filtering
+		_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "" /* serverFilter */)
 		if err != nil {
 			completionsLog.Printf("Failed to load MCP configs: %v", err)
 			return nil, cobra.ShellCompDirectiveNoFileComp

@@ -199,24 +199,28 @@ The command will:
 
 			return ListToolsForMCP(workflowFile, mcpServerName, verbose)
 		},
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			// First argument: MCP server names are not easily discoverable without a workflow
-			// For now, provide no file completion but suggest common server names
-			if len(args) == 0 {
-				// Common MCP server names - the user hasn't picked a server yet
-				commonServers := []string{"github", "playwright", "tavily", "safe-outputs"}
-				var filtered []string
-				for _, s := range commonServers {
-					if toComplete == "" || strings.HasPrefix(s, toComplete) {
-						filtered = append(filtered, s)
-					}
-				}
-				return filtered, cobra.ShellCompDirectiveNoFileComp
-			}
-			// Second argument: complete workflow names
-			return CompleteWorkflowNames(cmd, args, toComplete)
-		},
+		ValidArgsFunction: completeMCPListToolsArgs,
 	}
 
 	return cmd
+}
+
+// commonMCPServerNames contains commonly used MCP server names for shell completion
+var commonMCPServerNames = []string{"github", "playwright", "tavily", "safe-outputs"}
+
+// completeMCPListToolsArgs provides completion for mcp list-tools command arguments
+func completeMCPListToolsArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// First argument: MCP server names are not easily discoverable without a workflow
+	// For now, provide no file completion but suggest common server names
+	if len(args) == 0 {
+		var filtered []string
+		for _, s := range commonMCPServerNames {
+			if toComplete == "" || strings.HasPrefix(s, toComplete) {
+				filtered = append(filtered, s)
+			}
+		}
+		return filtered, cobra.ShellCompDirectiveNoFileComp
+	}
+	// Second argument: complete workflow names
+	return CompleteWorkflowNames(cmd, args, toComplete)
 }
