@@ -284,8 +284,72 @@ async function runUpdateWorkflow(config) {
   return updatedItems;
 }
 
+/**
+ * @typedef {Object} RenderStagedItemConfig
+ * @property {string} entityName - Display name for the entity (e.g., "Issue", "Pull Request")
+ * @property {string} numberField - Field name for the target number (e.g., "issue_number", "pull_request_number")
+ * @property {string} targetLabel - Label for the target (e.g., "Target Issue:", "Target PR:")
+ * @property {string} currentTargetText - Text when targeting current entity (e.g., "Current issue", "Current pull request")
+ * @property {boolean} [includeOperation=false] - Whether to include operation field for body updates
+ */
+
+/**
+ * Create a render function for staged preview items
+ * @param {RenderStagedItemConfig} config - Configuration for the renderer
+ * @returns {(item: any, index: number) => string} Render function
+ */
+function createRenderStagedItem(config) {
+  const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
+
+  return function renderStagedItem(item, index) {
+    let content = `### ${entityName} Update ${index + 1}\n`;
+    if (item[numberField]) {
+      content += `**${targetLabel}** #${item[numberField]}\n\n`;
+    } else {
+      content += `**Target:** ${currentTargetText}\n\n`;
+    }
+
+    if (item.title !== undefined) {
+      content += `**New Title:** ${item.title}\n\n`;
+    }
+    if (item.body !== undefined) {
+      if (includeOperation) {
+        const operation = item.operation || "append";
+        content += `**Operation:** ${operation}\n`;
+        content += `**Body Content:**\n${item.body}\n\n`;
+      } else {
+        content += `**New Body:**\n${item.body}\n\n`;
+      }
+    }
+    if (item.status !== undefined) {
+      content += `**New Status:** ${item.status}\n\n`;
+    }
+    return content;
+  };
+}
+
+/**
+ * @typedef {Object} SummaryLineConfig
+ * @property {string} entityPrefix - Prefix for the summary line (e.g., "Issue", "PR")
+ */
+
+/**
+ * Create a summary line generator function
+ * @param {SummaryLineConfig} config - Configuration for the summary generator
+ * @returns {(item: any) => string} Summary line generator function
+ */
+function createGetSummaryLine(config) {
+  const { entityPrefix } = config;
+
+  return function getSummaryLine(item) {
+    return `- ${entityPrefix} #${item.number}: [${item.title}](${item.html_url})\n`;
+  };
+}
+
 module.exports = {
   runUpdateWorkflow,
   resolveTargetNumber,
   buildUpdateData,
+  createRenderStagedItem,
+  createGetSummaryLine,
 };

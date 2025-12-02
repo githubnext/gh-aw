@@ -393,4 +393,157 @@ describe("update_runner.cjs", () => {
       expect(result.hasUpdates).toBe(false);
     });
   });
+
+  describe("createRenderStagedItem", () => {
+    it("should render issue update with explicit number", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Issue",
+        numberField: "issue_number",
+        targetLabel: "Target Issue:",
+        currentTargetText: "Current issue",
+        includeOperation: false,
+      });
+
+      const result = render({ issue_number: 123, title: "New Title" }, 0);
+
+      expect(result).toContain("### Issue Update 1");
+      expect(result).toContain("**Target Issue:** #123");
+      expect(result).toContain("**New Title:** New Title");
+    });
+
+    it("should render issue update without explicit number", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Issue",
+        numberField: "issue_number",
+        targetLabel: "Target Issue:",
+        currentTargetText: "Current issue",
+        includeOperation: false,
+      });
+
+      const result = render({ title: "New Title" }, 0);
+
+      expect(result).toContain("### Issue Update 1");
+      expect(result).toContain("**Target:** Current issue");
+      expect(result).toContain("**New Title:** New Title");
+    });
+
+    it("should render PR update with operation field", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ pull_request_number: 456, body: "New body content", operation: "prepend" }, 0);
+
+      expect(result).toContain("### Pull Request Update 1");
+      expect(result).toContain("**Target PR:** #456");
+      expect(result).toContain("**Operation:** prepend");
+      expect(result).toContain("**Body Content:**\nNew body content");
+    });
+
+    it("should render body without operation when includeOperation is false", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Issue",
+        numberField: "issue_number",
+        targetLabel: "Target Issue:",
+        currentTargetText: "Current issue",
+        includeOperation: false,
+      });
+
+      const result = render({ body: "New body content" }, 0);
+
+      expect(result).toContain("**New Body:**\nNew body content");
+      expect(result).not.toContain("**Operation:");
+    });
+
+    it("should render status when present", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Issue",
+        numberField: "issue_number",
+        targetLabel: "Target Issue:",
+        currentTargetText: "Current issue",
+        includeOperation: false,
+      });
+
+      const result = render({ status: "closed" }, 0);
+
+      expect(result).toContain("**New Status:** closed");
+    });
+
+    it("should use default operation when includeOperation is true but operation not specified", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ body: "New body content" }, 0);
+
+      expect(result).toContain("**Operation:** append");
+      expect(result).toContain("**Body Content:**\nNew body content");
+    });
+
+    it("should increment index correctly", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Issue",
+        numberField: "issue_number",
+        targetLabel: "Target Issue:",
+        currentTargetText: "Current issue",
+        includeOperation: false,
+      });
+
+      const result = render({ title: "Title" }, 4);
+
+      expect(result).toContain("### Issue Update 5");
+    });
+  });
+
+  describe("createGetSummaryLine", () => {
+    it("should generate issue summary line", () => {
+      const getSummaryLine = helpers.createGetSummaryLine({
+        entityPrefix: "Issue",
+      });
+
+      const result = getSummaryLine({
+        number: 123,
+        title: "Test Issue",
+        html_url: "https://github.com/owner/repo/issues/123",
+      });
+
+      expect(result).toBe("- Issue #123: [Test Issue](https://github.com/owner/repo/issues/123)\n");
+    });
+
+    it("should generate PR summary line", () => {
+      const getSummaryLine = helpers.createGetSummaryLine({
+        entityPrefix: "PR",
+      });
+
+      const result = getSummaryLine({
+        number: 456,
+        title: "Test PR",
+        html_url: "https://github.com/owner/repo/pull/456",
+      });
+
+      expect(result).toBe("- PR #456: [Test PR](https://github.com/owner/repo/pull/456)\n");
+    });
+
+    it("should handle special characters in title", () => {
+      const getSummaryLine = helpers.createGetSummaryLine({
+        entityPrefix: "Issue",
+      });
+
+      const result = getSummaryLine({
+        number: 789,
+        title: "Fix [bug] with <special> chars",
+        html_url: "https://github.com/owner/repo/issues/789",
+      });
+
+      expect(result).toBe("- Issue #789: [Fix [bug] with <special> chars](https://github.com/owner/repo/issues/789)\n");
+    });
+  });
 });

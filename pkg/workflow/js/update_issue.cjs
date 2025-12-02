@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow } = require("./update_runner.cjs");
+const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
 
 /**
  * Check if the current context is a valid issue context
@@ -22,31 +22,14 @@ function getIssueNumber(payload) {
   return payload.issue?.number;
 }
 
-/**
- * Render a staged preview item for issue updates
- * @param {any} item - Update item
- * @param {number} index - Item index (0-based)
- * @returns {string} Markdown content for the preview
- */
-function renderStagedItem(item, index) {
-  let content = `### Issue Update ${index + 1}\n`;
-  if (item.issue_number) {
-    content += `**Target Issue:** #${item.issue_number}\n\n`;
-  } else {
-    content += `**Target:** Current issue\n\n`;
-  }
-
-  if (item.title !== undefined) {
-    content += `**New Title:** ${item.title}\n\n`;
-  }
-  if (item.body !== undefined) {
-    content += `**New Body:**\n${item.body}\n\n`;
-  }
-  if (item.status !== undefined) {
-    content += `**New Status:** ${item.status}\n\n`;
-  }
-  return content;
-}
+// Use shared helper for staged preview rendering
+const renderStagedItem = createRenderStagedItem({
+  entityName: "Issue",
+  numberField: "issue_number",
+  targetLabel: "Target Issue:",
+  currentTargetText: "Current issue",
+  includeOperation: false,
+});
 
 /**
  * Execute the issue update API call
@@ -70,14 +53,10 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   return issue;
 }
 
-/**
- * Generate summary line for an updated issue
- * @param {any} issue - Updated issue
- * @returns {string} Markdown summary line
- */
-function getSummaryLine(issue) {
-  return `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-}
+// Use shared helper for summary line generation
+const getSummaryLine = createGetSummaryLine({
+  entityPrefix: "Issue",
+});
 
 async function main() {
   return await runUpdateWorkflow({
