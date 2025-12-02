@@ -7,12 +7,12 @@ sidebar:
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-GitHub Agentic Workflows provide a custom agent that turns GitHub Copilot into 
-a powerful workflow authoring tool. This guide explains how to use this agent to author agentic workflows in natural language.
+GitHub Agentic Workflows provide prompts that turn GitHub Copilot into 
+a powerful workflow authoring tool. This guide explains how to use these prompts to author agentic workflows in natural language.
 
 ## Quick Start
 
-Initialize your repository to set up GitHub Copilot instructions and custom agents for authoring agentic workflows:
+Initialize your repository to set up GitHub Copilot instructions and prompts for authoring agentic workflows:
 
 ```bash wrap
 gh aw init
@@ -20,35 +20,35 @@ gh aw init
 
 This creates:
 - `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
-- `.github/agents/create-agentic-workflow.md` - Custom agent for the `/agent` command in Copilot Chat
+- `.github/prompts/create-agentic-workflow.prompt.md` - Prompt for the `/create-agentic-workflow` command in Copilot Chat
 
 :::tip[VS Code integration]
 Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
 :::
 
-## What is the `create-agentic-workflow` custom agent?
+## What is the `create-agentic-workflow` prompt?
 
-`.github/agents/create-agentic-workflow.md` is a custom agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. A [custom agent](/gh-aw/reference/glossary/#custom-agents) is a specialized instruction set that customizes AI behavior for specific tasks.
+`.github/prompts/create-agentic-workflow.prompt.md` is a prompt file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. A [prompt file](/gh-aw/reference/glossary/#prompt-files) is a specialized instruction set that customizes AI behavior for specific tasks.
 
-Use the custom agent when you want to:
+Use the prompt when you want to:
 - Draft a new agentic workflow using natural language
 - Iterate on workflow steps with AI assistance inside your editor
 
-The custom agent contains specialized instructions and toolset to enable efficient workflow authoring.
+The prompt contains specialized instructions and toolset to enable efficient workflow authoring.
 
-## How to use the `create-agentic-workflow` custom agent
+## How to use the `create-agentic-workflow` prompt
 
-In Visual Studio Code with GitHub Copilot Chat or in Copilot CLI, enter the `/agent` command and select `create-agentic-workflow` from the list:
+In Visual Studio Code with GitHub Copilot Chat or in Copilot CLI, enter the `/create-agentic-workflow` command:
 
 ```sh wrap
-/agent
+/create-agentic-workflow
 ```
 
-Then select `create-agentic-workflow` from the available custom agents. This will start the agentic workflow authoring process with interactive guidance.
+This will start the agentic workflow authoring process with interactive guidance.
 
 ## Other Agents and Chats
 
-The custom agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
+The prompt file can be loaded into other AI chat interfaces that support custom instructions. The prompt is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
 
 ## Dictating Agentic Workflows
 

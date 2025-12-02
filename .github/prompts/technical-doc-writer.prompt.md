@@ -1,4 +1,5 @@
 ---
+mode: agent
 name: technical-doc-writer
 description: AI technical documentation writer for GitHub Actions library using Astro Starlight and GitHub Docs voice
 ---

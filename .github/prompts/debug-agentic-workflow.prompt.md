@@ -1,5 +1,5 @@
 ---
-name: debug-agentic-workflow
+mode: agent
 description: Debug and refine agentic workflows using gh-aw CLI tools - analyze logs, audit runs, and improve workflow performance
 ---
 
