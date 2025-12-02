@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -11,11 +10,9 @@ var closePullRequestLog = logger.New("workflow:close_pull_request")
 
 // ClosePullRequestsConfig holds configuration for closing GitHub pull requests from agent output
 type ClosePullRequestsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	RequiredLabels       []string `yaml:"required-labels,omitempty"`       // Required labels for closing
-	RequiredTitlePrefix  string   `yaml:"required-title-prefix,omitempty"` // Required title prefix for closing
-	Target               string   `yaml:"target,omitempty"`                // Target for close: "triggering" (default), "*" (any PR), or explicit number
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`           // Target repository for cross-repo operations
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	SafeOutputFilterConfig `yaml:",inline"`
 }
 
 // parseClosePullRequestsConfig handles close-pull-request configuration
@@ -25,44 +22,14 @@ func (c *Compiler) parseClosePullRequestsConfig(outputMap map[string]any) *Close
 		closePullRequestsConfig := &ClosePullRequestsConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse required-labels
-			if requiredLabels, exists := configMap["required-labels"]; exists {
-				if labelList, ok := requiredLabels.([]any); ok {
-					for _, label := range labelList {
-						if labelStr, ok := label.(string); ok {
-							closePullRequestsConfig.RequiredLabels = append(closePullRequestsConfig.RequiredLabels, labelStr)
-						}
-					}
-				}
-				closePullRequestLog.Printf("Required labels configured: %v", closePullRequestsConfig.RequiredLabels)
-			}
-
-			// Parse required-title-prefix
-			if requiredTitlePrefix, exists := configMap["required-title-prefix"]; exists {
-				if prefix, ok := requiredTitlePrefix.(string); ok {
-					closePullRequestsConfig.RequiredTitlePrefix = prefix
-					closePullRequestLog.Printf("Required title prefix configured: %q", prefix)
-				}
-			}
-
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					closePullRequestsConfig.Target = targetStr
-					closePullRequestLog.Printf("Target configured: %q", targetStr)
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			// Parse close job config (target, target-repo, required-labels, required-title-prefix)
+			closeJobConfig, isInvalid := ParseCloseJobConfig(configMap)
 			if isInvalid {
 				closePullRequestLog.Print("Invalid target-repo configuration")
-				return nil // Invalid configuration, return nil to cause validation error
+				return nil
 			}
-			if targetRepoSlug != "" {
-				closePullRequestLog.Printf("Target repository configured: %s", targetRepoSlug)
-			}
-			closePullRequestsConfig.TargetRepoSlug = targetRepoSlug
+			closePullRequestsConfig.SafeOutputTargetConfig = closeJobConfig.SafeOutputTargetConfig
+			closePullRequestsConfig.SafeOutputFilterConfig = closeJobConfig.SafeOutputFilterConfig
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &closePullRequestsConfig.BaseSafeOutputConfig, 1)
@@ -86,22 +53,18 @@ func (c *Compiler) buildCreateOutputClosePullRequestJob(data *WorkflowData, main
 		return nil, fmt.Errorf("safe-outputs.close-pull-request configuration is required")
 	}
 
-	// Build custom environment variables specific to close-pull-request
-	var customEnvVars []string
+	cfg := data.SafeOutputs.ClosePullRequests
 
-	if len(data.SafeOutputs.ClosePullRequests.RequiredLabels) > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_PR_REQUIRED_LABELS: %q\n", strings.Join(data.SafeOutputs.ClosePullRequests.RequiredLabels, ",")))
+	// Build custom environment variables specific to close-pull-request using shared helpers
+	closeJobConfig := CloseJobConfig{
+		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
+		SafeOutputFilterConfig: cfg.SafeOutputFilterConfig,
 	}
-	if data.SafeOutputs.ClosePullRequests.RequiredTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_PR_REQUIRED_TITLE_PREFIX: %q\n", data.SafeOutputs.ClosePullRequests.RequiredTitlePrefix))
-	}
-	if data.SafeOutputs.ClosePullRequests.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_PR_TARGET: %q\n", data.SafeOutputs.ClosePullRequests.Target))
-	}
+	customEnvVars := BuildCloseJobEnvVars("GH_AW_CLOSE_PR", closeJobConfig)
 	closePullRequestLog.Printf("Configured %d custom environment variables for PR close", len(customEnvVars))
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.ClosePullRequests.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -113,8 +76,7 @@ func (c *Compiler) buildCreateOutputClosePullRequestJob(data *WorkflowData, main
 	// Build job condition with pull request event check only for "triggering" target
 	// If target is "*" (any PR) or explicitly set, allow agent to provide pull_request_number
 	jobCondition := BuildSafeOutputType("close_pull_request")
-	if data.SafeOutputs.ClosePullRequests != nil &&
-		(data.SafeOutputs.ClosePullRequests.Target == "" || data.SafeOutputs.ClosePullRequests.Target == "triggering") {
+	if cfg.Target == "" || cfg.Target == "triggering" {
 		// Only require event PR context for "triggering" target
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.pull_request.number"),
@@ -134,7 +96,7 @@ func (c *Compiler) buildCreateOutputClosePullRequestJob(data *WorkflowData, main
 		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.ClosePullRequests.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.ClosePullRequests.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

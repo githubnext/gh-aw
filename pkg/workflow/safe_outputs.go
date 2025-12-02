@@ -156,63 +156,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if labelsMap, ok := labels.(map[string]any); ok {
 					labelConfig := &AddLabelsConfig{}
 
-					// Parse allowed labels (optional)
-					if allowed, exists := labelsMap["allowed"]; exists {
-						if allowedArray, ok := allowed.([]any); ok {
-							var allowedStrings []string
-							for _, label := range allowedArray {
-								if labelStr, ok := label.(string); ok {
-									allowedStrings = append(allowedStrings, labelStr)
-								}
-							}
-							labelConfig.Allowed = allowedStrings
-						}
-					}
+					// Parse list job config (target, target-repo, allowed)
+					listJobConfig, _ := ParseListJobConfig(labelsMap, "allowed")
+					labelConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
+					labelConfig.Allowed = listJobConfig.Allowed
 
-					// Parse max (optional)
-					if maxCount, exists := labelsMap["max"]; exists {
-						// Handle different numeric types that YAML parsers might return
-						var maxCountInt int
-						var validMaxCount bool
-						switch v := maxCount.(type) {
-						case int:
-							maxCountInt = v
-							validMaxCount = true
-						case int64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case uint64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case float64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						}
-						if validMaxCount {
-							labelConfig.Max = maxCountInt
-						}
-					}
-
-					// Parse github-token
-					if githubToken, exists := labelsMap["github-token"]; exists {
-						if githubTokenStr, ok := githubToken.(string); ok {
-							labelConfig.GitHubToken = githubTokenStr
-						}
-					}
-
-					// Parse target
-					if target, exists := labelsMap["target"]; exists {
-						if targetStr, ok := target.(string); ok {
-							labelConfig.Target = targetStr
-						}
-					}
-
-					// Parse target-repo
-					if targetRepo, exists := labelsMap["target-repo"]; exists {
-						if targetRepoStr, ok := targetRepo.(string); ok {
-							labelConfig.TargetRepoSlug = targetRepoStr
-						}
-					}
+					// Parse common base fields (github-token, max)
+					c.parseBaseSafeOutputConfig(labelsMap, &labelConfig.BaseSafeOutputConfig, 0)
 
 					config.AddLabels = labelConfig
 				} else if labels == nil {
@@ -232,63 +182,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if milestoneMap, ok := milestone.(map[string]any); ok {
 					milestoneConfig := &AssignMilestoneConfig{}
 
-					// Parse allowed milestones (optional)
-					if allowed, exists := milestoneMap["allowed"]; exists {
-						if allowedArray, ok := allowed.([]any); ok {
-							var allowedStrings []string
-							for _, ms := range allowedArray {
-								if msStr, ok := ms.(string); ok {
-									allowedStrings = append(allowedStrings, msStr)
-								}
-							}
-							milestoneConfig.Allowed = allowedStrings
-						}
-					}
+					// Parse list job config (target, target-repo, allowed)
+					listJobConfig, _ := ParseListJobConfig(milestoneMap, "allowed")
+					milestoneConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
+					milestoneConfig.Allowed = listJobConfig.Allowed
 
-					// Parse max (optional)
-					if maxCount, exists := milestoneMap["max"]; exists {
-						// Handle different numeric types that YAML parsers might return
-						var maxCountInt int
-						var validMaxCount bool
-						switch v := maxCount.(type) {
-						case int:
-							maxCountInt = v
-							validMaxCount = true
-						case int64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case uint64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case float64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						}
-						if validMaxCount {
-							milestoneConfig.Max = maxCountInt
-						}
-					}
-
-					// Parse github-token
-					if githubToken, exists := milestoneMap["github-token"]; exists {
-						if githubTokenStr, ok := githubToken.(string); ok {
-							milestoneConfig.GitHubToken = githubTokenStr
-						}
-					}
-
-					// Parse target
-					if target, exists := milestoneMap["target"]; exists {
-						if targetStr, ok := target.(string); ok {
-							milestoneConfig.Target = targetStr
-						}
-					}
-
-					// Parse target-repo
-					if targetRepo, exists := milestoneMap["target-repo"]; exists {
-						if targetRepoStr, ok := targetRepo.(string); ok {
-							milestoneConfig.TargetRepoSlug = targetRepoStr
-						}
-					}
+					// Parse common base fields (github-token, max)
+					c.parseBaseSafeOutputConfig(milestoneMap, &milestoneConfig.BaseSafeOutputConfig, 0)
 
 					config.AssignMilestone = milestoneConfig
 				} else if milestone == nil {
@@ -302,50 +202,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if agentMap, ok := assignToAgent.(map[string]any); ok {
 					agentConfig := &AssignToAgentConfig{}
 
-					// Parse name (optional)
+					// Parse name (optional - specific to assign-to-agent)
 					if defaultAgent, exists := agentMap["name"]; exists {
 						if defaultAgentStr, ok := defaultAgent.(string); ok {
 							agentConfig.DefaultAgent = defaultAgentStr
 						}
 					}
 
-					// Parse max (optional)
-					if maxCount, exists := agentMap["max"]; exists {
-						// Handle different numeric types that YAML parsers might return
-						var maxCountInt int
-						var validMaxCount bool
-						switch v := maxCount.(type) {
-						case int:
-							maxCountInt = v
-							validMaxCount = true
-						case int64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case uint64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						case float64:
-							maxCountInt = int(v)
-							validMaxCount = true
-						}
-						if validMaxCount {
-							agentConfig.Max = maxCountInt
-						}
-					}
+					// Parse target config (target, target-repo) - validation errors are handled gracefully
+					targetConfig, _ := ParseTargetConfig(agentMap)
+					agentConfig.SafeOutputTargetConfig = targetConfig
 
-					// Parse github-token
-					if githubToken, exists := agentMap["github-token"]; exists {
-						if githubTokenStr, ok := githubToken.(string); ok {
-							agentConfig.GitHubToken = githubTokenStr
-						}
-					}
-
-					// Parse target-repo
-					if targetRepo, exists := agentMap["target-repo"]; exists {
-						if targetRepoStr, ok := targetRepo.(string); ok {
-							agentConfig.TargetRepoSlug = targetRepoStr
-						}
-					}
+					// Parse common base fields (github-token, max)
+					c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 0)
 
 					config.AssignToAgent = agentConfig
 				} else if assignToAgent == nil {
