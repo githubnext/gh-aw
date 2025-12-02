@@ -157,7 +157,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	addEngineFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for trial execution (pushes and cleans up secrets in repository)")
 	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")

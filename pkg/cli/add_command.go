@@ -92,7 +92,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 
 	// Add AI flag to add command
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	addEngineFlag(cmd)
 
 	// Add repository flag to add command
 	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")

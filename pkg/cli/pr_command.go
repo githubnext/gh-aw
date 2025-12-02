@@ -89,7 +89,7 @@ The command will:
 		},
 	}
 
-	cmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	addRepoFlag(cmd)
 	cmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 
 	return cmd

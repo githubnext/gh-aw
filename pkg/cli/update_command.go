@@ -77,7 +77,7 @@ Examples:
 
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
 	cmd.Flags().Bool("force", false, "Force update even if no changes are detected")
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	addEngineFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 	cmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
