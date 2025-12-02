@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
           
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@v2
