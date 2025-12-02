@@ -67,7 +67,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# Effective stop-time: 2025-12-15 01:29:17
+# Effective stop-time: 2026-01-02 23:42:43
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -6816,7 +6816,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_STOP_TIME: 2025-12-15 01:29:17
+          GH_AW_STOP_TIME: 2026-01-02 23:42:43
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |
