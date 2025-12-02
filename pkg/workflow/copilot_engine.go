@@ -342,7 +342,7 @@ sudo -E awf %s \
 
 # Move preserved agent logs to expected location
 # Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
-AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
 if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
   echo "Moving agent logs from $AGENT_LOGS_DIR to %s"
   sudo mkdir -p %s
@@ -1146,7 +1146,7 @@ SRT_WRAPPER_EOF
 node ./.srt-wrapper.js 2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   mkdir -p %s
@@ -1166,8 +1166,12 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 		"      - name: Collect firewall logs",
 		"        if: always()",
 		"        run: |",
-		"          # Squid logs are preserved in timestamped directories",
-		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)\"",
+		"          # First try preserved logs (from normal AWF cleanup)",
+		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
+		"          # Fallback: try original AWF location (for timeout/crash cases where cleanup didn't run)",
+		"          if [ -z \"$SQUID_LOGS_DIR\" ]; then",
+		"            SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 2 -type d -path '/tmp/awf-*/squid-logs' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)\"",
+		"          fi",
 		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
 		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
 		fmt.Sprintf("            mkdir -p %s", squidLogsDir),
