@@ -442,6 +442,13 @@ func TestCommandLineIntegration(t *testing.T) {
 			t.Error("verbose flag should default to false")
 		}
 	})
+
+	t.Run("SilenceUsage is enabled", func(t *testing.T) {
+		// Test that SilenceUsage is set to prevent usage output on application errors
+		if !rootCmd.SilenceUsage {
+			t.Error("SilenceUsage should be true to prevent cluttering terminal output with usage on application errors")
+		}
+	})
 }
 
 func TestMCPCommand(t *testing.T) {
