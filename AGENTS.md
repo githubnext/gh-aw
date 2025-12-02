@@ -4,7 +4,7 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 
 ## Important: Using Skills
 
-**BE LAZY**: Skills in `.github/skills/` provide detailed, specialized knowledge about specific topics. **Only reference skills when you actually need their specialized knowledge**. Do not load or reference skills preemptively.
+**BE LAZY**: Skills in `skills/` provide detailed, specialized knowledge about specific topics. **Only reference skills when you actually need their specialized knowledge**. Do not load or reference skills preemptively.
 
 **When to use skills:**
 - You encounter a specific technical challenge that requires specialized knowledge
@@ -16,7 +16,7 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 - When the information is already available in this AGENTS.md file
 - For simple, straightforward changes
 
-**Available Skills Directory**: `.github/skills/`
+**Available Skills Directory**: `skills/`
 
 Each skill provides focused guidance on specific topics. Reference them only as needed rather than loading everything upfront.
 
@@ -72,7 +72,7 @@ network:
 - Both `mode: remote` (hosted) and `mode: local` (Docker) work with Copilot
 - Never rely on direct `api.github.com` access in Copilot workflows
 
-See [GitHub MCP Server Documentation](.github/skills/github-mcp-server/SKILL.md) for complete configuration details.
+See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.
 
 ## Merging Main Branch
 
@@ -273,7 +273,7 @@ When modifying JSON schemas in `pkg/parser/schemas/`:
 The documentation for this project is available in the `docs/` directory. It includes information on how to use the CLI, API references, and examples.
 It uses the Astro Starlight system and Diátaxis framework.
 
-See [documentation skill](.github/skills/documentation/SKILL.md) for details.
+See [documentation skill](skills/documentation/SKILL.md) for details.
 
 ### Legacy Support
 
@@ -338,39 +338,39 @@ make minor-release  # Automated via GitHub Actions
 Skills provide specialized, detailed knowledge on specific topics. **Use them only when needed** - don't load skills preemptively.
 
 ### Core Development Skills
-- **[developer](.github/skills/developer/SKILL.md)** - Developer instructions, code organization, validation architecture, security practices
-- **[console-rendering](.github/skills/console-rendering/SKILL.md)** - Struct tag-based console rendering system for CLI output
-- **[error-messages](.github/skills/error-messages/SKILL.md)** - Error message style guide for validation errors
-- **[error-pattern-safety](.github/skills/error-pattern-safety/SKILL.md)** - Safety guidelines for error pattern regex
+- **[developer](skills/developer/SKILL.md)** - Developer instructions, code organization, validation architecture, security practices
+- **[console-rendering](skills/console-rendering/SKILL.md)** - Struct tag-based console rendering system for CLI output
+- **[error-messages](skills/error-messages/SKILL.md)** - Error message style guide for validation errors
+- **[error-pattern-safety](skills/error-pattern-safety/SKILL.md)** - Safety guidelines for error pattern regex
 
 ### JavaScript & GitHub Actions
-- **[github-script](.github/skills/github-script/SKILL.md)** - Best practices for GitHub Actions scripts using github-script
-- **[javascript-refactoring](.github/skills/javascript-refactoring/SKILL.md)** - Guide for refactoring JavaScript code into separate .cjs files
-- **[messages](.github/skills/messages/SKILL.md)** - Adding new message types to safe-output messages system
+- **[github-script](skills/github-script/SKILL.md)** - Best practices for GitHub Actions scripts using github-script
+- **[javascript-refactoring](skills/javascript-refactoring/SKILL.md)** - Guide for refactoring JavaScript code into separate .cjs files
+- **[messages](skills/messages/SKILL.md)** - Adding new message types to safe-output messages system
 
 ### GitHub Integration
-- **[github-mcp-server](.github/skills/github-mcp-server/SKILL.md)** - GitHub MCP server documentation and configuration
-- **[github-issue-query](.github/skills/github-issue-query/SKILL.md)** - Query GitHub issues with jq filtering
-- **[github-pr-query](.github/skills/github-pr-query/SKILL.md)** - Query GitHub pull requests with jq filtering
-- **[github-discussion-query](.github/skills/github-discussion-query/SKILL.md)** - Query GitHub discussions with jq filtering
-- **[github-copilot-agent-tips-and-tricks](.github/skills/github-copilot-agent-tips-and-tricks/SKILL.md)** - Tips for working with GitHub Copilot agent PRs
+- **[github-mcp-server](skills/github-mcp-server/SKILL.md)** - GitHub MCP server documentation and configuration
+- **[github-issue-query](skills/github-issue-query/SKILL.md)** - Query GitHub issues with jq filtering
+- **[github-pr-query](skills/github-pr-query/SKILL.md)** - Query GitHub pull requests with jq filtering
+- **[github-discussion-query](skills/github-discussion-query/SKILL.md)** - Query GitHub discussions with jq filtering
+- **[github-copilot-agent-tips-and-tricks](skills/github-copilot-agent-tips-and-tricks/SKILL.md)** - Tips for working with GitHub Copilot agent PRs
 
 ### AI Engine & Integration
-- **[copilot-cli](.github/skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows
-- **[custom-agents](.github/skills/custom-agents/SKILL.md)** - GitHub custom agent file format
-- **[gh-agent-task](.github/skills/gh-agent-task/SKILL.md)** - GitHub CLI agent task extension
+- **[copilot-cli](skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows
+- **[custom-agents](skills/custom-agents/SKILL.md)** - GitHub custom agent file format
+- **[gh-agent-task](skills/gh-agent-task/SKILL.md)** - GitHub CLI agent task extension
 
 ### Safe Outputs & Features
-- **[temporary-id-safe-output](.github/skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs
-- **[http-mcp-headers](.github/skills/http-mcp-headers/SKILL.md)** - HTTP MCP header secret support implementation
+- **[temporary-id-safe-output](skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs
+- **[http-mcp-headers](skills/http-mcp-headers/SKILL.md)** - HTTP MCP header secret support implementation
 
 ### Documentation & Communication
-- **[documentation](.github/skills/documentation/SKILL.md)** - Documentation guidelines using Astro Starlight and Diátaxis framework
-- **[reporting](.github/skills/reporting/SKILL.md)** - Report format guidelines using HTML details/summary tags
-- **[dictation](.github/skills/dictation/SKILL.md)** - Fixing text-to-speech errors in dictated text
-- **[agentic-chat](.github/skills/agentic-chat/SKILL.md)** - AI assistant for creating task descriptions
+- **[documentation](skills/documentation/SKILL.md)** - Documentation guidelines using Astro Starlight and Diátaxis framework
+- **[reporting](skills/reporting/SKILL.md)** - Report format guidelines using HTML details/summary tags
+- **[dictation](skills/dictation/SKILL.md)** - Fixing text-to-speech errors in dictated text
+- **[agentic-chat](skills/agentic-chat/SKILL.md)** - AI assistant for creating task descriptions
 
 ### MCP & Tools
-- **[skillz-integration](.github/skills/skillz-integration/SKILL.md)** - Skillz MCP server integration with Docker
+- **[skillz-integration](skills/skillz-integration/SKILL.md)** - Skillz MCP server integration with Docker
 
 **Remember**: Be LAZY - only load a skill when you actually need its specialized knowledge. Don't reference skills preemptively.
