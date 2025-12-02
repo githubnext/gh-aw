@@ -2053,7 +2053,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.55
+        run: npm install -g @anthropic-ai/claude-code@2.0.56
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2166,7 +2166,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
           docker pull mcr.microsoft.com/playwright/mcp
       - name: Setup Safe Outputs Collector MCP
         run: |
@@ -3389,7 +3389,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=repos,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
@@ -3448,7 +3448,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.55",
+              agent_version: "2.0.56",
               workflow_name: "Smoke Claude",
               experimental: true,
               supports_tools_allowlist: true,
@@ -7355,7 +7355,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.55
+        run: npm install -g @anthropic-ai/claude-code@2.0.56
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

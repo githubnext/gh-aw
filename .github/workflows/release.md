@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
           
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@v2
@@ -57,7 +58,7 @@ jobs:
           RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
 steps:
   - name: Setup environment and fetch release data
@@ -76,7 +77,7 @@ steps:
       RELEASE_TAG="${GITHUB_REF#refs/tags/}"
       echo "Processing release: $RELEASE_TAG"
       
-      echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
       gh release view "$RELEASE_TAG" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json
@@ -87,12 +88,12 @@ steps:
       
       if [ -z "$PREV_RELEASE_TAG" ]; then
         echo "No previous release found. This appears to be the first release."
-        echo "PREV_RELEASE_TAG=" >> $GITHUB_ENV
+        echo "PREV_RELEASE_TAG=" >> "$GITHUB_ENV"
         touch /tmp/gh-aw/release-data/pull_requests.json
         echo "[]" > /tmp/gh-aw/release-data/pull_requests.json
       else
         echo "Previous release: $PREV_RELEASE_TAG"
-        echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> $GITHUB_ENV
+        echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> "$GITHUB_ENV"
         
         # Get commits between releases
         echo "Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG..."
@@ -109,7 +110,7 @@ steps:
           --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
           > /tmp/gh-aw/release-data/pull_requests.json
         
-        PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)
+        PR_COUNT=$(jq length "/tmp/gh-aw/release-data/pull_requests.json")
         echo "✓ Fetched $PR_COUNT pull requests"
       fi
       

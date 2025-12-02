@@ -92,7 +92,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 
 	// Add AI flag to add command
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	addEngineFlag(cmd)
 
 	// Add repository flag to add command
 	cmd.Flags().StringP("repo", "r", "", "Source repository containing workflows (owner/repo format)")
@@ -119,6 +119,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
+
+	// Register completions for add command
+	RegisterEngineFlagCompletion(cmd)
+	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
 }

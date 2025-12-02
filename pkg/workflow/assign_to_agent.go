@@ -6,10 +6,9 @@ import (
 
 // AssignToAgentConfig holds configuration for assigning agents to issues from agent output
 type AssignToAgentConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	DefaultAgent         string `yaml:"name,omitempty"`        // Default agent to assign (e.g., "copilot")
-	Target               string `yaml:"target,omitempty"`      // Target for agent assignment: "triggering" (default) or explicit issue number
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository assignments
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	DefaultAgent           string `yaml:"name,omitempty"` // Default agent to assign (e.g., "copilot")
 }
 
 // buildAssignToAgentJob creates the assign_to_agent job
@@ -18,15 +17,17 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 		return nil, fmt.Errorf("safe-outputs.assign-to-agent configuration is required")
 	}
 
+	cfg := data.SafeOutputs.AssignToAgent
+
 	// Handle case where AssignToAgent is not nil
 	defaultAgent := "copilot"
 	maxCount := 1
 
-	if data.SafeOutputs.AssignToAgent.DefaultAgent != "" {
-		defaultAgent = data.SafeOutputs.AssignToAgent.DefaultAgent
+	if cfg.DefaultAgent != "" {
+		defaultAgent = cfg.DefaultAgent
 	}
-	if data.SafeOutputs.AssignToAgent.Max > 0 {
-		maxCount = data.SafeOutputs.AssignToAgent.Max
+	if cfg.Max > 0 {
+		maxCount = cfg.Max
 	}
 
 	// Build custom environment variables specific to assign-to-agent
@@ -36,17 +37,10 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_DEFAULT: %q\n", defaultAgent))
 
 	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxCount))
+	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_AGENT_MAX_COUNT", maxCount)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AssignToAgent.TargetRepoSlug)...)
-
-	// Get token from config for step-level github-token
-	// The token is set at the step level via UseAgentToken which defaults to GH_AW_AGENT_TOKEN
-	var token string
-	if data.SafeOutputs.AssignToAgent != nil {
-		token = data.SafeOutputs.AssignToAgent.GitHubToken
-	}
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -65,9 +59,9 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 		Script:         getAssignToAgentScript(),
 		Permissions:    NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
 		Outputs:        outputs,
-		Token:          token,
+		Token:          cfg.GitHubToken,
 		UseAgentToken:  true,
 		Condition:      BuildSafeOutputType("assign_to_agent"),
-		TargetRepoSlug: data.SafeOutputs.AssignToAgent.TargetRepoSlug,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

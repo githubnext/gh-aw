@@ -697,170 +697,234 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 
 // extractSandboxConfig extracts sandbox configuration from front matter
 func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConfig {
-	if sandbox, exists := frontmatter["sandbox"]; exists {
-		// Handle string format: "default" or "sandbox-runtime"
-		if sandboxStr, ok := sandbox.(string); ok {
-			sandboxType := SandboxType(sandboxStr)
-			if sandboxType == SandboxTypeDefault || sandboxType == SandboxTypeRuntime {
-				return &SandboxConfig{
-					Type: sandboxType,
-				}
+	sandbox, exists := frontmatter["sandbox"]
+	if !exists {
+		return nil
+	}
+
+	// Handle legacy string format: "default" or "sandbox-runtime"
+	if sandboxStr, ok := sandbox.(string); ok {
+		sandboxType := SandboxType(sandboxStr)
+		if sandboxType == SandboxTypeDefault || sandboxType == SandboxTypeRuntime ||
+			sandboxType == SandboxTypeAWF || sandboxType == SandboxTypeSRT {
+			return &SandboxConfig{
+				Type: sandboxType,
 			}
-			// Unknown string format, return nil
-			return nil
 		}
+		// Unknown string format, return nil
+		return nil
+	}
 
-		// Handle object format: { type: "...", config: {...} }
-		if sandboxObj, ok := sandbox.(map[string]any); ok {
-			config := &SandboxConfig{}
+	// Handle object format
+	sandboxObj, ok := sandbox.(map[string]any)
+	if !ok {
+		return nil
+	}
 
-			// Extract type if present
-			if typeVal, hasType := sandboxObj["type"]; hasType {
-				if typeStr, ok := typeVal.(string); ok {
-					config.Type = SandboxType(typeStr)
-				}
-			}
+	config := &SandboxConfig{}
 
-			// Extract config if present (custom SRT config)
-			if configVal, hasConfig := sandboxObj["config"]; hasConfig {
-				if configObj, ok := configVal.(map[string]any); ok {
-					srtConfig := &SandboxRuntimeConfig{}
+	// Check for new format: { agent: ..., mcp: ... }
+	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
+		config.Agent = c.extractAgentSandboxConfig(agentVal)
+	}
 
-					// Extract network config
-					if networkVal, hasNetwork := configObj["network"]; hasNetwork {
-						if networkObj, ok := networkVal.(map[string]any); ok {
-							netConfig := &SRTNetworkConfig{}
-
-							// Extract allowedDomains
-							if allowedDomains, hasAllowed := networkObj["allowedDomains"]; hasAllowed {
-								if domainsSlice, ok := allowedDomains.([]any); ok {
-									for _, domain := range domainsSlice {
-										if domainStr, ok := domain.(string); ok {
-											netConfig.AllowedDomains = append(netConfig.AllowedDomains, domainStr)
-										}
-									}
-								}
-							}
-
-							// Extract deniedDomains
-							if deniedDomains, hasDenied := networkObj["deniedDomains"]; hasDenied {
-								if domainsSlice, ok := deniedDomains.([]any); ok {
-									for _, domain := range domainsSlice {
-										if domainStr, ok := domain.(string); ok {
-											netConfig.DeniedDomains = append(netConfig.DeniedDomains, domainStr)
-										}
-									}
-								}
-							}
-
-							// Extract allowUnixSockets
-							if unixSockets, hasUnixSockets := networkObj["allowUnixSockets"]; hasUnixSockets {
-								if socketsSlice, ok := unixSockets.([]any); ok {
-									for _, socket := range socketsSlice {
-										if socketStr, ok := socket.(string); ok {
-											netConfig.AllowUnixSockets = append(netConfig.AllowUnixSockets, socketStr)
-										}
-									}
-								}
-							}
-
-							// Extract allowLocalBinding
-							if allowLocalBinding, hasAllowLocalBinding := networkObj["allowLocalBinding"]; hasAllowLocalBinding {
-								if bindingBool, ok := allowLocalBinding.(bool); ok {
-									netConfig.AllowLocalBinding = bindingBool
-								}
-							}
-
-							// Extract allowAllUnixSockets
-							if allowAllUnixSockets, hasAllowAllUnixSockets := networkObj["allowAllUnixSockets"]; hasAllowAllUnixSockets {
-								if unixSocketsBool, ok := allowAllUnixSockets.(bool); ok {
-									netConfig.AllowAllUnixSockets = unixSocketsBool
-								}
-							}
-
-							srtConfig.Network = netConfig
-						}
-					}
-
-					// Extract filesystem config
-					if filesystemVal, hasFilesystem := configObj["filesystem"]; hasFilesystem {
-						if filesystemObj, ok := filesystemVal.(map[string]any); ok {
-							fsConfig := &SRTFilesystemConfig{}
-
-							// Extract denyRead
-							if denyRead, hasDenyRead := filesystemObj["denyRead"]; hasDenyRead {
-								if pathsSlice, ok := denyRead.([]any); ok {
-									fsConfig.DenyRead = []string{}
-									for _, path := range pathsSlice {
-										if pathStr, ok := path.(string); ok {
-											fsConfig.DenyRead = append(fsConfig.DenyRead, pathStr)
-										}
-									}
-								}
-							}
-
-							// Extract allowWrite
-							if allowWrite, hasAllowWrite := filesystemObj["allowWrite"]; hasAllowWrite {
-								if pathsSlice, ok := allowWrite.([]any); ok {
-									for _, path := range pathsSlice {
-										if pathStr, ok := path.(string); ok {
-											fsConfig.AllowWrite = append(fsConfig.AllowWrite, pathStr)
-										}
-									}
-								}
-							}
-
-							// Extract denyWrite
-							if denyWrite, hasDenyWrite := filesystemObj["denyWrite"]; hasDenyWrite {
-								if pathsSlice, ok := denyWrite.([]any); ok {
-									fsConfig.DenyWrite = []string{}
-									for _, path := range pathsSlice {
-										if pathStr, ok := path.(string); ok {
-											fsConfig.DenyWrite = append(fsConfig.DenyWrite, pathStr)
-										}
-									}
-								}
-							}
-
-							srtConfig.Filesystem = fsConfig
-						}
-					}
-
-					// Extract ignoreViolations
-					if ignoreViolations, hasIgnoreViolations := configObj["ignoreViolations"]; hasIgnoreViolations {
-						if violationsObj, ok := ignoreViolations.(map[string]any); ok {
-							violations := make(map[string][]string)
-							for key, value := range violationsObj {
-								if pathsSlice, ok := value.([]any); ok {
-									var paths []string
-									for _, path := range pathsSlice {
-										if pathStr, ok := path.(string); ok {
-											paths = append(paths, pathStr)
-										}
-									}
-									violations[key] = paths
-								}
-							}
-							srtConfig.IgnoreViolations = violations
-						}
-					}
-
-					// Extract enableWeakerNestedSandbox
-					if enableWeakerNestedSandbox, hasEnableWeaker := configObj["enableWeakerNestedSandbox"]; hasEnableWeaker {
-						if weakerBool, ok := enableWeakerNestedSandbox.(bool); ok {
-							srtConfig.EnableWeakerNestedSandbox = weakerBool
-						}
-					}
-
-					config.Config = srtConfig
-				}
-			}
-
-			return config
+	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
+		if mcpObj, ok := mcpVal.(map[string]any); ok {
+			config.MCP = parseMCPGatewayTool(mcpObj)
 		}
 	}
 
-	return nil
+	// If we found agent or mcp fields, return the new format config
+	if config.Agent != nil || config.MCP != nil {
+		return config
+	}
+
+	// Handle legacy object format: { type: "...", config: {...} }
+	if typeVal, hasType := sandboxObj["type"]; hasType {
+		if typeStr, ok := typeVal.(string); ok {
+			config.Type = SandboxType(typeStr)
+		}
+	}
+
+	// Extract config if present (custom SRT config)
+	if configVal, hasConfig := sandboxObj["config"]; hasConfig {
+		config.Config = c.extractSRTConfig(configVal)
+	}
+
+	return config
+}
+
+// extractAgentSandboxConfig extracts agent sandbox configuration
+func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
+	// Handle string format: "awf" or "srt"
+	if agentStr, ok := agentVal.(string); ok {
+		agentType := SandboxType(agentStr)
+		if agentType == SandboxTypeAWF || agentType == SandboxTypeSRT ||
+			agentType == SandboxTypeDefault || agentType == SandboxTypeRuntime {
+			return &AgentSandboxConfig{
+				Type: agentType,
+			}
+		}
+		return nil
+	}
+
+	// Handle object format: { type: "...", config: {...} }
+	agentObj, ok := agentVal.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	agentConfig := &AgentSandboxConfig{}
+
+	if typeVal, hasType := agentObj["type"]; hasType {
+		if typeStr, ok := typeVal.(string); ok {
+			agentConfig.Type = SandboxType(typeStr)
+		}
+	}
+
+	if configVal, hasConfig := agentObj["config"]; hasConfig {
+		agentConfig.Config = c.extractSRTConfig(configVal)
+	}
+
+	return agentConfig
+}
+
+// extractSRTConfig extracts Sandbox Runtime configuration from a map
+func (c *Compiler) extractSRTConfig(configVal any) *SandboxRuntimeConfig {
+	configObj, ok := configVal.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	srtConfig := &SandboxRuntimeConfig{}
+
+	// Extract network config
+	if networkVal, hasNetwork := configObj["network"]; hasNetwork {
+		if networkObj, ok := networkVal.(map[string]any); ok {
+			netConfig := &SRTNetworkConfig{}
+
+			// Extract allowedDomains
+			if allowedDomains, hasAllowed := networkObj["allowedDomains"]; hasAllowed {
+				if domainsSlice, ok := allowedDomains.([]any); ok {
+					for _, domain := range domainsSlice {
+						if domainStr, ok := domain.(string); ok {
+							netConfig.AllowedDomains = append(netConfig.AllowedDomains, domainStr)
+						}
+					}
+				}
+			}
+
+			// Extract deniedDomains
+			if deniedDomains, hasDenied := networkObj["deniedDomains"]; hasDenied {
+				if domainsSlice, ok := deniedDomains.([]any); ok {
+					for _, domain := range domainsSlice {
+						if domainStr, ok := domain.(string); ok {
+							netConfig.DeniedDomains = append(netConfig.DeniedDomains, domainStr)
+						}
+					}
+				}
+			}
+
+			// Extract allowUnixSockets
+			if unixSockets, hasUnixSockets := networkObj["allowUnixSockets"]; hasUnixSockets {
+				if socketsSlice, ok := unixSockets.([]any); ok {
+					for _, socket := range socketsSlice {
+						if socketStr, ok := socket.(string); ok {
+							netConfig.AllowUnixSockets = append(netConfig.AllowUnixSockets, socketStr)
+						}
+					}
+				}
+			}
+
+			// Extract allowLocalBinding
+			if allowLocalBinding, hasAllowLocalBinding := networkObj["allowLocalBinding"]; hasAllowLocalBinding {
+				if bindingBool, ok := allowLocalBinding.(bool); ok {
+					netConfig.AllowLocalBinding = bindingBool
+				}
+			}
+
+			// Extract allowAllUnixSockets
+			if allowAllUnixSockets, hasAllowAllUnixSockets := networkObj["allowAllUnixSockets"]; hasAllowAllUnixSockets {
+				if unixSocketsBool, ok := allowAllUnixSockets.(bool); ok {
+					netConfig.AllowAllUnixSockets = unixSocketsBool
+				}
+			}
+
+			srtConfig.Network = netConfig
+		}
+	}
+
+	// Extract filesystem config
+	if filesystemVal, hasFilesystem := configObj["filesystem"]; hasFilesystem {
+		if filesystemObj, ok := filesystemVal.(map[string]any); ok {
+			fsConfig := &SRTFilesystemConfig{}
+
+			// Extract denyRead
+			if denyRead, hasDenyRead := filesystemObj["denyRead"]; hasDenyRead {
+				if pathsSlice, ok := denyRead.([]any); ok {
+					fsConfig.DenyRead = []string{}
+					for _, path := range pathsSlice {
+						if pathStr, ok := path.(string); ok {
+							fsConfig.DenyRead = append(fsConfig.DenyRead, pathStr)
+						}
+					}
+				}
+			}
+
+			// Extract allowWrite
+			if allowWrite, hasAllowWrite := filesystemObj["allowWrite"]; hasAllowWrite {
+				if pathsSlice, ok := allowWrite.([]any); ok {
+					for _, path := range pathsSlice {
+						if pathStr, ok := path.(string); ok {
+							fsConfig.AllowWrite = append(fsConfig.AllowWrite, pathStr)
+						}
+					}
+				}
+			}
+
+			// Extract denyWrite
+			if denyWrite, hasDenyWrite := filesystemObj["denyWrite"]; hasDenyWrite {
+				if pathsSlice, ok := denyWrite.([]any); ok {
+					fsConfig.DenyWrite = []string{}
+					for _, path := range pathsSlice {
+						if pathStr, ok := path.(string); ok {
+							fsConfig.DenyWrite = append(fsConfig.DenyWrite, pathStr)
+						}
+					}
+				}
+			}
+
+			srtConfig.Filesystem = fsConfig
+		}
+	}
+
+	// Extract ignoreViolations
+	if ignoreViolations, hasIgnoreViolations := configObj["ignoreViolations"]; hasIgnoreViolations {
+		if violationsObj, ok := ignoreViolations.(map[string]any); ok {
+			violations := make(map[string][]string)
+			for key, value := range violationsObj {
+				if pathsSlice, ok := value.([]any); ok {
+					var paths []string
+					for _, path := range pathsSlice {
+						if pathStr, ok := path.(string); ok {
+							paths = append(paths, pathStr)
+						}
+					}
+					violations[key] = paths
+				}
+			}
+			srtConfig.IgnoreViolations = violations
+		}
+	}
+
+	// Extract enableWeakerNestedSandbox
+	if enableWeakerNestedSandbox, hasEnableWeaker := configObj["enableWeakerNestedSandbox"]; hasEnableWeaker {
+		if weakerBool, ok := enableWeakerNestedSandbox.(bool); ok {
+			srtConfig.EnableWeakerNestedSandbox = weakerBool
+		}
+	}
+
+	return srtConfig
 }
 
 // addZizmorIgnoreForWorkflowRun adds a zizmor ignore comment for workflow_run triggers

@@ -41,8 +41,11 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output results in JSON format")
+	addJSONFlag(cmd)
 	cmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
+
+	// Register completions for status command
+	cmd.ValidArgsFunction = CompleteWorkflowNames
 
 	return cmd
 }

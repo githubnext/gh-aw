@@ -65,6 +65,7 @@
 #         uses: actions/checkout@v5
 #         with:
 #           fetch-depth: 0
+#           persist-credentials: false
 #
 #       - name: Release with gh-extension-precompile
 #         uses: cli/gh-extension-precompile@v2
@@ -80,7 +81,7 @@
 #           RELEASE_TAG="${GITHUB_REF#refs/tags/}"
 #           echo "Getting release ID for tag: $RELEASE_TAG"
 #           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-#           echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+#           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
 #           echo "✓ Release ID: $RELEASE_ID"
 # steps:
 #   - name: Setup environment and fetch release data
@@ -99,7 +100,7 @@
 #       RELEASE_TAG="${GITHUB_REF#refs/tags/}"
 #       echo "Processing release: $RELEASE_TAG"
 #
-#       echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+#       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 #
 #       # Get the current release information
 #       gh release view "$RELEASE_TAG" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json
@@ -110,12 +111,12 @@
 #
 #       if [ -z "$PREV_RELEASE_TAG" ]; then
 #         echo "No previous release found. This appears to be the first release."
-#         echo "PREV_RELEASE_TAG=" >> $GITHUB_ENV
+#         echo "PREV_RELEASE_TAG=" >> "$GITHUB_ENV"
 #         touch /tmp/gh-aw/release-data/pull_requests.json
 #         echo "[]" > /tmp/gh-aw/release-data/pull_requests.json
 #       else
 #         echo "Previous release: $PREV_RELEASE_TAG"
-#         echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> $GITHUB_ENV
+#         echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> "$GITHUB_ENV"
 #
 #         # Get commits between releases
 #         echo "Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG..."
@@ -132,7 +133,7 @@
 #           --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
 #           > /tmp/gh-aw/release-data/pull_requests.json
 #
-#         PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)
+#         PR_COUNT=$(jq length "/tmp/gh-aw/release-data/pull_requests.json")
 #         echo "✓ Fetched $PR_COUNT pull requests"
 #       fi
 #
@@ -461,7 +462,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID from the release job\necho \"Release ID from release job: ${{ needs.release.outputs.release_id }}\"\n\n# Get the release tag from the push event\nif [[ ! \"$GITHUB_REF\" == refs/tags/* ]]; then\n  echo \"Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF\"\n  exit 1\nfi\nRELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\necho \"Processing release: $RELEASE_TAG\"\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> $GITHUB_ENV\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> $GITHUB_ENV\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> $GITHUB_ENV\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length /tmp/gh-aw/release-data/pull_requests.json)\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\"\n"
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID from the release job\necho \"Release ID from release job: ${{ needs.release.outputs.release_id }}\"\n\n# Get the release tag from the push event\nif [[ ! \"$GITHUB_REF\" == refs/tags/* ]]; then\n  echo \"Error: Push event triggered but GITHUB_REF is not a tag: $GITHUB_REF\"\n  exit 1\nfi\nRELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\necho \"Processing release: $RELEASE_TAG\"\n\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\"\n"
 
       - name: Configure Git credentials
         env:
@@ -547,7 +548,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1680,7 +1681,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2145,16 +2146,16 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved agent logs to expected location
           # Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
-          AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
           if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
-            echo "Moving agent logs from $AGENT_LOGS_DIR to /tmp/gh-aw/.agent/logs/"
-            sudo mkdir -p /tmp/gh-aw/.agent/logs/
-            sudo mv "$AGENT_LOGS_DIR"/* /tmp/gh-aw/.agent/logs/ || true
+            echo "Moving agent logs from $AGENT_LOGS_DIR to /tmp/gh-aw/sandbox/agent/logs/"
+            sudo mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+            sudo mv "$AGENT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
             sudo rmdir "$AGENT_LOGS_DIR" || true
           fi
         env:
@@ -3217,7 +3218,7 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -3231,7 +3232,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
@@ -4484,23 +4485,12 @@ jobs:
               };
             }
             main();
-      - name: Agent Firewall logs
-        if: always()
-        run: |
-          # Squid logs are preserved in timestamped directories
-          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
-            echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-release/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-release/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-release/ || true
-          fi
       - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: squid-logs-release
-          path: /tmp/gh-aw/squid-logs-release/
+          name: firewall-logs-release
+          path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
@@ -4822,7 +4812,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |
@@ -5706,8 +5696,8 @@ jobs:
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -5873,6 +5863,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Release with gh-extension-precompile
         uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2
         with:
@@ -5884,7 +5875,7 @@ jobs:
           RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -76,9 +76,12 @@ Examples:
 	}
 
 	// Add flags to audit command
-	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	auditCmd.Flags().Bool("json", false, "Output results in JSON format")
+	addOutputFlag(auditCmd, "./logs")
+	addJSONFlag(auditCmd)
 	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
+
+	// Register completions for audit command
+	RegisterDirFlagCompletion(auditCmd, "output")
 
 	return auditCmd
 }

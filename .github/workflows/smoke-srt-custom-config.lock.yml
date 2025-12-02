@@ -35,84 +35,17 @@
 #   allowed:
 #     - defaults
 #     - github
+#     - node
+#     - python
+#     - java
+#     - go
+#     - ruby
+#     - rust
 #     - "*.githubcopilot.com"
 #     - "example.com"
 # sandbox:
 #   type: sandbox-runtime
 #   config:
-#     network:
-#       allowedDomains:
-#         - "*.githubusercontent.com"
-#         - "*.github.com"
-#         - "*.githubcopilot.com"
-#         - "api.enterprise.githubcopilot.com"
-#         - "api.github.com"
-#         - "github.com"
-#         - "example.com"
-#         - "*.npmjs.org"
-#         - "npmjs.org"
-#         - "registry.npmjs.org"
-#         - "*.npmmirror.com"
-#         - "registry.npmmirror.com"
-#         - "*.yarnpkg.com"
-#         - "registry.yarnpkg.com"
-#         - "*.cloudflare.com"
-#         - "*.cloudfront.net"
-#         - "*.fastly.net"
-#         - "*.akamaized.net"
-#         - "*.edgekey.net"
-#         - "*.edgesuite.net"
-#         - "*.azureedge.net"
-#         - "*.azure.com"
-#         - "*.windows.net"
-#         - "*.live.com"
-#         - "*.microsoft.com"
-#         - "*.visualstudio.com"
-#         - "*.vscode-cdn.net"
-#         - "*.vscode.dev"
-#         - "*.anaconda.org"
-#         - "*.anaconda.com"
-#         - "*.conda.io"
-#         - "*.pypi.org"
-#         - "pypi.org"
-#         - "files.pythonhosted.org"
-#         - "*.python.org"
-#         - "python.org"
-#         - "*.rubygems.org"
-#         - "rubygems.org"
-#         - "*.crates.io"
-#         - "crates.io"
-#         - "static.crates.io"
-#         - "index.crates.io"
-#         - "*.rust-lang.org"
-#         - "rust-lang.org"
-#         - "*.golang.org"
-#         - "golang.org"
-#         - "proxy.golang.org"
-#         - "sum.golang.org"
-#         - "*.go.dev"
-#         - "go.dev"
-#         - "pkg.go.dev"
-#         - "*.maven.org"
-#         - "maven.org"
-#         - "repo.maven.apache.org"
-#         - "repo1.maven.org"
-#         - "*.gradle.org"
-#         - "gradle.org"
-#         - "services.gradle.org"
-#         - "*.jitpack.io"
-#         - "jitpack.io"
-#         - "*.sonatype.org"
-#         - "oss.sonatype.org"
-#         - "*.digicert.com"
-#         - "digicert.com"
-#         - "*.letsencrypt.org"
-#         - "letsencrypt.org"
-#         - "acme-v02.api.letsencrypt.org"
-#       deniedDomains: []
-#       allowUnixSockets:
-#         - "/var/run/docker.sock"
-#       allowLocalBinding: true
 #     filesystem:
 #       denyRead: []
 #       allowWrite:
@@ -382,7 +315,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -405,7 +338,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -448,7 +381,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","*.githubcopilot.com","example.com"],
+              allowed_domains: ["defaults","github","node","python","java","go","ruby","rust","*.githubcopilot.com","example.com"],
               firewall_enabled: false,
               firewall_version: "",
               steps: {
@@ -725,80 +658,127 @@ jobs:
           {
             "network": {
               "allowedDomains": [
-                "*.githubusercontent.com",
-                "*.github.com",
                 "*.githubcopilot.com",
+                "*.githubusercontent.com",
+                "*.pythonhosted.org",
+                "*.rvm.io",
+                "adoptium.net",
+                "anaconda.org",
+                "api.adoptium.net",
                 "api.enterprise.githubcopilot.com",
                 "api.github.com",
-                "github.com",
-                "example.com",
-                "*.npmjs.org",
-                "npmjs.org",
-                "registry.npmjs.org",
-                "*.npmmirror.com",
-                "registry.npmmirror.com",
-                "*.yarnpkg.com",
-                "registry.yarnpkg.com",
-                "*.cloudflare.com",
-                "*.cloudfront.net",
-                "*.fastly.net",
-                "*.akamaized.net",
-                "*.edgekey.net",
-                "*.edgesuite.net",
-                "*.azureedge.net",
-                "*.azure.com",
-                "*.windows.net",
-                "*.live.com",
-                "*.microsoft.com",
-                "*.visualstudio.com",
-                "*.vscode-cdn.net",
-                "*.vscode.dev",
-                "*.anaconda.org",
-                "*.anaconda.com",
-                "*.conda.io",
-                "*.pypi.org",
-                "pypi.org",
-                "files.pythonhosted.org",
-                "*.python.org",
-                "python.org",
-                "*.rubygems.org",
-                "rubygems.org",
-                "*.crates.io",
+                "api.npms.io",
+                "api.rubygems.org",
+                "api.snapcraft.io",
+                "archive.ubuntu.com",
+                "azure.archive.ubuntu.com",
+                "binstar.org",
+                "bootstrap.pypa.io",
+                "bun.sh",
+                "bundler.rubygems.org",
+                "cache.ruby-lang.org",
+                "codeload.github.com",
+                "conda.anaconda.org",
+                "conda.binstar.org",
                 "crates.io",
-                "static.crates.io",
-                "index.crates.io",
-                "*.rust-lang.org",
-                "rust-lang.org",
-                "*.golang.org",
-                "golang.org",
-                "proxy.golang.org",
-                "sum.golang.org",
-                "*.go.dev",
+                "crl.geotrust.com",
+                "crl.globalsign.com",
+                "crl.identrust.com",
+                "crl.sectigo.com",
+                "crl.thawte.com",
+                "crl.usertrust.com",
+                "crl.verisign.com",
+                "crl3.digicert.com",
+                "crl4.digicert.com",
+                "crls.ssl.com",
+                "deb.nodesource.com",
+                "deno.land",
+                "download.eclipse.org",
+                "download.oracle.com",
+                "example.com",
+                "files.pythonhosted.org",
+                "gems.rubyforge.org",
+                "gems.rubyonrails.org",
+                "get.pnpm.io",
+                "github-cloud.githubusercontent.com",
+                "github-cloud.s3.amazonaws.com",
+                "github.com",
                 "go.dev",
-                "pkg.go.dev",
-                "*.maven.org",
-                "maven.org",
-                "repo.maven.apache.org",
-                "repo1.maven.org",
-                "*.gradle.org",
+                "golang.org",
+                "goproxy.io",
                 "gradle.org",
+                "index.crates.io",
+                "index.rubygems.org",
+                "jcenter.bintray.com",
+                "jdk.java.net",
+                "json-schema.org",
+                "json.schemastore.org",
+                "keyserver.ubuntu.com",
+                "lfs.github.com",
+                "maven.apache.org",
+                "maven.oracle.com",
+                "maven.pkg.github.com",
+                "nodejs.org",
+                "npm.pkg.github.com",
+                "npmjs.com",
+                "npmjs.org",
+                "objects.githubusercontent.com",
+                "ocsp.digicert.com",
+                "ocsp.geotrust.com",
+                "ocsp.globalsign.com",
+                "ocsp.identrust.com",
+                "ocsp.sectigo.com",
+                "ocsp.ssl.com",
+                "ocsp.thawte.com",
+                "ocsp.usertrust.com",
+                "ocsp.verisign.com",
+                "packagecloud.io",
+                "packages.cloud.google.com",
+                "packages.microsoft.com",
+                "pip.pypa.io",
+                "pkg.go.dev",
+                "plugins-artifacts.gradle.org",
+                "plugins.gradle.org",
+                "ppa.launchpad.net",
+                "proxy.golang.org",
+                "pypi.org",
+                "pypi.python.org",
+                "raw.githubusercontent.com",
+                "registry.bower.io",
+                "registry.npmjs.com",
+                "registry.npmjs.org",
+                "registry.yarnpkg.com",
+                "repo.anaconda.com",
+                "repo.continuum.io",
+                "repo.grails.org",
+                "repo.maven.apache.org",
+                "repo.spring.io",
+                "repo.yarnpkg.com",
+                "repo1.maven.org",
+                "rubygems.org",
+                "rubygems.pkg.github.com",
+                "s.symcb.com",
+                "s.symcd.com",
+                "security.ubuntu.com",
                 "services.gradle.org",
-                "*.jitpack.io",
-                "jitpack.io",
-                "*.sonatype.org",
-                "oss.sonatype.org",
-                "*.digicert.com",
-                "digicert.com",
-                "*.letsencrypt.org",
-                "letsencrypt.org",
-                "acme-v02.api.letsencrypt.org"
+                "sh.rustup.rs",
+                "skimdb.npmjs.com",
+                "static.crates.io",
+                "static.rust-lang.org",
+                "sum.golang.org",
+                "ts-crl.ws.symantec.com",
+                "ts-ocsp.ws.symantec.com",
+                "www.java.com",
+                "www.npmjs.com",
+                "www.npmjs.org",
+                "yarnpkg.com"
               ],
               "deniedDomains": [],
               "allowUnixSockets": [
                 "/var/run/docker.sock"
               ],
-              "allowLocalBinding": true,
-              "allowAllUnixSockets": false
+              "allowLocalBinding": false,
+              "allowAllUnixSockets": true
             },
             "filesystem": {
               "denyRead": [],
@@ -864,7 +844,7 @@ jobs:
                 .join(' ');
 
               // The command to run
-              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
+              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
 
               // Prepend environment variables to the command
               const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
@@ -910,11 +890,11 @@ jobs:
           node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
-            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.agent/logs/"
-            mkdir -p /tmp/gh-aw/.agent/logs/
-            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.agent/logs/ || true
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/sandbox/agent/logs/"
+            mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
             rmdir "$COPILOT_LOGS_DIR" || true
           fi
         env:
@@ -1049,7 +1029,7 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -1063,7 +1043,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
@@ -2327,7 +2307,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |

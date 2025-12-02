@@ -18,6 +18,7 @@ var (
 
 // Global flags
 var verboseFlag bool
+var bannerFlag bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
@@ -43,6 +44,11 @@ Common Tasks:
 
 For detailed help on any command, use:
   gh aw [command] --help`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if bannerFlag {
+			console.PrintBanner()
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -228,13 +234,9 @@ Examples:
 			os.Exit(1)
 		}
 
-		// Handle --workflows-dir deprecation
+		// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
 		workflowDir := dir
 		if workflowsDir != "" {
-			if dir != "" {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("cannot use both --dir and --workflows-dir flags"))
-				os.Exit(1)
-			}
 			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
@@ -354,8 +356,16 @@ func init() {
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
 
+	// Add global banner flag to root command
+	rootCmd.PersistentFlags().BoolVar(&bannerFlag, "banner", false, "Display ASCII logo banner with purple GitHub color theme")
+
 	// Set output to stderr for consistency with CLI logging guidelines
 	rootCmd.SetOut(os.Stderr)
+
+	// Silence usage output on errors - prevents cluttering terminal output with
+	// full usage text when application errors occur (e.g., compilation errors,
+	// network timeouts). Users can still run --help for usage information.
+	rootCmd.SilenceUsage = true
 
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
@@ -462,14 +472,26 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
+	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
+
+	// Register completions for compile command
+	compileCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterEngineFlagCompletion(compileCmd)
+	cli.RegisterDirFlagCompletion(compileCmd, "dir")
+
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	// Register completions for remove command
+	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to enable/disable commands
 	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	// Register completions for enable/disable commands
+	enableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
@@ -479,6 +501,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
+	// Register completions for run command
+	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterEngineFlagCompletion(runCmd)
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()

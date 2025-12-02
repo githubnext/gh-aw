@@ -544,7 +544,6 @@ jobs:
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
-          GH_AW_DISCUSSIONS_COUNT: ${{ github.aw.inputs.count }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ github.event.repository.name }}
@@ -653,7 +652,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1792,7 +1791,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=default,discussions",
-            "ghcr.io/github/github-mcp-server:v0.23.0"
+            "ghcr.io/github/github-mcp-server:v0.24.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           

@@ -5,11 +5,93 @@ sidebar:
   order: 5
 ---
 
-Custom safe outputs extend GitHub Agentic Workflows with your own output processing logic for third-party services. Create reusable, secure integrations using custom jobs combined with MCP servers.
+Custom safe outputs extend GitHub Agentic Workflows beyond built-in GitHub operations. While built-in safe outputs handle GitHub issues, PRs, and discussions, custom safe outputs let you integrate with third-party services like Notion, Slack, databases, or any external API.
+
+## When to Use Custom Safe Outputs
+
+Use custom safe outputs when you need to:
+
+- Send data to external services (Slack, Discord, Notion, Jira)
+- Trigger deployments or CI/CD pipelines
+- Update databases or external storage
+- Call custom APIs that require authentication
+- Perform any write operation that built-in safe outputs don't cover
+
+## Quick Start
+
+Here's a minimal custom safe output that sends a Slack message:
+
+```yaml wrap title=".github/workflows/shared/slack-notify.md"
+---
+safe-outputs:
+  jobs:
+    slack-notify:
+      description: "Send a message to Slack"
+      runs-on: ubuntu-latest
+      output: "Message sent to Slack!"
+      inputs:
+        message:
+          description: "The message to send"
+          required: true
+          type: string
+      steps:
+        - name: Send Slack message
+          env:
+            SLACK_WEBHOOK: "${{ secrets.SLACK_WEBHOOK }}"
+            MESSAGE: "${{ inputs.message }}"
+          run: |
+            # Use jq to safely escape JSON content
+            PAYLOAD=$(jq -n --arg text "$MESSAGE" '{text: $text}')
+            curl -X POST "$SLACK_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "$PAYLOAD"
+---
+```
+
+Use it in a workflow:
+
+```aw wrap title=".github/workflows/issue-notifier.md"
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+imports:
+  - shared/slack-notify.md
+---
+
+# Issue Notifier
+
+A new issue was opened: "${{ needs.activation.outputs.text }}"
+
+Summarize the issue and use the slack-notify tool to send a notification.
+```
+
+The agent can now call `slack-notify` with a message, and the custom job executes with access to the `SLACK_WEBHOOK` secret.
 
 ## Architecture
 
-The pattern separates read and write operations for security: a read-only MCP server queries external services, while a custom job handles write operations with appropriate permissions. Store configuration in shared files for reusability across workflows.
+Custom safe outputs separate read and write operations for security:
+
+1. **Read operations**: Use MCP servers configured with `allowed:` lists limiting to read-only tools
+2. **Write operations**: Use custom jobs that run after the agent completes, with appropriate permissions
+
+This separation ensures the agent cannot directly access secrets or perform write operations—only the custom job can, and only after the agent explicitly calls the safe output tool.
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Agent (AI)    │────▶│  MCP Server     │────▶│  External API   │
+│                 │     │  (read-only)    │     │  (GET requests) │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │
+        │ calls safe-job tool
+        ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Custom Job     │────▶│  External API   │
+│  (with secrets) │     │  (POST/PUT)     │
+└─────────────────┘     └─────────────────┘
+```
 
 ## Creating a Custom Safe Output
 
@@ -148,195 +230,272 @@ Search for the GitHub Issues page in Notion using the read-only Notion tools, th
 
 The `imports` directive loads both the MCP server and safe-job. The agent uses read-only tools to query, then calls the safe-job tool which executes with write permissions after completion.
 
-## Safe Jobs Technical Specification
+## Safe Job Reference
 
-Define custom post-processing jobs under `safe-outputs.jobs` in your workflow frontmatter. Each safe-job requires an `inputs` section (these become MCP tool arguments), supports all GitHub Actions job properties, automatically receives agent output artifacts, and registers as a callable tool in the safe-outputs MCP server. Safe-jobs can be imported with automatic conflict detection.
+Custom jobs are defined under `safe-outputs.jobs` in your workflow frontmatter. Each job becomes an MCP tool that the agent can call.
 
-### GitHub Actions Job Properties
+### Job Properties
 
-Safe-jobs support all standard GitHub Actions job properties:
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `description` | string | Yes | Tool description shown to the agent |
+| `runs-on` | string | Yes | GitHub Actions runner (e.g., `ubuntu-latest`) |
+| `inputs` | object | Yes | Tool parameters (see [Input Types](#input-types)) |
+| `steps` | array | Yes | GitHub Actions steps to execute |
+| `output` | string | No | Success message returned to the agent |
+| `permissions` | object | No | GitHub token permissions for the job |
+| `env` | object | No | Environment variables for all steps |
+| `if` | string | No | Conditional execution expression |
+| `timeout-minutes` | number | No | Maximum job duration (default: 360) |
+
+### Input Types
+
+Every custom job must define `inputs`. These become the tool's parameters that the agent provides when calling the tool.
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | Text input | `"production"` |
+| `boolean` | True/false toggle | `"true"` or `"false"` |
+| `choice` | Selection from options | `["staging", "production"]` |
 
 ```yaml wrap
-safe-outputs:
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      if: github.event.issue.number
-      timeout-minutes: 30
-      permissions:
-        contents: write
-        deployments: write
-      env:
-        DEPLOY_ENV: production
-      inputs:
-        confirm:
-          description: "Confirm deployment"
-          required: true
-          type: boolean
-          default: "false"
-    steps:
-      - name: Deploy
-        run: echo "Deploying..."
+inputs:
+  # Required string input
+  message:
+    description: "Message content"
+    required: true
+    type: string
+
+  # Optional boolean with default
+  notify:
+    description: "Send notification"
+    required: false
+    type: boolean
+    default: "true"
+
+  # Choice from predefined options
+  environment:
+    description: "Target environment"
+    required: true
+    type: choice
+    options: ["staging", "production"]
 ```
 
-### Safe Job Inputs
+:::note
+All input values are passed as strings. For booleans, use `"true"` or `"false"` string values and parse them in your steps.
+:::
 
-Every safe-job must define inputs using workflow_dispatch syntax. The inputs become the MCP tool arguments:
+### Environment Variables
+
+Custom jobs automatically receive these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `GH_AW_AGENT_OUTPUT` | Path to JSON file containing agent output |
+| `GH_AW_SAFE_OUTPUTS_STAGED` | Set to `"true"` in staged mode |
+| `${{ inputs.NAME }}` | Each input parameter as a variable |
+
+### Accessing Inputs in Steps
+
+Access inputs using GitHub Actions expressions:
 
 ```yaml wrap
-safe-outputs:
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      inputs:
-        environment:
-          description: "Target deployment environment"
-          required: true
-          type: choice
-          options: ["staging", "production"]
-        force:
-          description: "Force deployment even if tests fail"
-          required: false
-          type: boolean
-          default: "false"
-    steps:
-      - name: Deploy application
-        run: |
-          if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
-            ENV=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
-            echo "Deploying to $ENV"
-          fi
+steps:
+  - name: Use inputs
+    env:
+      MESSAGE: "${{ inputs.message }}"
+      ENV: "${{ inputs.environment }}"
+    run: |
+      echo "Message: $MESSAGE"
+      echo "Environment: $ENV"
 ```
 
-### Custom Output Messages
-
-Safe-jobs can return custom response messages via the MCP server:
+For JavaScript steps with `actions/github-script@v8`, access inputs via environment variables:
 
 ```yaml wrap
+steps:
+  - name: Process with JavaScript
+    uses: actions/github-script@v8
+    env:
+      MESSAGE: "${{ inputs.message }}"
+    with:
+      script: |
+        const message = process.env.MESSAGE;
+        core.info(`Received: ${message}`);
+```
+
+## Complete Examples
+
+### Simple Shell-Based Job
+
+```yaml wrap title="Send a webhook notification"
 safe-outputs:
   jobs:
-    notify:
+    webhook-notify:
+      description: "Send a notification to a webhook URL"
       runs-on: ubuntu-latest
-      output: "Notification sent successfully!"
+      output: "Notification sent!"
       inputs:
-        message:
-          description: "Notification message"
+        title:
+          description: "Notification title"
+          required: true
+          type: string
+        body:
+          description: "Notification body"
           required: true
           type: string
       steps:
-        - name: Send notification
-          run: echo "Sending notification..."
-```
-
-### Agent Output Processing
-
-Safe-jobs automatically receive access to the agent output artifact:
-
-```yaml wrap
-safe-outputs:
-  jobs:
-    analyze:
-      runs-on: ubuntu-latest
-      inputs:
-        data_type:
-          description: "Type of data to analyze"
-          required: true
-          type: string
-      steps:
-        - name: Process agent output
+        - name: Send webhook
+          env:
+            WEBHOOK_URL: "${{ secrets.WEBHOOK_URL }}"
+            TITLE: "${{ inputs.title }}"
+            BODY: "${{ inputs.body }}"
           run: |
-            if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
-              # Extract specific data from agent output
-              RESULT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
-              echo "Agent analysis result: $RESULT"
-            else
-              echo "No agent output available"
-            fi
+            # Use jq to safely escape JSON content
+            PAYLOAD=$(jq -n --arg title "$TITLE" --arg body "$BODY" \
+              '{title: $title, body: $body}')
+            curl -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD"
 ```
 
-### Include Support
+## Importing Custom Jobs
 
-Safe-jobs can be imported from included workflows with automatic conflict detection:
+Custom jobs can be defined in shared files and imported into workflows.
 
-**Main workflow:**
+### Basic Import
+
 ```aw wrap
 ---
-safe-outputs:
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      inputs:
-        target:
-          description: "Deployment target"
-          required: true
-          type: string
-      steps:
-        - name: Deploy
-          run: echo "Deploying..."
+on: issues
+permissions:
+  contents: read
+imports:
+  - shared/slack-notify.md
+  - shared/jira-integration.md
 ---
 
-@import shared/common-jobs.md
+# Issue Handler
+
+Handle the issue and notify via Slack and Jira.
 ```
 
-**Imported file (shared/common-jobs.md):**
-```aw wrap
----
-safe-outputs:
-  jobs:
-    test:
-      runs-on: ubuntu-latest
-      inputs:
-        suite:
-          description: "Test suite to run"
-          required: true
-          type: string
-      steps:
-        - name: Test
-          run: echo "Testing..."
----
+### Conflict Detection
+
+If two imported files define jobs with the same name, compilation fails:
+
+```
+failed to merge safe-jobs: safe-job name conflict: 'notify' is defined in both main workflow and included files
 ```
 
-**Result:** Both `deploy` and `test` custom jobs are available.
-
-**Conflict Detection:** If both files define a custom job with the same name, compilation fails with:
-```
-failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both main workflow and included files
-```
-
-### MCP Server Integration
-
-Custom jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
-
-```yaml wrap
-safe-outputs:
-  jobs:
-    database-backup:
-      runs-on: ubuntu-latest
-      inputs:
-        database:
-          description: "Database to backup"
-          required: true
-          type: string
-      steps:
-        - name: Backup database
-          run: echo "Backing up database..."
-```
-
-The agent can then call this safe-job:
-```
-Please backup the user database using the database-backup safe-job.
-```
+Rename one of the jobs to resolve the conflict.
 
 ## Best Practices
 
-Always include error handling with `core.setFailed()` for API failures. Use appropriate logging levels: `core.info()`, `core.warning()`, `core.error()`, and `core.setFailed()` to stop jobs on failure.
+### Error Handling
 
-## Example: MCP Diagnostic Reporting
+Always handle errors gracefully using GitHub Actions' `core` utilities:
 
-The `mcp-debug` shared workflow provides a `report_diagnostics_to_pull_request` safe-job that accepts diagnostic messages, finds the associated pull request, and posts comments. Import with `shared/mcp-debug.md` to enable workflows to report diagnostic information without requiring write permissions in the main job.
+```javascript
+// Check required inputs
+if (!process.env.API_KEY) {
+  core.setFailed('API_KEY secret is not configured');
+  return;
+}
+
+// Handle API errors
+try {
+  const response = await fetch(url);
+  if (!response.ok) {
+    core.setFailed(`API error (${response.status}): ${await response.text()}`);
+    return;
+  }
+  // Success
+  core.info('Operation completed successfully');
+} catch (error) {
+  core.setFailed(`Request failed: ${error.message}`);
+}
+```
+
+### Logging Levels
+
+Use appropriate logging levels for visibility:
+
+| Function | When to Use |
+|----------|-------------|
+| `core.debug()` | Detailed debugging info (hidden by default) |
+| `core.info()` | Normal operation messages |
+| `core.warning()` | Non-fatal issues |
+| `core.error()` | Error messages (doesn't stop the job) |
+| `core.setFailed()` | Fatal errors (stops the job) |
+
+### Security
+
+- Store all secrets in GitHub Secrets, never hardcode them
+- Use environment variables to pass secrets to steps
+- Limit permissions to only what the job needs
+- Validate all inputs before using them
+
+### Staged Mode Support
+
+Custom jobs should respect staged mode by checking `GH_AW_SAFE_OUTPUTS_STAGED`:
+
+```javascript
+const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
+const notificationText = process.env.MESSAGE;
+
+if (isStaged) {
+  core.info('🎭 Staged mode: would send notification');
+  await core.summary.addRaw('## Preview\nWould send: ' + notificationText).write();
+  return;
+}
+
+// Actually send the notification
+```
+
+## Troubleshooting
+
+### Job Not Appearing as a Tool
+
+**Problem**: The agent doesn't see your custom job as a callable tool.
+
+**Solutions**:
+1. Ensure `inputs` section is defined—jobs without inputs aren't registered as tools
+2. Check that `description` is set—this is the tool description shown to the agent
+3. Verify the import path is correct in your workflow
+4. Run `gh aw compile` to check for configuration errors
+
+### Secrets Not Available
+
+**Problem**: Environment variables from secrets are empty.
+
+**Solutions**:
+1. Verify the secret exists in repository settings
+2. Check the secret name matches exactly (case-sensitive)
+3. Ensure the secret is referenced correctly: `"${{ secrets.SECRET_NAME }}"`
+
+### Job Fails Silently
+
+**Problem**: The job exits without error but nothing happens.
+
+**Solutions**:
+1. Add `core.info()` logging to trace execution
+2. Check `if (!response.ok)` conditions are handled
+3. Ensure `core.setFailed()` is called on errors
+4. Review job logs in the GitHub Actions run
+
+### Agent Calls Wrong Tool
+
+**Problem**: The agent calls a different safe output instead of your custom job.
+
+**Solutions**:
+1. Make the `description` more specific and unique
+2. In your workflow prompt, explicitly mention the custom job name
+3. Use distinct naming that doesn't overlap with built-in safe outputs
 
 ## Related Documentation
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Built-in safe output types
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
+- [Imports](/gh-aw/reference/imports/) - Sharing workflow configurations

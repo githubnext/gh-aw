@@ -41,6 +41,11 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		if !strings.Contains(stepContent, "--log-level") {
 			t.Error("Expected command to contain '--log-level'")
 		}
+
+		// Verify that --log-dir is included in copilot args for log collection
+		if !strings.Contains(stepContent, "--log-dir /tmp/gh-aw/sandbox/agent/logs/") {
+			t.Error("Expected copilot command to contain '--log-dir /tmp/gh-aw/sandbox/agent/logs/' for log collection in firewall mode")
+		}
 	})
 
 	t.Run("custom args are included in AWF command", func(t *testing.T) {

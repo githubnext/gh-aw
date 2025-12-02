@@ -44,6 +44,77 @@
 #   github:
 #     toolsets: [default, pull_requests]
 #
+# jobs:
+#   search_issues:
+#     needs: ["pre_activation"]
+#     if: needs.pre_activation.outputs.activated == 'true'
+#     runs-on: ubuntu-latest
+#     permissions:
+#       issues: read
+#     outputs:
+#       issue_count: ${{ steps.search.outputs.issue_count }}
+#       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
+#       issue_list: ${{ steps.search.outputs.issue_list }}
+#       has_issues: ${{ steps.search.outputs.has_issues }}
+#     steps:
+#       - name: Search for candidate issues
+#         id: search
+#         uses: actions/github-script@v8
+#         with:
+#           script: |
+#             const { owner, repo } = context.repo;
+#             const labels = ['task', 'issue monster', 'plan'];
+#             let allIssues = [];
+#
+#             for (const label of labels) {
+#               try {
+#                 const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+#                 core.info(`Searching: ${query}`);
+#                 const response = await github.rest.search.issuesAndPullRequests({
+#                   q: query,
+#                   per_page: 100,
+#                   sort: 'created',
+#                   order: 'desc'
+#                 });
+#                 core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+#                 allIssues.push(...response.data.items);
+#               } catch (error) {
+#                 core.warning(`Error searching for label "${label}": ${error.message}`);
+#               }
+#             }
+#
+#             // Deduplicate by issue number
+#             const seen = new Set();
+#             const uniqueIssues = allIssues.filter(issue => {
+#               if (seen.has(issue.number)) return false;
+#               seen.add(issue.number);
+#               return true;
+#             });
+#
+#             // Sort by created date descending
+#             uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+#
+#             const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+#             const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+#
+#             core.info(`Total unique issues found: ${uniqueIssues.length}`);
+#             if (uniqueIssues.length > 0) {
+#               core.info(`Issues:\n${issueList}`);
+#             }
+#
+#             core.setOutput('issue_count', uniqueIssues.length);
+#             core.setOutput('issue_numbers', issueNumbers);
+#             core.setOutput('issue_list', issueList);
+#
+#             if (uniqueIssues.length === 0) {
+#               core.info('🍽️ No issues available - the plate is empty!');
+#               core.setOutput('has_issues', 'false');
+#             } else {
+#               core.setOutput('has_issues', 'true');
+#             }
+#
+# if: needs.search_issues.outputs.has_issues == 'true'
+#
 # safe-outputs:
 #   assign-to-agent:
 #     max: 1
@@ -66,7 +137,9 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
+#   search_issues["search_issues"]
 #   pre_activation --> activation
+#   search_issues --> activation
 #   agent --> add_comment
 #   detection --> add_comment
 #   activation --> agent
@@ -77,6 +150,7 @@
 #   add_comment --> conclusion
 #   assign_to_agent --> conclusion
 #   agent --> detection
+#   pre_activation --> search_issues
 # ```
 #
 # Original Prompt:
@@ -96,24 +170,45 @@
 #
 # ## Step-by-Step Process
 #
-# ### 1. Search for Issues with "issue monster" Label
+# ### 1. Review Pre-Searched Issue List
 #
-# Use GitHub search to find issues labeled with "issue monster":
+# The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
+#
+# **Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
+# **Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
+#
+# **Available Issues:**
 # ```
-# is:issue is:open label:"issue monster" repo:${{ github.repository }}
+# ${{ needs.search_issues.outputs.issue_list }}
 # ```
 #
-# **Sort by**: `created` (descending) - prioritize the freshest/most recent issues first
+# Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
 #
-# **If no issues are found:**
-# - Output a message: "🍽️ No issues available - the plate is empty!"
-# - **STOP** and do not proceed further
+# ### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
+#
+# For issues with the "task" or "plan" label, check if they are sub-issues linked to a parent issue:
+#
+# 1. **Identify if the issue is a sub-issue**: Check if the issue has a parent issue link (via GitHub's sub-issue feature or by parsing the issue body for parent references like "Parent: #123" or "Part of #123")
+#
+# 2. **If the issue has a parent issue**:
+#    - Fetch the parent issue to understand the full context
+#    - List all sibling sub-issues (other sub-issues of the same parent)
+#    - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+#    - Process sub-issues in order of their creation date (oldest first)
+#
+# 3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+#
+# **Example**: If parent issue #100 has sub-issues #101, #102, #103:
+# - If #101 has an open PR, skip #102 and #103
+# - Only after #101's PR is merged/closed, process #102
+# - This ensures orderly, sequential processing of related tasks
 #
 # ### 2. Filter Out Issues Already Assigned to Copilot
 #
 # For each issue found, check if it's already assigned to Copilot:
 # - Look for issues that have Copilot as an assignee
 # - Check if there's already an open pull request linked to it
+# - **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
 #
 # **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 #
@@ -124,7 +219,8 @@
 # - **Priority**: Prefer issues that are:
 #   - Quick wins (small, well-defined fixes)
 #   - Have clear acceptance criteria
-#   - Most recently created
+#   - For "task" sub-issues: Process in order (oldest first among siblings)
+#   - For standalone issues: Most recently created
 #
 # **If all issues are already being worked on:**
 # - Output a message: "🍽️ All issues are already being worked on!"
@@ -172,17 +268,20 @@
 # - ✅ **One at a time**: Only assign one issue per run
 # - ✅ **Be transparent**: Comment on the issue being assigned
 # - ✅ **Check assignments**: Skip issues already assigned to Copilot
+# - ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
+# - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
 # - ❌ **Don't batch**: Never assign more than one issue per run
 #
 # ## Success Criteria
 #
 # A successful run means:
-# 1. You found an available issue with the "issue monster" label
-# 2. You filtered out issues that are already assigned or have PRs
-# 3. You selected one appropriate issue
-# 4. You read and understood the issue
-# 5. You assigned the issue to the Copilot agent using `assign_to_agent`
-# 6. You commented on the issue being assigned
+# 1. You reviewed the pre-searched issue list with labels "issue monster", "task", or "plan"
+# 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+# 3. You filtered out issues that are already assigned or have PRs
+# 4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
+# 5. You read and understood the issue
+# 6. You assigned the issue to the Copilot agent using `assign_to_agent`
+# 7. You commented on the issue being assigned
 #
 # ## Error Handling
 #
@@ -227,8 +326,10 @@ run-name: "Issue Monster"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs:
+      - pre_activation
+      - search_issues
+    if: (needs.pre_activation.outputs.activated == 'true') && (needs.search_issues.outputs.has_issues == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1027,7 +1128,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.23.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2177,7 +2278,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.23.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2292,6 +2393,9 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ needs.search_issues.outputs.issue_count }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ needs.search_issues.outputs.issue_list }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2311,24 +2415,45 @@ jobs:
           
           ## Step-by-Step Process
           
-          ### 1. Search for Issues with "issue monster" Label
+          ### 1. Review Pre-Searched Issue List
           
-          Use GitHub search to find issues labeled with "issue monster":
+          The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
+          
+          **Issue Count**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT}
+          **Issue Numbers**: ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS}
+          
+          **Available Issues:**
           ```
-          is:issue is:open label:"issue monster" repo:${GH_AW_GITHUB_REPOSITORY}
+          ${GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST}
           ```
           
-          **Sort by**: `created` (descending) - prioritize the freshest/most recent issues first
+          Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
           
-          **If no issues are found:**
-          - Output a message: "🍽️ No issues available - the plate is empty!"
-          - **STOP** and do not proceed further
+          ### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
+          
+          For issues with the "task" or "plan" label, check if they are sub-issues linked to a parent issue:
+          
+          1. **Identify if the issue is a sub-issue**: Check if the issue has a parent issue link (via GitHub's sub-issue feature or by parsing the issue body for parent references like "Parent: #123" or "Part of #123")
+          
+          2. **If the issue has a parent issue**:
+             - Fetch the parent issue to understand the full context
+             - List all sibling sub-issues (other sub-issues of the same parent)
+             - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+             - Process sub-issues in order of their creation date (oldest first)
+          
+          3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+          
+          **Example**: If parent issue #100 has sub-issues #101, #102, #103:
+          - If #101 has an open PR, skip #102 and #103
+          - Only after #101's PR is merged/closed, process #102
+          - This ensures orderly, sequential processing of related tasks
           
           ### 2. Filter Out Issues Already Assigned to Copilot
           
           For each issue found, check if it's already assigned to Copilot:
           - Look for issues that have Copilot as an assignee
           - Check if there's already an open pull request linked to it
+          - **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
           
           **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
           
@@ -2339,7 +2464,8 @@ jobs:
           - **Priority**: Prefer issues that are:
             - Quick wins (small, well-defined fixes)
             - Have clear acceptance criteria
-            - Most recently created
+            - For "task" sub-issues: Process in order (oldest first among siblings)
+            - For standalone issues: Most recently created
           
           **If all issues are already being worked on:**
           - Output a message: "🍽️ All issues are already being worked on!"
@@ -2387,17 +2513,20 @@ jobs:
           - ✅ **One at a time**: Only assign one issue per run
           - ✅ **Be transparent**: Comment on the issue being assigned
           - ✅ **Check assignments**: Skip issues already assigned to Copilot
+          - ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
+          - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
           - ❌ **Don't batch**: Never assign more than one issue per run
           
           ## Success Criteria
           
           A successful run means:
-          1. You found an available issue with the "issue monster" label
-          2. You filtered out issues that are already assigned or have PRs
-          3. You selected one appropriate issue
-          4. You read and understood the issue
-          5. You assigned the issue to the Copilot agent using `assign_to_agent`
-          6. You commented on the issue being assigned
+          1. You reviewed the pre-searched issue list with labels "issue monster", "task", or "plan"
+          2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+          3. You filtered out issues that are already assigned or have PRs
+          4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
+          5. You read and understood the issue
+          6. You assigned the issue to the Copilot agent using `assign_to_agent`
+          7. You commented on the issue being assigned
           
           ## Error Handling
           
@@ -2505,6 +2634,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ needs.search_issues.outputs.issue_count }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ needs.search_issues.outputs.issue_list }}
+          GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
         with:
           script: |
             const fs = require("fs");
@@ -2615,8 +2747,8 @@ jobs:
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -3677,7 +3809,7 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/.agent/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -3691,7 +3823,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
@@ -4955,7 +5087,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |
@@ -6405,8 +6537,8 @@ jobs:
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -6608,4 +6740,73 @@ jobs:
               }
             }
             await main();
+
+  search_issues:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+
+    outputs:
+      has_issues: ${{ steps.search.outputs.has_issues }}
+      issue_count: ${{ steps.search.outputs.issue_count }}
+      issue_list: ${{ steps.search.outputs.issue_list }}
+      issue_numbers: ${{ steps.search.outputs.issue_numbers }}
+    steps:
+      - name: Search for candidate issues
+        id: search
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const labels = ['task', 'issue monster', 'plan'];
+            let allIssues = [];
+
+            for (const label of labels) {
+              try {
+                const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
+                core.info(`Searching: ${query}`);
+                const response = await github.rest.search.issuesAndPullRequests({
+                  q: query,
+                  per_page: 100,
+                  sort: 'created',
+                  order: 'desc'
+                });
+                core.info(`Found ${response.data.total_count} issues with label "${label}"`);
+                allIssues.push(...response.data.items);
+              } catch (error) {
+                core.warning(`Error searching for label "${label}": ${error.message}`);
+              }
+            }
+
+            // Deduplicate by issue number
+            const seen = new Set();
+            const uniqueIssues = allIssues.filter(issue => {
+              if (seen.has(issue.number)) return false;
+              seen.add(issue.number);
+              return true;
+            });
+
+            // Sort by created date descending
+            uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+            const issueNumbers = uniqueIssues.map(i => i.number).join(',');
+
+            core.info(`Total unique issues found: ${uniqueIssues.length}`);
+            if (uniqueIssues.length > 0) {
+              core.info(`Issues:\n${issueList}`);
+            }
+
+            core.setOutput('issue_count', uniqueIssues.length);
+            core.setOutput('issue_numbers', issueNumbers);
+            core.setOutput('issue_list', issueList);
+
+            if (uniqueIssues.length === 0) {
+              core.info('🍽️ No issues available - the plate is empty!');
+              core.setOutput('has_issues', 'false');
+            } else {
+              core.setOutput('has_issues', 'true');
+            }
 

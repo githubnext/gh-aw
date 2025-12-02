@@ -77,12 +77,17 @@ Examples:
 
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
 	cmd.Flags().Bool("force", false, "Force update even if no changes are detected")
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	addEngineFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 	cmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
+
+	// Register completions for update command
+	cmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterEngineFlagCompletion(cmd)
+	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
 }

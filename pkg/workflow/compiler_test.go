@@ -853,13 +853,16 @@ func TestGenerateCustomMCPCodexWorkflowConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "server with http type should be ignored for codex",
+			name: "server with http type should be rendered for codex",
 			toolConfig: map[string]any{
 				"type": "http",
 				"url":  "https://example.com/api",
 			},
-			expected: []string{},
-			wantErr:  false,
+			expected: []string{
+				"[mcp_servers.custom_server]",
+				"url = \"https://example.com/api\"",
+			},
+			wantErr: false,
 		},
 	}
 

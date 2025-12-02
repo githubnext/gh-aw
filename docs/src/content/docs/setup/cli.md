@@ -332,6 +332,54 @@ Displays the current version of gh-aw and product information. Equivalent to usi
 
 
 
+## Shell Completions
+
+gh-aw provides shell completion for bash, zsh, fish, and PowerShell. Completions enable tab completion for workflow names, engine names, and directory paths.
+
+### Setting Up Completions
+
+**Bash:**
+```bash wrap
+gh aw completion bash > /etc/bash_completion.d/gh-aw
+# Or for local user installation:
+gh aw completion bash > ~/.bash_completion.d/gh-aw
+source ~/.bash_completion.d/gh-aw
+```
+
+**Zsh:**
+```bash wrap
+gh aw completion zsh > "${fpath[1]}/_gh-aw"
+# Then restart your shell or run:
+compinit
+```
+
+**Fish:**
+```bash wrap
+gh aw completion fish > ~/.config/fish/completions/gh-aw.fish
+```
+
+**PowerShell:**
+```powershell
+gh aw completion powershell | Out-String | Invoke-Expression
+# For permanent setup, add to your PowerShell profile
+```
+
+### What Gets Completed
+
+| Context | Completion Type |
+|---------|-----------------|
+| `gh aw compile <TAB>` | Workflow names from `.github/workflows/` |
+| `gh aw run <TAB>` | Workflow names |
+| `gh aw logs <TAB>` | Workflow names |
+| `gh aw status <TAB>` | Workflow names |
+| `gh aw enable/disable <TAB>` | Workflow names |
+| `gh aw mcp inspect <TAB>` | Workflow names |
+| `gh aw mcp list-tools <TAB>` | Common MCP server names |
+| `gh aw mcp list-tools github <TAB>` | Workflow names |
+| `--engine <TAB>` | Engine names (copilot, claude, codex, custom) |
+| `--dir <TAB>` | Directory paths |
+| `--output <TAB>` | Directory paths |
+
 ## Debug Logging
 
 Enable detailed debugging output for troubleshooting. Shows namespace, message, and time diff (e.g., `+50ms`). Zero overhead when disabled. Supports pattern matching with wildcards.

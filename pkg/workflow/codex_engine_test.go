@@ -318,7 +318,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"GITHUB_READ_ONLY=1\",",
 				"\"-e\",",
 				"\"GITHUB_TOOLSETS=default\",",
-				"\"ghcr.io/github/github-mcp-server:v0.23.0\"",
+				"\"ghcr.io/github/github-mcp-server:v0.24.0\"",
 				"]",
 				"env_vars = [\"GITHUB_PERSONAL_ACCESS_TOKEN\"]",
 				"EOF",
@@ -732,5 +732,83 @@ func TestCodexEngineSafeInputsSecrets(t *testing.T) {
 	// Verify API_KEY is in the env section
 	if !strings.Contains(stepContent, "API_KEY: ${{ secrets.API_KEY }}") {
 		t.Errorf("Expected API_KEY environment variable in step content:\n%s", stepContent)
+	}
+}
+
+// TestCodexEngineHttpMCPServerRendered verifies that HTTP MCP servers
+// are properly rendered in TOML format for Codex
+func TestCodexEngineHttpMCPServerRendered(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name          string
+		tools         map[string]any
+		mcpTools      []string
+		shouldContain []string
+	}{
+		{
+			name: "HTTP MCP server should be rendered with url",
+			tools: map[string]any{
+				"gh-aw": map[string]any{
+					"type": "http",
+					"url":  "http://localhost:8765",
+				},
+			},
+			mcpTools: []string{"gh-aw"},
+			shouldContain: []string{
+				"[mcp_servers.gh-aw]",
+				"url = \"http://localhost:8765\"",
+			},
+		},
+		{
+			name: "HTTP MCP server inferred from url field",
+			tools: map[string]any{
+				"my-http-server": map[string]any{
+					"url": "https://api.example.com/mcp",
+				},
+			},
+			mcpTools: []string{"my-http-server"},
+			shouldContain: []string{
+				"[mcp_servers.my-http-server]",
+				"url = \"https://api.example.com/mcp\"",
+			},
+		},
+		{
+			name: "HTTP MCP server with headers",
+			tools: map[string]any{
+				"api-server": map[string]any{
+					"type": "http",
+					"url":  "https://api.example.com/mcp",
+					"headers": map[string]any{
+						"Authorization": "Bearer token123",
+						"X-Custom":      "value",
+					},
+				},
+			},
+			mcpTools: []string{"api-server"},
+			shouldContain: []string{
+				"[mcp_servers.api-server]",
+				"url = \"https://api.example.com/mcp\"",
+				"http_headers = {",
+				"\"Authorization\" = \"Bearer token123\"",
+				"\"X-Custom\" = \"value\"",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: "test-workflow"}
+			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+
+			result := yaml.String()
+
+			for _, expected := range tt.shouldContain {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected MCP config to contain %q, got:\n%s", expected, result)
+				}
+			}
+		})
 	}
 }

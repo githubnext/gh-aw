@@ -1096,6 +1096,11 @@
               "enum": ["read", "none"],
               "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
+            "metadata": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no access)"
+            },
             "packages": {
               "type": "string",
               "enum": ["read", "write", "none"]
@@ -1720,94 +1725,114 @@
       ]
     },
     "sandbox": {
-      "description": "Sandbox runtime configuration for AI engines. Controls the execution sandbox (AWF or Sandbox Runtime). Only supported for Copilot engine.",
-      "examples": [
-        "default",
-        "sandbox-runtime",
-        {
-          "type": "sandbox-runtime",
-          "config": {
-            "network": {
-              "allowedDomains": ["github.com", "*.npmjs.org"],
-              "allowUnixSockets": ["/var/run/docker.sock"]
-            }
-          }
-        }
-      ],
+      "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway.",
       "oneOf": [
         {
           "type": "string",
-          "enum": ["default", "sandbox-runtime"],
-          "description": "Sandbox type: 'default' uses AWF (Agent Workflow Firewall), 'sandbox-runtime' uses Anthropic Sandbox Runtime with auto-generated config"
+          "enum": ["default", "sandbox-runtime", "awf", "srt"],
+          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
         },
         {
           "type": "object",
-          "description": "Custom sandbox runtime configuration",
+          "description": "Object format for full sandbox configuration with agent and mcp options",
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["default", "sandbox-runtime"],
-              "description": "Sandbox type to use"
+              "enum": ["default", "sandbox-runtime", "awf", "srt"],
+              "description": "Legacy sandbox type field (use agent instead)"
+            },
+            "agent": {
+              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses Anthropic Sandbox Runtime",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": ["awf", "srt"],
+                  "description": "Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                },
+                {
+                  "type": "object",
+                  "description": "Custom sandbox runtime configuration",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["awf", "srt"],
+                      "description": "Sandbox type to use"
+                    },
+                    "config": {
+                      "type": "object",
+                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+                      "properties": {
+                        "filesystem": {
+                          "type": "object",
+                          "properties": {
+                            "denyRead": {
+                              "type": "array",
+                              "description": "List of paths to deny read access",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "allowWrite": {
+                              "type": "array",
+                              "description": "List of paths to allow write access",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "denyWrite": {
+                              "type": "array",
+                              "description": "List of paths to deny write access",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "ignoreViolations": {
+                          "type": "object",
+                          "description": "Map of command patterns to paths that should ignore violations",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "enableWeakerNestedSandbox": {
+                          "type": "boolean",
+                          "description": "Enable weaker nested sandbox mode (recommended: true for Docker access)"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["type"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "config": {
               "type": "object",
-              "description": "Custom Sandbox Runtime configuration (only applies when type is 'sandbox-runtime')",
+              "description": "Legacy custom Sandbox Runtime configuration (use agent.config instead). Note: Network configuration is controlled by the top-level 'network' field, not here.",
               "properties": {
-                "network": {
-                  "type": "object",
-                  "properties": {
-                    "allowedDomains": {
-                      "type": "array",
-                      "description": "List of allowed domains (supports wildcards like '*.github.com')",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "deniedDomains": {
-                      "type": "array",
-                      "description": "List of explicitly denied domains",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "allowUnixSockets": {
-                      "type": "array",
-                      "description": "List of allowed Unix socket paths (e.g., ['/var/run/docker.sock'])",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "allowLocalBinding": {
-                      "type": "boolean",
-                      "description": "Allow binding to local ports (default: false)"
-                    },
-                    "allowAllUnixSockets": {
-                      "type": "boolean",
-                      "description": "Allow access to all Unix sockets (default: false)"
-                    }
-                  },
-                  "additionalProperties": false
-                },
                 "filesystem": {
                   "type": "object",
                   "properties": {
                     "denyRead": {
                       "type": "array",
-                      "description": "List of paths to deny read access",
                       "items": {
                         "type": "string"
                       }
                     },
                     "allowWrite": {
                       "type": "array",
-                      "description": "List of paths to allow write access",
                       "items": {
                         "type": "string"
                       }
                     },
                     "denyWrite": {
                       "type": "array",
-                      "description": "List of paths to deny write access",
                       "items": {
                         "type": "string"
                       }
@@ -1817,7 +1842,6 @@
                 },
                 "ignoreViolations": {
                   "type": "object",
-                  "description": "Map of command patterns to paths that should ignore violations",
                   "additionalProperties": {
                     "type": "array",
                     "items": {
@@ -1826,15 +1850,100 @@
                   }
                 },
                 "enableWeakerNestedSandbox": {
-                  "type": "boolean",
-                  "description": "Enable weaker nested sandbox mode (recommended: true for Docker access)"
+                  "type": "boolean"
                 }
               },
               "additionalProperties": false
+            },
+            "mcp": {
+              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "type": "object",
+              "properties": {
+                "container": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+                  "description": "Container image for the MCP gateway executable"
+                },
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
+                  "examples": ["latest", "v1.0.0"]
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Arguments for container execution"
+                },
+                "entrypointArgs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Arguments to add after the container image (container entrypoint arguments)"
+                },
+                "env": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[A-Z_][A-Z0-9_]*$": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Environment variables for MCP gateway"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535,
+                  "default": 8080,
+                  "description": "Port number for the MCP gateway HTTP server (default: 8080)"
+                },
+                "api-key": {
+                  "type": "string",
+                  "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                }
+              },
+              "required": ["container"],
+              "additionalProperties": false
             }
           },
-          "required": ["type"],
           "additionalProperties": false
+        }
+      ],
+      "examples": [
+        "default",
+        "sandbox-runtime",
+        {
+          "agent": "awf"
+        },
+        {
+          "agent": "srt"
+        },
+        {
+          "agent": {
+            "type": "srt",
+            "config": {
+              "filesystem": {
+                "allowWrite": [".", "/tmp"]
+              }
+            }
+          }
+        },
+        {
+          "mcp": {
+            "container": "ghcr.io/githubnext/mcp-gateway",
+            "port": 8080
+          }
+        },
+        {
+          "agent": "awf",
+          "mcp": {
+            "container": "ghcr.io/githubnext/mcp-gateway",
+            "port": 8080,
+            "api-key": "${{ secrets.MCP_GATEWAY_API_KEY }}"
+          }
         }
       ]
     },
@@ -4517,6 +4626,9 @@
       "additionalProperties": false,
       "anyOf": [
         {
+          "required": ["type"]
+        },
+        {
           "required": ["command"]
         },
         {
@@ -4540,6 +4652,18 @@
           },
           "then": {
             "required": ["container"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["stdio", "local"]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
           }
         }
       ]
