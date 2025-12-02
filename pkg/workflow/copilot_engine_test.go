@@ -157,8 +157,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/agent/") {
 		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/agent/' command in step content:\n%s", stepContent)
 	}
-	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/.agent/logs/") {
-		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/.agent/logs/' command in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/sandbox/agent/logs/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/sandbox/agent/logs/' command in step content:\n%s", stepContent)
 	}
 }
 
@@ -197,7 +197,7 @@ func TestCopilotEngineGetLogFileForParsing(t *testing.T) {
 	engine := NewCopilotEngine()
 	logFile := engine.GetLogFileForParsing()
 
-	expected := "/tmp/gh-aw/.agent/logs/"
+	expected := "/tmp/gh-aw/sandbox/agent/logs/"
 	if logFile != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, logFile)
 	}
@@ -946,9 +946,9 @@ This workflow tests that Copilot log parsing uses the correct log file path.
 
 	lockStr := string(lockContent)
 
-	// Verify that the log parsing step uses /tmp/gh-aw/.agent/logs/ instead of agent-stdio.log
-	if !strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.agent/logs/") {
-		t.Error("Expected GH_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/.agent/logs/' for Copilot engine")
+	// Verify that the log parsing step uses /tmp/gh-aw/sandbox/agent/logs/ instead of agent-stdio.log
+	if !strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/sandbox/agent/logs/' for Copilot engine")
 	}
 
 	// Verify that it's NOT using the agent-stdio.log path for parsing
@@ -956,7 +956,7 @@ This workflow tests that Copilot log parsing uses the correct log file path.
 		t.Error("Expected GH_AW_AGENT_OUTPUT to NOT use '/tmp/gh-aw/agent-stdio.log' for Copilot engine")
 	}
 
-	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/.agent/logs/")
+	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/sandbox/agent/logs/")
 }
 
 func TestExtractAddDirPaths(t *testing.T) {
@@ -992,7 +992,7 @@ func TestExtractAddDirPaths(t *testing.T) {
 		},
 		{
 			name:     "all default copilot args",
-			args:     []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", "/tmp/gh-aw/.agent/logs/"},
+			args:     []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", "/tmp/gh-aw/sandbox/agent/logs/"},
 			expected: []string{"/tmp/", "/tmp/gh-aw/", "/tmp/gh-aw/agent/"},
 		},
 	}
