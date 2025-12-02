@@ -125,10 +125,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
-			if hostRepoSpec != "" && repoSpec != "" {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Please use either --host-repo or --repo, they are identical"))
-				os.Exit(1)
-			}
+			// If --repo was used instead of --host-repo, use its value
 			if repoSpec != "" {
 				hostRepoSpec = repoSpec
 			}
@@ -163,6 +160,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for trial execution (pushes and cleans up secrets in repository)")
+	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")
+	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 
 	return cmd
 }
@@ -192,11 +191,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), joinedNames)))
 	}
 
-	// Step 0: Validate mutually exclusive flags and determine workflow mode
-	if logicalRepoSpec != "" && cloneRepoSpec != "" {
-		return fmt.Errorf("--logical-repo and --clone-repo are mutually exclusive, please specify only one")
-	}
-
+	// Step 0: Determine workflow mode (mutual exclusion is enforced by Cobra)
 	var logicalRepoSlug string
 	var cloneRepoSlug string
 	var cloneRepoVersion string
