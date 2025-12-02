@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -11,12 +10,12 @@ var linkSubIssueLog = logger.New("workflow:link_sub_issue")
 
 // LinkSubIssueConfig holds configuration for linking issues as sub-issues from agent output
 type LinkSubIssueConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	ParentRequiredLabels []string `yaml:"parent-required-labels,omitempty"` // Required labels the parent issue must have
-	ParentTitlePrefix    string   `yaml:"parent-title-prefix,omitempty"`    // Required title prefix for parent issue
-	SubRequiredLabels    []string `yaml:"sub-required-labels,omitempty"`    // Required labels the sub-issue must have
-	SubTitlePrefix       string   `yaml:"sub-title-prefix,omitempty"`       // Required title prefix for sub-issue
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`            // Target repository in format "owner/repo" for cross-repository operations
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	ParentRequiredLabels   []string `yaml:"parent-required-labels,omitempty"` // Required labels the parent issue must have
+	ParentTitlePrefix      string   `yaml:"parent-title-prefix,omitempty"`    // Required title prefix for parent issue
+	SubRequiredLabels      []string `yaml:"sub-required-labels,omitempty"`    // Required labels the sub-issue must have
+	SubTitlePrefix         string   `yaml:"sub-title-prefix,omitempty"`       // Required title prefix for sub-issue
 }
 
 // parseLinkSubIssueConfig handles link-sub-issue configuration
@@ -24,55 +23,32 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 	linkSubIssueLog.Print("Parsing link-sub-issue configuration")
 	if configData, exists := outputMap["link-sub-issue"]; exists {
 		linkSubIssueConfig := &LinkSubIssueConfig{}
-		linkSubIssueConfig.Max = 5 // Default max is 5
 
 		if configMap, ok := configData.(map[string]any); ok {
 			linkSubIssueLog.Print("Found link-sub-issue config map")
+
+			// Parse target config (target-repo)
+			targetConfig, _ := ParseTargetConfig(configMap)
+			linkSubIssueConfig.SafeOutputTargetConfig = targetConfig
+
 			// Parse common base fields with default max of 5
 			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5)
 
 			// Parse parent-required-labels
-			if parentLabels, exists := configMap["parent-required-labels"]; exists {
-				if labelsArray, ok := parentLabels.([]any); ok {
-					for _, label := range labelsArray {
-						if labelStr, ok := label.(string); ok {
-							linkSubIssueConfig.ParentRequiredLabels = append(linkSubIssueConfig.ParentRequiredLabels, labelStr)
-						}
-					}
-				}
-			}
+			linkSubIssueConfig.ParentRequiredLabels = ParseStringArrayFromConfig(configMap, "parent-required-labels")
 
 			// Parse parent-title-prefix
-			if parentTitlePrefix, exists := configMap["parent-title-prefix"]; exists {
-				if prefixStr, ok := parentTitlePrefix.(string); ok {
-					linkSubIssueConfig.ParentTitlePrefix = prefixStr
-				}
-			}
+			linkSubIssueConfig.ParentTitlePrefix = ParseStringFromConfig(configMap, "parent-title-prefix")
 
 			// Parse sub-required-labels
-			if subLabels, exists := configMap["sub-required-labels"]; exists {
-				if labelsArray, ok := subLabels.([]any); ok {
-					for _, label := range labelsArray {
-						if labelStr, ok := label.(string); ok {
-							linkSubIssueConfig.SubRequiredLabels = append(linkSubIssueConfig.SubRequiredLabels, labelStr)
-						}
-					}
-				}
-			}
+			linkSubIssueConfig.SubRequiredLabels = ParseStringArrayFromConfig(configMap, "sub-required-labels")
 
 			// Parse sub-title-prefix
-			if subTitlePrefix, exists := configMap["sub-title-prefix"]; exists {
-				if prefixStr, ok := subTitlePrefix.(string); ok {
-					linkSubIssueConfig.SubTitlePrefix = prefixStr
-				}
-			}
+			linkSubIssueConfig.SubTitlePrefix = ParseStringFromConfig(configMap, "sub-title-prefix")
 
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			linkSubIssueConfig.TargetRepoSlug = targetRepoSlug
 			linkSubIssueLog.Printf("Parsed link-sub-issue config: max=%d, parent_labels=%d, sub_labels=%d, target_repo=%s",
 				linkSubIssueConfig.Max, len(linkSubIssueConfig.ParentRequiredLabels),
-				len(linkSubIssueConfig.SubRequiredLabels), targetRepoSlug)
+				len(linkSubIssueConfig.SubRequiredLabels), linkSubIssueConfig.TargetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
 			linkSubIssueConfig.Max = 5
@@ -91,38 +67,34 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, 
 		return nil, fmt.Errorf("safe-outputs.link-sub-issue configuration is required")
 	}
 
+	cfg := data.SafeOutputs.LinkSubIssue
+
 	maxCount := 5
-	if data.SafeOutputs.LinkSubIssue.Max > 0 {
-		maxCount = data.SafeOutputs.LinkSubIssue.Max
+	if cfg.Max > 0 {
+		maxCount = cfg.Max
 	}
 
 	// Build custom environment variables specific to link-sub-issue
 	var customEnvVars []string
 
 	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: %d\n", maxCount))
+	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_LINK_SUB_ISSUE_MAX_COUNT", maxCount)...)
 
 	// Pass parent required labels
-	if len(data.SafeOutputs.LinkSubIssue.ParentRequiredLabels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.LinkSubIssue.ParentRequiredLabels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS: %q\n", labelsStr))
+	if len(cfg.ParentRequiredLabels) > 0 {
+		customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS", cfg.ParentRequiredLabels)...)
 	}
 
 	// Pass parent title prefix
-	if data.SafeOutputs.LinkSubIssue.ParentTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX: %q\n", data.SafeOutputs.LinkSubIssue.ParentTitlePrefix))
-	}
+	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX", cfg.ParentTitlePrefix)...)
 
 	// Pass sub required labels
-	if len(data.SafeOutputs.LinkSubIssue.SubRequiredLabels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.LinkSubIssue.SubRequiredLabels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS: %q\n", labelsStr))
+	if len(cfg.SubRequiredLabels) > 0 {
+		customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS", cfg.SubRequiredLabels)...)
 	}
 
 	// Pass sub title prefix
-	if data.SafeOutputs.LinkSubIssue.SubTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX: %q\n", data.SafeOutputs.LinkSubIssue.SubTitlePrefix))
-	}
+	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX", cfg.SubTitlePrefix)...)
 
 	// Add environment variable for temporary ID map from create_issue job
 	if createIssueJobName != "" {
@@ -130,13 +102,7 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, 
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.LinkSubIssue.TargetRepoSlug)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.LinkSubIssue != nil {
-		token = data.SafeOutputs.LinkSubIssue.GitHubToken
-	}
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -160,8 +126,8 @@ func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, 
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		Needs:          needs,
-		Token:          token,
+		Token:          cfg.GitHubToken,
 		Condition:      BuildSafeOutputType("link_sub_issue"),
-		TargetRepoSlug: data.SafeOutputs.LinkSubIssue.TargetRepoSlug,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }

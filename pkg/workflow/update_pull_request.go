@@ -6,11 +6,10 @@ import (
 
 // UpdatePullRequestsConfig holds configuration for updating GitHub pull requests from agent output
 type UpdatePullRequestsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string `yaml:"target,omitempty"`      // Target for updates: "triggering" (default), "*" (any PR), or explicit PR number
-	Title                *bool  `yaml:"title,omitempty"`       // Allow updating PR title - defaults to true, set to false to disable
-	Body                 *bool  `yaml:"body,omitempty"`        // Allow updating PR body - defaults to true, set to false to disable
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository PR updates
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	Title                  *bool `yaml:"title,omitempty"` // Allow updating PR title - defaults to true, set to false to disable
+	Body                   *bool `yaml:"body,omitempty"`  // Allow updating PR body - defaults to true, set to false to disable
 }
 
 // buildCreateOutputUpdatePullRequestJob creates the update_pull_request job
@@ -19,9 +18,11 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 		return nil, fmt.Errorf("safe-outputs.update-pull-request configuration is required")
 	}
 
+	cfg := data.SafeOutputs.UpdatePullRequests
+
 	// Default to true for both title and body unless explicitly set to false
-	canUpdateTitle := data.SafeOutputs.UpdatePullRequests.Title == nil || *data.SafeOutputs.UpdatePullRequests.Title
-	canUpdateBody := data.SafeOutputs.UpdatePullRequests.Body == nil || *data.SafeOutputs.UpdatePullRequests.Body
+	canUpdateTitle := cfg.Title == nil || *cfg.Title
+	canUpdateBody := cfg.Body == nil || *cfg.Body
 
 	// Build custom environment variables specific to update-pull-request
 	customEnvVars := []string{
@@ -29,12 +30,11 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", canUpdateBody),
 	}
 
-	if data.SafeOutputs.UpdatePullRequests.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdatePullRequests.Target))
-	}
+	// Pass the target configuration
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_UPDATE_TARGET", cfg.Target)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.UpdatePullRequests.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -44,7 +44,7 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 
 	// Build job condition with event check if target is not specified
 	jobCondition := BuildSafeOutputType("update_pull_request")
-	if data.SafeOutputs.UpdatePullRequests != nil && data.SafeOutputs.UpdatePullRequests.Target == "" {
+	if cfg.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.pull_request.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
@@ -60,8 +60,8 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.UpdatePullRequests.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.UpdatePullRequests.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }
 
@@ -71,19 +71,9 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 		updatePullRequestsConfig := &UpdatePullRequestsConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					updatePullRequestsConfig.Target = targetStr
-				}
-			}
-
-			// Parse target-repo
-			if targetRepo, exists := configMap["target-repo"]; exists {
-				if targetRepoStr, ok := targetRepo.(string); ok {
-					updatePullRequestsConfig.TargetRepoSlug = targetRepoStr
-				}
-			}
+			// Parse target config (target, target-repo)
+			targetConfig, _ := ParseTargetConfig(configMap)
+			updatePullRequestsConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse title - boolean to enable/disable (defaults to true if nil or not set)
 			if titleVal, exists := configMap["title"]; exists {

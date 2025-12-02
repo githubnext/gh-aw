@@ -113,6 +113,34 @@ func parseRequiredTitlePrefixFromConfig(configMap map[string]any) string {
 	return ""
 }
 
+// ParseStringFromConfig extracts a string value from a config map by key.
+// Returns the string value, or empty string if not present or not a string.
+func ParseStringFromConfig(configMap map[string]any, key string) string {
+	if value, exists := configMap[key]; exists {
+		if strVal, ok := value.(string); ok {
+			return strVal
+		}
+	}
+	return ""
+}
+
+// ParseStringArrayFromConfig extracts a string array from a config map by key.
+// Returns the slice of strings, or nil if not present or not an array.
+func ParseStringArrayFromConfig(configMap map[string]any, key string) []string {
+	if value, exists := configMap[key]; exists {
+		if arrayVal, ok := value.([]any); ok {
+			var result []string
+			for _, item := range arrayVal {
+				if strVal, ok := item.(string); ok {
+					result = append(result, strVal)
+				}
+			}
+			return result
+		}
+	}
+	return nil
+}
+
 // ======================================
 // Generic Env Var Builders
 // ======================================

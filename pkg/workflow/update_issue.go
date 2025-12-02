@@ -6,12 +6,11 @@ import (
 
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	Status               *bool  `yaml:"status,omitempty"`      // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Target               string `yaml:"target,omitempty"`      // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
-	Title                *bool  `yaml:"title,omitempty"`       // Allow updating issue title - presence indicates field can be updated
-	Body                 *bool  `yaml:"body,omitempty"`        // Allow updating issue body - presence indicates field can be updated
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issue updates
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
+	Status                 *bool `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Title                  *bool `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
+	Body                   *bool `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
 }
 
 // buildCreateOutputUpdateIssueJob creates the update_issue job
@@ -20,19 +19,20 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		return nil, fmt.Errorf("safe-outputs.update-issue configuration is required")
 	}
 
+	cfg := data.SafeOutputs.UpdateIssues
+
 	// Build custom environment variables specific to update-issue
 	customEnvVars := []string{
-		fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil),
-		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil),
-		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", cfg.Status != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", cfg.Title != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", cfg.Body != nil),
 	}
 
-	if data.SafeOutputs.UpdateIssues.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
-	}
+	// Pass the target configuration
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_UPDATE_TARGET", cfg.Target)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.UpdateIssues.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -42,7 +42,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	// Build job condition with event check if target is not specified
 	jobCondition := BuildSafeOutputType("update_issue")
-	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
+	if cfg.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
@@ -58,8 +58,8 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          data.SafeOutputs.UpdateIssues.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.UpdateIssues.TargetRepoSlug,
+		Token:          cfg.GitHubToken,
+		TargetRepoSlug: cfg.TargetRepoSlug,
 	})
 }
 
@@ -69,19 +69,9 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 		updateIssuesConfig := &UpdateIssuesConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					updateIssuesConfig.Target = targetStr
-				}
-			}
-
-			// Parse target-repo
-			if targetRepo, exists := configMap["target-repo"]; exists {
-				if targetRepoStr, ok := targetRepo.(string); ok {
-					updateIssuesConfig.TargetRepoSlug = targetRepoStr
-				}
-			}
+			// Parse target config (target, target-repo)
+			targetConfig, _ := ParseTargetConfig(configMap)
+			updateIssuesConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse status - presence of the key (even if nil/empty) indicates field can be updated
 			if _, exists := configMap["status"]; exists {
