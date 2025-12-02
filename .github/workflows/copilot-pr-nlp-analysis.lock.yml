@@ -50,6 +50,7 @@
 #     title-prefix: "[nlp-analysis] "
 #     category: "audit"
 #     max: 1
+#     close-older-discussions: true
 #
 # imports:
 #   - shared/jqschema.md
@@ -7033,6 +7034,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "[nlp-analysis] "
           GH_AW_DISCUSSION_CATEGORY: "audit"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Copilot PR Conversation NLP Analysis"
           GH_AW_ENGINE_ID: "copilot"
         with:

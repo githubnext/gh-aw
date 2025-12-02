@@ -31,6 +31,7 @@ safe-outputs:
   create-discussion:
     category: "reports"
     max: 1
+    close-older-discussions: true
 
 tools:
   cache-memory:

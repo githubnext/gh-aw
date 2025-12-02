@@ -23,6 +23,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
+    close-older-discussions: true
   create-pull-request:
     title-prefix: "[mcp-tools] "
     labels: [documentation, automation]

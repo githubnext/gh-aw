@@ -28,6 +28,7 @@ safe-outputs:
     title-prefix: "[copilot-session-insights] "
     category: "audits"
     max: 1
+    close-older-discussions: true
 
 tools:
   cache-memory: true

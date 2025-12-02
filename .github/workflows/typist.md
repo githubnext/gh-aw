@@ -20,6 +20,7 @@ safe-outputs:
   create-discussion:
     category: "General"
     max: 1
+    close-older-discussions: true
 
 tools:
   serena: ["go"]

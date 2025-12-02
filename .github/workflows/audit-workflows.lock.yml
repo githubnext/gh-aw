@@ -47,6 +47,7 @@
 #   create-discussion:
 #     category: "audits"
 #     max: 1
+#     close-older-discussions: true
 # timeout-minutes: 30
 # imports:
 #   - shared/mcp/gh-aw.md
@@ -6212,6 +6213,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
           GH_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           GH_AW_TRACKER_ID: "audit-workflows-daily"
           GH_AW_ENGINE_ID: "claude"

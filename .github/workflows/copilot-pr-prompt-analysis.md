@@ -26,6 +26,7 @@ safe-outputs:
     title-prefix: "[prompt-analysis] "
     category: "audits"
     max: 1
+    close-older-discussions: true
 
 imports:
   - shared/jqschema.md
