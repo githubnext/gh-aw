@@ -18,6 +18,7 @@ var (
 
 // Global flags
 var verboseFlag bool
+var bannerFlag bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
@@ -43,6 +44,11 @@ Common Tasks:
 
 For detailed help on any command, use:
   gh aw [command] --help`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if bannerFlag {
+			console.PrintBanner()
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -349,6 +355,9 @@ func init() {
 
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
+
+	// Add global banner flag to root command
+	rootCmd.PersistentFlags().BoolVar(&bannerFlag, "banner", false, "Display ASCII logo banner with purple GitHub color theme")
 
 	// Set output to stderr for consistency with CLI logging guidelines
 	rootCmd.SetOut(os.Stderr)
