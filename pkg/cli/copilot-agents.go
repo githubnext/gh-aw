@@ -105,31 +105,11 @@ func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 	)
 }
 
-// ensureAgenticWorkflowPrompt removes the old agentic workflow prompt file if it exists
+// ensureAgenticWorkflowPrompt is a legacy function kept for backward compatibility
+// It was used during a previous migration to clean up old prompt files
+// Now it's effectively a no-op since we're using prompts again
 func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	// This function now removes the old prompt file since we've migrated to agent format
-	if skipInstructions {
-		return nil
-	}
-
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
-	oldPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-
-	// Check if the old prompt file exists and remove it
-	if _, err := os.Stat(oldPromptPath); err == nil {
-		if err := os.Remove(oldPromptPath); err != nil {
-			return fmt.Errorf("failed to remove old prompt file: %w", err)
-		}
-		if verbose {
-			fmt.Printf("Removed old prompt file: %s\n", oldPromptPath)
-		}
-	}
-
+	// This is now a no-op - kept only for compatibility with existing code paths
 	return nil
 }
 
