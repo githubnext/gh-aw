@@ -445,15 +445,6 @@ Examples:
 				}
 			}
 
-			// Validate firewall parameters
-			if firewallOnly && noFirewall {
-				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-					Type:    "error",
-					Message: "cannot specify both --firewall and --no-firewall flags",
-				}))
-				os.Exit(1)
-			}
-
 			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
@@ -481,6 +472,7 @@ Examples:
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 	logsCmd.Flags().Bool("json", false, "Output results in JSON format")
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
+	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	return logsCmd
 }

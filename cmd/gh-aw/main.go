@@ -228,13 +228,9 @@ Examples:
 			os.Exit(1)
 		}
 
-		// Handle --workflows-dir deprecation
+		// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
 		workflowDir := dir
 		if workflowsDir != "" {
-			if dir != "" {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("cannot use both --dir and --workflows-dir flags"))
-				os.Exit(1)
-			}
 			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
@@ -462,6 +458,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
+	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
