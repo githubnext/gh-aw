@@ -76,7 +76,7 @@ Examples:
 	}
 
 	// Add flags to audit command
-	addOutputFlag(auditCmd, "./logs")
+	addOutputFlag(auditCmd, ".github/aw/logs")
 	addJSONFlag(auditCmd)
 	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 
