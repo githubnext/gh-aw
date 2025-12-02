@@ -10,6 +10,68 @@ import (
 
 var engineHelpersLog = logger.New("workflow:engine_helpers")
 
+// EngineInstallConfig contains configuration for engine installation steps.
+// This struct centralizes the configuration needed to generate the common
+// installation steps shared by all engines (secret validation and npm installation).
+type EngineInstallConfig struct {
+	// Secrets is a list of secret names to validate (at least one must be set)
+	Secrets []string
+	// DocsURL is the documentation URL shown when secret validation fails
+	DocsURL string
+	// NpmPackage is the npm package name (e.g., "@github/copilot")
+	NpmPackage string
+	// Version is the default version of the npm package
+	Version string
+	// Name is the engine display name for secret validation messages (e.g., "Claude Code")
+	Name string
+	// CliName is the CLI name used for cache key prefix (e.g., "copilot")
+	CliName string
+	// InstallStepName is the display name for the npm install step (e.g., "Install Claude Code CLI")
+	InstallStepName string
+}
+
+// GetBaseInstallationSteps returns the common installation steps for an engine.
+// This includes secret validation and npm package installation steps that are
+// shared across all engines.
+//
+// Parameters:
+//   - config: Engine-specific configuration for installation
+//   - workflowData: The workflow data containing engine configuration
+//
+// Returns:
+//   - []GitHubActionStep: The base installation steps (secret validation + npm install)
+func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *WorkflowData) []GitHubActionStep {
+	engineHelpersLog.Printf("Generating base installation steps for %s engine: workflow=%s", config.Name, workflowData.Name)
+
+	var steps []GitHubActionStep
+
+	// Add secret validation step
+	secretValidation := GenerateMultiSecretValidationStep(
+		config.Secrets,
+		config.Name,
+		config.DocsURL,
+	)
+	steps = append(steps, secretValidation)
+
+	// Determine step name - use InstallStepName if provided, otherwise default to "Install <Name>"
+	stepName := config.InstallStepName
+	if stepName == "" {
+		stepName = fmt.Sprintf("Install %s", config.Name)
+	}
+
+	// Add npm package installation steps
+	npmSteps := BuildStandardNpmEngineInstallSteps(
+		config.NpmPackage,
+		config.Version,
+		stepName,
+		config.CliName,
+		workflowData,
+	)
+	steps = append(steps, npmSteps...)
+
+	return steps
+}
+
 // ExtractAgentIdentifier extracts the agent identifier (filename without extension) from an agent file path.
 // This is used by the Copilot CLI which expects agent identifiers, not full paths.
 //

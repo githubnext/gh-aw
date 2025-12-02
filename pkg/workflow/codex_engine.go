@@ -47,25 +47,16 @@ func NewCodexEngine() *CodexEngine {
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
-	var steps []GitHubActionStep
 
-	// Add secret validation step - Codex supports both CODEX_API_KEY and OPENAI_API_KEY as fallback
-	secretValidation := GenerateMultiSecretValidationStep(
-		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		"Codex",
-		"https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
-	)
-	steps = append(steps, secretValidation)
-
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"@openai/codex",
-		string(constants.DefaultCodexVersion),
-		"Install Codex",
-		"codex",
-		workflowData,
-	)
-	steps = append(steps, npmSteps...)
-	return steps
+	// Use base installation steps (secret validation + npm install)
+	return GetBaseInstallationSteps(EngineInstallConfig{
+		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+		NpmPackage: "@openai/codex",
+		Version:    string(constants.DefaultCodexVersion),
+		Name:       "Codex",
+		CliName:    "codex",
+	}, workflowData)
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce
