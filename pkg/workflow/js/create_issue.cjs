@@ -20,6 +20,7 @@ async function main() {
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
   core.setOutput("temporary_id_map", "{}");
+  core.setOutput("issues_to_assign_copilot", "");
 
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -355,6 +356,16 @@ async function main() {
   const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
   core.setOutput("temporary_id_map", tempIdMapOutput);
   core.info(`Temporary ID map: ${tempIdMapOutput}`);
+
+  // Output issues that need copilot assignment for assign_to_agent job
+  // This is used when create-issue has assignees: [copilot]
+  const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+  if (assignCopilot && createdIssues.length > 0) {
+    // Format: repo:number for each issue (for cross-repo support)
+    const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+    core.setOutput("issues_to_assign_copilot", issuesToAssign);
+    core.info(`Issues to assign copilot: ${issuesToAssign}`);
+  }
 
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }

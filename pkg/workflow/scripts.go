@@ -39,6 +39,9 @@ var assignMilestoneScriptSource string
 //go:embed js/assign_to_agent.cjs
 var assignToAgentScriptSource string
 
+//go:embed js/assign_copilot_to_created_issues.cjs
+var assignCopilotToCreatedIssuesScriptSource string
+
 //go:embed js/link_sub_issue.cjs
 var linkSubIssueScriptSource string
 
@@ -113,6 +116,7 @@ func init() {
 	DefaultScriptRegistry.Register("add_reviewer", addReviewerScriptSource)
 	DefaultScriptRegistry.Register("assign_milestone", assignMilestoneScriptSource)
 	DefaultScriptRegistry.Register("assign_to_agent", assignToAgentScriptSource)
+	DefaultScriptRegistry.Register("assign_copilot_to_created_issues", assignCopilotToCreatedIssuesScriptSource)
 	DefaultScriptRegistry.Register("link_sub_issue", linkSubIssueScriptSource)
 	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
@@ -178,6 +182,11 @@ func getAssignMilestoneScript() string {
 // getAssignToAgentScript returns the bundled assign_to_agent script
 func getAssignToAgentScript() string {
 	return DefaultScriptRegistry.Get("assign_to_agent")
+}
+
+// getAssignCopilotToCreatedIssuesScript returns the bundled assign_copilot_to_created_issues script
+func getAssignCopilotToCreatedIssuesScript() string {
+	return DefaultScriptRegistry.Get("assign_copilot_to_created_issues")
 }
 
 // getLinkSubIssueScript returns the bundled link_sub_issue script
