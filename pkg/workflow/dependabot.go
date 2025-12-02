@@ -602,25 +602,12 @@ func extractGoPackages(workflowData *WorkflowData) []string {
 
 // extractGoFromCommands extracts Go package paths from command strings
 func extractGoFromCommands(commands string) []string {
-	var packages []string
-
-	// Extract "go install <package>" pattern
-	installExtractor := PackageExtractor{
-		CommandNames:       []string{"go"},
-		RequiredSubcommand: "install",
-		TrimSuffixes:       "&|;",
+	extractor := PackageExtractor{
+		CommandNames:        []string{"go"},
+		RequiredSubcommands: []string{"install", "get"},
+		TrimSuffixes:        "&|;",
 	}
-	packages = append(packages, installExtractor.ExtractPackages(commands)...)
-
-	// Extract "go get <package>" pattern
-	getExtractor := PackageExtractor{
-		CommandNames:       []string{"go"},
-		RequiredSubcommand: "get",
-		TrimSuffixes:       "&|;",
-	}
-	packages = append(packages, getExtractor.ExtractPackages(commands)...)
-
-	return packages
+	return extractor.ExtractPackages(commands)
 }
 
 // generateGoMod creates or updates go.mod with dependencies
