@@ -50,10 +50,19 @@ Find one issue that needs work and assign it to the Copilot agent for resolution
 
 ### 1. Search for Issues with "issue monster" or "task" Label
 
-Use GitHub search to find issues labeled with "issue monster" OR "task":
+Search for issues with either the "issue monster" label or the "task" label. Since GitHub search doesn't support OR between labels directly, run **two separate searches** and combine the results:
+
+**Search 1 - "task" label:**
 ```
-is:issue is:open (label:"issue monster" OR label:"task") repo:${{ github.repository }}
+is:open label:task repo:${{ github.repository }}
 ```
+
+**Search 2 - "issue monster" label:**
+```
+is:open label:"issue monster" repo:${{ github.repository }}
+```
+
+Combine results from both searches, removing duplicates if any issue has both labels.
 
 **Sort by**: `created` (descending) - prioritize the freshest/most recent issues first
 
