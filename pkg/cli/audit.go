@@ -53,14 +53,13 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
 		Args: cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			runIDOrURL := args[0]
 
 			// Parse run information from input (either numeric ID or URL)
 			runInfo, err := parseRunURL(runIDOrURL)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
 
 			outputDir, _ := cmd.Flags().GetString("output")
@@ -68,10 +67,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			parse, _ := cmd.Flags().GetBool("parse")
 
-			if err := AuditWorkflowRun(runInfo, outputDir, verbose, parse, jsonOutput); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
+			return AuditWorkflowRun(runInfo, outputDir, verbose, parse, jsonOutput)
 		},
 	}
 

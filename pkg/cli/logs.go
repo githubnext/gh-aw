@@ -358,7 +358,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
   ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both markdown and JSON
   ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
 				// Convert workflow ID to GitHub Actions workflow name
@@ -378,11 +378,10 @@ Examples:
 							"Check for typos in the workflow name",
 							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
 						}
-						fmt.Fprintln(os.Stderr, console.FormatErrorWithSuggestions(
+						return errors.New(console.FormatErrorWithSuggestions(
 							fmt.Sprintf("workflow '%s' not found", args[0]),
 							suggestions,
 						))
-						os.Exit(1)
 					}
 				} else {
 					workflowName = resolvedName
@@ -412,22 +411,14 @@ Examples:
 			if startDate != "" {
 				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
 				if err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-						Type:    "error",
-						Message: fmt.Sprintf("invalid start-date format '%s': %v", startDate, err),
-					}))
-					os.Exit(1)
+					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
 				}
 				startDate = resolvedStartDate
 			}
 			if endDate != "" {
 				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
 				if err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-						Type:    "error",
-						Message: fmt.Sprintf("invalid end-date format '%s': %v", endDate, err),
-					}))
-					os.Exit(1)
+					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
 				}
 				endDate = resolvedEndDate
 			}
@@ -437,21 +428,11 @@ Examples:
 				registry := workflow.GetGlobalEngineRegistry()
 				if !registry.IsValidEngine(engine) {
 					supportedEngines := registry.GetSupportedEngines()
-					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-						Type:    "error",
-						Message: fmt.Sprintf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", ")),
-					}))
-					os.Exit(1)
+					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-					Type:    "error",
-					Message: err.Error(),
-				}))
-				os.Exit(1)
-			}
+			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout)
 		},
 	}
 

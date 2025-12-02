@@ -1,10 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +22,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` status ci-                 # Show workflows with 'ci-' in name
   ` + constants.CLIExtensionPrefix + ` status --json              # Output in JSON format
   ` + constants.CLIExtensionPrefix + ` status --ref main          # Show latest run status for main branch`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			var pattern string
 			if len(args) > 0 {
 				pattern = args[0]
@@ -34,10 +30,7 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonFlag, _ := cmd.Flags().GetBool("json")
 			ref, _ := cmd.Flags().GetString("ref")
-			if err := StatusWorkflows(pattern, verbose, jsonFlag, ref); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
+			return StatusWorkflows(pattern, verbose, jsonFlag, ref)
 		},
 	}
 
