@@ -169,14 +169,16 @@
 #
 # Before running any tests, verify that both GitHub MCP and Playwright MCP are working:
 #
-# 1. **Verify GitHub MCP**: Try to list 1 recent PR using the GitHub MCP tool
-# 2. **Verify Playwright MCP**: Try a simple playwright browser launch
+# 1. **Verify GitHub MCP**: Call `github-get_me` to verify the GitHub MCP is responding. This is a lightweight call that just returns user info. Only note if the call succeeded or failed - do NOT include the response data in your reasoning.
+# 2. **Verify Playwright MCP**: Navigate to https://github.com using Playwright and verify the page loads. Only note success/failure.
+#
+# **IMPORTANT**: These checks should be minimal. Do NOT process or reason about the full response data - just verify the tools respond without errors. This prevents context overflow.
 #
 # **CRITICAL: If either GitHub MCP or Playwright MCP fails to respond or returns an error, IMMEDIATELY exit with a failure message. Do NOT proceed with the rest of the tests. Report which tool failed and stop.**
 #
 # ## Test Requirements
 #
-# 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
+# 1. **GitHub MCP Testing**: List the last 2 merged pull requests in ${{ github.repository }} using `github-list_pull_requests` with `state: "closed"` and `perPage: 2`. Extract ONLY the PR numbers and titles - ignore all other metadata to avoid context overflow.
 # 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 # 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 # 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
@@ -3358,14 +3360,16 @@ jobs:
           
           Before running any tests, verify that both GitHub MCP and Playwright MCP are working:
           
-          1. **Verify GitHub MCP**: Try to list 1 recent PR using the GitHub MCP tool
-          2. **Verify Playwright MCP**: Try a simple playwright browser launch
+          1. **Verify GitHub MCP**: Call `github-get_me` to verify the GitHub MCP is responding. This is a lightweight call that just returns user info. Only note if the call succeeded or failed - do NOT include the response data in your reasoning.
+          2. **Verify Playwright MCP**: Navigate to https://github.com using Playwright and verify the page loads. Only note success/failure.
+          
+          **IMPORTANT**: These checks should be minimal. Do NOT process or reason about the full response data - just verify the tools respond without errors. This prevents context overflow.
           
           **CRITICAL: If either GitHub MCP or Playwright MCP fails to respond or returns an error, IMMEDIATELY exit with a failure message. Do NOT proceed with the rest of the tests. Report which tool failed and stop.**
           
           ## Test Requirements
           
-          1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${GH_AW_GITHUB_REPOSITORY}
+          1. **GitHub MCP Testing**: List the last 2 merged pull requests in ${GH_AW_GITHUB_REPOSITORY} using `github-list_pull_requests` with `state: "closed"` and `perPage: 2`. Extract ONLY the PR numbers and titles - ignore all other metadata to avoid context overflow.
           2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${GH_AW_GITHUB_RUN_ID}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
