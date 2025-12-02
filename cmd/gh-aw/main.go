@@ -464,14 +464,25 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
+
+	// Register completions for compile command
+	compileCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterEngineFlagCompletion(compileCmd)
+	cli.RegisterDirFlagCompletion(compileCmd, "dir")
+
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	// Register completions for remove command
+	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to enable/disable commands
 	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	// Register completions for enable/disable commands
+	enableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
@@ -481,6 +492,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
+	// Register completions for run command
+	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterEngineFlagCompletion(runCmd)
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()

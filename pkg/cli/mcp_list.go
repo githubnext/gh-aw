@@ -259,5 +259,8 @@ The command will:
 		},
 	}
 
+	// Register completions for mcp list command
+	cmd.ValidArgsFunction = CompleteWorkflowNames
+
 	return cmd
 }

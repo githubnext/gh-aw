@@ -474,6 +474,11 @@ Examples:
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
+	// Register completions for logs command
+	logsCmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterEngineFlagCompletion(logsCmd)
+	RegisterDirFlagCompletion(logsCmd, "output")
+
 	return logsCmd
 }
 

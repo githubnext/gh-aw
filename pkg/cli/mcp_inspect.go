@@ -535,5 +535,8 @@ The command will:
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
 	cmd.Flags().BoolVar(&checkSecrets, "check-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
+	// Register completions for mcp inspect command
+	cmd.ValidArgsFunction = CompleteWorkflowNames
+
 	return cmd
 }

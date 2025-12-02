@@ -120,6 +120,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
+	// Register completions for add command
+	RegisterEngineFlagCompletion(cmd)
+	RegisterDirFlagCompletion(cmd, "dir")
+
 	return cmd
 }
 

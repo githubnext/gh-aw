@@ -84,6 +84,11 @@ Examples:
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
 
+	// Register completions for update command
+	cmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterEngineFlagCompletion(cmd)
+	RegisterDirFlagCompletion(cmd, "dir")
+
 	return cmd
 }
 
