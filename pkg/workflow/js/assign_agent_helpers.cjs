@@ -4,9 +4,11 @@
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues
  * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
+ *
+ * NOTE: All functions use the built-in `github` global object for authentication.
+ * The token must be set at the step level via the `github-token` parameter in GitHub Actions.
+ * This approach is required for compatibility with actions/github-script@v8.
  */
-
-const { getOctokitClient, setGetOctokitFactory } = require("./get_octokit_client.cjs");
 
 /**
  * Map agent names to their GitHub bot login names
@@ -38,10 +40,9 @@ function getAgentName(assignee) {
  * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
  * @param {string} owner
  * @param {string} repo
- * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string[]>}
  */
-async function getAvailableAgentLogins(owner, repo, ghToken) {
+async function getAvailableAgentLogins(owner, repo) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -52,9 +53,7 @@ async function getAvailableAgentLogins(owner, repo, ghToken) {
     }
   `;
   try {
-    // Use Octokit client with custom token if provided, otherwise use default github object
-    const client = ghToken ? getOctokitClient(ghToken) : github;
-    const response = await client.graphql(query, { owner, repo });
+    const response = await github.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = [];
@@ -76,10 +75,9 @@ async function getAvailableAgentLogins(owner, repo, ghToken) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
- * @param {string} [ghToken] - GitHub token for the query (optional, uses default github object if not provided)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
-async function findAgent(owner, repo, agentName, ghToken) {
+async function findAgent(owner, repo, agentName) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -97,9 +95,7 @@ async function findAgent(owner, repo, agentName, ghToken) {
   `;
 
   try {
-    // Use Octokit client with custom token if provided, otherwise use default github object
-    const client = ghToken ? getOctokitClient(ghToken) : github;
-    const response = await client.graphql(query, { owner, repo });
+    const response = await github.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -186,14 +182,9 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
- * @param {string} [ghToken] - GitHub token for the mutation (optional, uses built-in github object if not provided).
- *   Token must have:
- *   - Write actions/contents/issues/pull-requests permissions
- *   - A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions
- *   - Note: assign_to_agent.cjs uses the built-in github object authenticated via step-level github-token (GH_AW_AGENT_TOKEN by default)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, ghToken) {
+async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
   // Build actor IDs array - include agent and preserve other assignees
   const actorIds = [agentId];
   for (const assigneeId of currentAssignees) {
@@ -214,13 +205,10 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
   `;
 
   try {
-    // Use Octokit client with custom token if provided, otherwise use default github object
-    // The mutation requires: Write actions/contents/issues/pull-requests
-    core.info(ghToken ? "Using provided GitHub token for mutation" : "Using built-in github object for mutation");
-    const client = ghToken ? getOctokitClient(ghToken) : github;
+    core.info("Using built-in github object for mutation");
 
     core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-    const response = await client.graphql(mutation, {
+    const response = await github.graphql(mutation, {
       assignableId: issueId,
       actorIds: actorIds,
     });
@@ -273,7 +261,6 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
       // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
       core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
       try {
-        // SECURITY: Use same token for fallback mutation with GraphQL variables
         const fallbackMutation = `
           mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
             addAssigneesToAssignable(input: {
@@ -284,31 +271,17 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
             }
           }
         `;
-        if (!ghToken) {
-          core.error("GitHub token is not set. Cannot perform fallback mutation.");
+        core.info("Using built-in github object for fallback mutation");
+        core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+        const fallbackResp = await github.graphql(fallbackMutation, {
+          assignableId: issueId,
+          assigneeIds: [agentId],
+        });
+        if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+          core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+          return true;
         } else {
-          core.info("Using provided GitHub token for fallback mutation");
-          core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
-          const fallbackResp = await fetch("https://api.github.com/graphql", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${ghToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              query: fallbackMutation,
-              variables: {
-                assignableId: issueId,
-                assigneeIds: [agentId],
-              },
-            }),
-          }).then(res => res.json());
-          if (fallbackResp.data && fallbackResp.data.addAssigneesToAssignable) {
-            core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
-            return true;
-          } else {
-            core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
-          }
+          core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
         }
       } catch (fallbackError) {
         const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -386,11 +359,9 @@ function generatePermissionErrorSummary() {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {string} agentName - Agent name (e.g., "copilot")
- * @param {string} ghToken - GitHub token for the mutation. Must have sufficient permissions
- *   to assign agents. See assignAgentToIssue() for token requirements.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghToken) {
+async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
   // Check if agent is supported
   if (!AGENT_LOGIN_NAMES[agentName]) {
     const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
@@ -399,13 +370,13 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghT
   }
 
   try {
-    // Find agent - use the provided token for the GraphQL query
+    // Find agent using the github object authenticated via step-level github-token
     core.info(`Looking for ${agentName} coding agent...`);
-    const agentId = await findAgent(owner, repo, agentName, ghToken);
+    const agentId = await findAgent(owner, repo, agentName);
     if (!agentId) {
       const error = `${agentName} coding agent is not available for this repository`;
-      // Enrich with available agent logins - also use the provided token
-      const available = await getAvailableAgentLogins(owner, repo, ghToken);
+      // Enrich with available agent logins
+      const available = await getAvailableAgentLogins(owner, repo);
       const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
       return { success: false, error: enrichedError };
     }
@@ -428,7 +399,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, ghT
 
     // Assign agent using GraphQL mutation
     core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, ghToken);
+    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
     if (!success) {
       return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
@@ -452,5 +423,4 @@ module.exports = {
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
-  setGetOctokitFactory, // Exposed for testing (re-exported from get_octokit_client.cjs)
 };
