@@ -17,6 +17,10 @@ engine:
   id: copilot
   model: gpt-5-mini
 network:
+  allowed:
+    - defaults
+    - node
+    - github
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
