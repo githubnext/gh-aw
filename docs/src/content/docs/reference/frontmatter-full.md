@@ -1107,10 +1107,14 @@ tools:
   # functions)
   github: null
 
-  # Option 2: Simple GitHub tool configuration (enables all GitHub API functions)
+  # Option 2: Boolean to explicitly enable (true) or disable (false) the GitHub MCP
+  # server. When set to false, the GitHub MCP server is not mounted.
+  github: true
+
+  # Option 3: Simple GitHub tool configuration (enables all GitHub API functions)
   github: "example-value"
 
-  # Option 3: GitHub tools object configuration with restricted function access
+  # Option 4: GitHub tools object configuration with restricted function access
   github:
     # List of allowed GitHub API functions (e.g., 'create_issue', 'update_issue',
     # 'add_comment')
@@ -1508,6 +1512,14 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # List of additional repositories in format 'owner/repo' that issues can be
+    # created in. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to create the issue in. The target repository (current
+    # or target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
@@ -1601,6 +1613,14 @@ safe-outputs:
     # creation. Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that discussions can be
+    # created in. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to create the discussion in. The target repository
+    # (current or target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.

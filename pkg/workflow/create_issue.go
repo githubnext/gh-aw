@@ -58,6 +58,46 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	return nil
 }
 
+// hasCopilotAssignee checks if "copilot" is in the assignees list
+func hasCopilotAssignee(assignees []string) bool {
+	for _, a := range assignees {
+		if a == "copilot" {
+			return true
+		}
+	}
+	return false
+}
+
+// filterNonCopilotAssignees returns assignees excluding "copilot"
+func filterNonCopilotAssignees(assignees []string) []string {
+	var result []string
+	for _, a := range assignees {
+		if a != "copilot" {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
+// buildCopilotAssignmentStep generates a post-step for assigning copilot to created issues
+// This step uses the agent token (GH_AW_AGENT_TOKEN) for the GraphQL mutation
+func buildCopilotAssignmentStep(configToken string) []string {
+	var steps []string
+
+	// Get the effective agent token
+	effectiveToken := getEffectiveAgentGitHubToken(configToken)
+
+	steps = append(steps, "      - name: Assign copilot to created issues\n")
+	steps = append(steps, "        if: steps.create_issue.outputs.issues_to_assign_copilot != ''\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, FormatJavaScriptForYAML(getAssignCopilotToCreatedIssuesScript())...)
+
+	return steps
+}
+
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
@@ -78,9 +118,18 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)
 
-	// Build post-steps for assignees if configured
+	// Check if copilot is in assignees - if so, we'll output issues for assign_to_agent job
+	assignCopilot := hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees)
+	if assignCopilot {
+		customEnvVars = append(customEnvVars, "          GH_AW_ASSIGN_COPILOT: \"true\"\n")
+		createIssueLog.Print("Copilot assignment requested - will output issues_to_assign_copilot for assign_to_agent job")
+	}
+
+	// Build post-steps for non-copilot assignees only
+	// Copilot assignment must be done in a separate step with the agent token
 	var postSteps []string
-	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
+	nonCopilotAssignees := filterNonCopilotAssignees(data.SafeOutputs.CreateIssues.Assignees)
+	if len(nonCopilotAssignees) > 0 {
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
 		if data.SafeOutputs != nil {
@@ -88,7 +137,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		}
 
 		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
-			Participants:       data.SafeOutputs.CreateIssues.Assignees,
+			Participants:       nonCopilotAssignees,
 			ParticipantType:    "assignee",
 			CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
 			SafeOutputsToken:   safeOutputsToken,
@@ -98,11 +147,21 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		})
 	}
 
+	// Add post-step for copilot assignment using agent token
+	if assignCopilot {
+		postSteps = append(postSteps, buildCopilotAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken)...)
+	}
+
 	// Create outputs for the job
 	outputs := map[string]string{
 		"issue_number":     "${{ steps.create_issue.outputs.issue_number }}",
 		"issue_url":        "${{ steps.create_issue.outputs.issue_url }}",
 		"temporary_id_map": "${{ steps.create_issue.outputs.temporary_id_map }}",
+	}
+
+	// Add issues_to_assign_copilot output if copilot assignment is requested
+	if assignCopilot {
+		outputs["issues_to_assign_copilot"] = "${{ steps.create_issue.outputs.issues_to_assign_copilot }}"
 	}
 
 	// Use the shared builder function to create the job

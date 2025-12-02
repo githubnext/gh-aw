@@ -361,7 +361,7 @@ func TestSafeOutputJobBuilderWithPreAndPostSteps(t *testing.T) {
 		stepType     string
 	}{
 		{
-			name: "create-issue with assignees (post-steps)",
+			name: "create-issue with copilot assignee (post-steps)",
 			frontmatter: `---
 on: issues
 permissions:
@@ -374,7 +374,8 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			expectedStep: "Assign issue to copilot",
+			// In the new design, copilot assignment is done via a separate step with agent token
+			expectedStep: "Assign copilot to created issues",
 			stepType:     "post-step",
 		},
 		{

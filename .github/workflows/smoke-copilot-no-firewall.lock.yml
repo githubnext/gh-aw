@@ -6964,6 +6964,7 @@ jobs:
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
               core.setOutput("temporary_id_map", "{}");
+              core.setOutput("issues_to_assign_copilot", "");
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const result = loadAgentOutput();
               if (!result.success) {
@@ -7246,6 +7247,12 @@ jobs:
               const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
               core.setOutput("temporary_id_map", tempIdMapOutput);
               core.info(`Temporary ID map: ${tempIdMapOutput}`);
+              const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+              if (assignCopilot && createdIssues.length > 0) {
+                const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+                core.setOutput("issues_to_assign_copilot", issuesToAssign);
+                core.info(`Issues to assign copilot: ${issuesToAssign}`);
+              }
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
             (async () => {

@@ -221,7 +221,9 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as assignee (should be mapped to "@copilot")
+	// Test with "copilot" as assignee
+	// In the new design, copilot assignments are done in a separate step
+	// with the agent token (GH_AW_AGENT_TOKEN), not via post-steps
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -239,42 +241,29 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Check that the step name shows "copilot"
-	if !strings.Contains(stepsContent, "Assign issue to copilot") {
-		t.Error("Expected assignee step name to show 'copilot'")
+	// Verify that there's a separate step for copilot assignment
+	if !strings.Contains(stepsContent, "Assign copilot to created issues") {
+		t.Error("Expected separate step 'Assign copilot to created issues' for copilot assignment")
 	}
 
-	// Check that the actual assignee is "@copilot" (gh CLI special value)
-	if !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
-		t.Error("Expected ASSIGNEE environment variable to be set to '@copilot'")
+	// Verify that the step uses agent token precedence (GH_AW_AGENT_TOKEN)
+	if !strings.Contains(stepsContent, "secrets.GH_AW_AGENT_TOKEN") {
+		t.Error("Expected copilot assignment step to use GH_AW_AGENT_TOKEN")
 	}
 
-	// Verify that the original "copilot" without @ is NOT used as assignee
-	if strings.Contains(stepsContent, `ASSIGNEE: "copilot"`) && !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
-		t.Error("Expected 'copilot' to be mapped to '@copilot', not used directly")
+	// Verify that the step is conditioned on issues_to_assign_copilot output
+	if !strings.Contains(stepsContent, "steps.create_issue.outputs.issues_to_assign_copilot") {
+		t.Error("Expected copilot assignment step to be conditioned on issues_to_assign_copilot output")
 	}
 
-	// Find the assignee step section (after "Assign issue to copilot")
-	assigneeStepIndex := strings.Index(stepsContent, "Assign issue to copilot")
-	if assigneeStepIndex == -1 {
-		t.Fatal("Could not find assignee step")
-	}
-	assigneeStepContent := stepsContent[assigneeStepIndex:]
-
-	// Find the next step or end of content (limit to this step only)
-	nextStepIndex := strings.Index(assigneeStepContent[len("Assign issue to copilot"):], "- name:")
-	if nextStepIndex != -1 {
-		assigneeStepContent = assigneeStepContent[:len("Assign issue to copilot")+nextStepIndex]
+	// Verify that the job outputs issues_to_assign_copilot
+	if _, exists := job.Outputs["issues_to_assign_copilot"]; !exists {
+		t.Error("Expected job outputs to include issues_to_assign_copilot")
 	}
 
-	// Verify that GH_TOKEN uses Copilot token precedence with legacy fallback in assignee step
-	if !strings.Contains(assigneeStepContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected GH_TOKEN in assignee step to use Copilot token precedence with legacy fallback")
-	}
-
-	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot assignees in assignee step
-	if strings.Contains(assigneeStepContent, "|| secrets.GITHUB_TOKEN }}") {
-		t.Errorf("Did not expect GITHUB_TOKEN in fallback chain for copilot assignees in assignee step. Content: %s", assigneeStepContent)
+	// Verify that GH_AW_ASSIGN_COPILOT env var is set
+	if !strings.Contains(stepsContent, "GH_AW_ASSIGN_COPILOT") {
+		t.Error("Expected GH_AW_ASSIGN_COPILOT environment variable to be set")
 	}
 }
 

@@ -189,7 +189,8 @@ This workflow should compile successfully without assignees configuration.
 	}
 }
 
-// TestCreateIssueWorkflowWithCopilotAssignee tests that "copilot" is mapped to "@copilot"
+// TestCreateIssueWorkflowWithCopilotAssignee tests that copilot assignment is done
+// via a separate step with the agent token (GH_AW_AGENT_TOKEN)
 func TestCreateIssueWorkflowWithCopilotAssignee(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "copilot-assignee-test")
@@ -233,19 +234,24 @@ Create an issue and assign to copilot.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that step name shows "copilot"
-	if !strings.Contains(compiledStr, "Assign issue to copilot") {
-		t.Error("Expected assignee step name to show 'copilot'")
+	// Verify that there's a separate step for copilot assignment
+	if !strings.Contains(compiledStr, "Assign copilot to created issues") {
+		t.Error("Expected separate step 'Assign copilot to created issues' for copilot assignment")
 	}
 
-	// Verify that actual assignee is "@copilot" (gh CLI special value)
-	if !strings.Contains(compiledStr, `ASSIGNEE: "@copilot"`) {
-		t.Error("Expected ASSIGNEE to be mapped to '@copilot'")
+	// Verify that the step uses agent token (GH_AW_AGENT_TOKEN)
+	if !strings.Contains(compiledStr, "GH_AW_AGENT_TOKEN") {
+		t.Error("Expected copilot assignment step to use GH_AW_AGENT_TOKEN")
 	}
 
-	// Verify that "copilot" without @ is NOT used as the actual assignee value
-	if strings.Contains(compiledStr, `ASSIGNEE: "copilot"`) && !strings.Contains(compiledStr, `ASSIGNEE: "@copilot"`) {
-		t.Error("Did not expect 'copilot' to be used directly as assignee value")
+	// Verify that the step is conditioned on issues_to_assign_copilot output
+	if !strings.Contains(compiledStr, "issues_to_assign_copilot") {
+		t.Error("Expected copilot assignment step to reference issues_to_assign_copilot output")
+	}
+
+	// Verify GH_AW_ASSIGN_COPILOT env var is set in create_issue step
+	if !strings.Contains(compiledStr, "GH_AW_ASSIGN_COPILOT") {
+		t.Error("Expected GH_AW_ASSIGN_COPILOT environment variable to be set")
 	}
 }
 
