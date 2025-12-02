@@ -7791,12 +7791,50 @@ jobs:
           persist-credentials: false
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
-        run: |
-          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
-            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
+        with:
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
+          script: |
+            const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
+            async function main() {
+              const prNumberStr = process.env.PR_NUMBER;
+              if (!prNumberStr || prNumberStr.trim() === "") {
+                core.setFailed("PR_NUMBER environment variable is required but not set");
+                return;
+              }
+              const prNumber = parseInt(prNumberStr.trim(), 10);
+              if (isNaN(prNumber) || prNumber <= 0) {
+                core.setFailed(`Invalid PR_NUMBER: ${prNumberStr}. Must be a positive integer.`);
+                return;
+              }
+              core.info(`Adding Copilot as reviewer to PR #${prNumber}`);
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  reviewers: [COPILOT_REVIEWER_BOT],
+                });
+                core.info(`Successfully added Copilot as reviewer to PR #${prNumber}`);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Copilot Reviewer Added
+            Successfully added Copilot as a reviewer to PR #${prNumber}.
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
+                core.setFailed(`Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   detection:
     needs: agent

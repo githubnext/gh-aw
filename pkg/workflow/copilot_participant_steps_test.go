@@ -85,9 +85,9 @@ func TestBuildCopilotParticipantSteps_CopilotAssignee(t *testing.T) {
 		t.Error("Expected ASSIGNEE environment variable to be set to '@copilot'")
 	}
 
-	// Check that Copilot token precedence is used with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence with legacy fallback")
+	// Check that agent token is used for copilot assignees
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN }}") {
+		t.Error("Expected GH_AW_AGENT_TOKEN for copilot assignees")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot assignees
@@ -145,12 +145,12 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 	steps := buildCopilotParticipantSteps(config)
 	stepsContent := strings.Join(steps, "")
 
-	// Check that it uses the GitHub API (not gh pr edit)
-	if !strings.Contains(stepsContent, "gh api --method POST") {
-		t.Error("Expected GitHub API call for copilot reviewer")
+	// Check that it uses actions/github-script (not gh api)
+	if !strings.Contains(stepsContent, "actions/github-script") {
+		t.Error("Expected actions/github-script for copilot reviewer")
 	}
 
-	// Check that it uses the correct bot name
+	// Check that it uses the correct bot name in the JavaScript
 	if !strings.Contains(stepsContent, "copilot-pull-request-reviewer[bot]") {
 		t.Error("Expected copilot-pull-request-reviewer[bot] as the reviewer")
 	}
@@ -160,9 +160,14 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 		t.Error("Should not use gh pr edit for copilot reviewer")
 	}
 
-	// Check that Copilot token precedence is used with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence with legacy fallback")
+	// Check that github-token uses agent token for copilot reviewer
+	if !strings.Contains(stepsContent, "github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}") {
+		t.Error("Expected github-token to use GH_AW_AGENT_TOKEN for copilot reviewer")
+	}
+
+	// Check that the JavaScript uses github.rest.pulls.requestReviewers
+	if !strings.Contains(stepsContent, "github.rest.pulls.requestReviewers") {
+		t.Error("Expected JavaScript to use github.rest.pulls.requestReviewers")
 	}
 }
 
@@ -216,9 +221,9 @@ func TestBuildCopilotParticipantSteps_MixedParticipants(t *testing.T) {
 		t.Error("Expected assignee step for user2")
 	}
 
-	// When copilot is in the list, all steps should use Copilot token with legacy fallback
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence with legacy fallback when copilot is in the list")
+	// When copilot is in the list, all steps should use agent token
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN }}") {
+		t.Error("Expected GH_AW_AGENT_TOKEN when copilot is in the list")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain
