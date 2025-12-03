@@ -51,10 +51,10 @@ imports:
 
 	// Check that error contains source location
 	wantContains := []string{
-		"workflow.md:4:",     // Line number
-		"error:",             // Error type
+		"workflow.md:4:",        // Line number
+		"error:",                // Error type
 		"import file not found", // Error message
-		"nonexistent.md",     // Import path
+		"nonexistent.md",        // Import path
 	}
 
 	for _, want := range wantContains {
