@@ -327,6 +327,11 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
 		"            exit 1",
 		"          fi",
+		"          ",
+		"          # Write validation results to step summary",
+		"          {",
+		"            echo \"## Agent Environment Validation\"",
+		"            echo \"\"",
 	}
 
 	// Add conditional messages for each secret
@@ -334,19 +339,24 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		if i == 0 {
 			stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
 			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 		} else if i == len(secretNames)-1 {
 			stepLines = append(stepLines, "          else")
 			if len(secretNames) == 2 {
 				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured (using as fallback for %s)\"", secretName, secretNames[0]))
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured (using as fallback for %s)\"", secretName, secretNames[0]))
 			} else {
 				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 			}
 		} else {
 			stepLines = append(stepLines, fmt.Sprintf("          elif [ -n \"$%s\" ]; then", secretName))
 			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 		}
 	}
 	stepLines = append(stepLines, "          fi")
+	stepLines = append(stepLines, "          } >> \"$GITHUB_STEP_SUMMARY\"")
 
 	// Add env section with all secrets
 	stepLines = append(stepLines, "        env:")
