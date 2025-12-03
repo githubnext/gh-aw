@@ -54,6 +54,7 @@ func resolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	fullPath := filepath.Join(baseDir, filePath)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		remoteLog.Printf("Local file not found: %s", fullPath)
+		// Return a simple error that will be wrapped with source location by the caller
 		return "", fmt.Errorf("file not found: %s", fullPath)
 	}
 	remoteLog.Printf("Resolved to local file: %s", fullPath)
