@@ -8,6 +8,7 @@ on:
         description: "GitHub organization to scan for stale repositories"
         required: true
         type: string
+        default: github
   schedule:
     - cron: "3 2 1 * *"  # Monthly on the 1st at 2:03 AM UTC
 
@@ -21,6 +22,10 @@ engine: copilot
 strict: false
 timeout-minutes: 45
 
+imports:
+  - shared/python-dataviz.md
+  - shared/jqschema.md
+
 network:
   allowed:
     - defaults
@@ -31,6 +36,7 @@ safe-outputs:
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis]
     max: 10
+  upload-assets:
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."
@@ -45,10 +51,11 @@ tools:
       - pull_requests
   bash:
     - "*"
+  edit:
 
 env:
   # For scheduled runs, set a default organization or use repository variables
-  ORGANIZATION: ${{ github.event.inputs.organization || 'githubnext' }}
+  ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
 
 steps:
   - name: Run stale_repos tool
