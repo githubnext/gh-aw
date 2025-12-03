@@ -944,11 +944,19 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
+          
+          # Write validation results to step summary
+          {
+            echo "## Agent Environment Validation"
+            echo ""
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+            echo "- ✅ **CLAUDE_CODE_OAUTH_TOKEN**: Configured"
           else
             echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "- ✅ **ANTHROPIC_API_KEY**: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -6704,11 +6712,19 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
+          
+          # Write validation results to step summary
+          {
+            echo "## Agent Environment Validation"
+            echo ""
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+            echo "- ✅ **CLAUDE_CODE_OAUTH_TOKEN**: Configured"
           else
             echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "- ✅ **ANTHROPIC_API_KEY**: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
