@@ -192,7 +192,7 @@ Test workflow to verify network.firewall still works (deprecated).
 func TestSandboxAgentFalseExtraction(t *testing.T) {
 	t.Run("extractAgentSandboxConfig handles false", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
-		
+
 		// Test with false value
 		agentConfig := compiler.extractAgentSandboxConfig(false)
 		if agentConfig == nil {
@@ -205,7 +205,7 @@ func TestSandboxAgentFalseExtraction(t *testing.T) {
 
 	t.Run("extractAgentSandboxConfig handles true (invalid)", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
-		
+
 		// Test with true value (should be invalid)
 		agentConfig := compiler.extractAgentSandboxConfig(true)
 		if agentConfig != nil {
@@ -215,7 +215,7 @@ func TestSandboxAgentFalseExtraction(t *testing.T) {
 
 	t.Run("extractAgentSandboxConfig handles string", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
-		
+
 		// Test with "awf" string
 		agentConfig := compiler.extractAgentSandboxConfig("awf")
 		if agentConfig == nil {

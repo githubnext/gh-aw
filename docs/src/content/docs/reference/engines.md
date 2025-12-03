@@ -145,7 +145,24 @@ network:
 
 ### Disabling the Firewall
 
-To disable the firewall for any engine that supports it, set `firewall: false` in the `network` configuration. When disabling the firewall while also specifying `network.allowed` domains, you must set `strict: false` to avoid compilation errors:
+:::caution[Deprecated]
+The `network.firewall: false` configuration is deprecated. Use `sandbox.agent: false` instead.
+:::
+
+To disable the firewall for any engine that supports it, use `sandbox.agent: false`:
+
+```yaml wrap
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+sandbox:
+  agent: false
+```
+
+**Legacy approach (deprecated):**
 
 ```yaml wrap
 strict: false
@@ -157,13 +174,10 @@ network:
   firewall: false
 ```
 
-:::caution
-When `network.allowed` domains are specified, disabling the firewall triggers:
-- A **warning** in normal mode (compilation succeeds)
-- An **error** in strict mode (compilation fails)
-
-Set `strict: false` explicitly if you need to disable the firewall while using domain allowlists.
-:::
+When the firewall is disabled:
+- Network permissions still apply for content sanitization
+- The agent can make network requests without firewall enforcement
+- This is useful during development or when the firewall is incompatible with your workflow
 
 See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
 
