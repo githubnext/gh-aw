@@ -13,13 +13,13 @@ jobs:
   close-old-discussions:
     runs-on: ubuntu-latest
     steps:
-      - name: Close discussions older than 1 week
+      - name: Close discussions older than 3 days
         uses: actions/github-script@v7
         with:
           script: |
-            const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+            const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
             const GRAPHQL_DELAY_MS = 500;
-            const cutoffDate = new Date(Date.now() - ONE_WEEK_MS);
+            const cutoffDate = new Date(Date.now() - THREE_DAYS_MS);
             
             // Helper function for delay between API calls
             const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -74,7 +74,7 @@ jobs:
                   continue;
                 }
                 
-                // Check if older than 1 week
+                // Check if older than 3 days
                 const createdAt = new Date(discussion.createdAt);
                 if (createdAt >= cutoffDate) {
                   continue;
@@ -83,7 +83,7 @@ jobs:
                 core.info(`Closing discussion #${discussion.number}: "${discussion.title}" (created ${discussion.createdAt})`);
                 
                 // Close the discussion with a comment
-                const closeComment = `This discussion was automatically closed because it was created by an agentic workflow more than 1 week ago.`;
+                const closeComment = `This discussion was automatically closed because it was created by an agentic workflow more than 3 days ago.`;
                 
                 // Add a comment before closing
                 await github.graphql(`
@@ -127,7 +127,7 @@ jobs:
             // Write summary
             await core.summary
               .addHeading('Close Old Bot Discussions', 2)
-              .addRaw(`Closed **${closedCount}** discussion(s) created by agentic workflows that were older than 1 week.`)
+              .addRaw(`Closed **${closedCount}** discussion(s) created by agentic workflows that were older than 3 days.`)
               .write();
 
   close-old-smoke-claude-issues:
