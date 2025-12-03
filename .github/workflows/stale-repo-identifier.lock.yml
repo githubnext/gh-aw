@@ -247,6 +247,18 @@
 #    - Outdated dependencies
 #    - Unanswered issues or PRs
 #
+# ### Edge Cases to Consider
+#
+# When analyzing repositories, be aware of these special cases:
+#
+# - **Already Archived**: If a repository is already archived, skip it (no issue needed)
+# - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
+# - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
+# - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
+# - **Documentation Repositories**: Documentation-only repos often have legitimate periods of low activity between major updates.
+# - **Mono-repo Subprojects**: Activity might be happening in a parent repository or related repos.
+# - **Bot-Maintained Repositories**: Some repos are primarily maintained by automated systems and may appear to have "stale" human activity.
+#
 # ### Step 4: Create Detailed Issue Reports
 #
 # For each repository classified as **Truly Stale** or **Requires Attention**, create an issue with:
@@ -2027,6 +2039,18 @@ jobs:
              - Outstanding security issues
              - Outdated dependencies
              - Unanswered issues or PRs
+          
+          ### Edge Cases to Consider
+          
+          When analyzing repositories, be aware of these special cases:
+          
+          - **Already Archived**: If a repository is already archived, skip it (no issue needed)
+          - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
+          - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
+          - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
+          - **Documentation Repositories**: Documentation-only repos often have legitimate periods of low activity between major updates.
+          - **Mono-repo Subprojects**: Activity might be happening in a parent repository or related repos.
+          - **Bot-Maintained Repositories**: Some repos are primarily maintained by automated systems and may appear to have "stale" human activity.
           
           ### Step 4: Create Detailed Issue Reports
           
