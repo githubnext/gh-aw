@@ -330,8 +330,7 @@ Downloaded artifacts include:
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'weekly-research') or the full filename (e.g., 'weekly-research.md').
+` + WorkflowIDExplanation + `
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
