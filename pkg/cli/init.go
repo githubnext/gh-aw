@@ -109,13 +109,14 @@ func InitRepository(verbose bool, mcp bool) error {
 
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
 	if mcp {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ GitHub Copilot Agent MCP integration configured"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Start Copilot, type /create-agentic-workflow"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then activate @.github/prompts/create-agentic-workflow.prompt.md"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
