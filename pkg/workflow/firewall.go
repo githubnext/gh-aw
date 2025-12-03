@@ -17,8 +17,17 @@ type FirewallConfig struct {
 
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
 // Firewall is enabled if network.firewall is explicitly set to true or an object
+// Firewall is disabled if sandbox.agent is explicitly set to false
 func isFirewallEnabled(workflowData *WorkflowData) bool {
-	// Check network.firewall configuration
+	// Check if sandbox.agent: false (new way to disable firewall)
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil {
+		if workflowData.SandboxConfig.Agent.Disabled {
+			firewallLog.Print("Firewall disabled via sandbox.agent: false")
+			return false
+		}
+	}
+
+	// Check network.firewall configuration (deprecated)
 	if workflowData != nil && workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		enabled := workflowData.NetworkPermissions.Firewall.Enabled
 		firewallLog.Printf("Firewall enabled check: %v", enabled)
@@ -60,6 +69,7 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 // enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
+// and sandbox.agent is not explicitly set to false
 func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Only apply to copilot engine
 	if engineID != "copilot" {
@@ -68,6 +78,12 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 
 	// Check if network permissions exist
 	if networkPermissions == nil {
+		return
+	}
+
+	// Check if sandbox.agent: false is set (disables firewall)
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		firewallLog.Print("sandbox.agent: false is set, skipping AWF auto-enablement")
 		return
 	}
 

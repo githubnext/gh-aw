@@ -756,6 +756,18 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 // extractAgentSandboxConfig extracts agent sandbox configuration
 func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
+	// Handle boolean format: false (to disable firewall)
+	if agentBool, ok := agentVal.(bool); ok {
+		if !agentBool {
+			// agent: false means disable firewall
+			return &AgentSandboxConfig{
+				Disabled: true,
+			}
+		}
+		// agent: true is not a valid configuration
+		return nil
+	}
+
 	// Handle string format: "awf" or "srt"
 	if agentStr, ok := agentVal.(string); ok {
 		agentType := SandboxType(agentStr)
