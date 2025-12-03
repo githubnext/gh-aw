@@ -857,38 +857,6 @@ network:
     # Array of Domain name or ecosystem identifier (supports wildcards like
     # '*.example.com' and ecosystem names like 'python', 'node')
 
-  # AWF (Agent Workflow Firewall) configuration for network egress control. Only
-  # supported for Copilot engine.
-  # (optional)
-  # This field supports multiple formats (oneOf):
-
-  # Option 1: Enable AWF with default settings (equivalent to empty object)
-  firewall: null
-
-  # Option 2: Enable (true) or explicitly disable (false) AWF firewall
-  firewall: true
-
-  # Option 3: Disable AWF firewall (triggers warning if allowed != *, error in
-  # strict mode if allowed is not * or engine does not support firewall)
-  firewall: "disable"
-
-  # Option 4: Custom AWF configuration with version and arguments
-  firewall:
-    # Optional additional arguments to pass to AWF wrapper
-    # (optional)
-    args: []
-      # Array of strings
-
-    # AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0',
-    # 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted
-    # to strings at runtime.
-    # (optional)
-    version: null
-
-    # AWF log level (default: info). Valid values: debug, info, warn, error
-    # (optional)
-    log-level: "debug"
-
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
 # Runtime) and MCP gateway.
 # (optional)
@@ -907,15 +875,18 @@ sandbox:
   type: "default"
 
   # Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses
-  # Anthropic Sandbox Runtime
+  # Anthropic Sandbox Runtime, or 'false' to disable firewall
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
+  # Option 1: Set to false to disable the agent firewall
+  agent: true
+
+  # Option 2: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
   # Runtime
   agent: "awf"
 
-  # Option 2: Custom sandbox runtime configuration
+  # Option 3: Custom sandbox runtime configuration
   agent:
     # Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow
     # Firewall, 'srt' for Sandbox Runtime
