@@ -94,9 +94,7 @@ function resolveTarget(params) {
 
   if (target === "*") {
     // Use item_number, issue_number, or pull_request_number from item
-    const numberField = supportsPR
-      ? item.item_number || item.issue_number || item.pull_request_number
-      : item.pull_request_number;
+    const numberField = supportsPR ? item.item_number || item.issue_number || item.pull_request_number : item.pull_request_number;
 
     if (numberField) {
       itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
