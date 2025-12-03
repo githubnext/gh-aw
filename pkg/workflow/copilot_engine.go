@@ -107,28 +107,38 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// SRT and AWF are mutually exclusive (validated earlier)
 	if isSRTEnabled(workflowData) {
 		// Install Sandbox Runtime (SRT)
-		copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
-		srtSystemDeps := generateSRTSystemDepsStep()
-		steps = append(steps, srtSystemDeps)
+		agentConfig := getAgentConfig(workflowData)
 
-		copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
-		srtSystemConfig := generateSRTSystemConfigStep()
-		steps = append(steps, srtSystemConfig)
+		// Skip standard installation if custom command is specified
+		if agentConfig == nil || agentConfig.Command == "" {
+			copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
+			srtSystemDeps := generateSRTSystemDepsStep()
+			steps = append(steps, srtSystemDeps)
 
-		copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
-		srtInstall := generateSRTInstallationStep()
-		steps = append(steps, srtInstall)
+			copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
+			srtSystemConfig := generateSRTSystemConfigStep()
+			steps = append(steps, srtSystemConfig)
+
+			copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
+			srtInstall := generateSRTInstallationStep()
+			steps = append(steps, srtInstall)
+		} else {
+			copilotLog.Print("Skipping SRT installation (custom command specified)")
+		}
 	} else if isFirewallEnabled(workflowData) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
 		var awfVersion string
 		if firewallConfig != nil {
 			awfVersion = firewallConfig.Version
 		}
 
-		// Install AWF binary
-		awfInstall := generateAWFInstallationStep(awfVersion)
-		steps = append(steps, awfInstall)
+		// Install AWF binary (or skip if custom command is specified)
+		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
+		if len(awfInstall) > 0 {
+			steps = append(steps, awfInstall)
+		}
 	}
 
 	// Add Copilot CLI installation step after sandbox installation
@@ -278,6 +288,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Build the SRT-wrapped command
 		copilotLog.Print("Using Sandbox Runtime (SRT) for execution")
 
+		agentConfig := getAgentConfig(workflowData)
+
 		// Generate SRT config JSON
 		srtConfigJSON, err := generateSRTConfigJSON(workflowData)
 		if err != nil {
@@ -286,13 +298,31 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			srtConfigJSON = "{}"
 		}
 
-		// Create the Node.js wrapper script for SRT
-		srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
+		// Check if custom command is specified
+		if agentConfig != nil && agentConfig.Command != "" {
+			// Use custom command for SRT
+			copilotLog.Printf("Using custom SRT command: %s", agentConfig.Command)
 
-		command = srtWrapperScript
+			// Build args list with custom args appended
+			var srtArgs []string
+			if len(agentConfig.Args) > 0 {
+				srtArgs = append(srtArgs, agentConfig.Args...)
+				copilotLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
+			}
+
+			// Build the command with custom SRT command
+			// The custom command should handle wrapping copilot with SRT
+			command = fmt.Sprintf(`set -o pipefail
+%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile))
+		} else {
+			// Create the Node.js wrapper script for SRT (standard installation)
+			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
+			command = srtWrapperScript
+		}
 	} else if isFirewallEnabled(workflowData) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
 		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
 		var awfLogLevel = "info"
 		if firewallConfig != nil && firewallConfig.LogLevel != "" {
 			awfLogLevel = firewallConfig.LogLevel
@@ -333,13 +363,29 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfArgs = append(awfArgs, firewallConfig.Args...)
 		}
 
+		// Add custom args from agent config if specified
+		if agentConfig != nil && len(agentConfig.Args) > 0 {
+			awfArgs = append(awfArgs, agentConfig.Args...)
+			copilotLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
+		}
+
+		// Determine the AWF command to use (custom or standard)
+		var awfCommand string
+		if agentConfig != nil && agentConfig.Command != "" {
+			awfCommand = agentConfig.Command
+			copilotLog.Printf("Using custom AWF command: %s", awfCommand)
+		} else {
+			awfCommand = "sudo -E awf"
+			copilotLog.Print("Using standard AWF command")
+		}
+
 		// Build the full AWF command with proper argument separation
 		// AWF v0.2.0 uses -- to separate AWF args from the actual command
 		// The command arguments should be passed as individual shell arguments, not as a single string
 		command = fmt.Sprintf(`set -o pipefail
-sudo -E awf %s \
+%s %s \
   -- %s \
-  2>&1 | tee %s`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
@@ -403,6 +449,15 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		for key, value := range workflowData.EngineConfig.Env {
 			env[key] = value
 		}
+	}
+
+	// Add custom environment variables from agent config
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		for key, value := range agentConfig.Env {
+			env[key] = value
+		}
+		copilotLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough
@@ -943,7 +998,14 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 }
 
 // generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
-func generateAWFInstallationStep(version string) GitHubActionStep {
+func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
+	// If custom command is specified, skip installation (command replaces binary)
+	if agentConfig != nil && agentConfig.Command != "" {
+		copilotLog.Print("Skipping AWF binary installation (custom command specified)")
+		// Return empty step - custom command will be used in execution
+		return GitHubActionStep([]string{})
+	}
+
 	stepLines := []string{
 		"      - name: Install awf binary",
 		"        run: |",

@@ -333,6 +333,32 @@
     }
   },
   {
+    "name": "assign_to_user",
+    "description": "Assign one or more GitHub users to an issue. Use this to delegate work to specific team members. Users must have access to the repository.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["issue_number"],
+      "properties": {
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to assign users to. If omitted, assigns to the issue that triggered this workflow."
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "GitHub usernames to assign to the issue (e.g., ['octocat', 'mona']). Users must have access to the repository."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Single GitHub username to assign. Use 'assignees' array for multiple users."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_issue",
     "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
     "inputSchema": {

@@ -10,7 +10,7 @@ import (
 // TestAWFInstallationStepDefaultVersion verifies that AWF installation uses the default version when not specified
 func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 	t.Run("uses default version when no version specified", func(t *testing.T) {
-		step := generateAWFInstallationStep("")
+		step := generateAWFInstallationStep("", nil)
 		stepStr := strings.Join(step, "\n")
 
 		// Should NOT contain gh release view command
@@ -43,7 +43,7 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 
 	t.Run("uses specified version when provided", func(t *testing.T) {
 		customVersion := "v0.2.0"
-		step := generateAWFInstallationStep(customVersion)
+		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
 		// Should contain the custom version

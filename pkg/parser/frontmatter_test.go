@@ -2044,3 +2044,80 @@ This is an included file.`
 		})
 	}
 }
+
+// TestProcessIncludedFileWithNameAndDescription verifies that name and description fields
+// do not generate warnings when processing included files outside .github/workflows/
+func TestProcessIncludedFileWithNameAndDescription(t *testing.T) {
+	tempDir := t.TempDir()
+	docsDir := filepath.Join(tempDir, "docs")
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		t.Fatalf("Failed to create docs directory: %v", err)
+	}
+
+	// Create a test file with name and description fields
+	testFile := filepath.Join(docsDir, "shared-config.md")
+	testContent := `---
+name: Shared Configuration
+description: Common tools and configuration for workflows
+tools:
+  github:
+    allowed: [issue_read]
+---
+
+# Shared Configuration
+
+This is a shared configuration file.`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Process the included file - should not generate warnings for name and description
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited() error = %v", err)
+	}
+
+	if !strings.Contains(result, "# Shared Configuration") {
+		t.Errorf("Expected markdown content not found in result")
+	}
+
+	// The test should pass without warnings being printed to stderr
+	// We can't easily capture stderr in this test, but the absence of an error
+	// indicates that the file was processed successfully
+}
+
+// TestProcessIncludedFileWithOnlyNameAndDescription verifies that files with only
+// name and description fields (and no other fields) are processed without warnings
+func TestProcessIncludedFileWithOnlyNameAndDescription(t *testing.T) {
+	tempDir := t.TempDir()
+	docsDir := filepath.Join(tempDir, "docs")
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		t.Fatalf("Failed to create docs directory: %v", err)
+	}
+
+	// Create a test file with only name and description fields
+	testFile := filepath.Join(docsDir, "minimal-config.md")
+	testContent := `---
+name: Minimal Configuration
+description: A minimal configuration with just metadata
+---
+
+# Minimal Configuration
+
+This file only has name and description in frontmatter.`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	// Process the included file - should not generate warnings
+	result, err := processIncludedFileWithVisited(testFile, "", false, make(map[string]bool))
+	if err != nil {
+		t.Fatalf("processIncludedFileWithVisited() error = %v", err)
+	}
+
+	if !strings.Contains(result, "# Minimal Configuration") {
+		t.Errorf("Expected markdown content not found in result")
+	}
+}

@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
 `,
 			expected: map[string]string{
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 `,
 			expected: map[string]string{
@@ -159,7 +159,7 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 				"actions/setup-node": {
 					Repo:    "actions/setup-node",
 					Version: "v6",
-					SHA:     "2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+					SHA:     "395ad3262231945c25e8478fd5baf05154b1d79f",
 				},
 				"actions/checkout": {
 					Repo:    "actions/checkout",

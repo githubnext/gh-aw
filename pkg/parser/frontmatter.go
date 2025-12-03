@@ -628,10 +628,21 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		} else {
 			// For non-workflow files, fall back to relaxed validation with warnings
 			if len(result.Frontmatter) > 0 {
-				// Check for unexpected frontmatter fields (anything other than tools, engine, network, mcp-servers, and imports)
+				// Valid fields for non-workflow frontmatter (fields that should not trigger warnings)
+				validFields := map[string]bool{
+					"tools":       true,
+					"engine":      true,
+					"network":     true,
+					"mcp-servers": true,
+					"imports":     true,
+					"name":        true,
+					"description": true,
+				}
+
+				// Check for unexpected frontmatter fields
 				unexpectedFields := make([]string, 0)
 				for key := range result.Frontmatter {
-					if key != "tools" && key != "engine" && key != "network" && key != "mcp-servers" && key != "imports" {
+					if !validFields[key] {
 						unexpectedFields = append(unexpectedFields, key)
 					}
 				}

@@ -42,6 +42,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddReviewer != nil ||
 		safeOutputs.AssignMilestone != nil ||
 		safeOutputs.AssignToAgent != nil ||
+		safeOutputs.AssignToUser != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.UpdatePullRequests != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
@@ -221,6 +222,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					// Handle null case: create empty config
 					config.AssignToAgent = &AssignToAgentConfig{}
 				}
+			}
+
+			// Handle assign-to-user
+			assignToUserConfig := c.parseAssignToUserConfig(outputMap)
+			if assignToUserConfig != nil {
+				config.AssignToUser = assignToUserConfig
 			}
 
 			// Handle update-issue
@@ -895,6 +902,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["assign_to_agent"] = assignToAgentConfig
 		}
+		if data.SafeOutputs.AssignToUser != nil {
+			assignToUserConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.AssignToUser.Max > 0 {
+				maxValue = data.SafeOutputs.AssignToUser.Max
+			}
+			assignToUserConfig["max"] = maxValue
+			if len(data.SafeOutputs.AssignToUser.Allowed) > 0 {
+				assignToUserConfig["allowed"] = data.SafeOutputs.AssignToUser.Allowed
+			}
+			safeOutputsConfig["assign_to_user"] = assignToUserConfig
+		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
 			// Always include max (use configured value or default)
@@ -1096,6 +1116,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.AssignToAgent != nil {
 		enabledTools["assign_to_agent"] = true
+	}
+	if data.SafeOutputs.AssignToUser != nil {
+		enabledTools["assign_to_user"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true

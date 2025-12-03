@@ -150,7 +150,7 @@ func TestExtractEngineConfig(t *testing.T) {
 					"steps": []any{
 						map[string]any{
 							"name": "Setup Node.js",
-							"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+							"uses": "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f",
 							"with": map[string]any{
 								"node-version": "18",
 							},
@@ -168,7 +168,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				Steps: []map[string]any{
 					{
 						"name": "Setup Node.js",
-						"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+						"uses": "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f",
 						"with": map[string]any{
 							"node-version": "18",
 						},
