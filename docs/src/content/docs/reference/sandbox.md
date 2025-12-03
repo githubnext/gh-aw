@@ -74,6 +74,32 @@ network:
     - "api.example.com"
 ```
 
+#### Custom AWF Configuration
+
+Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup:
+
+```yaml wrap
+sandbox:
+  agent:
+    id: awf
+    command: "docker run --rm my-custom-awf-image"
+    args:
+      - "--custom-logging"
+      - "--debug-mode"
+    env:
+      AWF_CUSTOM_VAR: "custom_value"
+      DEBUG_LEVEL: "verbose"
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Agent identifier: `awf` or `srt` |
+| `command` | `string` | Custom command to replace AWF binary installation |
+| `args` | `string[]` | Additional arguments appended to the command |
+| `env` | `object` | Environment variables set on the execution step |
+
+When `command` is specified, the standard AWF installation is skipped and your custom command is used instead.
+
 ### Sandbox Runtime (SRT)
 
 :::caution[Experimental]
@@ -114,6 +140,31 @@ network:
 :::note[Network Configuration]
 Network configuration for SRT is controlled by the top-level `network` field, not the sandbox config. This ensures consistent network policy across all sandbox types.
 :::
+
+#### Custom SRT Configuration
+
+Similar to AWF, SRT supports custom commands, arguments, and environment variables:
+
+```yaml wrap
+features:
+  sandbox-runtime: true
+
+sandbox:
+  agent:
+    id: srt
+    command: "custom-srt-wrapper"
+    args:
+      - "--custom-arg"
+      - "--debug"
+    env:
+      SRT_DEBUG: "true"
+      SRT_CUSTOM_VAR: "test_value"
+    config:
+      filesystem:
+        allowWrite: [".", "/tmp"]
+```
+
+When `command` is specified, the standard SRT installation is skipped. The `config` field can still be used for filesystem configuration.
 
 ## MCP Gateway
 
@@ -159,16 +210,24 @@ sandbox:
 
 ## Legacy Format
 
-For backward compatibility, the legacy string format is still supported:
+For backward compatibility, legacy formats are still supported:
 
 ```yaml wrap
-# Legacy format (deprecated)
+# Legacy string format (deprecated)
 sandbox: sandbox-runtime
 
-# Recommended format
+# Legacy object format with 'type' field (deprecated)
 sandbox:
-  agent: srt
+  agent:
+    type: awf
+
+# Recommended format with 'id' field
+sandbox:
+  agent:
+    id: awf
 ```
+
+The `id` field replaces the legacy `type` field in the object format. When both are present, `id` takes precedence.
 
 ## Feature Flags
 
