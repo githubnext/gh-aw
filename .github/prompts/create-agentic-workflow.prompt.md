@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: Design agentic workflows using GitHub Agentic Workflows (gh-aw) extension with interactive guidance on triggers, tools, and security best practices.
 ---
 

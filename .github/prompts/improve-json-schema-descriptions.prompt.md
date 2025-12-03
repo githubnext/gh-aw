@@ -1,5 +1,4 @@
 ---
-mode: agent
 name: improve-json-schema-descriptions
 description: Systematic approach for reviewing and improving descriptions in the frontmatter JSON schema for GitHub Agentic Workflows
 ---
